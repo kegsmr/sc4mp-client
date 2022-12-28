@@ -103,14 +103,16 @@ class DMRClient(wx.Frame):
 
 		self.SetTitle("Poppy Multiplayer Regions")
 
-
+#TODO: documentation
+# Load configuration file, or create one if it doesn't exist
 def loadConfig():
+
 	global DMR_LAUNCHPATH
 	global DMR_LAUNCHRESW
 	global DMR_LAUNCHRESH
 	global DMR_CUSTOMPATH
 	
-	# Load configuration file, or create one if it doesn't exist
+	#TODO add cpu options for start parameters
 	configpath = get_dmr_path("config.ini")
 	try:
 		config = configparser.RawConfigParser()
@@ -148,12 +150,24 @@ def createDirectories():
 			try:
 				os.makedirs(directorytocreate)
 			except:
-				return False
+				return "Failed to create directories."
 		if directory == "Plugins":
 			noticepath = os.path.join(DMR_LAUNCHPATH, directory, "__PUT YOUR PLUGINS IN THIS FOLDER__.txt")
 			open(noticepath, 'a').close()
 
-	return True
+	return None
+
+
+#TODO: documentation
+def loadPlugins():
+	#TODO: implement
+	return None
+
+
+#TODO: documentation
+def loadRegions():
+	#TODO: implement
+	return None
 
 
 #TODO: documentation
@@ -178,19 +192,25 @@ def startSC4():
 				break
 
 	if not path:
-		return False
+		return "Path to Simcity 4 not found."
 
 	arguments = [path, ' -UserDir:"' + DMR_LAUNCHPATH + '"', ' -intro:off', ' -w', ' -CustomResolution:enabled', ' -r' + str(DMR_LAUNCHRESW) + 'x' + str(DMR_LAUNCHRESH) + 'x32']
-	subprocess.run(arguments)
+	
+	try:
+		subprocess.run(' '.join(arguments))
+	except PermissionError:
+		return "Permission denied. Run the program as administrator."
 
-	return True
+	return None
 
 
 #TODO: documentation
-def demo():
-	loadConfig()
-	createDirectories()
-	startSC4()
+def cmd():
+	print(loadConfig())
+	print(createDirectories())
+	print(loadPlugins())
+	print(loadRegions())
+	print(startSC4())
 
 
 #TODO: documentation
@@ -200,5 +220,6 @@ def main():
 	dmr.MainLoop()
 
 
+# Load the main function
 if __name__ == '__main__':
-	demo()
+	cmd()
