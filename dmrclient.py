@@ -29,6 +29,7 @@ def get_dmr_path(filename):
 	return os.path.join(dmr_resources_path, filename)
 
 
+#TODO: dunno what this does
 def md5(fname):
 	hash_md5 = hashlib.md5()
 	with open(fname, "rb") as f:
@@ -37,6 +38,7 @@ def md5(fname):
 	return hash_md5.hexdigest()
 
 
+#TODO: UI
 class DMRClient(wx.Frame):
 	
 	def __init__(self, parent):
