@@ -62,6 +62,26 @@ def md5(filename):
 	return hash_md5.hexdigest()
 
 
+"""TODO
+
+Arguments:
+	TODO
+
+Returns:
+	TODO
+"""
+def purge_directory(directory):
+	for filename in os.listdir(directory):
+		file_path = os.path.join(directory, filename)
+		try:
+			if os.path.isfile(file_path) or os.path.islink(file_path):
+				os.unlink(file_path)
+			elif os.path.isdir(file_path):
+				shutil.rmtree(file_path)
+		except Exception as e:
+			print('Failed to delete %s. Reason: %s' % (file_path, e))
+
+
 """Loads the config file from the resources subdirectory or creates it if it does not yet exist.
 
 Arguments:
@@ -77,6 +97,8 @@ def load_config():
 	global DMR_LAUNCHRESH
 	global DMR_CUSTOMPATH
 	
+	print("[DMR] Loading config...")
+
 	#TODO add cpu options for start parameters
 	configpath = get_dmr_path("config.ini")
 	try:
@@ -114,6 +136,8 @@ Returns:
 """
 def create_subdirectories():
 
+	print("[DMR] Creating subdirectories...")
+
 	directories = ["DMRCache", "DMRProfiles", "DMRSalvage", "Plugins", "Regions", os.path.join("DMRCache","Plugins"), os.path.join("DMRCache","Regions")]
 
 	for directory in directories:
@@ -130,6 +154,129 @@ def create_subdirectories():
 	return None
 
 
+"""TODO
+
+Arguments:
+	TODO
+
+Returns:
+	TODO
+"""
+def connect(host, port):
+
+	print("[DMR] Connecting to server at " + str(host) + ":" + str(port) + "...")
+
+	print("[DMR] Fetching server id...")
+	server_id = request_server_id(host, port)
+	print(server_id)
+
+	print("[DMR] Loading plugins...")
+	load("plugins", server_id, host, port)
+
+	print("[DMR] Loading regions...")
+	load("regions", server_id, host, port)
+
+
+"""TODO
+
+Arguments:
+	TODO
+
+Returns:
+	TODO
+"""
+def request_server_id(host, port):
+	print("(using placeholder server id)")
+	return "server_id" #TODO actually get the server id
+
+
+"""TODO
+
+Arguments:
+	TODO
+
+Returns:
+	TODO
+"""
+def load(type, server_id, host, port):
+
+	directory = None
+	if (type == "plugins"):
+		directory = "Plugins"
+	elif (type == "regions"):
+		directory = "Regions"
+
+	print("purging " + type + " directory...")
+	purge_directory(os.path.join(DMR_LAUNCHPATH, directory))
+
+	s = create_socket(host, port) 
+
+	print("fetching " + type + "...")
+	s.send(type.encode())
+
+	#TODO: get hash code and compare
+
+	filename = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRCache", os.path.join(directory, server_id + ".zip")))
+
+	receive_file(s, filename) 
+
+	print("unpacking " + type + "...")
+	shutil.unpack_archive(filename, os.path.join(DMR_LAUNCHPATH, directory))
+
+	print("done.")
+
+
+"""TODO
+
+Arguments:
+	TODO
+
+Returns:
+	TODO
+"""
+def create_socket(host, port):
+
+	s = socket.socket()
+
+	print("[Socket] Connecting...")
+	s.connect((host, port))
+
+	print("[Socket] Connected.")
+
+	return s
+
+
+"""TODO
+
+Arguments:
+	TODO
+
+Returns:
+	TODO
+"""
+def receive_file(s, filename):
+
+	filesize = s.recv(DMR_BUFFER_SIZE).decode()
+
+	print("[Socket] Receiving " + filesize + " bytes...")
+	print("writing to " + filename)
+
+	if (os.path.exists(filename)):
+		os.remove(filename)
+
+	filesize_read = 0
+	with open(filename, "wb") as f:
+		while True:
+			bytes_read = s.recv(DMR_BUFFER_SIZE)
+			if not bytes_read:    
+				break
+			f.write(bytes_read)
+			filesize_read += len(bytes_read)
+			#print(str(filesize_read) + " / " + str(filesize))
+
+	s.close()
+
+
 """Attempts to find the install path of Simcity 4 and launches the game with custom launch parameters if found.
 
 Arguments:
@@ -139,6 +286,8 @@ Returns:
 	TODO
 """
 def start_sc4():
+
+	print("[DMR] Starting Simcity 4...")
 
 	possiblePaths = [
 		os.path.abspath(os.path.join("\\", "Program Files (x86)", "Steam", "steamapps", "common", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
@@ -159,85 +308,16 @@ def start_sc4():
 				break
 
 	if not path:
-		return "Path to Simcity 4 not found."
+		print("path to Simcity 4 not found.")
 
 	arguments = [path, ' -UserDir:"' + DMR_LAUNCHPATH + '"', ' -intro:off', ' -w', ' -CustomResolution:enabled', ' -r' + str(DMR_LAUNCHRESW) + 'x' + str(DMR_LAUNCHRESH) + 'x32']
 	
 	try:
 		subprocess.run(' '.join(arguments))
 	except PermissionError:
-		return "Permission denied. Run the program as administrator."
+		print("permission denied. Run the program as administrator.")
 
-	return None
-
-
-"""TODO
-
-Arguments:
-	TODO
-
-Returns:
-	TODO
-"""
-def load_plugins():
-
-	purge_directory(os.path.join(DMR_LAUNCHPATH, "Plugins"))
-
-	s = socket.socket() #TODO this should be done in the receive file method
-
-	host = socket.gethostname()
-	port = 7246
-	#TODO: replace with real host and port
-
-	print("Connecting...")
-	s.connect((host, port))
-
-	print("Connected.")
-
-	s.send(b"plugins")
-	print("Request sent.")
-
-	#TODO: get hash code and compare
-
-	filename = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRCache", os.path.join("Plugins", "server_id.zip"))) #TODO: get actual server id
-
-	receive_file(s, filename) 
-
-	s.close() #TODO: do this in receive file method
-
-	print("Unpacking plugins...")
-	shutil.unpack_archive(filename, os.path.join(DMR_LAUNCHPATH, "Plugins"))
-
-
-def purge_directory(directory):
-	for filename in os.listdir(directory):
-		file_path = os.path.join(directory, filename)
-		try:
-			if os.path.isfile(file_path) or os.path.islink(file_path):
-				os.unlink(file_path)
-			elif os.path.isdir(file_path):
-				shutil.rmtree(file_path)
-		except Exception as e:
-			print('Failed to delete %s. Reason: %s' % (file_path, e))
-
-
-def receive_file(s, filename): #TODO the socket cannot be a parameter!
-
-	filesize = s.recv(DMR_BUFFER_SIZE).decode()
-
-	if (os.path.exists(filename)):
-		os.remove(filename)
-
-	filesize_read = 0
-	with open(filename, "wb") as f:
-		while True:
-			bytes_read = s.recv(DMR_BUFFER_SIZE)
-			if not bytes_read:    
-				break
-			f.write(bytes_read)
-			filesize_read += len(bytes_read)
-			print(str(filesize_read) + " / " + str(filesize))
-
+	print("[DMR] Simcity 4 closed.")
 
 
 """The primary frame for the DMR client.
@@ -322,7 +402,7 @@ Returns:
 def cmd():
 	load_config()
 	create_subdirectories()
-	load_plugins()
+	connect(socket.gethostname(), 7246) #TODO: replace with real host and port
 	start_sc4()
 
 
