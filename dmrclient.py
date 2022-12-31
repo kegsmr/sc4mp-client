@@ -65,7 +65,7 @@ Arguments:
 Returns:
 	None
 """
-def loadconfig():
+def load_config():
 
 	global DMR_LAUNCHPATH
 	global DMR_LAUNCHRESW
@@ -107,7 +107,7 @@ Arguments:
 Returns:
 	TODO
 """
-def createdirectories():
+def create_directories():
 
 	directories = ["DMRCache", "DMRSalvage", "Plugins", "Regions", os.path.join("DMRCache","Plugins"), os.path.join("DMRCache","Regions")]
 
@@ -118,9 +118,9 @@ def createdirectories():
 				os.makedirs(new_directory)
 			except:
 				return "Failed to create directories."
-		if directory == "Plugins":
-			noticepath = os.path.join(DMR_LAUNCHPATH, directory, "__PUT YOUR PLUGINS IN THIS FOLDER__.txt")
-			open(noticepath, 'a').close()
+		#if directory == "Plugins":
+			#noticepath = os.path.join(DMR_LAUNCHPATH, directory, "__PUT YOUR PLUGINS IN THIS FOLDER__.txt")
+			#open(noticepath, 'a').close()
 
 	return None
 
@@ -133,7 +133,7 @@ Arguments:
 Returns:
 	TODO
 """
-def startSC4():
+def start_sc4():
 
 	possiblePaths = [
 		os.path.abspath(os.path.join("\\", "Program Files (x86)", "Steam", "steamapps", "common", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
@@ -246,11 +246,9 @@ Returns:
 	None
 """
 def cmd():
-	print(loadConfig())
-	print(createDirectories())
-	print(loadPlugins())
-	print(loadRegions())
-	print(startSC4())
+	print(load_config())
+	print(create_directories())
+	print(start_sc4())
 
 
 """The main method.
