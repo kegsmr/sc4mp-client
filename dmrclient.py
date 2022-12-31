@@ -2,6 +2,7 @@ import configparser
 import hashlib
 import os
 import subprocess
+import shutil
 import wx
 
 
@@ -11,13 +12,16 @@ import wx
 
 #stagedsaves = [] #TODO: dunno exactly what this is for
 
+# Path to the resources subdirectory
 dmr_resources_path = "resources"
 
-def_dmrpath = os.path.join(os.path.expanduser('~'),"Documents","SimCity 4","_DMR") + "\\"
-def_resw = 1280
-def_resh = 800
-def_sc4path = ""
+# Default config values
+default_dmrpath = os.path.join(os.path.expanduser('~'),"Documents","SimCity 4","_DMR") + "\\"
+default_resw = 1280
+default_resh = 800
+default_sc4path = ""
 
+# Config constants
 DMR_LAUNCHPATH = None
 DMR_LAUNCHRESW = None
 DMR_LAUNCHRESH = None
@@ -25,20 +29,147 @@ DMR_LAUNCHRESH = None
 DMR_CUSTOMPATH = None
 
 
+"""Gives the path of a given file in the DMR "resources" subdirectory
+
+Arguments:
+	filename (str)
+
+Returns:
+	TODO type: the path to the given file
+"""
 def get_dmr_path(filename):
 	return os.path.join(dmr_resources_path, filename)
 
 
-#TODO: dunno what this does
-def md5(fname):
+"""Creates the hashcode for a given file.
+
+Arguments:
+	filename (str)
+
+Returns:
+	TODO type: hashcode
+"""
+def md5(filename):
 	hash_md5 = hashlib.md5()
-	with open(fname, "rb") as f:
+	with open(filename, "rb") as f:
 		for chunk in iter(lambda: f.read(4096), b""):
 			hash_md5.update(chunk)
 	return hash_md5.hexdigest()
 
 
-#TODO: UI
+"""Loads the config file from the resources subdirectory or creates it if it does not yet exist.
+
+Arguments:
+	None
+
+Returns:
+	None
+"""
+def loadconfig():
+
+	global DMR_LAUNCHPATH
+	global DMR_LAUNCHRESW
+	global DMR_LAUNCHRESH
+	global DMR_CUSTOMPATH
+	
+	#TODO add cpu options for start parameters
+	configpath = get_dmr_path("config.ini")
+	try:
+		config = configparser.RawConfigParser()
+		config.read(configpath)
+
+		DMR_LAUNCHPATH = config.get('launcher', 'path')
+		DMR_LAUNCHRESW = config.get('launcher', 'resw')
+		DMR_LAUNCHRESH = config.get('launcher', 'resh')
+		DMR_CUSTOMPATH = config.get('launcher', 'sc4path')
+	except:
+		config.remove_section('launcher')
+		config.add_section('launcher')
+		config.set('launcher', 'path', default_dmrpath)
+		config.set('launcher', 'resw', default_resw)
+		config.set('launcher', 'resh', default_resh)
+		config.set('launcher', 'sc4path', default_sc4path)
+		
+		with open(configpath, 'wt') as configfile: #apparently you have to use 'wt' for this now instead of 'wb'
+			config.write(configfile)
+
+		DMR_LAUNCHPATH = default_dmrpath
+		DMR_LAUNCHRESW = default_resw
+		DMR_LAUNCHRESH = default_resh
+		DMR_CUSTOMPATH = default_sc4path
+
+
+"""Creates the required subdirectories in the launch directory if they do not yet exist.
+
+Arguments:
+	None
+
+Returns:
+	TODO
+"""
+def createdirectories():
+
+	directories = ["DMRCache", "DMRSalvage", "Plugins", "Regions", os.path.join("DMRCache","Plugins"), os.path.join("DMRCache","Regions")]
+
+	for directory in directories:
+		new_directory = os.path.join(DMR_LAUNCHPATH, directory)
+		if not os.path.exists(new_directory):
+			try:
+				os.makedirs(new_directory)
+			except:
+				return "Failed to create directories."
+		if directory == "Plugins":
+			noticepath = os.path.join(DMR_LAUNCHPATH, directory, "__PUT YOUR PLUGINS IN THIS FOLDER__.txt")
+			open(noticepath, 'a').close()
+
+	return None
+
+
+"""Attempts to find the install path of Simcity 4 and launches the game with custom launch parameters if found.
+
+Arguments:
+	None
+
+Returns:
+	TODO
+"""
+def startSC4():
+
+	possiblePaths = [
+		os.path.abspath(os.path.join("\\", "Program Files (x86)", "Steam", "steamapps", "common", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
+		os.path.abspath(os.path.join("\\", "Program Files", "Steam", "steamapps", "common", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
+		os.path.abspath(os.path.join("\\", "Program Files (x86)", "Maxis", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
+		os.path.abspath(os.path.join("\\", "Program Files", "Maxis", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
+		DMR_CUSTOMPATH,
+		os.path.join(DMR_CUSTOMPATH, "SimCity 4.exe"),
+		os.path.join(DMR_CUSTOMPATH, "Apps", "SimCity 4.exe")
+	]
+
+	path = None
+
+	for possiblePath in possiblePaths:
+		if possiblePath:
+			if os.path.isfile(possiblePath):
+				path = '"' + possiblePath + '"'
+				break
+
+	if not path:
+		return "Path to Simcity 4 not found."
+
+	arguments = [path, ' -UserDir:"' + DMR_LAUNCHPATH + '"', ' -intro:off', ' -w', ' -CustomResolution:enabled', ' -r' + str(DMR_LAUNCHRESW) + 'x' + str(DMR_LAUNCHRESH) + 'x32']
+	
+	try:
+		subprocess.run(' '.join(arguments))
+	except PermissionError:
+		return "Permission denied. Run the program as administrator."
+
+	return None
+
+
+"""The primary frame for the DMR client.
+
+TODO: documentation
+"""
 class DMRClient(wx.Frame):
 	
 	def __init__(self, parent):
@@ -105,108 +236,15 @@ class DMRClient(wx.Frame):
 
 		self.SetTitle("Poppy Multiplayer Regions")
 
-#TODO: documentation
-# Load configuration file, or create one if it doesn't exist
-def loadConfig():
 
-	global DMR_LAUNCHPATH
-	global DMR_LAUNCHRESW
-	global DMR_LAUNCHRESH
-	global DMR_CUSTOMPATH
-	
-	#TODO add cpu options for start parameters
-	configpath = get_dmr_path("config.ini")
-	try:
-		config = configparser.RawConfigParser()
-		config.read(configpath)
+"""This method is meant to be run in a terminal instead of the main method for testing purposes.
 
-		DMR_LAUNCHPATH = config.get('launcher', 'path')
-		DMR_LAUNCHRESW = config.get('launcher', 'resw')
-		DMR_LAUNCHRESH = config.get('launcher', 'resh')
-		DMR_CUSTOMPATH = config.get('launcher', 'sc4path')
-	except:
-		config.remove_section('launcher')
-		config.add_section('launcher')
-		config.set('launcher', 'path', def_dmrpath)
-		config.set('launcher', 'resw', def_resw)
-		config.set('launcher', 'resh', def_resh)
-		config.set('launcher', 'sc4path', def_sc4path)
-		
-		with open(configpath, 'wt') as configfile: #apparently you have to use 'wt' for this now instead of 'wb'
-			config.write(configfile)
+Arguments:
+	None
 
-		DMR_LAUNCHPATH = def_dmrpath
-		DMR_LAUNCHRESW = def_resw
-		DMR_LAUNCHRESH = def_resh
-		DMR_CUSTOMPATH = def_sc4path
-
-
-#TODO: documentation
-def createDirectories():
-
-	directories = ["DMRCache", "DMRPluginsCache", "DMRSalvage", "Regions", "Plugins", os.path.join("Plugins","DMRPlugins")]
-
-	for directory in directories:
-		directorytocreate = os.path.join(DMR_LAUNCHPATH, directory)
-		if not os.path.exists(directorytocreate):
-			try:
-				os.makedirs(directorytocreate)
-			except:
-				return "Failed to create directories."
-		if directory == "Plugins":
-			noticepath = os.path.join(DMR_LAUNCHPATH, directory, "__PUT YOUR PLUGINS IN THIS FOLDER__.txt")
-			open(noticepath, 'a').close()
-
-	return None
-
-
-#TODO: documentation
-def loadPlugins():
-	#TODO: implement
-	return None
-
-
-#TODO: documentation
-def loadRegions():
-	#TODO: implement
-	return None
-
-
-#TODO: documentation
-def startSC4():
-
-	possiblePaths = [
-		os.path.abspath(os.path.join("\\", "Program Files (x86)", "Steam", "steamapps", "common", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
-		os.path.abspath(os.path.join("\\", "Program Files", "Steam", "steamapps", "common", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
-		os.path.abspath(os.path.join("\\", "Program Files (x86)", "Maxis", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
-		os.path.abspath(os.path.join("\\", "Program Files", "Maxis", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
-		DMR_CUSTOMPATH,
-		os.path.join(DMR_CUSTOMPATH, "SimCity 4.exe"),
-		os.path.join(DMR_CUSTOMPATH, "Apps", "SimCity 4.exe")
-	]
-
-	path = None
-
-	for possiblePath in possiblePaths:
-		if possiblePath:
-			if os.path.isfile(possiblePath):
-				path = '"' + possiblePath + '"'
-				break
-
-	if not path:
-		return "Path to Simcity 4 not found."
-
-	arguments = [path, ' -UserDir:"' + DMR_LAUNCHPATH + '"', ' -intro:off', ' -w', ' -CustomResolution:enabled', ' -r' + str(DMR_LAUNCHRESW) + 'x' + str(DMR_LAUNCHRESH) + 'x32']
-	
-	try:
-		subprocess.run(' '.join(arguments))
-	except PermissionError:
-		return "Permission denied. Run the program as administrator."
-
-	return None
-
-
-#TODO: documentation
+Returns:
+	None
+"""
 def cmd():
 	print(loadConfig())
 	print(createDirectories())
@@ -215,7 +253,14 @@ def cmd():
 	print(startSC4())
 
 
-#TODO: documentation
+"""The main method.
+
+Arguments:
+	None
+
+Returns:
+	None
+"""
 def main():
 	dmr = wx.App()
 	DMRClient(None)
