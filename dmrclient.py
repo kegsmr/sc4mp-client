@@ -1,8 +1,9 @@
 import configparser
 import hashlib
 import os
-import subprocess
 import shutil
+import socket
+import subprocess
 import wx
 
 
@@ -27,6 +28,10 @@ DMR_LAUNCHRESW = None
 DMR_LAUNCHRESH = None
 #DMR_SERVERPATH = "http://api.getpmr.com/" #TODO: will probably replace with a website hosting a server list
 DMR_CUSTOMPATH = None
+
+# Hard-coded constants
+DMR_SEPARATOR = "<SEPARATOR>"
+DMR_BUFFER_SIZE = 4096
 
 
 """Gives the path of a given file in the DMR "resources" subdirectory
@@ -107,9 +112,9 @@ Arguments:
 Returns:
 	TODO
 """
-def create_directories():
+def create_subdirectories():
 
-	directories = ["DMRCache", "DMRSalvage", "Plugins", "Regions", os.path.join("DMRCache","Plugins"), os.path.join("DMRCache","Regions")]
+	directories = ["DMRCache", "DMRProfiles", "DMRSalvage", "Plugins", "Regions", os.path.join("DMRCache","Plugins"), os.path.join("DMRCache","Regions")]
 
 	for directory in directories:
 		new_directory = os.path.join(DMR_LAUNCHPATH, directory)
@@ -164,6 +169,75 @@ def start_sc4():
 		return "Permission denied. Run the program as administrator."
 
 	return None
+
+
+"""TODO
+
+Arguments:
+	TODO
+
+Returns:
+	TODO
+"""
+def load_plugins():
+
+	purge_directory(os.path.join(DMR_LAUNCHPATH, "Plugins"))
+
+	s = socket.socket() #TODO this should be done in the receive file method
+
+	host = socket.gethostname()
+	port = 7246
+	#TODO: replace with real host and port
+
+	print("Connecting...")
+	s.connect((host, port))
+
+	print("Connected.")
+
+	s.send(b"plugins")
+	print("Request sent.")
+
+	#TODO: get hash code and compare
+
+	filename = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRCache", os.path.join("Plugins", "server_id.zip"))) #TODO: get actual server id
+
+	receive_file(s, filename) 
+
+	s.close() #TODO: do this in receive file method
+
+	print("Unpacking plugins...")
+	shutil.unpack_archive(filename, os.path.join(DMR_LAUNCHPATH, "Plugins"))
+
+
+def purge_directory(directory):
+	for filename in os.listdir(directory):
+		file_path = os.path.join(directory, filename)
+		try:
+			if os.path.isfile(file_path) or os.path.islink(file_path):
+				os.unlink(file_path)
+			elif os.path.isdir(file_path):
+				shutil.rmtree(file_path)
+		except Exception as e:
+			print('Failed to delete %s. Reason: %s' % (file_path, e))
+
+
+def receive_file(s, filename): #TODO the socket cannot be a parameter!
+
+	filesize = s.recv(DMR_BUFFER_SIZE).decode()
+
+	if (os.path.exists(filename)):
+		os.remove(filename)
+
+	filesize_read = 0
+	with open(filename, "wb") as f:
+		while True:
+			bytes_read = s.recv(DMR_BUFFER_SIZE)
+			if not bytes_read:    
+				break
+			f.write(bytes_read)
+			filesize_read += len(bytes_read)
+			print(str(filesize_read) + " / " + str(filesize))
+
 
 
 """The primary frame for the DMR client.
@@ -246,9 +320,10 @@ Returns:
 	None
 """
 def cmd():
-	print(load_config())
-	print(create_directories())
-	print(start_sc4())
+	load_config()
+	create_subdirectories()
+	load_plugins()
+	start_sc4()
 
 
 """The main method.
