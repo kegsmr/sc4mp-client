@@ -4,7 +4,8 @@ import os
 import shutil
 import socket
 import subprocess
-import wx
+import tkinter
+#import wx
 
 
 #s = requests.Session()
@@ -176,6 +177,9 @@ def connect(host, port):
 	print("[DMR] Loading regions...")
 	load("regions", server_id, host, port)
 
+	print("[DMR] Prepping regions...")
+	prep_regions()
+
 
 """TODO
 
@@ -277,6 +281,32 @@ def receive_file(s, filename):
 	s.close()
 
 
+"""TODO
+
+Arguments:
+	TODO
+
+Returns:
+	TODO
+"""
+def prep_regions():
+
+	path = os.path.join(DMR_LAUNCHPATH, "Regions")
+
+	for directory in os.listdir(path):
+
+		config_path = os.path.join(path, os.path.join(directory, "region.ini"))
+		
+		try:
+			config = configparser.RawConfigParser()
+			config.read(config_path)
+			config.set("Regional Settings", "Name", "[DMR] " + config.get("Regional Settings", "Name"))
+			with open(config_path, 'wt') as config_file:
+				config.write(config_file)
+		except:
+			print("Failed to prep region config for " + directory + ".")
+
+
 """Attempts to find the install path of Simcity 4 and launches the game with custom launch parameters if found.
 
 Arguments:
@@ -324,7 +354,7 @@ def start_sc4():
 
 TODO: documentation
 """
-class DMRClient(wx.Frame):
+"""class DMRClient(wx.Frame):
 	
 	def __init__(self, parent):
 		super(DMRClient, self).__init__(parent, style=wx.CAPTION | wx.CLOSE_BOX)
@@ -388,7 +418,7 @@ class DMRClient(wx.Frame):
 		panel.SetSizer(vbox)
 		panel.Fit()
 
-		self.SetTitle("Poppy Multiplayer Regions")
+		self.SetTitle("Poppy Multiplayer Regions")"""
 
 
 """This method is meant to be run in a terminal instead of the main method for testing purposes.
@@ -414,10 +444,10 @@ Arguments:
 Returns:
 	None
 """
-def main():
+"""def main():
 	dmr = wx.App()
 	DMRClient(None)
-	dmr.MainLoop()
+	dmr.MainLoop()"""
 
 
 # Load the main function
