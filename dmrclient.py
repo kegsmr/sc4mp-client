@@ -4,8 +4,8 @@ import os
 import shutil
 import socket
 import subprocess
+import threading
 import tkinter
-#import wx
 
 
 #s = requests.Session()
@@ -163,71 +163,9 @@ Arguments:
 Returns:
 	TODO
 """
-def connect(host, port):
-
-	print("[DMR] Connecting to server at " + str(host) + ":" + str(port) + "...")
-
-	print("[DMR] Fetching server id...")
-	server_id = request_server_id(host, port)
-	print(server_id)
-
-	print("[DMR] Loading plugins...")
-	load("plugins", server_id, host, port)
-
-	print("[DMR] Loading regions...")
-	load("regions", server_id, host, port)
-
-	print("[DMR] Prepping regions...")
-	prep_regions()
-
-
-"""TODO
-
-Arguments:
-	TODO
-
-Returns:
-	TODO
-"""
-def request_server_id(host, port):
-	print("(using placeholder server id)")
-	return "server_id" #TODO actually get the server id
-
-
-"""TODO
-
-Arguments:
-	TODO
-
-Returns:
-	TODO
-"""
-def load(type, server_id, host, port):
-
-	directory = None
-	if (type == "plugins"):
-		directory = "Plugins"
-	elif (type == "regions"):
-		directory = "Regions"
-
-	print("purging " + type + " directory...")
-	purge_directory(os.path.join(DMR_LAUNCHPATH, directory))
-
-	s = create_socket(host, port) 
-
-	print("fetching " + type + "...")
-	s.send(type.encode())
-
-	#TODO: get hash code and compare
-
-	filename = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRCache", os.path.join(directory, server_id + ".zip")))
-
-	receive_file(s, filename) 
-
-	print("unpacking " + type + "...")
-	shutil.unpack_archive(filename, os.path.join(DMR_LAUNCHPATH, directory))
-
-	print("done.")
+def connect(server):
+	server_loader = ServerLoader(server)
+	server_loader.run()
 
 
 """TODO
@@ -281,36 +219,10 @@ def receive_file(s, filename):
 	s.close()
 
 
-"""TODO
-
-Arguments:
-	TODO
-
-Returns:
-	TODO
-"""
-def prep_regions():
-
-	path = os.path.join(DMR_LAUNCHPATH, "Regions")
-
-	for directory in os.listdir(path):
-
-		config_path = os.path.join(path, os.path.join(directory, "region.ini"))
-		
-		try:
-			config = configparser.RawConfigParser()
-			config.read(config_path)
-			config.set("Regional Settings", "Name", "[DMR] " + config.get("Regional Settings", "Name"))
-			with open(config_path, 'wt') as config_file:
-				config.write(config_file)
-		except:
-			print("Failed to prep region config for " + directory + ".")
-
-
 """Attempts to find the install path of Simcity 4 and launches the game with custom launch parameters if found.
 
 Arguments:
-	None
+	TODO
 
 Returns:
 	TODO
@@ -338,7 +250,8 @@ def start_sc4():
 				break
 
 	if not path:
-		print("path to Simcity 4 not found.")
+		print("path to Simcity 4 not found")
+		return
 
 	arguments = [path, ' -UserDir:"' + DMR_LAUNCHPATH + '"', ' -intro:off', ' -w', ' -CustomResolution:enabled', ' -r' + str(DMR_LAUNCHRESW) + 'x' + str(DMR_LAUNCHRESH) + 'x32']
 	
@@ -350,75 +263,154 @@ def start_sc4():
 	print("[DMR] Simcity 4 closed.")
 
 
+
+"""TODO"""
+class ServerList:
+
+
+	def __init__(self):
+
+		print("(to implement)") #TODO
+
+
+
+"""TODO"""
+class Server:
+
+	"""TODO
+
+	Arguments:
+		TODO
+
+	Returns:
+		TODO
+	"""
+	def __init__(self, host, port):
+		self.host = host
+		self.port = port
+		self.server_id = self.request_server_id()
+
+	"""TODO
+
+	Arguments:
+		TODO
+
+	Returns:
+		TODO
+	"""
+	def request_server_id(self):
+		print("(using placeholder server id)")
+		return "server_id" #TODO actually get the server id
+
+
+
+"""TODO"""
+class ServerLoader(threading.Thread):
+
+
+	"""TODO"""
+	def __init__(self, server):
+		self.server = server
+		
+	def run(self):
+	
+		host = self.server.host
+		port = self.server.port
+
+		print("[DMR Server Loader] Connecting to server at " + str(host) + ":" + str(port) + "...")
+
+		print("[DMR Server Loader] Loading plugins...")
+		self.load("plugins")
+
+		print("[DMR Server Loader] Loading regions...")
+		self.load("regions")
+
+		print("[DMR Server Loader] Prepping regions...")
+		self.prep_regions()
+
+	
+	"""TODO
+
+	Arguments:
+		TODO
+
+	Returns:
+		TODO
+	"""
+	def load(self, type):
+
+		host = self.server.host
+		port = self.server.port
+		server_id = self.server.server_id
+
+		directory = None
+		if (type == "plugins"):
+			directory = "Plugins"
+		elif (type == "regions"):
+			directory = "Regions"
+
+		print("purging " + type + " directory...")
+		purge_directory(os.path.join(DMR_LAUNCHPATH, directory))
+
+		print("fetching " + type + "...")
+
+		s = create_socket(host, port) 
+		
+		s.send(type.encode())
+
+		#TODO: get hash code and compare
+
+		filename = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRCache", os.path.join(directory, server_id + ".zip")))
+
+		receive_file(s, filename) 
+
+		print("unpacking " + type + "...")
+		shutil.unpack_archive(filename, os.path.join(DMR_LAUNCHPATH, directory))
+
+		print("done.")
+
+
+	"""TODO
+
+	Arguments:
+		TODO
+
+	Returns:
+		TODO
+	"""
+	def prep_regions(self):
+
+		path = os.path.join(DMR_LAUNCHPATH, "Regions")
+
+		for directory in os.listdir(path):
+
+			config_path = os.path.join(path, os.path.join(directory, "region.ini"))
+			
+			try:
+				config = configparser.RawConfigParser()
+				config.read(config_path)
+				config.set("Regional Settings", "Name", "[DMR] " + config.get("Regional Settings", "Name"))
+				with open(config_path, 'wt') as config_file:
+					config.write(config_file)
+			except:
+				print("failed to prep region config for " + directory + ".")
+
+		shutil.unpack_archive(get_dmr_path("Regions.zip"), path)
+
+
+
 """The primary frame for the DMR client.
 
-TODO: documentation
+Arguments:
+	TODO
+
+Returns:
+	TODO
 """
-"""class DMRClient(wx.Frame):
-	
+class UIServerList(ServerList):
 	def __init__(self, parent):
-		super(DMRClient, self).__init__(parent, style=wx.CAPTION | wx.CLOSE_BOX)
-		#self.Bind(EVT_SERVERSTATUSRESPONSE, self.onCheckServerReponse)
-		#self.Bind(EVT_LISTINGRESPONSE, self.FinishRefreshList)
-		
-		self.InitUI()
-		self.Fit()
-		self.Centre()
-		self.Show()
+		print("(to implement)")
 
-		#self.Prep()
-
-		#self.CheckServer()
-		#self.StartRefreshList()
-
-		#self.Bind(wx.EVT_CLOSE, self.onClose)
-
-	def InitUI(self):
-		panel = wx.Panel(self)
-		panel.SetBackgroundColour('#eeeeee')
-
-		ico = wx.Icon(get_dmr_path('icon.ico'), wx.BITMAP_TYPE_ICO)
-		self.SetIcon(ico)
-
-		vbox = wx.BoxSizer(wx.VERTICAL)
-
-		flag = wx.StaticBitmap(panel, wx.ID_ANY, wx.Bitmap(get_dmr_path("flag.png"), wx.BITMAP_TYPE_ANY))
-
-		self.infotext = wx.StaticText(panel, label='To get started, select a region below and click \'Connect.\'', style=wx.ALIGN_CENTRE_HORIZONTAL | wx.ST_NO_AUTORESIZE)
-
-		self.regionlist = wx.ListCtrl(panel, -1, style = wx.LC_REPORT, size=(-1,300)) 
-		self.regionlist.InsertColumn(0, "Region Name", width=225)
-		self.regionlist.InsertColumn(1, "Claimed Tiles", wx.LIST_FORMAT_RIGHT, width=100)
-		self.regionlist.InsertColumn(2, "Mayors Online", wx.LIST_FORMAT_RIGHT, width=100)
-		#self.regionlist.Bind(wx.EVT_LIST_ITEM_SELECTED, self.SelectRegion)
-		#self.regionlist.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.DeselectRegion)
-		#self.regionlist.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.ConnectToSelectedRegion)
-
-		hbox = wx.BoxSizer(wx.HORIZONTAL)
-		self.settingbtn = wx.Button(panel, label='SC4 Settings...')
-		self.settingbtn.SetToolTip(wx.ToolTip("Set your preferred resolution and launch path"))
-		#self.settingbtn.Bind(wx.EVT_BUTTON, self.ShowSettingsDialog)
-		self.refreshbtn = wx.Button(panel, label='Refresh')
-		#self.refreshbtn.Bind(wx.EVT_BUTTON, self.StartRefreshList)
-		self.refreshbtn.SetToolTip(wx.ToolTip("Refresh the region listing"))
-		self.connectbtn = wx.Button(panel, label='Connect')
-		#self.connectbtn.Bind(wx.EVT_BUTTON, self.ConnectToSelectedRegion)
-		self.connectbtn.SetToolTip(wx.ToolTip("Connect to the selected region"))
-		self.connectbtn.Disable()
-		hbox.Add(self.settingbtn, 0, wx.RIGHT | wx.ALIGN_LEFT, 5)
-		hbox.InsertStretchSpacer(1)
-		#hbox.Add(self.refreshbtn, 0, wx.RIGHT | wx.ALIGN_RIGHT, 5)
-		#hbox.Add(self.connectbtn, 0, wx.ALIGN_RIGHT, 10)
-
-		#vbox.Add(flag, 0, wx.ALL, 0)
-		vbox.Add(self.infotext, 0, wx.EXPAND|wx.ALL, 10)
-		vbox.Add(self.regionlist, 1, wx.EXPAND|wx.LEFT|wx.RIGHT, 10)
-		vbox.Add(hbox, 0, wx.EXPAND|wx.ALL, 10)
-
-		panel.SetSizer(vbox)
-		panel.Fit()
-
-		self.SetTitle("Poppy Multiplayer Regions")"""
 
 
 """This method is meant to be run in a terminal instead of the main method for testing purposes.
@@ -432,7 +424,7 @@ Returns:
 def cmd():
 	load_config()
 	create_subdirectories()
-	connect(socket.gethostname(), 7246) #TODO: replace with real host and port
+	connect(Server(socket.gethostname(), 7246)) #TODO: replace with real server
 	start_sc4()
 
 
