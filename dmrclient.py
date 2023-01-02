@@ -3,16 +3,13 @@ import hashlib
 import os
 import shutil
 import socket
+import time
 import subprocess
-import threading
-import tkinter
+import threading as th
+import tkinter as tk
+from tkinter import ttk
 
 
-#s = requests.Session()
-#s.headers["User-Agent"] = "PMRClient 1.0.0" 
-#TODO: dunno what these two lines are for
-
-#stagedsaves = [] #TODO: dunno exactly what this is for
 
 # Path to the resources subdirectory
 dmr_resources_path = "resources"
@@ -31,9 +28,13 @@ DMR_LAUNCHRESH = None
 DMR_CUSTOMPATH = None
 
 # Hard-coded constants
+DMR_TITLE = "DMR Client"
 DMR_SEPARATOR = "<SEPARATOR>"
 DMR_BUFFER_SIZE = 4096
 
+
+
+# Methods
 
 """Gives the path of a given file in the DMR "resources" subdirectory
 
@@ -81,6 +82,12 @@ def purge_directory(directory):
 				shutil.rmtree(file_path)
 		except Exception as e:
 			print('Failed to delete %s. Reason: %s' % (file_path, e))
+
+
+"""TODO"""
+def event_generate(frame, event, when):
+	if (frame != None):
+		frame.event_generate(event, when=when)
 
 
 """Loads the config file from the resources subdirectory or creates it if it does not yet exist.
@@ -176,47 +183,9 @@ Arguments:
 Returns:
 	TODO
 """
-def create_socket(host, port):
-
-	s = socket.socket()
-
-	print("[Socket] Connecting...")
-	s.connect((host, port))
-
-	print("[Socket] Connected.")
-
-	return s
-
-
-"""TODO
-
-Arguments:
-	TODO
-
-Returns:
-	TODO
-"""
-def receive_file(s, filename):
-
-	filesize = s.recv(DMR_BUFFER_SIZE).decode()
-
-	print("[Socket] Receiving " + filesize + " bytes...")
-	print("writing to " + filename)
-
-	if (os.path.exists(filename)):
-		os.remove(filename)
-
-	filesize_read = 0
-	with open(filename, "wb") as f:
-		while True:
-			bytes_read = s.recv(DMR_BUFFER_SIZE)
-			if not bytes_read:    
-				break
-			f.write(bytes_read)
-			filesize_read += len(bytes_read)
-			#print(str(filesize_read) + " / " + str(filesize))
-
-	s.close()
+def ui_connect(server):
+	ui_server_loader = UIServerLoader(server)
+	ui_server_loader.mainloop()
 
 
 """Attempts to find the install path of Simcity 4 and launches the game with custom launch parameters if found.
@@ -264,18 +233,21 @@ def start_sc4():
 
 
 
+# Objects
+
 """TODO"""
 class ServerList:
 
 
+	"""TODO"""
 	def __init__(self):
 
 		print("(to implement)") #TODO
 
 
-
 """TODO"""
 class Server:
+
 
 	"""TODO
 
@@ -290,6 +262,7 @@ class Server:
 		self.port = port
 		self.server_id = self.request_server_id()
 
+
 	"""TODO
 
 	Arguments:
@@ -303,30 +276,57 @@ class Server:
 		return "server_id" #TODO actually get the server id
 
 
-
 """TODO"""
-class ServerLoader(threading.Thread):
+class ServerLoader(th.Thread):
 
 
 	"""TODO"""
-	def __init__(self, server):
+	def __init__(self, frame, server):
+		self.frame = frame
 		self.server = server
-		
+		th.Thread.__init__(self)
+
+
+	"""TODO"""
 	def run(self):
 	
 		host = self.server.host
 		port = self.server.port
 
-		print("[DMR Server Loader] Connecting to server at " + str(host) + ":" + str(port) + "...")
+		self.report("[DMR Server Loader] ", 'Connecting to server at "' + str(host) + ":" + str(port) + '"...')
 
-		print("[DMR Server Loader] Loading plugins...")
+		self.report("[DMR Server Loader] ", "Loading plugins...")
 		self.load("plugins")
 
-		print("[DMR Server Loader] Loading regions...")
+		self.report("[DMR Server Loader] ", "Loading regions...")
 		self.load("regions")
 
-		print("[DMR Server Loader] Prepping regions...")
+		self.report("[DMR Server Loader] ", "Prepping regions...")
 		self.prep_regions()
+
+		self.report("[DMR Server Loader] ", "Done.")
+
+		time.sleep(1)
+
+		if (self.frame != None):
+			self.frame.destroy()
+
+		
+	def report(self, prefix, text):
+		if (self.frame != None):
+			self.frame.label['text'] = text
+			self.frame.progress_bar['mode'] = "indeterminate"
+			self.frame.progress_bar['maximum'] = 100
+		print(prefix + text)
+		time.sleep(.1)
+
+
+	def report_progress(self, text, value, maximum):
+		if (self.frame != None):
+			self.frame.label['text'] = text
+			self.frame.progress_bar['mode'] = "determinate"
+			self.frame.progress_bar['value'] = value
+			self.frame.progress_bar['maximum'] = maximum
 
 	
 	"""TODO
@@ -349,12 +349,12 @@ class ServerLoader(threading.Thread):
 		elif (type == "regions"):
 			directory = "Regions"
 
-		print("purging " + type + " directory...")
+		self.report("", "Purging " + type + " directory...")
 		purge_directory(os.path.join(DMR_LAUNCHPATH, directory))
 
-		print("fetching " + type + "...")
+		self.report("", "Fetching " + type + "...")
 
-		s = create_socket(host, port) 
+		s = self.create_socket() 
 		
 		s.send(type.encode())
 
@@ -362,12 +362,66 @@ class ServerLoader(threading.Thread):
 
 		filename = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRCache", os.path.join(directory, server_id + ".zip")))
 
-		receive_file(s, filename) 
+		self.receive_file(s, filename) 
 
-		print("unpacking " + type + "...")
+		self.report("", "Unpacking " + type + "...")
 		shutil.unpack_archive(filename, os.path.join(DMR_LAUNCHPATH, directory))
 
 		print("done.")
+
+
+	"""TODO
+
+	Arguments:
+		TODO
+
+	Returns:
+		TODO
+	"""
+	def create_socket(self):
+
+		host = self.server.host
+		port = self.server.port
+
+		s = socket.socket()
+
+		print("[Socket] Connecting...")
+		s.connect((host, port))
+
+		print("[Socket] Connected.")
+
+		return s
+
+
+	"""TODO
+
+	Arguments:
+		TODO
+
+	Returns:
+		TODO
+	"""
+	def receive_file(self, s, filename):
+
+		filesize = s.recv(DMR_BUFFER_SIZE).decode()
+
+		print("[Socket] Receiving " + filesize + " bytes...")
+		print("writing to " + filename)
+
+		if (os.path.exists(filename)):
+			os.remove(filename)
+
+		filesize_read = 0
+		with open(filename, "wb") as f:
+			while True:
+				bytes_read = s.recv(DMR_BUFFER_SIZE)
+				if not bytes_read:    
+					break
+				f.write(bytes_read)
+				filesize_read += len(bytes_read)
+				self.report_progress('Downloading "' + filename + '" (' + str(filesize_read) + " / " + str(filesize) + " bytes)...", int(filesize_read), int(filesize)) #os.path.basename(os.path.normpath(filename))
+
+		s.close()
 
 
 	"""TODO
@@ -398,8 +452,7 @@ class ServerLoader(threading.Thread):
 		shutil.unpack_archive(get_dmr_path("Regions.zip"), path)
 
 
-
-"""The primary frame for the DMR client.
+"""ServerList UI wrapper.
 
 Arguments:
 	TODO
@@ -407,11 +460,75 @@ Arguments:
 Returns:
 	TODO
 """
-class UIServerList(ServerList):
-	def __init__(self, parent):
+class UIServerList(tk.Tk):
+
+	#TODO implement
+
+	"""TODO"""
+	def __init__(self):
 		print("(to implement)")
 
 
+	"""TODO"""
+	def run(self):
+		print("(to implement)")
+
+
+"""TODO"""
+class UIServerLoader(tk.Tk):
+
+
+	"""TODO"""
+	def __init__(self, server):
+
+		tk.Tk.__init__(self)
+
+		self.minsize(800, 100)
+		self.maxsize(800, 100)
+
+		self.winfo_toplevel().title(DMR_TITLE)
+
+		self.grid()
+
+		self.label = ttk.Label()
+
+		self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=10)
+
+		self.progress_bar = ttk.Progressbar(
+			self,
+			orient='horizontal',
+			mode='determinate',
+			length=780,
+			maximum=100
+		)
+
+		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=10)
+
+		self.progress_bar.start(2)
+
+		self.server_loader = ServerLoader(self, server)
+		self.server_loader.setDaemon(True)
+
+		self.eval('tk::PlaceWindow . center')
+
+		#self.bind("<<progress_update>>", self.progress_update())
+
+
+	def mainloop(self):
+		self.server_loader.start()
+		return tk.Tk.mainloop(self)
+
+
+	"""TODO"""
+	def progress_update(self):
+		self.label['text'] = self.server_loader.label
+		self.progress_bar['mode'] = self.server_loader.progress_bar_mode
+		self.progress_bar['value'] = self.server_loader.progress_bar_value
+		self.update()
+
+	
+
+# Main Method
 
 """This method is meant to be run in a terminal instead of the main method for testing purposes.
 
@@ -424,7 +541,7 @@ Returns:
 def cmd():
 	load_config()
 	create_subdirectories()
-	connect(Server(socket.gethostname(), 7246)) #TODO: replace with real server
+	ui_connect(Server(socket.gethostname(), 7246)) #TODO: replace with real server, no ui
 	start_sc4()
 
 
@@ -442,6 +559,5 @@ Returns:
 	dmr.MainLoop()"""
 
 
-# Load the main function
 if __name__ == '__main__':
 	cmd()
