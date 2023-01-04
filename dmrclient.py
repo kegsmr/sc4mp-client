@@ -3,19 +3,18 @@ import hashlib
 import os
 import shutil
 import socket
-import time
 import subprocess
 import threading as th
+import time
 import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
-
-
+from tkinter import Menu, messagebox, ttk
 
 # Path to the resources subdirectory
 dmr_resources_path = "resources"
 
+# Global variables
 dmr_ui = False
+dmr_ui_root = None
 dmr_current_server = None
 
 # Default config values
@@ -33,22 +32,24 @@ DMR_CUSTOMPATH = None
 
 # Hard-coded constants
 DMR_TITLE = "DMR Client"
+DMR_ICON = os.path.join(dmr_resources_path, "icon.ico")
+DMR_HOST = socket.gethostname()
+DMR_PORT = 7246
 DMR_SEPARATOR = "<SEPARATOR>"
 DMR_BUFFER_SIZE = 4096
 
 
-
 # Methods
 
-"""Loads the config file from the resources subdirectory or creates it if it does not yet exist.
-
-Arguments:
-	None
-
-Returns:
-	None
-"""
 def load_config():
+	"""Loads the config file from the resources subdirectory or creates it if it does not yet exist.
+
+	Arguments:
+		None
+
+	Returns:
+		None
+	"""
 
 	global DMR_LAUNCHPATH
 	global DMR_LAUNCHRESW
@@ -83,16 +84,15 @@ def load_config():
 		DMR_LAUNCHRESH = default_resh
 		DMR_CUSTOMPATH = default_sc4path
 
-
-"""Creates the required subdirectories in the launch directory if they do not yet exist.
-
-Arguments:
-	None
-
-Returns:
-	TODO
-"""
 def create_subdirectories():
+	"""Creates the required subdirectories in the launch directory if they do not yet exist.
+
+	Arguments:
+		None
+
+	Returns:
+		TODO
+	"""
 
 	print("[DMR] Creating subdirectories...")
 
@@ -105,25 +105,27 @@ def create_subdirectories():
 				os.makedirs(new_directory)
 			except Exception as e:
 				raise CustomException("Failed to create DMR subdirectories.\n\n" + str(e))
-		#if directory == "Plugins":
-			#noticepath = os.path.join(DMR_LAUNCHPATH, directory, "__PUT YOUR PLUGINS IN THIS FOLDER__.txt")
-			#open(noticepath, 'a').close()
+		"""if directory == "Plugins":
+			noticepath = os.path.join(DMR_LAUNCHPATH, directory, "__PUT YOUR PLUGINS IN THIS FOLDER__.txt")
+			open(noticepath, 'a').close()"""
 
-
-"""TODO
-
-Arguments:
-	TODO
-
-Returns:
-	TODO
-"""
 def connect(server):
+	"""TODO
+
+	Arguments:
+		TODO
+
+	Returns:
+		TODO
+	"""
 	if (dmr_ui):
-		ui_server_loader = ServerLoaderUI(server)
-		ui_server_loader.mainloop()
+		server_loader_ui = ServerLoaderUI(dmr_ui_root, server)
+		server_loader_ui.mainloop()
 		if (dmr_current_server != None):
+			game_monitor_ui_thread = GameMonitorUIThread(dmr_ui_root, server)
+			game_monitor_ui_thread.start()
 			start_sc4()
+			game_monitor_ui_thread.frame.worker.game_running = False
 	else:
 		server_loader = ServerLoader(None, server)
 		server_loader.run()
@@ -133,16 +135,16 @@ def connect(server):
 			start_sc4()
 			game_monitor.game_running = False
 
-
-"""Attempts to find the install path of Simcity 4 and launches the game with custom launch parameters if found.
-
-Arguments:
-	TODO
-
-Returns:
-	TODO
-"""
 def start_sc4():
+	"""Attempts to find the install path of Simcity 4 and launches the game with custom launch parameters if found.
+
+	Arguments:
+		TODO
+
+	Returns:
+		TODO
+	"""
+
 	print("[DMR] Starting Simcity 4...")
 
 	possiblePaths = [
@@ -176,44 +178,41 @@ def start_sc4():
 
 	print("[DMR] Simcity 4 closed.")
 
-
-"""Gives the path of a given file in the DMR "resources" subdirectory
-
-Arguments:
-	filename (str)
-
-Returns:
-	TODO type: the path to the given file
-"""
 def get_dmr_path(filename):
+	"""Gives the path of a given file in the DMR "resources" subdirectory
+
+	Arguments:
+		filename (str)
+
+	Returns:
+		TODO type: the path to the given file
+	"""
 	return os.path.join(dmr_resources_path, filename)
 
-
-"""Creates the hashcode for a given file.
-
-Arguments:
-	filename (str)
-
-Returns:
-	TODO type: hashcode
-"""
 def md5(filename):
+	"""Creates the hashcode for a given file.
+
+	Arguments:
+		filename (str)
+
+	Returns:
+		TODO type: hashcode
+	"""
 	hash_md5 = hashlib.md5()
 	with open(filename, "rb") as f:
 		for chunk in iter(lambda: f.read(4096), b""):
 			hash_md5.update(chunk)
 	return hash_md5.hexdigest()
 
-
-"""TODO
-
-Arguments:
-	TODO
-
-Returns:
-	TODO
-"""
 def purge_directory(directory):
+	"""TODO
+
+	Arguments:
+		TODO
+
+	Returns:
+		TODO
+	"""
 	for filename in os.listdir(directory):
 		file_path = os.path.join(directory, filename)
 		try:
@@ -224,15 +223,13 @@ def purge_directory(directory):
 		except PermissionError as e:
 			raise CustomException('Failed to delete "' + file_path + '" because the file is being used by another process.') #\n\n' + str(e)
 
-
-"""TODO"""
 def event_generate(frame, event, when):
+	"""TODO"""
 	if (frame != None):
 		frame.event_generate(event, when=when)
 
-
-"""TODO"""
 def show_error(e):
+	"""TODO"""
 	message = None
 	if (isinstance(e, str)):
 		message = e
@@ -244,13 +241,12 @@ def show_error(e):
 	if (dmr_ui):
 		messagebox.showerror(DMR_TITLE, message)
 
-
-"""
-TODO
-centers a tkinter window
-:param win: the main window or Toplevel window to center
-"""
 def center_window(window):
+	"""
+	TODO
+	centers a tkinter window
+	:param win: the main window or Toplevel window to center
+	"""
 	win = window
 	win.update_idletasks()
 	width = win.winfo_width()
@@ -267,9 +263,8 @@ def center_window(window):
 
 # Objects
 
-"""TODO"""
 class Server:
-
+	"""TODO"""
 
 	"""TODO
 
@@ -300,19 +295,16 @@ class Server:
 
 # Threads
 
-"""TODO"""
 class ServerList(th.Thread):
-
+	"""TODO"""
 
 	"""TODO"""
 	def __init__(self):
 
 		print("(to implement)") #TODO
 
-
-"""TODO"""
 class ServerLoader(th.Thread):
-
+	"""TODO"""
 
 	"""TODO"""
 	def __init__(self, frame, server):
@@ -529,10 +521,8 @@ class ServerLoader(th.Thread):
 
 		shutil.unpack_archive(get_dmr_path("Regions.zip"), path)
 
-
-"""TODO"""
 class GameMonitor(th.Thread):
-
+	"""TODO"""
 
 	"""TODO"""
 	def __init__(self, frame, server):
@@ -600,12 +590,18 @@ class GameMonitor(th.Thread):
 
 		city = os.path.split(city_path)[1]
 
+
 		s = self.create_socket()
 
 		if (s == None):
 			self.report(self.PREFIX, 'Unable to delete the city "' + city + '" because the server is unreachable.')
+			return
+
+		s.send(b"push_delete")
 
 		#TODO
+
+		
 
 	"""TODO"""
 	def push_save(self, new_city_path):
@@ -618,6 +614,9 @@ class GameMonitor(th.Thread):
 
 		if (s == None):
 			self.report(self.PREFIX, 'Unable to save the city "' + new_city + '" because the server is unreachable.')
+			return
+
+		s.send(b"push_save")
 
 		#TODO
 
@@ -672,15 +671,17 @@ class GameMonitor(th.Thread):
 
 
 	"""TODO"""
-	def send_file(self, s, filename):
+	def send_file(self, s, filepath):
 
-		self.report("Sending file " + filename + "...")
+		self.report("Sending file " + filepath + "...")
 
-		filesize = os.path.getsize(filename)
+		filename = os.path.split(filepath)[1]
+		filesize = os.path.getsize(filepath)
 
+		s.send(filename.encode())
 		s.send(str(filesize).encode())
 
-		with open(filename, "rb") as f:
+		with open(filepath, "rb") as f:
 			while True:
 				bytes_read = f.read(DMR_BUFFER_SIZE)
 				if not bytes_read:
@@ -718,68 +719,166 @@ class GameMonitor(th.Thread):
 		if (self.frame != None):
 			self.frame.label['text'] = text
 
+class GameMonitorUIThread(th.Thread):
+	"""TODO"""
+
+	def __init__(self, root, server):
+		"""TODO"""
+		super().__init__()
+		self.frame = GameMonitorUI(root, server)
+
+	def run(self):
+		"""TODO"""
+		self.frame.mainloop()
 
 
 # User Interfaces
 
-"""ServerList UI wrapper.
-
-Arguments:
-	TODO
-
-Returns:
-	TODO
-"""
-class ServerListUI(tk.Tk):
-
-	#TODO implement
-
+class UI(tk.Tk):
 	"""TODO"""
+
 	def __init__(self):
+		"""TODO"""
 
 		super().__init__()
 
-		# Title
-		self.winfo_toplevel().title(DMR_TITLE)
+		self.title(DMR_TITLE)
+		self.wm_iconbitmap(DMR_ICON) #TODO looks bad
+		#TODO taskbar icon
 
-		#TODO Icon
+		global dmr_ui, dmr_ui_root
+		dmr_ui = True
+		dmr_ui_root = self
+
+class ServerListUI(tk.Frame):
+	"""ServerList UI wrapper.
+
+	Arguments:
+		TODO
+
+	Returns:
+		TODO
+	"""
+
+	#TODO implement
+
+	def __init__(self, root):
+		"""TODO"""
+
+
+		# Parameters
+
+		self.root = root
+
+
+		# Init
+
+		super().__init__(self.root)
+
 
 		# Geometry
-		self.geometry("500x500")
-		self.minsize(500, 500)
-		self.maxsize(500, 500)
+
+		self.root.geometry("500x500")
+		self.root.minsize(500, 500)
+		self.root.maxsize(500, 500)
 		self.grid()
-		center_window(self)
+		center_window(root)
+
 
 		# Menu
-		menu = ttk.OptionMenu()
+
+		menu = Menu(root)  
+		
+		settings = Menu(root, tearoff=0)  
+		settings.add_command(label="SC4 Settings...")      
+		settings.add_separator()  
+		settings.add_command(label="Exit", command=root.quit)  
+		menu.add_cascade(label="Settings", menu=settings)  
+
+		servers = Menu(menu, tearoff=0)  
+		servers.add_command(label="Direct connect...", command=self.direct_connect)  
+		servers.add_separator()  
+		servers.add_command(label="Host...")   
+		menu.add_cascade(label="Servers", menu=servers)  
+
+		help = Menu(menu, tearoff=0)  
+		help.add_command(label="Readme...")  
+		menu.add_cascade(label="Help", menu=help)  
+		
+		root.config(menu=menu)  
+
 
 		# Label
+
 		self.label = ttk.Label()
 		self.label.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10)
 		self.label['text'] = "Loading server list..."
 		self.label['anchor'] = "center"
 
 
-"""TODO"""
-class ServerLoaderUI(tk.Tk):
+	def direct_connect(self):
+		"""TODO"""
 
+		#TODO make background window inaccessible
 
-	"""TODO"""
-	def __init__(self, server):
-
-		tk.Tk.__init__(self)
-
+		frame = tk.Toplevel(self.root)
+		
 		# Title
-		self.winfo_toplevel().title(DMR_TITLE)
+		frame.title('Direct Connect')
 
-		#TODO Icon
+		# Icon
+		frame.iconbitmap(DMR_ICON) #TODO looks bad
 
 		# Geometry
-		self.minsize(800, 100)
-		self.maxsize(800, 100)
-		self.grid()
-		center_window(self)
+		frame.geometry('300x100')
+		frame.maxsize(300, 100)
+		frame.minsize(300, 100)
+		frame.grid()
+		center_window(frame)
+
+		# Variables
+		host = DMR_HOST
+		port = DMR_PORT
+
+		#TODO make prettier
+
+		# Host Label
+		host_label = ttk.Label(frame, text="Host")
+		host_label.grid(row=0, column=0, columnspan=1, padx=5, pady=5)
+
+		# Host Entry
+		host_entry = ttk.Entry(frame, textvariable=host, )
+		host_entry.grid(row=0, column=1, columnspan=3, padx=5, pady=5)
+
+		# Port Label
+		port_label = ttk.Label(frame, text="Port")
+		port_label.grid(row=1, column=0, columnspan=1, padx=5, pady=5)
+
+		# Port Entry
+		host_entry = ttk.Entry(frame, textvariable=port)
+		host_entry.grid(row=1, column=1, columnspan=1, padx=5, pady=5)
+
+		# Button
+		button = ttk.Button(frame, text ="Connect")
+		button.grid(row=1, column=3, columnspan=1, padx=5, pady=5)
+
+class ServerLoaderUI(tk.Frame):
+	"""TODO"""
+
+	def __init__(self, root, server):
+		"""TODO"""
+
+		# Paramters
+		self.root = root
+
+		# Init
+		super().__init__(root)
+
+		# Geometry
+		self.root.minsize(800, 100)
+		self.root.maxsize(800, 100)
+		self.root.grid()
+		center_window(self.root)
 
 		# Label
 		self.label = ttk.Label()
@@ -796,13 +895,13 @@ class ServerLoaderUI(tk.Tk):
 		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=10)
 		self.progress_bar.start(2)
 
-		# Server loader
-		self.server_loader = ServerLoader(self, server)
-		self.server_loader.setDaemon(True)
+		# Worker
+		self.worker = ServerLoader(self, server)
+		self.worker.setDaemon(True)
 
 	"""TODO"""
 	def mainloop(self):
-		self.server_loader.start()
+		self.worker.start()
 		return tk.Tk.mainloop(self)
 
 
@@ -813,77 +912,90 @@ class ServerLoaderUI(tk.Tk):
 		self.progress_bar['value'] = self.server_loader.progress_bar_value
 		self.update()
 
-
-"""TODO"""
-class GameMonitorUI(tk.Tk):
-	
-	#TODO implement
-
+class GameMonitorUI(tk.Frame):
 	"""TODO"""
-	def __init__(self):
-		print("(to implement)")
+	
+	def __init__(self, root, server):
+		"""TODO"""
 
+		# Parameters
+		self.root = root
+
+		# Init
+		super().__init__(self.root)
+
+		# Geometry
+		self.root.geometry("100x50")
+		self.root.minsize(100, 50)
+		self.root.maxsize(100, 50)
+		self.root.grid()
+		center_window(self.root)
+
+		# Label
+		self.label = ttk.Label()
+		self.label.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10)
+
+		# Worker
+		self.worker = GameMonitor(self, server)
+
+	def mainloop(self):
+		"""TODO"""
+		self.worker.start()
+		return tk.Tk.mainloop(self)
+	
 
 # Exceptions
 
-"""TODO"""
 class CustomException(Exception):
-
-
 	"""TODO"""
+
 	def __init__(self, message, *args):
+		"""TODO"""
 		super().__init__(args)
 		self.message = message
-
-
-	"""TODO"""
+	
 	def __str__(self):
+		"""TODO"""
 		return self.message
 
 
 # Main Method
 
-"""This method is meant to be run in a terminal instead of the main method for testing purposes.
-
-Arguments:
-	None
-
-Returns:
-	None
-"""
 def cmd():
-	#global dmr_ui
-	#dmr_ui = True #TODO: just for testing!
+	"""This method is meant to be run in a terminal instead of the main method for testing purposes.
+
+	Arguments:
+		None
+
+	Returns:
+		None
+	"""
 	load_config()
 	create_subdirectories()
 	connect(Server(socket.gethostname(), 7246)) #TODO: replace with real server
 
-
-"""The main method.
-
-Arguments:
-	None
-
-Returns:
-	None
-"""
 def main():
+	"""The main method.
 
-	global dmr_ui
-	dmr_ui = True
+	Arguments:
+		None
 
-	try:
+	Returns:
+		None
+	"""
 
-		load_config()
-		create_subdirectories()
+	#try: #TODO uncomment
 
-		server_list_ui = ServerListUI()
-		server_list_ui.mainloop()
+	load_config()
+	create_subdirectories()
 
-	except Exception as e:
+	ui = UI()
+	ServerListUI(ui)
+	ui.mainloop()
 
-		show_error("A fatal error occurred.\n\n" + str(e)) # Please send the following information to the developers of the " + DMR_TITLE + " so this can be resolved:
+	#except Exception as e:
 
+	#	show_error("A fatal error occurred.\n\n" + str(e)) # Please send the following information to the developers of the " + DMR_TITLE + " so this can be resolved:
 
 if __name__ == '__main__':
 	cmd()
