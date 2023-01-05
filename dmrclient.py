@@ -35,7 +35,7 @@ DMR_TITLE = "DMR Client"
 DMR_ICON = os.path.join(dmr_resources_path, "icon.ico")
 DMR_HOST = socket.gethostname()
 DMR_PORT = 7246
-DMR_SEPARATOR = "<SEPARATOR>"
+DMR_SEPARATOR = b"<SEPARATOR>"
 DMR_BUFFER_SIZE = 4096
 
 
@@ -278,6 +278,7 @@ class Server:
 		self.host = host
 		self.port = port
 		self.server_id = self.request_server_id()
+		self.user_id = "user_id" #TODO placeholder, set this attribute only once connecting to the server
 
 
 	"""TODO
@@ -589,7 +590,7 @@ class GameMonitor(th.Thread):
 		self.report(self.PREFIX, 'Pushing deletion of "' + city_path + '"')
 
 		city = os.path.split(city_path)[1]
-
+		region = os.path.split(os.path.dirname(city_path))[1]
 
 		s = self.create_socket()
 
@@ -599,15 +600,25 @@ class GameMonitor(th.Thread):
 
 		s.send(b"push_delete")
 
-		#TODO
+		s.recv(DMR_BUFFER_SIZE)
+		s.send(self.server.user_id.encode())
+		s.recv(DMR_BUFFER_SIZE)
+		s.send(region.encode())
+		s.recv(DMR_BUFFER_SIZE)
+		s.send(city.encode())
+
+		if (s.recv(DMR_BUFFER_SIZE).decode() == "ok"):
+			self.report(self.PREFIX, "Delete push authorized") #TODO placeholder
+		else:
+			self.report(self.PREFIX, "Delete push not authorized") #TODO placeholder
 
 		
-
 	"""TODO"""
 	def push_save(self, new_city_path):
 
 		self.report(self.PREFIX, 'Pushing save for "' + new_city_path + '"')
 
+		region = os.path.split(os.path.dirname(new_city_path))[1]
 		new_city = os.path.split(new_city_path)[1]
 
 		s = self.create_socket()
@@ -618,7 +629,20 @@ class GameMonitor(th.Thread):
 
 		s.send(b"push_save")
 
-		#TODO
+		s.recv(DMR_BUFFER_SIZE)
+		s.send(self.server.user_id.encode())
+		s.recv(DMR_BUFFER_SIZE)
+		s.send(region.encode())
+		s.recv(DMR_BUFFER_SIZE)
+		s.send(new_city.encode())
+
+		if (s.recv(DMR_BUFFER_SIZE).decode() == "ok"):
+			self.send_file(s, new_city_path)
+			self.report(self.PREFIX, "Save push authorized") #TODO placeholder
+		else:
+			self.report(self.PREFIX, "Save push not authorized") #TODO placeholder
+
+		s.close()
 
 
 	"""TODO
@@ -671,17 +695,17 @@ class GameMonitor(th.Thread):
 
 
 	"""TODO"""
-	def send_file(self, s, filepath):
+	def send_file(self, s, filename):
 
-		self.report("Sending file " + filepath + "...")
+		self.report("[Socket] ", "Sending file " + filename + "...")
 
-		filename = os.path.split(filepath)[1]
-		filesize = os.path.getsize(filepath)
+		filesize = os.path.getsize(filename)
 
-		s.send(filename.encode())
 		s.send(str(filesize).encode())
 
-		with open(filepath, "rb") as f:
+		s.recv(DMR_BUFFER_SIZE)
+
+		with open(filename, "rb") as f:
 			while True:
 				bytes_read = f.read(DMR_BUFFER_SIZE)
 				if not bytes_read:
@@ -869,7 +893,7 @@ class ServerLoaderUI(tk.Frame):
 		"""TODO"""
 
 		# Paramters
-		self.root = root
+		self.root = tk.Tk() #TODO
 
 		# Init
 		super().__init__(root)
