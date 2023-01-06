@@ -546,6 +546,7 @@ class GameMonitor(th.Thread):
 			else:
 				self.report(self.PREFIX, "Server unreachable.")
 			new_city_paths, new_city_hashcodes = self.get_cities()
+			print("Cities accounted for: " + str(self.city_paths)) #TODO
 			for city_path in self.city_paths:
 				if (not city_path in new_city_paths):
 					self.push_delete(city_path)
