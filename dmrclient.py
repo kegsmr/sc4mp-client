@@ -1020,7 +1020,7 @@ class CustomException(Exception):
 
 # Logger
 
-class Logger(object):
+class Logger():
 	"""TODO"""
 	
 	def __init__(self):
