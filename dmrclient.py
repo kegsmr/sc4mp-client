@@ -37,7 +37,7 @@ DMR_CUSTOMPATH = None
 # Hard-coded constants
 DMR_TITLE = "DMR Client " + DMR_VERSION
 DMR_ICON = os.path.join(dmr_resources_path, "icon.ico")
-DMR_HOST = socket.gethostname()
+DMR_HOST = "127.0.0.1"
 DMR_PORT = 7246
 DMR_SEPARATOR = b"<SEPARATOR>"
 DMR_BUFFER_SIZE = 4096
@@ -303,14 +303,14 @@ class Server:
 		host = self.host
 		port = self.port
 
-	#try:
-		s = socket.socket()
-		s.connect((host, port))
-		s.send(request.encode())
-		return s.recv(DMR_BUFFER_SIZE).decode()
-	#except:
-		print('Error fetching "' + request + '" from ' + host + ":" + str(port))
-		return None
+		try:
+			s = socket.socket()
+			s.connect((host, port))
+			s.send(request.encode())
+			return s.recv(DMR_BUFFER_SIZE).decode()
+		except:
+			print('Error fetching "' + request + '" from ' + host + ":" + str(port))
+			return None
 
 
 
@@ -576,7 +576,8 @@ class GameMonitor(th.Thread):
 			else:
 				self.report(self.PREFIX, "Server unreachable.")
 			new_city_paths, new_city_hashcodes = self.get_cities()
-			#print("Cities accounted for: " + str(self.city_paths)) #TODO
+			#print("Old cities: " + str(self.city_paths)) # comment out
+			#print("New cities: " + str(new_city_paths)) # comment out
 			for city_path in self.city_paths:
 				if (not city_path in new_city_paths):
 					self.push_delete(city_path)
@@ -584,9 +585,10 @@ class GameMonitor(th.Thread):
 				if (not new_city_path in self.city_paths):
 					self.push_save(new_city_path)
 				else:
-					city_hashcode = self.city_hashcodes[self.city_paths.index(city_path)]
+					city_hashcode = self.city_hashcodes[self.city_paths.index(new_city_path)]
 					new_city_hashcode = new_city_hashcodes[new_city_paths.index(new_city_path)]
 					if (city_hashcode != new_city_hashcode):
+						#print(city_hashcode + " != " + new_city_hashcode)
 						self.push_save(new_city_path)
 			self.city_paths = new_city_paths
 			self.city_hashcodes = new_city_hashcodes	
