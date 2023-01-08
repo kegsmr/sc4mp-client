@@ -10,7 +10,7 @@ import tkinter as tk
 from tkinter import Menu, messagebox, ttk
 
 # Version
-DMR_VERSION = "v1.0 Alpha"
+DMR_VERSION = "v1.0.0 Alpha"
 print("[DMR] Client version " + DMR_VERSION)
 
 # Path to the resources subdirectory
