@@ -8,6 +8,7 @@ import threading as th
 import time
 import tkinter as tk
 from tkinter import Menu, messagebox, ttk
+import py2exe
 
 # Version
 DMR_VERSION = "v1.0.0 Alpha"
@@ -63,7 +64,7 @@ def load_config():
 	print("[DMR] Loading config...")
 
 	#TODO add cpu options for start parameters
-	configpath = get_dmr_path("config.ini")
+	configpath = "config.ini"
 	try:
 		config = configparser.RawConfigParser()
 		config.read(configpath)
