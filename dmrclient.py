@@ -358,7 +358,7 @@ class ServerLoader(th.Thread):
 			self.frame.progress_bar['mode'] = "indeterminate"
 			self.frame.progress_bar['maximum'] = 100
 		print(prefix + text)
-		#time.sleep(1)
+		#time.sleep(1) # for testing
 
 
 	def report_progress(self, text, value, maximum):
@@ -367,7 +367,8 @@ class ServerLoader(th.Thread):
 			self.frame.progress_bar['mode'] = "determinate"
 			self.frame.progress_bar['value'] = value
 			self.frame.progress_bar['maximum'] = maximum
-		#time.sleep(.1)
+		print(text)
+		#time.sleep(.1) # for testing
 
 	
 	"""TODO
@@ -399,11 +400,20 @@ class ServerLoader(th.Thread):
 
 		s.send(type.encode())
 
-		#TODO: get hash code and compare
-
 		filename = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRCache", os.path.join(directory, server_id + ".zip")))
 
-		self.receive_file(s, filename) 
+		client_hashcode = None
+		if (os.path.exists(filename)):
+			client_hashcode = md5(filename)
+
+		server_hashcode = s.recv(DMR_BUFFER_SIZE).decode()
+
+		if (client_hashcode == server_hashcode):
+			s.send(b"cached")
+			self.report("", "Using cached " + type + "...")
+		else:	
+			s.send(b"not cached")
+			self.receive_file(s, filename) 
 
 		self.report("", "Unpacking " + type + "...")
 		shutil.unpack_archive(filename, os.path.join(DMR_LAUNCHPATH, directory))
@@ -997,7 +1007,7 @@ def cmd():
 	"""
 	load_config()
 	create_subdirectories()
-	connect(Server(socket.gethostname(), 7246)) #TODO: replace with real server
+	connect(Server("64.223.168.31", 7246)) #TODO: replace with real server
 
 def main():
 	"""The main method.
