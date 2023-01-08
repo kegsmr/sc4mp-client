@@ -9,6 +9,10 @@ import time
 import tkinter as tk
 from tkinter import Menu, messagebox, ttk
 
+# Version
+DMR_VERSION = "v1.0 Alpha"
+print("[DMR] Client version " + DMR_VERSION)
+
 # Path to the resources subdirectory
 dmr_resources_path = "resources"
 
@@ -31,7 +35,7 @@ DMR_LAUNCHRESH = None
 DMR_CUSTOMPATH = None
 
 # Hard-coded constants
-DMR_TITLE = "DMR Client"
+DMR_TITLE = "DMR Client " + DMR_VERSION
 DMR_ICON = os.path.join(dmr_resources_path, "icon.ico")
 DMR_HOST = socket.gethostname()
 DMR_PORT = 7246
@@ -275,9 +279,14 @@ class Server:
 		TODO
 	"""
 	def __init__(self, host, port):
+		
 		self.host = host
 		self.port = port
-		self.server_id = self.request_server_id()
+		
+		self.server_id = self.request("server_id")
+		self.server_name = self.request("server_name")
+		self.server_description = self.request("server_description")
+		
 		self.user_id = "user_id" #TODO placeholder, set this attribute only once connecting to the server
 
 
@@ -289,9 +298,21 @@ class Server:
 	Returns:
 		TODO
 	"""
-	def request_server_id(self):
-		print("(using placeholder server id)")
-		return "server_id" #TODO actually get the server id
+	def request(self, request):
+		
+		host = self.host
+		port = self.port
+
+	#try:
+		s = socket.socket()
+		s.connect((host, port))
+		s.send(request.encode())
+		return s.recv(DMR_BUFFER_SIZE).decode()
+	#except:
+		print('Error fetching "' + request + '" from ' + host + ":" + str(port))
+		return None
+
+
 
 
 # Threads
@@ -395,8 +416,6 @@ class ServerLoader(th.Thread):
 		purge_directory(os.path.join(DMR_LAUNCHPATH, directory))
 
 		s = self.create_socket() 
-		
-		self.report("", "Fetching " + type + "...")
 
 		s.send(type.encode())
 
@@ -413,6 +432,7 @@ class ServerLoader(th.Thread):
 			self.report("", "Using cached " + type + "...")
 		else:	
 			s.send(b"not cached")
+			self.report("", "Fetching " + type + "...")
 			self.receive_file(s, filename) 
 
 		self.report("", "Unpacking " + type + "...")
@@ -556,7 +576,7 @@ class GameMonitor(th.Thread):
 			else:
 				self.report(self.PREFIX, "Server unreachable.")
 			new_city_paths, new_city_hashcodes = self.get_cities()
-			print("Cities accounted for: " + str(self.city_paths)) #TODO
+			#print("Cities accounted for: " + str(self.city_paths)) #TODO
 			for city_path in self.city_paths:
 				if (not city_path in new_city_paths):
 					self.push_delete(city_path)
