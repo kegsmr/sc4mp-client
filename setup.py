@@ -1,7 +1,10 @@
 from distutils.core import setup
 import py2exe
+import sys
 import os
 import glob
+
+sys.argv.append('py2exe')
 
 def find_data_files(source,target,patterns):
     """Locates the specified data-files and returns the matches
@@ -32,7 +35,7 @@ setup(
 		"icon_resources": [(1, "resources/icon.ico")],
 		"name": "DMR Client",
 		"author": "DMR",
-        "description": "DMR Multiplayer Mod Client",
+        "description": "DMR Multiplayer Mod for SimCity 4",
 		"version": "v1.0.0 Alpha"
 	}],
 	options={

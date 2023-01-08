@@ -9,10 +9,11 @@ import time
 import tkinter as tk
 from tkinter import Menu, messagebox, ttk
 import py2exe
+from datetime import datetime
+import sys
 
 # Version
 DMR_VERSION = "v1.0.0 Alpha"
-print("[DMR] Client version " + DMR_VERSION)
 
 # Path to the resources subdirectory
 dmr_resources_path = "resources"
@@ -1017,6 +1018,29 @@ class CustomException(Exception):
 		return self.message
 
 
+# Logger
+
+class Logger(object):
+	"""TODO"""
+	
+	def __init__(self):
+		"""TODO"""
+		self.terminal = sys.stdout
+		self.log = "dmrclient-" + datetime.now().strftime("%Y%m%d%H%M%S") + ".log"
+   
+
+	def write(self, message):
+		"""TODO"""
+		self.terminal.write(message)
+		with open(self.log, "a") as log:
+			log.write(message)
+			log.close()  
+
+	def flush(self):
+		"""TODO"""
+		self.terminal.flush()
+
+
 # Main Method
 
 def cmd():
@@ -1043,6 +1067,10 @@ def main():
 	"""
 
 	#try: #TODO uncomment
+
+	sys.stdout = Logger()
+
+	print("[DMR] Client version " + DMR_VERSION)
 
 	load_config()
 	create_subdirectories()
