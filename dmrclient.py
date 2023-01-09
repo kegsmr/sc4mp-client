@@ -572,7 +572,8 @@ class GameMonitor(th.Thread):
 
 	"""TODO"""
 	def run(self):
-		while (self.game_running):
+		end = False
+		while (True):
 			if (self.ping()):
 				self.report_quietly("Connected to server. Monitoring for changes...")
 			else:
@@ -594,6 +595,10 @@ class GameMonitor(th.Thread):
 						self.push_save(new_city_path)
 			self.city_paths = new_city_paths
 			self.city_hashcodes = new_city_hashcodes	
+			if (end == True):
+				break
+			if (not self.game_running):
+				end = True
 			time.sleep(5)
 		if (self.frame != None):
 			self.frame.destroy()
@@ -1055,10 +1060,16 @@ def cmd():
 		None
 	"""
 	sys.stdout = Logger()
+
 	print("[DMR] Client version " + DMR_VERSION)
+
 	load_config()
 	create_subdirectories()
-	connect(Server("64.223.168.31", 7246)) #TODO: replace with real server
+
+	host = socket.gethostname() #input("Enter server IP... ")
+	port = 7246 #int(input("Enter server port... "))
+
+	connect(Server(host, port)) #TODO: replace with real server
 
 def main():
 	"""The main method.
