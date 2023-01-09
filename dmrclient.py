@@ -1026,7 +1026,9 @@ class Logger():
 	def __init__(self):
 		"""TODO"""
 		self.terminal = sys.stdout
-		self.log = "dmrclient-" + datetime.now().strftime("%Y%m%d%H%M%S") + ".log"
+		self.log = "dmrclient.log" #"dmrclient-" + datetime.now().strftime("%Y%m%d%H%M%S") + ".log"
+		if (os.path.exists(self.log)):
+			os.remove(self.log)
    
 
 	def write(self, message):
@@ -1052,6 +1054,8 @@ def cmd():
 	Returns:
 		None
 	"""
+	sys.stdout = Logger()
+	print("[DMR] Client version " + DMR_VERSION)
 	load_config()
 	create_subdirectories()
 	connect(Server("64.223.168.31", 7246)) #TODO: replace with real server
