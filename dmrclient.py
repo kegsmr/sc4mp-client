@@ -554,6 +554,7 @@ class ServerLoader(th.Thread):
 
 		shutil.unpack_archive(get_dmr_path("Regions.zip"), path)
 
+
 class GameMonitor(th.Thread):
 	"""TODO"""
 

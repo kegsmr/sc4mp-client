@@ -1,3 +1,4 @@
 dist
 config.ini
 *.log
+testing.py
