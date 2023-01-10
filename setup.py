@@ -29,8 +29,9 @@ def find_data_files(source,target,patterns):
                 ret.setdefault(path,[]).append(filename)
     return sorted(ret.items())
 
+#TODO: fails to compile!
 setup(
-	windows=[{
+	console=[{ #TODO: change to "windows" for final version
 		"script": "dmrclient.py",
 		"icon_resources": [(1, "resources/icon.ico")],
 		"name": "DMR Client",
@@ -41,9 +42,10 @@ setup(
 	options={
 		"py2exe": {
 			"packages": [],
+            "bundle_files": 1,
 			"optimize": 2,
 			"compressed": True,
-			"excludes": ["doctest", "pdb", "difflib", "inspect", "_ssl", "tc"] # removed "Tkinter"
+            "excludes":[]
 		}
 	},
 	data_files=find_data_files('resources','resources',['*'])

@@ -12,6 +12,7 @@ import py2exe
 from datetime import datetime
 import sys
 
+
 # Version
 DMR_VERSION = "v1.0.0 Alpha"
 
@@ -90,6 +91,7 @@ def load_config():
 		DMR_LAUNCHRESH = default_resh
 		DMR_CUSTOMPATH = default_sc4path
 
+
 def create_subdirectories():
 	"""Creates the required subdirectories in the launch directory if they do not yet exist.
 
@@ -114,6 +116,7 @@ def create_subdirectories():
 		"""if directory == "Plugins":
 			noticepath = os.path.join(DMR_LAUNCHPATH, directory, "__PUT YOUR PLUGINS IN THIS FOLDER__.txt")
 			open(noticepath, 'a').close()"""
+
 
 def connect(server):
 	"""TODO
@@ -140,6 +143,7 @@ def connect(server):
 			game_monitor.start()
 			start_sc4()
 			game_monitor.game_running = False
+
 
 def start_sc4():
 	"""Attempts to find the install path of Simcity 4 and launches the game with custom launch parameters if found.
@@ -184,6 +188,7 @@ def start_sc4():
 
 	print("[DMR] Simcity 4 closed.")
 
+
 def get_dmr_path(filename):
 	"""Gives the path of a given file in the DMR "resources" subdirectory
 
@@ -194,6 +199,7 @@ def get_dmr_path(filename):
 		TODO type: the path to the given file
 	"""
 	return os.path.join(dmr_resources_path, filename)
+
 
 def md5(filename):
 	"""Creates the hashcode for a given file.
@@ -209,6 +215,7 @@ def md5(filename):
 		for chunk in iter(lambda: f.read(4096), b""):
 			hash_md5.update(chunk)
 	return hash_md5.hexdigest()
+
 
 def purge_directory(directory):
 	"""TODO
@@ -229,10 +236,12 @@ def purge_directory(directory):
 		except PermissionError as e:
 			raise CustomException('Failed to delete "' + file_path + '" because the file is being used by another process.') #\n\n' + str(e)
 
+
 def event_generate(frame, event, when):
-	"""TODO"""
+	"""Not used."""
 	if (frame != None):
 		frame.event_generate(event, when=when)
+
 
 def show_error(e):
 	"""TODO"""
@@ -246,6 +255,7 @@ def show_error(e):
 
 	if (dmr_ui):
 		messagebox.showerror(DMR_TITLE, message)
+
 
 def center_window(window):
 	"""
@@ -272,16 +282,10 @@ def center_window(window):
 class Server:
 	"""TODO"""
 
-	"""TODO
 
-	Arguments:
-		TODO
-
-	Returns:
-		TODO
-	"""
 	def __init__(self, host, port):
-		
+		"""TODO"""
+
 		self.host = host
 		self.port = port
 		
@@ -292,16 +296,9 @@ class Server:
 		self.user_id = "user_id" #TODO placeholder, set this attribute only once connecting to the server
 
 
-	"""TODO
-
-	Arguments:
-		TODO
-
-	Returns:
-		TODO
-	"""
 	def request(self, request):
-		
+		"""TODO"""
+
 		host = self.host
 		port = self.port
 
@@ -315,30 +312,32 @@ class Server:
 			return None
 
 
-
-
 # Threads
 
 class ServerList(th.Thread):
 	"""TODO"""
 
-	"""TODO"""
+
 	def __init__(self):
+		"""TODO"""
+
 
 		print("(to implement)") #TODO
+
 
 class ServerLoader(th.Thread):
 	"""TODO"""
 
-	"""TODO"""
+	
 	def __init__(self, frame, server):
+		"""TODO"""
 		th.Thread.__init__(self)
 		self.frame = frame
 		self.server = server
 
-
-	"""TODO"""
+	
 	def run(self):
+		"""TODO"""
 	
 		host = self.server.host
 		port = self.server.port
@@ -376,6 +375,7 @@ class ServerLoader(th.Thread):
 
 		
 	def report(self, prefix, text):
+		"""TODO"""
 		if (self.frame != None):
 			self.frame.label['text'] = text
 			self.frame.progress_bar['mode'] = "indeterminate"
@@ -385,6 +385,7 @@ class ServerLoader(th.Thread):
 
 
 	def report_progress(self, text, value, maximum):
+		"""TODO"""
 		if (self.frame != None):
 			self.frame.label['text'] = text
 			self.frame.progress_bar['mode'] = "determinate"
@@ -393,16 +394,9 @@ class ServerLoader(th.Thread):
 		print(text)
 		#time.sleep(.1) # for testing
 
-	
-	"""TODO
 
-	Arguments:
-		TODO
-
-	Returns:
-		TODO
-	"""
 	def load(self, type):
+		"""TODO"""
 
 		host = self.server.host
 		port = self.server.port
@@ -443,15 +437,8 @@ class ServerLoader(th.Thread):
 		print("done.")
 
 
-	"""TODO
-
-	Arguments:
-		TODO
-
-	Returns:
-		TODO
-	"""
 	def create_socket(self):
+		"""TODO"""
 
 		host = self.server.host
 		port = self.server.port
@@ -492,15 +479,8 @@ class ServerLoader(th.Thread):
 		return s
 
 
-	"""TODO
-
-	Arguments:
-		TODO
-
-	Returns:
-		TODO
-	"""
 	def receive_file(self, s, filename):
+		"""TODO"""
 
 		filesize = s.recv(DMR_BUFFER_SIZE).decode()
 
@@ -523,15 +503,8 @@ class ServerLoader(th.Thread):
 		s.close()
 
 
-	"""TODO
-
-	Arguments:
-		TODO
-
-	Returns:
-		TODO
-	"""
 	def prep_regions(self):
+		"""TODO"""
 
 		self.server.regions = []
 
@@ -558,8 +531,10 @@ class ServerLoader(th.Thread):
 class GameMonitor(th.Thread):
 	"""TODO"""
 
-	"""TODO"""
+
 	def __init__(self, frame, server):
+		"""TODO"""
+
 		th.Thread.__init__(self)
 
 		self.frame = frame
@@ -571,8 +546,8 @@ class GameMonitor(th.Thread):
 		self.game_running = True
 
 
-	"""TODO"""
 	def run(self):
+		"""TODO"""
 		end = False
 		while (True):
 			if (self.ping()):
@@ -605,8 +580,8 @@ class GameMonitor(th.Thread):
 			self.frame.destroy()
 
 
-	"""TODO"""
 	def get_cities(self):
+		"""TODO"""
 		city_paths = []
 		city_hashcodes = []
 		regions_path = os.path.join(DMR_LAUNCHPATH, "Regions")
@@ -625,8 +600,8 @@ class GameMonitor(th.Thread):
 		return city_paths, city_hashcodes
 
 
-	"""TODO"""
 	def push_delete(self, city_path):
+		"""TODO"""
 
 		self.report(self.PREFIX, 'Pushing deletion of "' + city_path + '"')
 
@@ -654,8 +629,8 @@ class GameMonitor(th.Thread):
 			self.report(self.PREFIX, "Delete push not authorized") #TODO placeholder
 
 		
-	"""TODO"""
 	def push_save(self, new_city_path):
+		"""TODO"""
 
 		self.report(self.PREFIX, 'Pushing save for "' + new_city_path + '"')
 
@@ -686,15 +661,8 @@ class GameMonitor(th.Thread):
 		s.close()
 
 
-	"""TODO
-
-	Arguments:
-		TODO
-
-	Returns:
-		TODO
-	"""
 	def create_socket(self):
+		"""TODO"""
 
 		host = self.server.host
 		port = self.server.port
@@ -735,8 +703,8 @@ class GameMonitor(th.Thread):
 		return s
 
 
-	"""TODO"""
 	def send_file(self, s, filename):
+		"""TODO"""
 
 		self.report("[Socket] ", "Sending file " + filename + "...")
 
@@ -754,8 +722,8 @@ class GameMonitor(th.Thread):
 				s.sendall(bytes_read)
 
 
-	"""TODO"""
 	def ping(self):
+		"""TODO"""
 
 		host = self.server.host
 		port = self.server.port
@@ -772,25 +740,28 @@ class GameMonitor(th.Thread):
 			return False
 
 
-	"""TODO"""
 	def report(self, prefix, text):
+		"""TODO"""
 		if (self.frame != None):
 			self.frame.label['text'] = text
 		print(prefix + text)
 
 
-	"""TODO"""
 	def report_quietly(self, text):
+		"""TODO"""
 		if (self.frame != None):
 			self.frame.label['text'] = text
 
+
 class GameMonitorUIThread(th.Thread):
 	"""TODO"""
+
 
 	def __init__(self, root, server):
 		"""TODO"""
 		super().__init__()
 		self.frame = GameMonitorUI(root, server)
+
 
 	def run(self):
 		"""TODO"""
@@ -801,6 +772,7 @@ class GameMonitorUIThread(th.Thread):
 
 class UI(tk.Tk):
 	"""TODO"""
+
 
 	def __init__(self):
 		"""TODO"""
@@ -815,6 +787,7 @@ class UI(tk.Tk):
 		dmr_ui = True
 		dmr_ui_root = self
 
+
 class ServerListUI(tk.Frame):
 	"""ServerList UI wrapper.
 
@@ -825,7 +798,9 @@ class ServerListUI(tk.Frame):
 		TODO
 	"""
 
+
 	#TODO implement
+
 
 	def __init__(self, root):
 		"""TODO"""
@@ -927,8 +902,10 @@ class ServerListUI(tk.Frame):
 		button = ttk.Button(frame, text ="Connect")
 		button.grid(row=1, column=3, columnspan=1, padx=5, pady=5)
 
+
 class ServerLoaderUI(tk.Frame):
 	"""TODO"""
+
 
 	def __init__(self, root, server):
 		"""TODO"""
@@ -964,22 +941,25 @@ class ServerLoaderUI(tk.Frame):
 		self.worker = ServerLoader(self, server)
 		self.worker.setDaemon(True)
 
-	"""TODO"""
+
 	def mainloop(self):
+		"""TODO"""
 		self.worker.start()
 		return tk.Tk.mainloop(self)
 
 
-	"""TODO"""
 	def progress_update(self):
+		"""TODO"""
 		self.label['text'] = self.server_loader.label
 		self.progress_bar['mode'] = self.server_loader.progress_bar_mode
 		self.progress_bar['value'] = self.server_loader.progress_bar_value
 		self.update()
 
+
 class GameMonitorUI(tk.Frame):
 	"""TODO"""
 	
+
 	def __init__(self, root, server):
 		"""TODO"""
 
@@ -1003,6 +983,7 @@ class GameMonitorUI(tk.Frame):
 		# Worker
 		self.worker = GameMonitor(self, server)
 
+
 	def mainloop(self):
 		"""TODO"""
 		self.worker.start()
@@ -1014,11 +995,13 @@ class GameMonitorUI(tk.Frame):
 class CustomException(Exception):
 	"""TODO"""
 
+
 	def __init__(self, message, *args):
 		"""TODO"""
 		super().__init__(args)
 		self.message = message
 	
+
 	def __str__(self):
 		"""TODO"""
 		return self.message
@@ -1029,6 +1012,7 @@ class CustomException(Exception):
 class Logger():
 	"""TODO"""
 	
+
 	def __init__(self):
 		"""TODO"""
 		self.terminal = sys.stdout
@@ -1043,6 +1027,7 @@ class Logger():
 		with open(self.log, "a") as log:
 			log.write(message)
 			log.close()  
+
 
 	def flush(self):
 		"""TODO"""
@@ -1060,6 +1045,7 @@ def cmd():
 	Returns:
 		None
 	"""
+
 	sys.stdout = Logger()
 
 	print("[DMR] Client version " + DMR_VERSION)
@@ -1072,6 +1058,7 @@ def cmd():
 
 	connect(Server(host, port)) #TODO: replace with real server
 
+
 def main():
 	"""The main method.
 
@@ -1082,7 +1069,7 @@ def main():
 		None
 	"""
 
-	#try: #TODO uncomment
+	#try: #TODO uncomment and add traceback in the error popup
 
 	sys.stdout = Logger()
 
