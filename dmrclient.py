@@ -48,6 +48,12 @@ DMR_BUFFER_SIZE = 4096
 
 # Methods
 
+def prep():
+	"""TODO"""
+	load_config()
+	create_subdirectories()
+
+
 def load_config():
 	"""Loads the config file from the resources subdirectory or creates it if it does not yet exist.
 
@@ -1050,8 +1056,7 @@ def cmd():
 
 	print("[DMR] Client version " + DMR_VERSION)
 
-	load_config()
-	create_subdirectories()
+	prep()
 
 	host = socket.gethostname() #input("Enter server IP... ")
 	port = 7246 #int(input("Enter server port... "))
@@ -1075,8 +1080,7 @@ def main():
 
 	print("[DMR] Client version " + DMR_VERSION)
 
-	load_config()
-	create_subdirectories()
+	prep()
 
 	ui = UI()
 	ServerListUI(ui)
