@@ -294,12 +294,20 @@ class Server:
 
 		self.host = host
 		self.port = port
+
+		self.fetch()
 		
+		self.user_id = "user_id" #TODO placeholder, set this attribute only once connecting to the server
+
+
+	def fetch(self):
+		"""TODO"""
+
+		self.fetched = True
+
 		self.server_id = self.request("server_id")
 		self.server_name = self.request("server_name")
 		self.server_description = self.request("server_description")
-		
-		self.user_id = "user_id" #TODO placeholder, set this attribute only once connecting to the server
 
 
 	def request(self, request):
@@ -314,6 +322,7 @@ class Server:
 			s.send(request.encode())
 			return s.recv(DMR_BUFFER_SIZE).decode()
 		except:
+			self.fetched = False
 			print('Error fetching "' + request + '" from ' + host + ":" + str(port))
 			return None
 
@@ -351,6 +360,7 @@ class ServerLoader(th.Thread):
 		try:
 
 			self.report("[DMR Server Loader] ", 'Connecting to server at "' + str(host) + ":" + str(port) + '"...')
+			self.fetch_server()
 
 			self.report("[DMR Server Loader] ", "Loading plugins...")
 			self.load("plugins")
@@ -400,6 +410,14 @@ class ServerLoader(th.Thread):
 		print(text)
 		#time.sleep(.1) # for testing
 
+
+	def fetch_server(self):
+		"""TODO"""
+		if (self.server.fetched == False):
+			self.server.fetch()
+			if (self.server.fetched == False):
+				raise CustomException("Unable to find server. Check the IP address and port, then try again.")
+		
 
 	def load(self, type):
 		"""TODO"""
