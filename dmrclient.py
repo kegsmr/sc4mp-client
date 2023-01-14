@@ -110,7 +110,7 @@ def create_subdirectories():
 
 	print("[DMR] Creating subdirectories...")
 
-	directories = ["DMRCache", "DMRProfiles", "DMRSalvage", "Plugins", "Regions", os.path.join("DMRCache","Plugins"), os.path.join("DMRCache","Regions")]
+	directories = ["DMRBackups", "DMRCache", "DMRProfiles", "DMRSalvage", "Plugins", "Regions", os.path.join("DMRCache","Plugins"), os.path.join("DMRCache","Regions")]
 
 	for directory in directories:
 		new_directory = os.path.join(DMR_LAUNCHPATH, directory)
@@ -295,7 +295,7 @@ class Server:
 		self.host = host
 		self.port = port
 
-		self.fetch()
+		self.fetched = False
 		
 		self.user_id = "user_id" #TODO placeholder, set this attribute only once connecting to the server
 
@@ -445,7 +445,11 @@ class ServerLoader(th.Thread):
 		if (os.path.exists(filename)):
 			client_hashcode = md5(filename)
 
-		server_hashcode = s.recv(DMR_BUFFER_SIZE).decode()
+		server_hashcode = ""
+		try:
+			server_hashcode = s.recv(DMR_BUFFER_SIZE).decode()
+		except:
+			self.report("", "Error reading server hashcode for " + type + ".")
 
 		if (client_hashcode == server_hashcode):
 			s.send(b"cached")
@@ -536,6 +540,13 @@ class ServerLoader(th.Thread):
 
 		for directory in os.listdir(path):
 			
+			# Backup directory
+			backup_directory = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRBackups", os.path.join(self.server.server_id, directory)))
+			if (not os.path.exists(backup_directory)):
+				os.makedirs(backup_directory)
+			#else:
+			#	shutil.copytree(backup_directory, os.path.join(path, "[DMR Backups] " + directory)) #TODO
+
 			self.server.regions.append(directory)
 
 			config_path = os.path.join(path, os.path.join(directory, "region.ini"))
@@ -660,6 +671,10 @@ class GameMonitor(th.Thread):
 
 		region = os.path.split(os.path.dirname(new_city_path))[1]
 		new_city = os.path.split(new_city_path)[1]
+
+		backup_directory = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRBackups", os.path.join(self.server.server_id, os.path.join(region, new_city))))
+		os.makedirs(backup_directory)
+		shutil.copy(new_city_path, os.path.join(backup_directory, datetime.now().strftime("%Y%m%d%H%M%S") + ".sc4"))
 
 		s = self.create_socket()
 
