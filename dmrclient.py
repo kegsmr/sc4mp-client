@@ -673,7 +673,8 @@ class GameMonitor(th.Thread):
 		new_city = os.path.split(new_city_path)[1]
 
 		backup_directory = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRBackups", os.path.join(self.server.server_id, os.path.join(region, new_city))))
-		os.makedirs(backup_directory)
+		if (not os.path.exists(backup_directory)):
+			os.makedirs(backup_directory)
 		shutil.copy(new_city_path, os.path.join(backup_directory, datetime.now().strftime("%Y%m%d%H%M%S") + ".sc4"))
 
 		s = self.create_socket()
