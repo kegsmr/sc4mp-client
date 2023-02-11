@@ -4,20 +4,22 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 import threading as th
 import time
 import tkinter as tk
-from tkinter import Menu, messagebox, ttk
-import py2exe
 from datetime import datetime
-import sys
-
+from tkinter import Menu, messagebox, ttk
+import json
+import random
+import string
+#import py2exe
 
 # Version
 DMR_VERSION = "v1.0.0 Alpha"
 
 # Path to the resources subdirectory
-dmr_resources_path = "resources"
+DMR_RESOURCES_PATH = "resources"
 
 # Global variables
 dmr_ui = False
@@ -39,7 +41,7 @@ DMR_CUSTOMPATH = None
 
 # Hard-coded constants
 DMR_TITLE = "DMR Client " + DMR_VERSION
-DMR_ICON = os.path.join(dmr_resources_path, "icon.ico")
+DMR_ICON = os.path.join(DMR_RESOURCES_PATH, "icon.ico")
 DMR_HOST = "127.0.0.1"
 DMR_PORT = 7246
 DMR_SEPARATOR = b"<SEPARATOR>"
@@ -204,7 +206,7 @@ def get_dmr_path(filename):
 	Returns:
 		TODO type: the path to the given file
 	"""
-	return os.path.join(dmr_resources_path, filename)
+	return os.path.join(DMR_RESOURCES_PATH, filename)
 
 
 def md5(filename):
@@ -221,6 +223,11 @@ def md5(filename):
 		for chunk in iter(lambda: f.read(4096), b""):
 			hash_md5.update(chunk)
 	return hash_md5.hexdigest()
+
+
+def random_string(length):
+	"""TODO"""
+	return ''.join(random.SystemRandom().choice(string.ascii_letters + string.digits) for i in range(length))
 
 
 def purge_directory(directory):
@@ -247,6 +254,29 @@ def event_generate(frame, event, when):
 	"""Not used."""
 	if (frame != None):
 		frame.event_generate(event, when=when)
+
+
+def create_empty_json(filename):
+	"""TODO"""
+	with open(filename, 'w') as file:
+		data = dict()
+		file.seek(0)
+		json.dump(data, file, indent=4)
+		file.truncate()
+
+
+def load_json(filename):
+	"""TODO"""
+	with open(filename, 'r') as file:
+		return json.load(file)
+
+
+def update_json(filename, data):
+	"""TODO"""
+	with open(filename, 'w') as file:
+		file.seek(0)
+		json.dump(data, file, indent=4)
+		file.truncate()
 
 
 def show_error(e):
@@ -296,20 +326,24 @@ class Server:
 		self.port = port
 
 		self.fetched = False
-		
-		self.user_id = "user_id" #TODO placeholder, set this attribute only once connecting to the server
+		self.password = None
+		self.user_id = None
 
 
 	def fetch(self):
 		"""TODO"""
 
+		# Mark server as fetched
 		self.fetched = True
 
+		# Request server info
 		self.server_id = self.request("server_id")
 		self.server_name = self.request("server_name")
 		self.server_description = self.request("server_description")
 
+		#TODO add server host and port to serverlist?
 
+			
 	def request(self, request):
 		"""TODO"""
 
@@ -327,7 +361,70 @@ class Server:
 			return None
 
 
-# Threads
+	def authenticate(self):
+		"""TODO"""
+
+		# Get database
+		filename = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRProfiles", "servers.json"))
+		data = None
+		try:
+			data = load_json(filename)
+		except:
+			data = dict()
+
+		# Get database entry for server
+		key = self.server_id
+		entry = data.get(key, dict())
+		if (entry == None):
+			entry = dict()
+		data[key] = entry
+
+		# Set values in database entry
+		entry["server_name"] = self.server_name
+		entry["server_description"] = self.server_description
+		entry["host"] = self.host
+		entry["port"] = self.port	
+
+		# Get user_id and salt
+		user_id = None
+		salt = None
+		try:
+			user_id = entry["user_id"]
+			salt = entry["salt"]
+		except:
+			user_id = random_string(16)
+
+		# Verify server can produce the user_id from the hash of the user_id and salt combined
+		if (salt != None):
+			hash = hashlib.md5((user_id + salt).encode()).hexdigest()
+			s = socket.socket()
+			s.connect((self.host, self.port))
+			s.send(b"user_id")
+			s.recv(DMR_BUFFER_SIZE)
+			s.send(hash.encode())
+			if (s.recv(DMR_BUFFER_SIZE).decode() == user_id):
+				self.user_id = user_id
+			else:
+				raise CustomException("Authentication error.") #TODO needs a more helpful message
+			s.close()
+
+		# Get the new salt
+		s = socket.socket()
+		s.connect((self.host, self.port))
+		s.send(b"salt")
+		s.recv(DMR_BUFFER_SIZE)
+		s.send(user_id.encode())
+		salt = s.recv(DMR_BUFFER_SIZE).decode()
+
+		# Set user_id and salt in the database entry
+		entry["user_id"] = user_id
+		entry["salt"] = salt
+
+		# Update database
+		update_json(filename, data)
+	
+
+# Workers
 
 class ServerList(th.Thread):
 	"""TODO"""
@@ -335,7 +432,6 @@ class ServerList(th.Thread):
 
 	def __init__(self):
 		"""TODO"""
-
 
 		print("(to implement)") #TODO
 
@@ -361,6 +457,9 @@ class ServerLoader(th.Thread):
 
 			self.report("[DMR Server Loader] ", 'Connecting to server at "' + str(host) + ":" + str(port) + '"...')
 			self.fetch_server()
+
+			self.report("[DMR Server Loader] ", 'Authenticating server...')
+			self.authenticate()
 
 			self.report("[DMR Server Loader] ", "Loading plugins...")
 			self.load("plugins")
@@ -419,6 +518,11 @@ class ServerLoader(th.Thread):
 				raise CustomException("Unable to find server. Check the IP address and port, then try again.")
 		
 
+	def authenticate(self):
+		"""TODO"""
+		self.server.authenticate()
+		
+		
 	def load(self, type):
 		"""TODO"""
 
@@ -513,7 +617,7 @@ class ServerLoader(th.Thread):
 		filesize = s.recv(DMR_BUFFER_SIZE).decode()
 
 		print("[Socket] Receiving " + filesize + " bytes...")
-		print("writing to " + filename)
+		print('writing to "' + filename + '"')
 
 		if (os.path.exists(filename)):
 			os.remove(filename)
@@ -554,7 +658,7 @@ class ServerLoader(th.Thread):
 			try:
 				config = configparser.RawConfigParser()
 				config.read(config_path)
-				config.set("Regional Settings", "Name", "[DMR] " + config.get("Regional Settings", "Name"))
+				config.set("Regional Settings", "Name", "[MP] " + config.get("Regional Settings", "Name")) #"[MP]" was "[DMR]"
 				with open(config_path, 'wt') as config_file:
 					config.write(config_file)
 			except:
@@ -590,22 +694,29 @@ class GameMonitor(th.Thread):
 			else:
 				self.report(self.PREFIX, "Server unreachable.")
 			new_city_paths, new_city_hashcodes = self.get_cities()
-			#print("Old cities: " + str(self.city_paths)) # comment out
-			#print("New cities: " + str(new_city_paths)) # comment out
-			for city_path in self.city_paths:
-				if (not city_path in new_city_paths):
-					self.push_delete(city_path)
-			for new_city_path in new_city_paths:
-				if (not new_city_path in self.city_paths):
-					self.push_save(new_city_path)
-				else:
-					city_hashcode = self.city_hashcodes[self.city_paths.index(new_city_path)]
-					new_city_hashcode = new_city_hashcodes[new_city_paths.index(new_city_path)]
-					if (city_hashcode != new_city_hashcode):
-						#print(city_hashcode + " != " + new_city_hashcode)
-						self.push_save(new_city_path)
-			self.city_paths = new_city_paths
-			self.city_hashcodes = new_city_hashcodes	
+			save_city_paths = []
+			#print("Old cities: " + str(self.city_paths))
+			#print("New cities: " + str(new_city_paths))
+			#for city_path in self.city_paths: #TODO
+			#	if (not city_path in new_city_paths): #TODO
+			#		self.push_delete(city_path) #TODO
+			save_city_paths_length = -1
+			while (len(save_city_paths) != save_city_paths_length):
+				save_city_paths_length = len(save_city_paths)
+				for new_city_path in new_city_paths:
+					if (not new_city_path in self.city_paths):
+						save_city_paths.append(new_city_path)
+					else:
+						city_hashcode = self.city_hashcodes[self.city_paths.index(new_city_path)]
+						new_city_hashcode = new_city_hashcodes[new_city_paths.index(new_city_path)]
+						if (city_hashcode != new_city_hashcode):
+							#print(city_hashcode + " != " + new_city_hashcode)
+							save_city_paths.append(new_city_path)
+				self.city_paths = new_city_paths
+				self.city_hashcodes = new_city_hashcodes
+				time.sleep(1)
+			if (len(save_city_paths) > 0):
+				self.push_save(save_city_paths)
 			if (end == True):
 				break
 			if (not self.game_running):
@@ -664,42 +775,82 @@ class GameMonitor(th.Thread):
 			self.report(self.PREFIX, "Delete push not authorized") #TODO placeholder
 
 		
-	def push_save(self, new_city_path):
+	def push_save(self, save_city_paths):
 		"""TODO"""
 
-		self.report(self.PREFIX, 'Pushing save for "' + new_city_path + '"')
+		# Report progress: backups
+		self.report(self.PREFIX, 'Creating backups...')
+		
+		# Create backups
+		for save_city_path in save_city_paths:
+			self.backup_city(save_city_path)
 
-		region = os.path.split(os.path.dirname(new_city_path))[1]
-		new_city = os.path.split(new_city_path)[1]
+		# Report progress: save
+		self.report(self.PREFIX, 'Pushing save...') #for "' + new_city_path + '"')
 
-		backup_directory = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRBackups", os.path.join(self.server.server_id, os.path.join(region, new_city))))
-		if (not os.path.exists(backup_directory)):
-			os.makedirs(backup_directory)
-		shutil.copy(new_city_path, os.path.join(backup_directory, datetime.now().strftime("%Y%m%d%H%M%S") + ".sc4"))
-
+		# Create socket
 		s = self.create_socket()
-
 		if (s == None):
-			self.report(self.PREFIX, 'Unable to save the city "' + new_city + '" because the server is unreachable.')
+			self.report(self.PREFIX, 'Unable to push save because the server is unreachable.') #'Unable to save the city "' + new_city + '" because the server is unreachable.'
 			return
 
+		# Send save request
 		s.send(b"push_save")
-
 		s.recv(DMR_BUFFER_SIZE)
+
+		# Send password if required
+		if (self.server.password != None):
+			s.send(self.server.password.encode())
+			s.recv(DMR_BUFFER_SIZE)
+
+		# Send user id
 		s.send(self.server.user_id.encode())
 		s.recv(DMR_BUFFER_SIZE)
-		s.send(region.encode())
+
+		# Send file count
+		s.send(str(len(save_city_paths)).encode())
 		s.recv(DMR_BUFFER_SIZE)
-		s.send(new_city.encode())
 
-		if (s.recv(DMR_BUFFER_SIZE).decode() == "ok"):
-			self.send_file(s, new_city_path)
-			self.report(self.PREFIX, "Save push authorized") #TODO placeholder
+		# Send files
+		for save_city_path in save_city_paths:
+
+			# Get region and city names
+			region = os.path.split(os.path.dirname(save_city_path))[1]
+			city = os.path.split(save_city_path)[1]
+	
+			# Send region name
+			s.send(region.encode())
+			s.recv(DMR_BUFFER_SIZE)
+
+			# Send city name
+			s.send(city.encode())
+			s.recv(DMR_BUFFER_SIZE)
+
+			# Send file
+			self.send_file(s, save_city_path)
+			s.recv(DMR_BUFFER_SIZE)
+
+		# Separator
+		s.send(DMR_SEPARATOR)
+
+		# Handle response from server
+		response = s.recv(DMR_BUFFER_SIZE).decode()
+		if (response == "ok"):
+			self.report(self.PREFIX, "Save push authorized") #TODO
 		else:
-			self.report(self.PREFIX, "Save push not authorized") #TODO placeholder
+			self.report(self.PREFIX, "Save push not authorized. " + response)
 
+		# Close socket
 		s.close()
 
+
+	def backup_city(self, filename):
+		region = os.path.split(os.path.dirname(filename))[1]
+		city = os.path.split(filename)[1]
+		backup_directory = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRBackups", os.path.join(self.server.server_id, os.path.join(region, city))))
+		if (not os.path.exists(backup_directory)):
+			os.makedirs(backup_directory)
+		shutil.copy(filename, os.path.join(backup_directory, datetime.now().strftime("%Y%m%d%H%M%S") + ".sc4"))
 
 	def create_socket(self):
 		"""TODO"""
@@ -751,7 +902,6 @@ class GameMonitor(th.Thread):
 		filesize = os.path.getsize(filename)
 
 		s.send(str(filesize).encode())
-
 		s.recv(DMR_BUFFER_SIZE)
 
 		with open(filename, "rb") as f:
