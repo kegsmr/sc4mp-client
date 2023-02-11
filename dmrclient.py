@@ -714,7 +714,7 @@ class GameMonitor(th.Thread):
 							save_city_paths.append(new_city_path)
 				self.city_paths = new_city_paths
 				self.city_hashcodes = new_city_hashcodes
-				time.sleep(1)
+				time.sleep(3)
 			if (len(save_city_paths) > 0):
 				self.push_save(save_city_paths)
 			if (end == True):
