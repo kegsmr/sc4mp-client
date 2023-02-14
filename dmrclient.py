@@ -709,7 +709,7 @@ class GameMonitor(th.Thread):
 		end = False
 		while (True):
 			ping = self.ping()
-			print("Ping: " + str(ping))
+			#print("Ping: " + str(ping))
 			if (ping != None):
 				self.report_quietly("Connected to server. Monitoring for changes...")
 			else:
