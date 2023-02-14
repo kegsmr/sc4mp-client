@@ -422,6 +422,25 @@ class Server:
 
 		# Update database
 		update_json(filename, data)
+
+
+	def ping(self):
+
+		host = self.host
+		port = self.port
+
+		s = socket.socket()
+
+		try:
+			s.connect((host, port))
+			start = time.time()
+			s.send(b"ping")
+			s.recv(DMR_BUFFER_SIZE)
+			end = time.time()
+			s.close()
+			return round(1000 * (end - start))
+		except socket.error as e:
+			return None
 	
 
 # Workers
@@ -689,7 +708,9 @@ class GameMonitor(th.Thread):
 		"""TODO"""
 		end = False
 		while (True):
-			if (self.ping()):
+			ping = self.ping()
+			print("Ping: " + str(ping))
+			if (ping != None):
 				self.report_quietly("Connected to server. Monitoring for changes...")
 			else:
 				self.report(self.PREFIX, "Server unreachable.")
@@ -914,20 +935,7 @@ class GameMonitor(th.Thread):
 
 	def ping(self):
 		"""TODO"""
-
-		host = self.server.host
-		port = self.server.port
-
-		s = socket.socket()
-
-		try:
-			s.connect((host, port))
-			s.send(b"ping")
-			s.recv(DMR_BUFFER_SIZE)
-			s.close()
-			return True
-		except socket.error as e:
-			return False
+		return self.server.ping()
 
 
 	def report(self, prefix, text):
