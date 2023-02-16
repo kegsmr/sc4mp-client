@@ -112,7 +112,7 @@ def create_subdirectories():
 
 	print("[DMR] Creating subdirectories...")
 
-	directories = ["DMRBackups", "DMRCache", "DMRProfiles", "DMRSalvage", "Plugins", "Regions", os.path.join("DMRCache","Plugins"), os.path.join("DMRCache","Regions")]
+	directories = ["DMRCache", "DMRProfiles", "DMRSalvage", "Plugins", "Regions"] #"DMRBackups", os.path.join("DMRCache","Plugins"), os.path.join("DMRCache","Regions")]
 
 	for directory in directories:
 		new_directory = os.path.join(DMR_LAUNCHPATH, directory)
@@ -248,6 +248,21 @@ def purge_directory(directory):
 				shutil.rmtree(file_path)
 		except PermissionError as e:
 			raise CustomException('Failed to delete "' + file_path + '" because the file is being used by another process.') #\n\n' + str(e)
+
+
+def directory_size(directory):
+	"""TODO"""
+
+	size = 0
+
+	with os.scandir(directory) as items:
+		for item in items:
+			if item.is_file():
+				size += item.stat().st_size
+			elif item.is_dir():
+				size += directory_size(item.path)
+
+	return size
 
 
 def event_generate(frame, event, when):
@@ -541,8 +556,43 @@ class ServerLoader(th.Thread):
 		"""TODO"""
 		self.server.authenticate()
 		
-		
+
 	def load(self, type):
+		"""TODO"""
+
+		# Select the destination directory according to the parameter
+		destination = None
+		if (type == "plugins"):
+			destination = "Plugins"
+		elif (type == "regions"):
+			destination = "Regions"
+		destination = os.path.join(DMR_LAUNCHPATH, destination)
+
+		# Purge the destination directory
+		self.report("", "Purging " + type + " directory...")
+		purge_directory(destination)
+
+		# Create the socket
+		s = self.create_socket() 
+
+		# Request the type of data
+		s.send(type.encode())
+
+		# Receive file count
+		file_count = int(s.recv(DMR_BUFFER_SIZE).decode())
+
+		# Receive files
+		for files_received in range(file_count):
+			percent = round(100 * (files_received / file_count))
+			self.report_progress('Downloading ' + type + "... (" + str(percent) + "%)", percent, 100)
+			s.send(DMR_SEPARATOR)
+			self.receive_or_cached(s, destination)
+		self.report_progress('Downloading ' + type + "... (" + str(percent) + "%)", 100, 100) #TODO change to percent
+
+		#print("done.")
+
+		
+	def old_load(self, type):
 		"""TODO"""
 
 		host = self.server.host
@@ -630,12 +680,88 @@ class ServerLoader(th.Thread):
 		return s
 
 
+	def receive_or_cached(self, s, rootpath):
+		"""TODO"""
+
+		# Receive hashcode and set cache filename
+		hash = s.recv(DMR_BUFFER_SIZE).decode()
+		target = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRCache", hash))
+
+		# Separator
+		s.send(DMR_SEPARATOR)
+
+		# Receive filesize
+		filesize = int(s.recv(DMR_BUFFER_SIZE).decode())
+
+		# Separator
+		s.send(DMR_SEPARATOR)
+
+		# Receive relative path and set the destination
+		relpath = os.path.normpath(s.recv(DMR_BUFFER_SIZE).decode())
+		destination = os.path.join(rootpath, relpath)
+
+		# Use the cached file if it exists and has the same size
+		if (os.path.exists(target) and os.path.getsize(target) == filesize):
+			
+			#print("CACHED")
+
+			# Tell the server that the file is cached
+			s.send(b"cached")
+
+			# Create the destination directory if necessary
+			destination_directory = os.path.split(destination)[0]
+			if (not os.path.exists(destination_directory)):
+				os.makedirs(destination_directory)
+
+			# Delete the destination file if it exists
+			if (os.path.exists(destination)):
+				os.remove(destination)
+
+			# Copy the cached file to the destination
+			shutil.copy(target, destination)
+
+		else:
+
+			# Tell the server that the file is not cached
+			s.send(b"not cached")
+
+			# Create the destination directory if necessary
+			destination_directory = os.path.split(destination)[0]
+			if (not os.path.exists(destination_directory)):
+				os.makedirs(destination_directory)
+
+			# Delete the destination file if it exists
+			if (os.path.exists(destination)):
+				os.remove(destination)
+
+			# Delete the cache file if it exists
+			if (os.path.exists(target)):
+				os.remove(target)
+
+			# Delete cache files if cache too large to accomadate the new cache file
+			cache_directory = os.path.join(DMR_LAUNCHPATH, "DMRCache")
+			while (len(os.listdir(cache_directory)) > 0 and directory_size(cache_directory) > 4000000000 - filesize): #TODO: make cache size configurable
+				os.remove(os.path.join(cache_directory, random.choice(os.listdir(cache_directory))))
+
+			# Receive the file. Write to both the destination and cache
+			filesize_read = 0
+			destination_file = open(destination, "wb")
+			cache_file = open(target, "wb")
+			while (filesize_read < filesize):
+				bytes_read = s.recv(DMR_BUFFER_SIZE)
+				if not bytes_read:    
+					break
+				for file in [destination_file, cache_file]:
+					file.write(bytes_read)
+				filesize_read += len(bytes_read)
+
+
 	def receive_file(self, s, filename):
 		"""TODO"""
 
-		filesize = s.recv(DMR_BUFFER_SIZE).decode()
+		filesize = int(c.recv(DMR_BUFFER_SIZE).decode())
 
-		print("[Socket] Receiving " + filesize + " bytes...")
+		print("[Socket] Receiving " + str(filesize) + " bytes...")
 		print('writing to "' + filename + '"')
 
 		if (os.path.exists(filename)):
@@ -643,15 +769,13 @@ class ServerLoader(th.Thread):
 
 		filesize_read = 0
 		with open(filename, "wb") as f:
-			while True:
+			while (filesize_read < filesize):
 				bytes_read = s.recv(DMR_BUFFER_SIZE)
 				if not bytes_read:    
 					break
 				f.write(bytes_read)
 				filesize_read += len(bytes_read)
 				self.report_progress('Downloading "' + filename + '" (' + str(filesize_read) + " / " + str(filesize) + " bytes)...", int(filesize_read), int(filesize)) #os.path.basename(os.path.normpath(filename))
-
-		s.close()
 
 
 	def prep_regions(self):
@@ -664,11 +788,9 @@ class ServerLoader(th.Thread):
 		for directory in os.listdir(path):
 			
 			# Backup directory
-			backup_directory = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRBackups", os.path.join(self.server.server_id, directory)))
-			if (not os.path.exists(backup_directory)):
-				os.makedirs(backup_directory)
-			#else:
-			#	shutil.copytree(backup_directory, os.path.join(path, "[DMR Backups] " + directory)) #TODO
+			#backup_directory = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRBackups", os.path.join(self.server.server_id, directory)))
+			#if (not os.path.exists(backup_directory)):
+			#	os.makedirs(backup_directory)
 
 			self.server.regions.append(directory)
 
@@ -802,9 +924,9 @@ class GameMonitor(th.Thread):
 		# Report progress: backups
 		self.report(self.PREFIX, 'Creating backups...')
 		
-		# Create backups
-		for save_city_path in save_city_paths:
-			self.backup_city(save_city_path)
+		# Create backups #TODO salvage
+		#for save_city_path in save_city_paths:
+		#	self.backup_city(save_city_path)
 
 		# Report progress: save
 		self.report(self.PREFIX, 'Pushing save...') #for "' + new_city_path + '"')
