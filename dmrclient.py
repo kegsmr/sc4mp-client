@@ -704,7 +704,7 @@ class ServerLoader(th.Thread):
 		# Use the cached file if it exists and has the same size
 		if (os.path.exists(target) and os.path.getsize(target) == filesize):
 			
-			#print("CACHED")
+			print('Found cached "' + hash + '"')
 
 			# Tell the server that the file is cached
 			s.send(b"cached")
@@ -980,7 +980,7 @@ class GameMonitor(th.Thread):
 		# Handle response from server
 		response = s.recv(DMR_BUFFER_SIZE).decode()
 		if (response == "ok"):
-			self.report(self.PREFIX, "Save push authorized") #TODO
+			self.report(self.PREFIX, "Save push authorized") #TODO keep track locally of the client's claims
 		else:
 			self.report(self.PREFIX, "Save push not authorized. " + response)
 
@@ -1373,10 +1373,18 @@ def cmd():
 
 	prep()
 
-	host = socket.gethostname() #input("Enter server IP... ")
-	port = 7246 #int(input("Enter server port... "))
+	host = input("Enter server IP... ")
+	port = input("Enter server port... ")
 
-	connect(Server(host, port)) #TODO: replace with real server
+	if (len(host) < 1):
+		host = socket.gethostname()
+
+	if (len(port) < 1):
+		port = 7246
+	else:
+		port = int(port)
+
+	connect(Server(host, port))
 
 
 def main():
