@@ -585,9 +585,9 @@ class ServerLoader(th.Thread):
 		# Receive files
 		for files_received in range(file_count):
 			percent = math.floor(100 * (files_received / file_count))
-			self.report_progress('Downloading ' + type + "... (" + str(percent) + "%)", percent, 100)
+			self.report_progress('Downloading ' + type + "... (" + str(percent) + "%)", percent, 100) #TODO base off total file size downloaded
 			s.send(DMR_SEPARATOR)
-			self.receive_or_cached(s, destination)
+			self.receive_or_cached(s, destination) #TODO get file size as return
 		self.report_progress('Downloading ' + type + "... (100%)", 100, 100)
 
 		#print("done.")
