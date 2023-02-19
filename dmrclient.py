@@ -13,6 +13,7 @@ from tkinter import Menu, messagebox, ttk
 import json
 import random
 import string
+import math
 #import py2exe
 
 # Version
@@ -583,11 +584,11 @@ class ServerLoader(th.Thread):
 
 		# Receive files
 		for files_received in range(file_count):
-			percent = round(100 * (files_received / file_count))
+			percent = math.floor(100 * (files_received / file_count))
 			self.report_progress('Downloading ' + type + "... (" + str(percent) + "%)", percent, 100)
 			s.send(DMR_SEPARATOR)
 			self.receive_or_cached(s, destination)
-		self.report_progress('Downloading ' + type + "... (" + str(percent) + "%)", 100, 100) #TODO change to percent
+		self.report_progress('Downloading ' + type + "... (100%)", 100, 100)
 
 		#print("done.")
 
@@ -759,7 +760,7 @@ class ServerLoader(th.Thread):
 	def receive_file(self, s, filename):
 		"""TODO"""
 
-		filesize = int(c.recv(DMR_BUFFER_SIZE).decode())
+		filesize = int(s.recv(DMR_BUFFER_SIZE).decode())
 
 		print("[Socket] Receiving " + str(filesize) + " bytes...")
 		print('writing to "' + filename + '"')
