@@ -14,6 +14,7 @@ import json
 import random
 import string
 import math
+import inspect
 #import py2exe
 
 # Version
@@ -72,7 +73,7 @@ def load_config():
 	global DMR_LAUNCHRESH
 	global DMR_CUSTOMPATH
 
-	print("[DMR] Loading config...")
+	print("Loading config...")
 
 	#TODO add cpu options for start parameters
 	configpath = "config.ini"
@@ -111,7 +112,7 @@ def create_subdirectories():
 		TODO
 	"""
 
-	print("[DMR] Creating subdirectories...")
+	print("Creating subdirectories...")
 
 	directories = ["DMRCache", "DMRProfiles", "DMRSalvage", "Plugins", "Regions"] #"DMRBackups", os.path.join("DMRCache","Plugins"), os.path.join("DMRCache","Regions")]
 
@@ -164,7 +165,7 @@ def start_sc4():
 		TODO
 	"""
 
-	print("[DMR] Starting Simcity 4...")
+	print("Starting Simcity 4...")
 
 	possiblePaths = [
 		os.path.abspath(os.path.join("\\", "Program Files (x86)", "Steam", "steamapps", "common", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
@@ -195,7 +196,7 @@ def start_sc4():
 	except PermissionError as e:
 		show_error("Permission denied. Run the program as administrator.\n\n" + str(e))
 
-	print("[DMR] Simcity 4 closed.")
+	print("Simcity 4 closed.")
 
 
 def get_dmr_path(filename):
@@ -303,7 +304,7 @@ def show_error(e):
 	else: 
 		message = str(e)
 
-	print("[DMR] Error: " + message)
+	print("Error: " + message)
 
 	if (dmr_ui):
 		messagebox.showerror(DMR_TITLE, message)
@@ -530,7 +531,7 @@ class ServerLoader(th.Thread):
 			self.frame.label['text'] = text
 			self.frame.progress_bar['mode'] = "indeterminate"
 			self.frame.progress_bar['maximum'] = 100
-		print(prefix + text)
+		print(text) #prefix + text)
 		#time.sleep(1) # for testing
 
 
@@ -582,12 +583,19 @@ class ServerLoader(th.Thread):
 		# Receive file count
 		file_count = int(s.recv(DMR_BUFFER_SIZE).decode())
 
+		# Separator
+		s.send(DMR_SEPARATOR)
+
+		# Receive file size
+		size = int(s.recv(DMR_BUFFER_SIZE).decode())
+
 		# Receive files
+		size_downloaded = 0
 		for files_received in range(file_count):
-			percent = math.floor(100 * (files_received / file_count))
-			self.report_progress('Downloading ' + type + "... (" + str(percent) + "%)", percent, 100) #TODO base off total file size downloaded
+			percent = math.floor(100 * (size_downloaded / size))
+			self.report_progress('Downloading ' + type + "... (" + str(percent) + "%)", percent, 100)
 			s.send(DMR_SEPARATOR)
-			self.receive_or_cached(s, destination) #TODO get file size as return
+			size_downloaded += self.receive_or_cached(s, destination)
 		self.report_progress('Downloading ' + type + "... (100%)", 100, 100)
 
 		#print("done.")
@@ -704,7 +712,7 @@ class ServerLoader(th.Thread):
 		# Use the cached file if it exists and has the same size
 		if (os.path.exists(target) and os.path.getsize(target) == filesize):
 			
-			print('Found cached "' + hash + '"')
+			print('- using cached "' + hash + '"')
 
 			# Tell the server that the file is cached
 			s.send(b"cached")
@@ -722,6 +730,8 @@ class ServerLoader(th.Thread):
 			shutil.copy(target, destination)
 
 		else:
+
+			print('- caching "' + hash + '"...')
 
 			# Tell the server that the file is not cached
 			s.send(b"not cached")
@@ -755,6 +765,9 @@ class ServerLoader(th.Thread):
 				for file in [destination_file, cache_file]:
 					file.write(bytes_read)
 				filesize_read += len(bytes_read)
+			
+		# Return the file size
+		return filesize
 
 
 	def receive_file(self, s, filename):
@@ -1065,7 +1078,7 @@ class GameMonitor(th.Thread):
 		"""TODO"""
 		if (self.frame != None):
 			self.frame.label['text'] = text
-		print(prefix + text)
+		print(text) #prefix + text)
 
 
 	def report_quietly(self, text):
@@ -1344,9 +1357,31 @@ class Logger():
 
 	def write(self, message):
 		"""TODO"""
-		self.terminal.write(message)
+
+		output = message
+
+		if (message != "\n"):
+
+			# Timestamp
+			timestamp = datetime.now().strftime("[%H:%M:%S] ")
+
+			# Label
+			label = "[DMR"
+			for item in inspect.stack()[1:]:
+				try:
+					label += "/" + item[0].f_locals["self"].__class__.__name__
+					break
+				except:
+					pass
+			label += "] "
+
+			# Assemble
+			output = timestamp + label + message
+
+		# Print
+		self.terminal.write(output)
 		with open(self.log, "a") as log:
-			log.write(message)
+			log.write(output)
 			log.close()  
 
 
@@ -1369,12 +1404,14 @@ def cmd():
 
 	sys.stdout = Logger()
 
-	print("[DMR] Client version " + DMR_VERSION)
+	print("Client version " + DMR_VERSION)
 
 	prep()
 
-	host = input("Enter server IP... ")
-	port = input("Enter server port... ")
+	print("Connect to server:")
+
+	host = input("- enter server IP... ")
+	port = input("- enter server port... ")
 
 	if (len(host) < 1):
 		host = socket.gethostname()
@@ -1401,7 +1438,7 @@ def main():
 
 	sys.stdout = Logger()
 
-	print("[DMR] Client version " + DMR_VERSION)
+	print("Client version " + DMR_VERSION)
 
 	prep()
 
