@@ -1054,7 +1054,7 @@ class GameMonitor(th.Thread):
 	def send_file(self, s, filename):
 		"""TODO"""
 
-		self.report("[Socket] ", "Sending file " + filename + "...")
+		self.report("[Socket] ", 'Sending file "' + filename + '"...')
 
 		filesize = os.path.getsize(filename)
 
