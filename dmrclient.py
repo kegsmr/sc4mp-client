@@ -1009,6 +1009,7 @@ class GameMonitor(th.Thread):
 			os.makedirs(backup_directory)
 		shutil.copy(filename, os.path.join(backup_directory, datetime.now().strftime("%Y%m%d%H%M%S") + ".sc4"))
 
+
 	def create_socket(self):
 		"""TODO"""
 
@@ -1256,7 +1257,7 @@ class ServerListUI(tk.Frame):
 			show_error(e)
 
 
-class ServerLoaderUI(tk.Frame):
+class ServerLoaderUI(tk.Toplevel):
 	"""TODO"""
 
 
@@ -1272,13 +1273,13 @@ class ServerLoaderUI(tk.Frame):
 		super().__init__(root)
 
 		# Geometry
-		self.root.minsize(800, 100)
-		self.root.maxsize(800, 100)
-		self.root.grid()
-		center_window(self.root)
+		self.minsize(800, 100)
+		self.maxsize(800, 100)
+		self.grid()
+		center_window(self)
 
 		# Label
-		self.label = ttk.Label()
+		self.label = ttk.Label(self)
 		self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=10)
 
 		# Progress bar
@@ -1463,7 +1464,14 @@ def cmd():
 	else:
 		port = int(port)
 
+	global dmr_ui, dmr_ui_root
+	dmr_ui = True
+	dmr_ui_root = UI()
+	dmr_ui_root.withdraw()
+
 	connect(Server(host, port))
+
+	dmr_ui.destroy()
 
 
 def main():
@@ -1485,6 +1493,7 @@ def main():
 		prep()
 
 		ui = UI()
+		ui.withdraw()
 		ServerListUI(ui)
 		ui.mainloop()
 
@@ -1493,4 +1502,4 @@ def main():
 		show_error("A fatal error occurred.\n\n" + str(e)) # Please send the following information to the developers of the " + DMR_TITLE + " so this can be resolved:
 
 if __name__ == '__main__':
-	main()
+	cmd()
