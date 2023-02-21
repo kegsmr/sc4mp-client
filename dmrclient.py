@@ -44,7 +44,7 @@ DMR_CUSTOMPATH = None
 # Hard-coded constants
 DMR_TITLE = "DMR Client " + DMR_VERSION
 DMR_ICON = os.path.join(DMR_RESOURCES_PATH, "icon.ico")
-DMR_HOST = "127.0.0.1"
+DMR_HOST = socket.gethostname() #"127.0.0.1"
 DMR_PORT = 7246
 DMR_SEPARATOR = b"<SEPARATOR>"
 DMR_BUFFER_SIZE = 4096
@@ -304,7 +304,7 @@ def show_error(e):
 	else: 
 		message = str(e)
 
-	print("Error: " + message)
+	print("[ERROR] " + message)
 
 	if (dmr_ui):
 		messagebox.showerror(DMR_TITLE, message)
@@ -374,7 +374,7 @@ class Server:
 			return s.recv(DMR_BUFFER_SIZE).decode()
 		except:
 			self.fetched = False
-			print('Error fetching "' + request + '" from ' + host + ":" + str(port))
+			print('[ERROR] Error fetching "' + request + '" from "' + host + ":" + str(port) + '"')
 			return None
 
 
@@ -491,22 +491,22 @@ class ServerLoader(th.Thread):
 
 		try:
 
-			self.report("[DMR Server Loader] ", 'Connecting to server at "' + str(host) + ":" + str(port) + '"...')
+			self.report("", 'Connecting to server at "' + str(host) + ":" + str(port) + '"...')
 			self.fetch_server()
 
-			self.report("[DMR Server Loader] ", 'Authenticating server...')
+			self.report("", 'Authenticating server...')
 			self.authenticate()
 
-			self.report("[DMR Server Loader] ", "Loading plugins...")
+			self.report("", "Loading plugins...")
 			self.load("plugins")
 
-			self.report("[DMR Server Loader] ", "Loading regions...")
+			self.report("", "Loading regions...")
 			self.load("regions")
 
-			self.report("[DMR Server Loader] ", "Prepping regions...")
+			self.report("", "Prepping regions...")
 			self.prep_regions()
 
-			self.report("[DMR Server Loader] ", "Done.")
+			self.report("", "Done.")
 
 			global dmr_current_server
 			dmr_current_server = self.server
@@ -516,7 +516,7 @@ class ServerLoader(th.Thread):
 			if (self.frame != None):
 				show_error("An error occurred while connecting to the server.\n\n" + str(e))
 			else:
-				print("[DMR Server Loader] Error: " + str(e))
+				print("[ERROR] " + str(e))
 
 
 		#time.sleep(1)
@@ -531,7 +531,7 @@ class ServerLoader(th.Thread):
 			self.frame.label['text'] = text
 			self.frame.progress_bar['mode'] = "indeterminate"
 			self.frame.progress_bar['maximum'] = 100
-		print(text) #prefix + text)
+		print(prefix + text)
 		#time.sleep(1) # for testing
 
 
@@ -661,10 +661,10 @@ class ServerLoader(th.Thread):
 
 			try:
 
-				self.report("[Socket] ", "Connecting...")
+				self.report("", "Connecting...")
 				s.connect((host, port))
 
-				self.report("[Socket] ", "Connected.")
+				self.report("", "Connected.")
 
 				break
 
@@ -672,11 +672,11 @@ class ServerLoader(th.Thread):
 				
 				if (tries_left > 0):
 				
-					print("[Socket] Error: " + str(e))
+					print("[ERROR] " + str(e))
 
 					count = 5
 					while(count > 0):
-						self.report("[Socket] ", "Connection failed. Retrying in " + str(count) + "...")					
+						self.report("[ERROR] ", "Connection failed. Retrying in " + str(count) + "...")					
 						count = count - 1
 						time.sleep(1)
 
@@ -775,7 +775,7 @@ class ServerLoader(th.Thread):
 
 		filesize = int(s.recv(DMR_BUFFER_SIZE).decode())
 
-		print("[Socket] Receiving " + str(filesize) + " bytes...")
+		print("Receiving " + str(filesize) + " bytes...")
 		print('writing to "' + filename + '"')
 
 		if (os.path.exists(filename)):
@@ -835,7 +835,7 @@ class GameMonitor(th.Thread):
 		self.server = server
 		self.city_paths, self.city_hashcodes = self.get_cities()
 
-		self.PREFIX = "[DMR Game Monitor] "
+		self.PREFIX = ""
 
 		self.game_running = True
 
@@ -1023,10 +1023,10 @@ class GameMonitor(th.Thread):
 
 			try:
 
-				self.report("[Socket] ", "Connecting...")
+				self.report("", "Connecting socket...")
 				s.connect((host, port))
 
-				self.report("[Socket] ", "Connected.")
+				self.report("", "Connected.")
 
 				break
 
@@ -1034,11 +1034,11 @@ class GameMonitor(th.Thread):
 				
 				if (tries_left > 0):
 				
-					print("[Socket] Error: " + str(e))
+					print("[ERROR] " + str(e))
 
 					count = 5
 					while(count > 0):
-						self.report("[Socket] ", "Connection failed. Retrying in " + str(count) + "...")					
+						self.report("[ERROR] ", "Connection failed. Retrying in " + str(count) + "...")					
 						count = count - 1
 						time.sleep(1)
 
@@ -1054,7 +1054,7 @@ class GameMonitor(th.Thread):
 	def send_file(self, s, filename):
 		"""TODO"""
 
-		self.report("[Socket] ", 'Sending file "' + filename + '"...')
+		self.report("", 'Sending file "' + filename + '"...')
 
 		filesize = os.path.getsize(filename)
 
@@ -1078,7 +1078,7 @@ class GameMonitor(th.Thread):
 		"""TODO"""
 		if (self.frame != None):
 			self.frame.label['text'] = text
-		print(text) #prefix + text)
+		print(prefix + text)
 
 
 	def report_quietly(self, text):
@@ -1140,6 +1140,9 @@ class ServerListUI(tk.Frame):
 		"""TODO"""
 
 
+		print("Creating window...")
+
+
 		# Parameters
 
 		self.root = root
@@ -1161,9 +1164,9 @@ class ServerListUI(tk.Frame):
 
 		# Menu
 
-		menu = Menu(root)  
+		menu = Menu(self)  
 		
-		settings = Menu(root, tearoff=0)  
+		settings = Menu(menu, tearoff=0)  
 		settings.add_command(label="SC4 Settings...")      
 		settings.add_separator()  
 		settings.add_command(label="Exit", command=root.quit)  
@@ -1193,9 +1196,13 @@ class ServerListUI(tk.Frame):
 	def direct_connect(self):
 		"""TODO"""
 
-		#TODO make background window inaccessible
+		print("Creating direct connect window...")
 
+		# Create frame
 		frame = tk.Toplevel(self.root)
+
+		# Freeze background
+		frame.grab_set()
 		
 		# Title
 		frame.title('Direct Connect')
@@ -1210,10 +1217,6 @@ class ServerListUI(tk.Frame):
 		frame.grid()
 		center_window(frame)
 
-		# Variables
-		host = DMR_HOST
-		port = DMR_PORT
-
 		#TODO make prettier
 
 		# Host Label
@@ -1221,7 +1224,8 @@ class ServerListUI(tk.Frame):
 		host_label.grid(row=0, column=0, columnspan=1, padx=5, pady=5)
 
 		# Host Entry
-		host_entry = ttk.Entry(frame, textvariable=host, )
+		host_entry = ttk.Entry(frame)
+		host_entry.insert(0, DMR_HOST) #TODO change to last server IP
 		host_entry.grid(row=0, column=1, columnspan=3, padx=5, pady=5)
 
 		# Port Label
@@ -1229,12 +1233,27 @@ class ServerListUI(tk.Frame):
 		port_label.grid(row=1, column=0, columnspan=1, padx=5, pady=5)
 
 		# Port Entry
-		host_entry = ttk.Entry(frame, textvariable=port)
-		host_entry.grid(row=1, column=1, columnspan=1, padx=5, pady=5)
+		port_entry = ttk.Entry(frame)
+		port_entry.insert(0, str(DMR_PORT)) #TODO change to last server port
+		port_entry.grid(row=1, column=1, columnspan=1, padx=5, pady=5)
 
 		# Button
-		button = ttk.Button(frame, text ="Connect")
+		button = ttk.Button(frame, text="Connect", command=lambda:self.direct_connect_button(frame, host_entry.get(), port_entry.get()))
 		button.grid(row=1, column=3, columnspan=1, padx=5, pady=5)
+
+	def direct_connect_button(self, frame, host, port):
+		"""TODO"""
+		try:
+			if (len(host) < 1):
+				raise CustomException("Invalid host")
+			try:
+				port = int(port)
+			except:
+				raise CustomException("Invalid port")
+			frame.destroy()
+			connect(Server(host, port))
+		except Exception as e:
+			show_error(e)
 
 
 class ServerLoaderUI(tk.Frame):
@@ -1244,8 +1263,10 @@ class ServerLoaderUI(tk.Frame):
 	def __init__(self, root, server):
 		"""TODO"""
 
+		print("Creating window...")
+
 		# Paramters
-		self.root = tk.Tk() #TODO
+		self.root = root
 
 		# Init
 		super().__init__(root)
@@ -1375,8 +1396,29 @@ class Logger():
 					pass
 			label += "] "
 
+			# Type and color
+			type = "[INFO] "
+			color = '\033[0m '
+			TYPES_COLORS = [
+				("[INFO] ", '\033[94m '),
+				("[PROMPT]", '\033[1m '),
+				("[WARNING] ", '\033[93m '),
+				("[ERROR] ", '\033[91m '),
+				("[FATAL] ", '\033[91m ')
+			]
+			for index in range(len(TYPES_COLORS)):
+				current_type = TYPES_COLORS[index][0]
+				current_color = TYPES_COLORS[index][1]
+				if (message[:len(current_type)] == current_type):
+					message = message[len(current_type):]
+					type = current_type
+					color = current_color
+					break
+			if (label == "[DMR] " and type == "[INFO] "):
+				color = '\033[94m '
+
 			# Assemble
-			output = timestamp + label + message
+			output = color + timestamp + label + type + message
 
 		# Print
 		self.terminal.write(output)
@@ -1408,10 +1450,10 @@ def cmd():
 
 	prep()
 
-	print("Connect to server:")
+	print("[PROMPT] Connect to server:")
 
-	host = input("- enter server IP... ")
-	port = input("- enter server port... ")
+	host = input("[PROMPT] - Enter server IP... ")
+	port = input("[PROMPT] - Enter server port... ")
 
 	if (len(host) < 1):
 		host = socket.gethostname()
@@ -1434,21 +1476,21 @@ def main():
 		None
 	"""
 
-	#try: #TODO uncomment and add traceback in the error popup
+	try: #TODO uncomment and add traceback in the error popup
 
-	sys.stdout = Logger()
+		sys.stdout = Logger()
 
-	print("Client version " + DMR_VERSION)
+		print("Client version " + DMR_VERSION)
 
-	prep()
+		prep()
 
-	ui = UI()
-	ServerListUI(ui)
-	ui.mainloop()
+		ui = UI()
+		ServerListUI(ui)
+		ui.mainloop()
 
-	#except Exception as e:
+	except Exception as e:
 
-	#	show_error("A fatal error occurred.\n\n" + str(e)) # Please send the following information to the developers of the " + DMR_TITLE + " so this can be resolved:
+		show_error("A fatal error occurred.\n\n" + str(e)) # Please send the following information to the developers of the " + DMR_TITLE + " so this can be resolved:
 
 if __name__ == '__main__':
-	cmd()
+	main()
