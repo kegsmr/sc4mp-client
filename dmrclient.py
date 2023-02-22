@@ -391,7 +391,7 @@ class Server:
 			return s.recv(DMR_BUFFER_SIZE).decode()
 		except:
 			self.fetched = False
-			print('[ERROR] Error fetching "' + request + '" from "' + host + ":" + str(port) + '"')
+			print('[ERROR] Error fetching "' + request + '" from ' + host + ":" + str(port) + '')
 			return None
 
 
@@ -517,7 +517,7 @@ class ServerLoader(th.Thread):
 
 		try:
 
-			self.report("", 'Connecting to server at "' + str(host) + ":" + str(port) + '"...')
+			self.report("", 'Connecting to server at ' + str(host) + ":" + str(port) + '...')
 			self.fetch_server()
 
 			self.report("", 'Authenticating server...')
@@ -1240,9 +1240,9 @@ class DirectConnectUI(tk.Toplevel):
 		self.iconbitmap(DMR_ICON) #TODO looks bad
 
 		# Geometry
-		self.geometry('300x100')
-		self.maxsize(300, 100)
-		self.minsize(300, 100)
+		self.geometry('290x110')
+		self.maxsize(290, 110)
+		self.minsize(290, 110)
 		self.grid()
 		center_window(self)
 		
@@ -1251,25 +1251,25 @@ class DirectConnectUI(tk.Toplevel):
 
 		# Host Label
 		self.host_label = ttk.Label(self, text="Host")
-		self.host_label.grid(row=0, column=0, columnspan=1, padx=5, pady=5)
+		self.host_label.grid(row=0, column=0, columnspan=1, padx=10, pady=20)
 
 		# Host Entry
-		self.host_entry = ttk.Entry(self)
+		self.host_entry = ttk.Entry(self, width=35)
 		self.host_entry.insert(0, DMR_HOST) #TODO change to last server IP
-		self.host_entry.grid(row=0, column=1, columnspan=3, padx=5, pady=5)
+		self.host_entry.grid(row=0, column=1, columnspan=3, padx=10, pady=20, sticky="w")
 
 		# Port Label
 		self.port_label = ttk.Label(self, text="Port")
-		self.port_label.grid(row=1, column=0, columnspan=1, padx=5, pady=5)
+		self.port_label.grid(row=1, column=0, columnspan=1, padx=10, pady=0)
 
 		# Port Entry
-		self.port_entry = ttk.Entry(self)
+		self.port_entry = ttk.Entry(self, width=5)
 		self.port_entry.insert(0, str(DMR_PORT)) #TODO change to last server port
-		self.port_entry.grid(row=1, column=1, columnspan=1, padx=5, pady=5)
+		self.port_entry.grid(row=1, column=1, columnspan=1, padx=10, pady=0, sticky="w")
 
-		# Button
-		self.button = ttk.Button(self, text="Connect", command=self.connect)
-		self.button.grid(row=1, column=3, columnspan=1, padx=5, pady=5)
+		# Connect Button #TODO bind return key to button
+		self.button = ttk.Button(self, text="Connect", command=self.connect, default="active")
+		self.button.grid(row=1, column=3, columnspan=1, padx=10, pady=0, sticky="e")
 
 
 	def connect(self):
@@ -1386,7 +1386,7 @@ class GameMonitorUI(tk.Toplevel):
 		self.wm_attributes("-topmost", True)
 
 		# Label
-		self.label = ttk.Label()
+		self.label = ttk.Label(self)
 		self.label.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10)
 
 
