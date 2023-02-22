@@ -1026,7 +1026,7 @@ class GameMonitor(th.Thread):
 
 			try:
 
-				self.report("", "Connecting socket...")
+				self.report("", "Connecting...")
 				s.connect((host, port))
 
 				self.report("", "Connected.")
@@ -1466,14 +1466,14 @@ def cmd():
 	else:
 		port = int(port)
 
-	global dmr_ui, dmr_ui_root
-	dmr_ui = True
-	dmr_ui_root = UI()
-	dmr_ui_root.withdraw()
+	#global dmr_ui, dmr_ui_root
+	#dmr_ui = True
+	#dmr_ui_root = UI()
+	#dmr_ui_root.withdraw()
 
 	connect(Server(host, port))
 
-	dmr_ui.destroy()
+	#dmr_ui.destroy()
 
 
 def main():
