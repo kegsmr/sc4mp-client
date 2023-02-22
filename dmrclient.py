@@ -15,6 +15,7 @@ import random
 import string
 import math
 import inspect
+import traceback
 #import py2exe
 
 # Version
@@ -24,8 +25,7 @@ DMR_VERSION = "v1.0.0 Alpha"
 DMR_RESOURCES_PATH = "resources"
 
 # Global variables
-dmr_ui = False
-dmr_ui_root = None
+dmr_ui = None
 dmr_current_server = None
 
 # Default config values
@@ -137,15 +137,28 @@ def connect(server):
 	Returns:
 		TODO
 	"""
-	if (dmr_ui):
-		server_loader_ui = ServerLoaderUI(dmr_ui_root, server)
-		server_loader_ui.mainloop()
-		print("TEST") #TODO
+	
+	if (dmr_ui != None):
+
+		# Hide main window
+		dmr_ui.withdraw()
+
+		# Create the server loader ui
+		server_loader_ui = ServerLoaderUI(dmr_ui, server)
+
+		# Create and start the server loader
+		server_loader = ServerLoader(server_loader_ui, server)
+		server_loader.run()
+
+		# If the server loads correctly
 		if (dmr_current_server != None):
-			game_monitor_ui_thread = GameMonitorUIThread(dmr_ui_root, server)
+
+			# Start the TODO
+			game_monitor_ui_thread = GameMonitorUIThread(dmr_ui, server)
 			game_monitor_ui_thread.start()
 			start_sc4()
-			game_monitor_ui_thread.frame.worker.game_running = False
+			game_monitor_ui_thread.ui.worker.game_running = False
+		dmr_ui.deiconify()
 	else:
 		server_loader = ServerLoader(None, server)
 		server_loader.run()
@@ -268,10 +281,10 @@ def directory_size(directory):
 	return size
 
 
-def event_generate(frame, event, when):
+def event_generate(ui, event, when):
 	"""Not used."""
-	if (frame != None):
-		frame.event_generate(event, when=when)
+	if (ui != None):
+		ui.event_generate(event, when=when)
 
 
 def create_empty_json(filename):
@@ -364,6 +377,9 @@ class Server:
 			
 	def request(self, request):
 		"""TODO"""
+
+		if (self.fetched == False):
+			return
 
 		host = self.host
 		port = self.port
@@ -470,6 +486,8 @@ class ServerList(th.Thread):
 	def __init__(self):
 		"""TODO"""
 
+		self.setDaemon(True)
+
 		print("(to implement)") #TODO
 
 
@@ -477,11 +495,18 @@ class ServerLoader(th.Thread):
 	"""TODO"""
 
 	
-	def __init__(self, frame, server):
+	def __init__(self, ui, server):
 		"""TODO"""
+
 		th.Thread.__init__(self)
-		self.frame = frame
+
+		self.ui = ui
 		self.server = server
+
+		self.setDaemon(True)
+
+		if (dmr_ui != None):
+			dmr_ui.withdraw()
 
 	
 	def run(self):
@@ -514,37 +539,43 @@ class ServerLoader(th.Thread):
 
 		except Exception as e:
 
-			if (self.frame != None):
+			if (self.ui != None and self.ui.winfo_exists() == 1):
 				show_error("An error occurred while connecting to the server.\n\n" + str(e))
 			else:
 				print("[ERROR] " + str(e))
 
-
 		#time.sleep(1)
 
-		if (self.frame != None):
-			self.frame.destroy()
+		if (self.ui != None):
+			self.ui.destroy()
+		
+		if (dmr_current_server != None):
+			game_monitor = GameMonitor(self.server)
+			game_monitor.start()
+		else:
+			if (dmr_ui != None):
+				dmr_ui.deiconify()
 
 		
 	def report(self, prefix, text):
 		"""TODO"""
-		if (self.frame != None):
-			self.frame.label['text'] = text
-			self.frame.progress_bar.start(2)
-			self.frame.progress_bar['mode'] = "indeterminate"
-			self.frame.progress_bar['maximum'] = 100
+		if (self.ui != None):
+			self.ui.label['text'] = text
+			self.ui.progress_bar.start(2)
+			self.ui.progress_bar['mode'] = "indeterminate"
+			self.ui.progress_bar['maximum'] = 100
 		print(prefix + text)
 		#time.sleep(1) # for testing
 
 
 	def report_progress(self, text, value, maximum):
 		"""TODO"""
-		if (self.frame != None):
-			self.frame.label['text'] = text
-			self.frame.progress_bar.stop()
-			self.frame.progress_bar['mode'] = "determinate"
-			self.frame.progress_bar['value'] = value
-			self.frame.progress_bar['maximum'] = maximum
+		if (self.ui != None):
+			self.ui.label['text'] = text
+			self.ui.progress_bar.stop()
+			self.ui.progress_bar['mode'] = "determinate"
+			self.ui.progress_bar['value'] = value
+			self.ui.progress_bar['maximum'] = maximum
 		print(text)
 		#time.sleep(.1) # for testing
 
@@ -829,18 +860,22 @@ class GameMonitor(th.Thread):
 	"""TODO"""
 
 
-	def __init__(self, frame, server):
+	def __init__(self, server):
 		"""TODO"""
 
 		th.Thread.__init__(self)
 
-		self.frame = frame
 		self.server = server
 		self.city_paths, self.city_hashcodes = self.get_cities()
 
 		self.PREFIX = ""
 
-		self.game_running = True
+		self.ui = None
+		if (dmr_ui != None):
+			self.ui = GameMonitorUI()
+
+		self.game_launcher = GameLauncher()
+		self.game_launcher.start()
 
 
 	def run(self):
@@ -879,11 +914,14 @@ class GameMonitor(th.Thread):
 				self.push_save(save_city_paths)
 			if (end == True):
 				break
-			if (not self.game_running):
+			if (not self.game_launcher.game_running):
 				end = True
 			time.sleep(5)
-		if (self.frame != None):
-			self.frame.destroy()
+		if (self.ui != None):
+			self.ui.destroy()
+		if (dmr_ui != None):
+			dmr_ui.deiconify()
+			dmr_ui.lift()
 
 
 	def get_cities(self):
@@ -939,7 +977,7 @@ class GameMonitor(th.Thread):
 		"""TODO"""
 
 		# Report progress: backups
-		self.report(self.PREFIX, 'Creating backups...')
+		#self.report(self.PREFIX, 'Creating backups...')
 		
 		# Create backups #TODO salvage
 		#for save_city_path in save_city_paths:
@@ -1080,30 +1118,36 @@ class GameMonitor(th.Thread):
 
 	def report(self, prefix, text):
 		"""TODO"""
-		if (self.frame != None):
-			self.frame.label['text'] = text
+		if (self.ui != None):
+			self.ui.label['text'] = text
 		print(prefix + text)
 
 
 	def report_quietly(self, text):
 		"""TODO"""
-		if (self.frame != None):
-			self.frame.label['text'] = text
+		if (self.ui != None):
+			self.ui.label['text'] = text
 
 
-class GameMonitorUIThread(th.Thread):
+class GameLauncher(th.Thread):
 	"""TODO"""
 
 
-	def __init__(self, root, server):
+	def __init__(self):
 		"""TODO"""
 		super().__init__()
-		self.frame = GameMonitorUI(root, server)
-
+		self.game_running = True
+		self.setDaemon(True)
 
 	def run(self):
 		"""TODO"""
-		self.frame.mainloop()
+		
+		start_sc4()
+		
+		self.game_running = False
+
+		global dmr_current_server
+		dmr_current_server = None
 
 
 # User Interfaces
@@ -1115,15 +1159,135 @@ class UI(tk.Tk):
 	def __init__(self):
 		"""TODO"""
 
+
+		print("Initializing...")
+
+
+		# Init
+
 		super().__init__()
 
+
+		#Title
+
 		self.title(DMR_TITLE)
+
+
+		#Icon
+
 		self.wm_iconbitmap(DMR_ICON) #TODO looks bad
 		#TODO taskbar icon
 
-		global dmr_ui, dmr_ui_root
-		dmr_ui = True
-		dmr_ui_root = self
+
+		# Geometry
+
+		self.geometry("500x500")
+		self.minsize(500, 500)
+		self.maxsize(500, 500)
+		self.grid()
+		self.lift()
+		center_window(self)
+
+
+		# Menu
+
+		menu = Menu(self)  
+		
+		settings = Menu(menu, tearoff=0)  
+		settings.add_command(label="SC4 Settings...")      
+		settings.add_separator()  
+		settings.add_command(label="Exit", command=self.quit)  
+		menu.add_cascade(label="Settings", menu=settings)  
+
+		servers = Menu(menu, tearoff=0)  
+		servers.add_command(label="Direct connect...", command=self.direct_connect)  
+		servers.add_separator()  
+		servers.add_command(label="Host...")   
+		menu.add_cascade(label="Servers", menu=servers)  
+
+		help = Menu(menu, tearoff=0)  
+		help.add_command(label="Readme...")  
+		menu.add_cascade(label="Help", menu=help)  
+		
+		self.config(menu=menu)  
+
+
+		# Server List
+
+		ServerListUI()
+
+
+	def direct_connect(self):
+		"""TODO"""
+		print('"Direct connect..."')
+		DirectConnectUI()
+
+
+class DirectConnectUI(tk.Toplevel):
+
+
+	def __init__(self):
+		
+		print("Initializing...")
+
+		# Init
+		super().__init__()
+
+		# Title
+		self.title('Direct Connect')
+
+		# Icon
+		self.iconbitmap(DMR_ICON) #TODO looks bad
+
+		# Geometry
+		self.geometry('300x100')
+		self.maxsize(300, 100)
+		self.minsize(300, 100)
+		self.grid()
+		center_window(self)
+		
+		# Priority
+		self.grab_set()
+
+		# Host Label
+		self.host_label = ttk.Label(self, text="Host")
+		self.host_label.grid(row=0, column=0, columnspan=1, padx=5, pady=5)
+
+		# Host Entry
+		self.host_entry = ttk.Entry(self)
+		self.host_entry.insert(0, DMR_HOST) #TODO change to last server IP
+		self.host_entry.grid(row=0, column=1, columnspan=3, padx=5, pady=5)
+
+		# Port Label
+		self.port_label = ttk.Label(self, text="Port")
+		self.port_label.grid(row=1, column=0, columnspan=1, padx=5, pady=5)
+
+		# Port Entry
+		self.port_entry = ttk.Entry(self)
+		self.port_entry.insert(0, str(DMR_PORT)) #TODO change to last server port
+		self.port_entry.grid(row=1, column=1, columnspan=1, padx=5, pady=5)
+
+		# Button
+		self.button = ttk.Button(self, text="Connect", command=self.connect)
+		self.button.grid(row=1, column=3, columnspan=1, padx=5, pady=5)
+
+
+	def connect(self):
+		"""TODO"""
+		print('"Connect"')
+		host = self.host_entry.get()
+		port = self.port_entry.get()
+		try:
+			if (len(host) < 1):
+				raise CustomException("Invalid host")
+			try:
+				port = int(port)
+			except:
+				raise CustomException("Invalid port")
+			ServerLoaderUI(Server(host, port))
+			self.destroy()
+		except Exception as e:
+			show_error(e)
 
 
 class ServerListUI(tk.Frame):
@@ -1137,56 +1301,16 @@ class ServerListUI(tk.Frame):
 	"""
 
 
-	#TODO implement
-
-
-	def __init__(self, root):
+	def __init__(self):
 		"""TODO"""
 
 
-		print("Creating window...")
-
-
-		# Parameters
-
-		self.root = root
+		print("Initializing...")
 
 
 		# Init
 
-		super().__init__(self.root)
-
-
-		# Geometry
-
-		self.root.geometry("500x500")
-		self.root.minsize(500, 500)
-		self.root.maxsize(500, 500)
-		self.grid()
-		center_window(root)
-
-
-		# Menu
-
-		menu = Menu(self)  
-		
-		settings = Menu(menu, tearoff=0)  
-		settings.add_command(label="SC4 Settings...")      
-		settings.add_separator()  
-		settings.add_command(label="Exit", command=root.quit)  
-		menu.add_cascade(label="Settings", menu=settings)  
-
-		servers = Menu(menu, tearoff=0)  
-		servers.add_command(label="Direct connect...", command=self.direct_connect)  
-		servers.add_separator()  
-		servers.add_command(label="Host...")   
-		menu.add_cascade(label="Servers", menu=servers)  
-
-		help = Menu(menu, tearoff=0)  
-		help.add_command(label="Readme...")  
-		menu.add_cascade(label="Help", menu=help)  
-		
-		root.config(menu=menu)  
+		super().__init__()
 
 
 		# Label
@@ -1197,83 +1321,17 @@ class ServerListUI(tk.Frame):
 		self.label['anchor'] = "center"
 
 
-	def direct_connect(self):
-		"""TODO"""
-
-		print("Creating direct connect window...")
-
-		# Create frame
-		frame = tk.Toplevel(self.root)
-
-		# Freeze background
-		frame.grab_set()
-		
-		# Title
-		frame.title('Direct Connect')
-
-		# Icon
-		frame.iconbitmap(DMR_ICON) #TODO looks bad
-
-		# Geometry
-		frame.geometry('300x100')
-		frame.maxsize(300, 100)
-		frame.minsize(300, 100)
-		frame.grid()
-		center_window(frame)
-
-		#TODO make prettier
-
-		# Host Label
-		host_label = ttk.Label(frame, text="Host")
-		host_label.grid(row=0, column=0, columnspan=1, padx=5, pady=5)
-
-		# Host Entry
-		host_entry = ttk.Entry(frame)
-		host_entry.insert(0, DMR_HOST) #TODO change to last server IP
-		host_entry.grid(row=0, column=1, columnspan=3, padx=5, pady=5)
-
-		# Port Label
-		port_label = ttk.Label(frame, text="Port")
-		port_label.grid(row=1, column=0, columnspan=1, padx=5, pady=5)
-
-		# Port Entry
-		port_entry = ttk.Entry(frame)
-		port_entry.insert(0, str(DMR_PORT)) #TODO change to last server port
-		port_entry.grid(row=1, column=1, columnspan=1, padx=5, pady=5)
-
-		# Button
-		button = ttk.Button(frame, text="Connect", command=lambda:self.direct_connect_button(frame, host_entry.get(), port_entry.get()))
-		button.grid(row=1, column=3, columnspan=1, padx=5, pady=5)
-
-	def direct_connect_button(self, frame, host, port):
-		"""TODO"""
-		try:
-			if (len(host) < 1):
-				raise CustomException("Invalid host")
-			try:
-				port = int(port)
-			except:
-				raise CustomException("Invalid port")
-			frame.destroy()
-			connect(Server(host, port))
-		except Exception as e:
-			show_error(e)
-
-
 class ServerLoaderUI(tk.Toplevel):
 	"""TODO"""
 
 
-	def __init__(self, root, server):
+	def __init__(self, server):
 		"""TODO"""
 
-		print("Creating window...")
-
-		# Paramters
-		self.root = root
+		print("Initializing...")
 
 		# Init
-		super().__init__(root)
+		super().__init__()
 
 		# Geometry
 		self.minsize(800, 100)
@@ -1281,15 +1339,19 @@ class ServerLoaderUI(tk.Toplevel):
 		self.grid()
 		center_window(self)
 
+		# Priority
+		self.lift()
+
 		# Label
 		self.label = ttk.Label(self)
+		self.label['text'] = "Loading..."
 		self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=10)
 
 		# Progress bar
 		self.progress_bar = ttk.Progressbar(
 			self,
 			orient='horizontal',
-			mode='determinate',
+			mode='indeterminate',
 			length=780,
 			maximum=100
 		)
@@ -1298,56 +1360,35 @@ class ServerLoaderUI(tk.Toplevel):
 
 		# Worker
 		self.worker = ServerLoader(self, server)
-		self.worker.setDaemon(True)
-
-
-	def mainloop(self):
-		"""TODO"""
 		self.worker.start()
-		return tk.Toplevel.mainloop(self) #TODO never ends
 
 
-	def progress_update(self):
-		"""TODO"""
-		self.label['text'] = self.server_loader.label
-		self.progress_bar['mode'] = self.server_loader.progress_bar_mode
-		self.progress_bar['value'] = self.server_loader.progress_bar_value
-		self.update()
-
-
-class GameMonitorUI(tk.Frame):
+class GameMonitorUI(tk.Toplevel):
 	"""TODO"""
 	
 
-	def __init__(self, root, server):
+	def __init__(self):
 		"""TODO"""
 
-		# Parameters
-		self.root = root
+		print("Initializing...")
 
 		# Init
-		super().__init__(self.root)
+		super().__init__()
 
 		# Geometry
-		self.root.geometry("100x50")
-		self.root.minsize(100, 50)
-		self.root.maxsize(100, 50)
-		self.root.grid()
-		center_window(self.root)
+		self.geometry("100x50")
+		self.minsize(100, 50)
+		self.maxsize(100, 50)
+		self.grid()
+		center_window(self)
+
+		# Priority
+		self.wm_attributes("-topmost", True)
 
 		# Label
 		self.label = ttk.Label()
 		self.label.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10)
 
-		# Worker
-		self.worker = GameMonitor(self, server)
-
-
-	def mainloop(self):
-		"""TODO"""
-		self.worker.start()
-		return tk.Tk.mainloop(self)
-	
 
 # Exceptions
 
@@ -1438,7 +1479,7 @@ class Logger():
 
 # Main Method
 
-def cmd():
+def cmd(): #TODO incorporate this into the main method but enable this functionality using commandline arguments
 	"""This method is meant to be run in a terminal instead of the main method for testing purposes.
 
 	Arguments:
@@ -1487,22 +1528,29 @@ def main():
 		None
 	"""
 
-	try: #TODO uncomment and add traceback in the error popup
+	try:
 
+		# Output
 		sys.stdout = Logger()
 
+		# Version
 		print("Client version " + DMR_VERSION)
 
+		# Prep
 		prep()
 
-		ui = UI()
-		ui.withdraw()
-		ServerListUI(ui)
-		ui.mainloop()
+		# UI
+		global dmr_ui
+		dmr_ui = UI()
+		dmr_ui.mainloop()
 
 	except Exception as e:
 
-		show_error("A fatal error occurred.\n\n" + str(e)) # Please send the following information to the developers of the " + DMR_TITLE + " so this can be resolved:
+		# Error 
+		show_error("A fatal error occurred.\n\n" + str(e)) # Please send the following information to the developers of the " + DMR_TITLE + " so this can be resolved: #TODO add traceback
+		
+		# Traceback
+		traceback.print_exc()
 
 if __name__ == '__main__':
 	main()
