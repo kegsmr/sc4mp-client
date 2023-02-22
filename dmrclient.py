@@ -529,6 +529,7 @@ class ServerLoader(th.Thread):
 		"""TODO"""
 		if (self.frame != None):
 			self.frame.label['text'] = text
+			self.frame.progress_bar.start(2)
 			self.frame.progress_bar['mode'] = "indeterminate"
 			self.frame.progress_bar['maximum'] = 100
 		print(prefix + text)
@@ -539,6 +540,7 @@ class ServerLoader(th.Thread):
 		"""TODO"""
 		if (self.frame != None):
 			self.frame.label['text'] = text
+			self.frame.progress_bar.stop()
 			self.frame.progress_bar['mode'] = "determinate"
 			self.frame.progress_bar['value'] = value
 			self.frame.progress_bar['maximum'] = maximum
