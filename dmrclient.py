@@ -140,6 +140,7 @@ def connect(server):
 	if (dmr_ui):
 		server_loader_ui = ServerLoaderUI(dmr_ui_root, server)
 		server_loader_ui.mainloop()
+		print("TEST") #TODO
 		if (dmr_current_server != None):
 			game_monitor_ui_thread = GameMonitorUIThread(dmr_ui_root, server)
 			game_monitor_ui_thread.start()
@@ -1303,7 +1304,7 @@ class ServerLoaderUI(tk.Toplevel):
 	def mainloop(self):
 		"""TODO"""
 		self.worker.start()
-		return tk.Tk.mainloop(self)
+		return tk.Toplevel.mainloop(self) #TODO never ends
 
 
 	def progress_update(self):
@@ -1504,4 +1505,4 @@ def main():
 		show_error("A fatal error occurred.\n\n" + str(e)) # Please send the following information to the developers of the " + DMR_TITLE + " so this can be resolved:
 
 if __name__ == '__main__':
-	cmd()
+	main()
