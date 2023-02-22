@@ -916,7 +916,7 @@ class GameMonitor(th.Thread):
 				break
 			if (not self.game_launcher.game_running):
 				end = True
-			time.sleep(5)
+			time.sleep(3)
 		if (self.ui != None):
 			self.ui.destroy()
 		if (dmr_ui != None):
