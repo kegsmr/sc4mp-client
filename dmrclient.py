@@ -550,6 +550,7 @@ class ServerLoader(th.Thread):
 			self.ui.destroy()
 		
 		if (dmr_current_server != None):
+			#TODO set the host and port as the new default direct connect
 			game_monitor = GameMonitor(self.server)
 			game_monitor.start()
 		else:
@@ -1194,7 +1195,7 @@ class UI(tk.Tk):
 		menu = Menu(self)  
 		
 		settings = Menu(menu, tearoff=0)  
-		settings.add_command(label="SC4 Settings...")      
+		settings.add_command(label="SC4 Settings...", command=self.to_implement)      
 		settings.add_separator()  
 		settings.add_command(label="Exit", command=self.quit)  
 		menu.add_cascade(label="Settings", menu=settings)  
@@ -1202,11 +1203,12 @@ class UI(tk.Tk):
 		servers = Menu(menu, tearoff=0)  
 		servers.add_command(label="Direct connect...", command=self.direct_connect)  
 		servers.add_separator()  
-		servers.add_command(label="Host...")   
+		servers.add_command(label="Host...", command=self.to_implement)   
 		menu.add_cascade(label="Servers", menu=servers)  
 
 		help = Menu(menu, tearoff=0)  
-		help.add_command(label="Readme...")  
+		help.add_command(label="Readme...", command=self.to_implement)  
+		help.add_command(label="Feedback...", command=self.to_implement)  
 		menu.add_cascade(label="Help", menu=help)  
 		
 		self.config(menu=menu)  
@@ -1215,6 +1217,11 @@ class UI(tk.Tk):
 		# Server List
 
 		ServerListUI()
+
+	
+	def to_implement(self):
+		"""TODO"""
+		tk.messagebox.showerror(title=DMR_TITLE, message="This feature is incomplete and will be available in future versions of the client.")
 
 
 	def direct_connect(self):
@@ -1255,7 +1262,7 @@ class DirectConnectUI(tk.Toplevel):
 
 		# Host Entry
 		self.host_entry = ttk.Entry(self, width=35)
-		self.host_entry.insert(0, DMR_HOST) #TODO change to last server IP
+		self.host_entry.insert(0, "") #TODO change to last server IP
 		self.host_entry.grid(row=0, column=1, columnspan=3, padx=10, pady=20, sticky="w")
 
 		# Port Label
@@ -1264,7 +1271,7 @@ class DirectConnectUI(tk.Toplevel):
 
 		# Port Entry
 		self.port_entry = ttk.Entry(self, width=5)
-		self.port_entry.insert(0, str(DMR_PORT)) #TODO change to last server port
+		self.port_entry.insert(0, str(7246)) #TODO change to last server port
 		self.port_entry.grid(row=1, column=1, columnspan=1, padx=10, pady=0, sticky="w")
 
 		# Connect Button #TODO bind return key to button
@@ -1278,12 +1285,14 @@ class DirectConnectUI(tk.Toplevel):
 		host = self.host_entry.get()
 		port = self.port_entry.get()
 		try:
-			if (len(host) < 1):
-				raise CustomException("Invalid host")
+			if (len(host) < 1 or host == "0" or host == "localhost" or host == "127.0.0.1"):
+				host = DMR_HOST
+				#raise CustomException("Invalid host")
 			try:
 				port = int(port)
 			except:
-				raise CustomException("Invalid port")
+				port = DMR_PORT
+				#raise CustomException("Invalid port")
 			ServerLoaderUI(Server(host, port))
 			self.destroy()
 		except Exception as e:
@@ -1376,9 +1385,9 @@ class GameMonitorUI(tk.Toplevel):
 		super().__init__()
 
 		# Geometry
-		self.geometry("100x50")
-		self.minsize(100, 50)
-		self.maxsize(100, 50)
+		self.geometry("300x100")
+		self.minsize(300, 50)
+		self.maxsize(300, 50)
 		self.grid()
 		center_window(self)
 
@@ -1386,8 +1395,8 @@ class GameMonitorUI(tk.Toplevel):
 		self.wm_attributes("-topmost", True)
 
 		# Label
-		self.label = ttk.Label(self)
-		self.label.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10)
+		self.label = ttk.Label(self, anchor="e")
+		self.label.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="e")
 
 
 # Exceptions
