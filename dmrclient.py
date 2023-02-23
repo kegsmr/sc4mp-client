@@ -1216,7 +1216,8 @@ class UI(tk.Tk):
 
 		# Server List
 
-		ServerListUI()
+		self.server_list = ServerListUI(self)
+		self.server_list.grid(row = 0, column = 0)
 
 	
 	def to_implement(self):
@@ -1310,24 +1311,50 @@ class ServerListUI(tk.Frame):
 	"""
 
 
-	def __init__(self):
+	def __init__(self, root):
 		"""TODO"""
 
 
 		print("Initializing...")
 
 
+		# Parameters
+
+		self.root = root
+
+
 		# Init
 
-		super().__init__()
+		super().__init__(self.root)
+
+
+		# Geometry
+
+		self.grid()
 
 
 		# Label
 
 		self.label = ttk.Label()
-		self.label.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10)
+		self.label.grid(column=0, row=0, rowspan=1, columnspan=4, padx=10, pady=10)
 		self.label['text'] = "Loading server list..."
-		self.label['anchor'] = "center"
+
+		# Tree
+
+		self.tree = ttk.Treeview(self)
+
+		self.tree['columns'] = ('name', 'mayors', 'claimed', 'download', 'ping', 'rank')
+
+		self.tree.column('name', width=10, anchor='w')
+		self.tree.column('mayors', width=10, anchor='w')
+		self.tree.column('claimed', width=10, anchor='w')
+		self.tree.column('ping', width=10, anchor='w')
+		
+		self.tree.grid(column=0, row=1, rowspan=10, columnspan=4, padx=10, pady=10, sticky="we")
+
+		self.tree.insert('', 'end', 'item1', values=("[SC4MP] Vanilla", "23", "36%", "542MB", "43ms", "1"))
+		self.tree.insert('', 'end', 'item2')
+		self.tree.insert('', 'end', 'item3')
 
 
 class ServerLoaderUI(tk.Toplevel):
