@@ -59,47 +59,47 @@ def prep():
 
 
 def load_config():
-	"""Loads the config file from the resources subdirectory or creates it if it does not yet exist.
+	"""TODO"""	
 
-	Arguments:
-		None
+	global dmr_config
 
-	Returns:
-		None
-	"""
+	PATH = "config.ini"
+	DEFAULTS = [
+		("GENERAL", [
+			("default-host", ""),
+			("default-port", 7246)
+		]),
+		("STORAGE", [
+			("storage-path", default_dmrpath),
+			("cache-size", 4000000000)
+		]),
+		("SC4", [
+			("game-path", default_sc4path),
+			("fullscreen", False),
+			("res-w", default_resw),
+			("res-h", default_resh)
+		])
+	]
+
+	print("Loading config...")
+
+	dmr_config = Config(PATH, DEFAULTS)
+
+	update_config_constants()
+
+	
+def update_config_constants():
+	"""TODO"""
 
 	global DMR_LAUNCHPATH
 	global DMR_LAUNCHRESW
 	global DMR_LAUNCHRESH
 	global DMR_CUSTOMPATH
 
-	print("Loading config...")
-
-	#TODO add cpu options for start parameters
-	configpath = "config.ini"
-	try:
-		config = configparser.RawConfigParser()
-		config.read(configpath)
-
-		DMR_LAUNCHPATH = config.get('launcher', 'path')
-		DMR_LAUNCHRESW = config.get('launcher', 'resw')
-		DMR_LAUNCHRESH = config.get('launcher', 'resh')
-		DMR_CUSTOMPATH = config.get('launcher', 'sc4path')
-	except:
-		config.remove_section('launcher')
-		config.add_section('launcher')
-		config.set('launcher', 'path', default_dmrpath)
-		config.set('launcher', 'resw', default_resw)
-		config.set('launcher', 'resh', default_resh)
-		config.set('launcher', 'sc4path', default_sc4path)
-		
-		with open(configpath, 'wt') as configfile: #apparently you have to use 'wt' for this now instead of 'wb'
-			config.write(configfile)
-
-		DMR_LAUNCHPATH = default_dmrpath
-		DMR_LAUNCHRESW = default_resw
-		DMR_LAUNCHRESH = default_resh
-		DMR_CUSTOMPATH = default_sc4path
+	DMR_LAUNCHPATH = dmr_config.data['STORAGE']['storage-path']
+	DMR_LAUNCHRESW = dmr_config.data['SC4']['res-w']
+	DMR_LAUNCHRESH = dmr_config.data['SC4']['res-h']
+	DMR_CUSTOMPATH = dmr_config.data['SC4']['game-path']
 
 
 def create_subdirectories():
@@ -320,7 +320,9 @@ def show_error(e):
 
 	print("[ERROR] " + message)
 
-	if (dmr_ui):
+	if (dmr_ui != None):
+		if (dmr_ui == True):
+			tk.Tk().withdraw()
 		messagebox.showerror(DMR_TITLE, message)
 
 
@@ -345,6 +347,62 @@ def center_window(window):
 
 
 # Objects
+
+class Config:
+	"""TODO"""
+
+
+	def __init__(self, path, defaults):
+		"""TODO"""
+
+		# Parameters
+		self.PATH = path
+		self.DEFAULTS = defaults
+
+		# Create dictionary with default config settings
+		self.data = dict()
+		for section in self.DEFAULTS:
+			section_name = section[0]
+			section_items = section[1]
+			self.data.setdefault(section_name, dict())
+			for item in section_items:
+				item_name = item[0]
+				item_value = item[1]
+				self.data[section_name].setdefault(item_name, item_value)
+		
+		# Try to read settings from the config file and update the dictionary accordingly
+		parser = configparser.RawConfigParser()
+		try:
+			parser.read(self.PATH)
+			for section_name in self.data.keys():
+				section = self.data[section_name]
+				try:
+					for item_name in section.keys():
+						try:
+							self.data[section_name][item_name] = parser.get(section_name, item_name)
+						except:
+							pass
+				except:
+					pass
+		except:
+			pass
+
+		# Update config file
+		self.update()
+
+
+	def update(self):
+		"""TODO"""
+		parser = configparser.RawConfigParser()
+		for section_name in self.data.keys():
+			parser.add_section(section_name)
+			section = self.data[section_name]
+			for item_name in section.keys():
+				item_value = section[item_name]
+				parser.set(section_name, item_name, item_value)
+		with open(self.PATH, 'wt') as file:
+			parser.write(file)
+
 
 class Server:
 	"""TODO"""
@@ -475,7 +533,7 @@ class Server:
 			return round(1000 * (end - start))
 		except socket.error as e:
 			return None
-	
+
 
 # Workers
 
@@ -550,7 +608,9 @@ class ServerLoader(th.Thread):
 			self.ui.destroy()
 		
 		if (dmr_current_server != None):
-			#TODO set the host and port as the new default direct connect
+			dmr_config.data["GENERAL"]["default-host"] = self.server.host
+			dmr_config.data["GENERAL"]["default-port"] = self.server.port
+			dmr_config.update()
 			game_monitor = GameMonitor(self.server)
 			game_monitor.start()
 		else:
@@ -786,7 +846,7 @@ class ServerLoader(th.Thread):
 
 			# Delete cache files if cache too large to accomadate the new cache file
 			cache_directory = os.path.join(DMR_LAUNCHPATH, "DMRCache")
-			while (len(os.listdir(cache_directory)) > 0 and directory_size(cache_directory) > 4000000000 - filesize): #TODO: make cache size configurable
+			while (len(os.listdir(cache_directory)) > 0 and directory_size(cache_directory) > int(dmr_config.data["STORAGE"]["cache-size"]) - filesize):
 				os.remove(os.path.join(cache_directory, random.choice(os.listdir(cache_directory))))
 
 			# Receive the file. Write to both the destination and cache
@@ -1182,9 +1242,9 @@ class UI(tk.Tk):
 
 		# Geometry
 
-		self.geometry("500x500")
-		self.minsize(500, 500)
-		self.maxsize(500, 500)
+		self.geometry("800x600")
+		self.minsize(800, 600)
+		self.maxsize(800, 600)
 		self.grid()
 		self.lift()
 		center_window(self)
@@ -1195,7 +1255,9 @@ class UI(tk.Tk):
 		menu = Menu(self)  
 		
 		settings = Menu(menu, tearoff=0)  
-		settings.add_command(label="SC4 Settings...", command=self.to_implement)      
+		settings.add_command(label="General...", command=self.to_implement)     
+		settings.add_command(label="Storage...", command=self.to_implement)    
+		settings.add_command(label="SC4...", command=self.to_implement)  
 		settings.add_separator()  
 		settings.add_command(label="Exit", command=self.quit)  
 		menu.add_cascade(label="Settings", menu=settings)  
@@ -1263,7 +1325,7 @@ class DirectConnectUI(tk.Toplevel):
 
 		# Host Entry
 		self.host_entry = ttk.Entry(self, width=35)
-		self.host_entry.insert(0, "") #TODO change to last server IP
+		self.host_entry.insert(0, dmr_config.data["GENERAL"]["default-host"])
 		self.host_entry.grid(row=0, column=1, columnspan=3, padx=10, pady=20, sticky="w")
 
 		# Port Label
@@ -1272,7 +1334,7 @@ class DirectConnectUI(tk.Toplevel):
 
 		# Port Entry
 		self.port_entry = ttk.Entry(self, width=5)
-		self.port_entry.insert(0, str(7246)) #TODO change to last server port
+		self.port_entry.insert(0, dmr_config.data["GENERAL"]["default-port"])
 		self.port_entry.grid(row=1, column=1, columnspan=1, padx=10, pady=0, sticky="w")
 
 		# Connect Button #TODO bind return key to button
@@ -1341,18 +1403,62 @@ class ServerListUI(tk.Frame):
 
 		# Tree
 
+		NORMAL_COLUMN_WIDTH = 97
+
+		COLUMNS = [
+			(
+				"Name",
+				3 * NORMAL_COLUMN_WIDTH,
+				"w"
+    		),
+		    (
+				"Mayors",
+				NORMAL_COLUMN_WIDTH,
+				"center"
+    		),
+			(
+				"Claimed",
+				NORMAL_COLUMN_WIDTH,
+				"center"
+    		),
+			(
+				"Download",
+				NORMAL_COLUMN_WIDTH,
+				"center"
+    		),
+			(
+				"Ping",
+				NORMAL_COLUMN_WIDTH,
+				"center"
+    		),
+			(
+				"Rank",
+				NORMAL_COLUMN_WIDTH,
+				"center"
+    		)
+		]
+
+		column_names = []
+		for column in COLUMNS:
+			column_names.append(column[0])
+		column_names = tuple(column_names)
+
 		self.tree = ttk.Treeview(self)
 
-		self.tree['columns'] = ('name', 'mayors', 'claimed', 'download', 'ping', 'rank')
+		self.tree['columns'] = column_names
 
-		self.tree.column('name', width=10, anchor='w')
-		self.tree.column('mayors', width=10, anchor='w')
-		self.tree.column('claimed', width=10, anchor='w')
-		self.tree.column('ping', width=10, anchor='w')
+		for column in COLUMNS:
+			column_name = column[0]
+			column_width = column[1]
+			column_anchor = column[2]
+			self.tree.column(column_name, width=column_width, anchor=column_anchor)
+			self.tree.heading(column_name, text=column_name)
 		
+		self.tree['show'] = 'headings'
+
 		self.tree.grid(column=0, row=1, rowspan=10, columnspan=4, padx=10, pady=10, sticky="we")
 
-		self.tree.insert('', 'end', 'item1', values=("[SC4MP] Vanilla", "23", "36%", "542MB", "43ms", "1"))
+		self.tree.insert('', 'end', 'item1', values=("[SC4MP] Vanilla", "23 (2)", "36%", "542MB", "43ms", "5/5"))
 		self.tree.insert('', 'end', 'item2')
 		self.tree.insert('', 'end', 'item3')
 
@@ -1572,21 +1678,21 @@ def main():
 		# Version
 		print("Client version " + DMR_VERSION)
 
+		# Enable UI
+		global dmr_ui
+		dmr_ui = True
+
 		# Prep
 		prep()
 
 		# UI
-		global dmr_ui
 		dmr_ui = UI()
 		dmr_ui.mainloop()
 
 	except Exception as e:
 
 		# Error 
-		show_error("A fatal error occurred.\n\n" + str(e)) # Please send the following information to the developers of the " + DMR_TITLE + " so this can be resolved: #TODO add traceback
-		
-		# Traceback
-		traceback.print_exc()
+		show_error("A fatal error occurred.\n\n" + traceback.format_exc()) # Please send the following information to the developers of the " + DMR_TITLE + " so this can be resolved: #TODO add traceback
 
 if __name__ == '__main__':
 	main()
