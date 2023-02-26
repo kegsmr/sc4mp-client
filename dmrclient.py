@@ -9,7 +9,7 @@ import threading as th
 import time
 import tkinter as tk
 from datetime import datetime
-from tkinter import Menu, messagebox, ttk
+from tkinter import Menu, messagebox, ttk, filedialog
 import json
 import random
 import string
@@ -66,18 +66,18 @@ def load_config():
 	PATH = "config.ini"
 	DEFAULTS = [
 		("GENERAL", [
-			("default-host", ""),
-			("default-port", 7246)
+			("default_host", ""),
+			("default_port", 7246)
 		]),
 		("STORAGE", [
-			("storage-path", default_dmrpath),
-			("cache-size", 4000000000)
+			("storage_path", default_dmrpath),
+			("cache_size", 4000000000)
 		]),
 		("SC4", [
-			("game-path", default_sc4path),
+			("game_path", default_sc4path),
 			("fullscreen", False),
-			("res-w", default_resw),
-			("res-h", default_resh)
+			("resw", default_resw),
+			("resh", default_resh)
 		])
 	]
 
@@ -85,10 +85,8 @@ def load_config():
 
 	dmr_config = Config(PATH, DEFAULTS)
 
-	update_config_constants()
-
 	
-def update_config_constants():
+def update_config_constants(config):
 	"""TODO"""
 
 	global DMR_LAUNCHPATH
@@ -96,10 +94,10 @@ def update_config_constants():
 	global DMR_LAUNCHRESH
 	global DMR_CUSTOMPATH
 
-	DMR_LAUNCHPATH = dmr_config.data['STORAGE']['storage-path']
-	DMR_LAUNCHRESW = dmr_config.data['SC4']['res-w']
-	DMR_LAUNCHRESH = dmr_config.data['SC4']['res-h']
-	DMR_CUSTOMPATH = dmr_config.data['SC4']['game-path']
+	DMR_LAUNCHPATH = config.data['STORAGE']['storage_path']
+	DMR_LAUNCHRESW = config.data['SC4']['resw']
+	DMR_LAUNCHRESH = config.data['SC4']['resh']
+	DMR_CUSTOMPATH = config.data['SC4']['game_path']
 
 
 def create_subdirectories():
@@ -402,6 +400,10 @@ class Config:
 				parser.set(section_name, item_name, item_value)
 		with open(self.PATH, 'wt') as file:
 			parser.write(file)
+		try:
+			update_config_constants(self)
+		except:
+			pass
 
 
 class Server:
@@ -608,8 +610,8 @@ class ServerLoader(th.Thread):
 			self.ui.destroy()
 		
 		if (dmr_current_server != None):
-			dmr_config.data["GENERAL"]["default-host"] = self.server.host
-			dmr_config.data["GENERAL"]["default-port"] = self.server.port
+			dmr_config.data["GENERAL"]["default_host"] = self.server.host
+			dmr_config.data["GENERAL"]["default_port"] = self.server.port
 			dmr_config.update()
 			game_monitor = GameMonitor(self.server)
 			game_monitor.start()
@@ -846,7 +848,7 @@ class ServerLoader(th.Thread):
 
 			# Delete cache files if cache too large to accomadate the new cache file
 			cache_directory = os.path.join(DMR_LAUNCHPATH, "DMRCache")
-			while (len(os.listdir(cache_directory)) > 0 and directory_size(cache_directory) > int(dmr_config.data["STORAGE"]["cache-size"]) - filesize):
+			while (len(os.listdir(cache_directory)) > 0 and directory_size(cache_directory) > int(dmr_config.data["STORAGE"]["cache_size"]) - filesize):
 				os.remove(os.path.join(cache_directory, random.choice(os.listdir(cache_directory))))
 
 			# Receive the file. Write to both the destination and cache
@@ -1257,7 +1259,7 @@ class UI(tk.Tk):
 		settings = Menu(menu, tearoff=0)  
 		settings.add_command(label="General...", command=self.to_implement)     
 		settings.add_command(label="Storage...", command=self.to_implement)    
-		settings.add_command(label="SC4...", command=self.to_implement)  
+		settings.add_command(label="SC4...", command=self.SC4_settings)  
 		settings.add_separator()  
 		settings.add_command(label="Exit", command=self.quit)  
 		menu.add_cascade(label="Settings", menu=settings)  
@@ -1293,6 +1295,83 @@ class UI(tk.Tk):
 		DirectConnectUI()
 
 
+	def SC4_settings(self):
+		"""TODO"""
+		print('"SC4 settings..."')
+		SC4SettingsUI()
+
+
+class SC4SettingsUI(tk.Toplevel):
+
+
+	def __init__(self):
+		"""TODO"""
+
+		print("Initializing...")
+
+		# Init
+		super().__init__()
+
+		# Title
+		self.title("SC4 settings")
+
+		# Icon
+		self.iconbitmap(DMR_ICON) #TODO looks bad
+
+		# Geometry
+		self.geometry('400x400')
+		self.maxsize(400, 400)
+		self.minsize(400, 400)
+		self.grid()
+		center_window(self)
+		
+		# Priority
+		self.grab_set()
+
+		# Bind enter key
+		self.bind("<Return>", lambda event:self.ok())
+
+		# Path frame
+		self.path_frame = tk.LabelFrame(self, text="Custom installation path")		
+		self.path_frame.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
+
+		# Path entry
+		self.path_frame.entry = ttk.Entry(self.path_frame, width = 40)
+		self.path_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
+		self.path_frame.entry.insert(0, dmr_config.data["SC4"]["game_path"])
+
+		# Path browse button
+		self.path_frame.button = ttk.Button(self.path_frame, text="Browse...", command=self.browse_path)
+		self.path_frame.button.grid(row=0, column=1, columnspan=1, padx=10, pady=10)
+
+		# Ok/Cancel frame
+		self.ok_cancel = tk.Frame(self)
+		self.ok_cancel.grid(row=99, column=0, sticky="e")
+
+		# Ok button
+		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Ok", command=self.ok, default="active")
+		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=5, pady=5, sticky="w")
+
+		# Cancel button
+		self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
+		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=5, pady=5, sticky="e")
+
+
+	def browse_path(self):
+		"""TODO"""
+		path = filedialog.askdirectory(parent=self)
+		if (len(path) > 0):
+			self.path_frame.entry.delete(0, 'end')
+			self.path_frame.entry.insert(0, path)
+
+
+	def ok(self):
+		"""TODO"""
+		dmr_config.data["SC4"]["game_path"] = self.path_frame.entry.get()
+		dmr_config.update()
+		self.destroy()
+
+
 class DirectConnectUI(tk.Toplevel):
 
 
@@ -1304,7 +1383,7 @@ class DirectConnectUI(tk.Toplevel):
 		super().__init__()
 
 		# Title
-		self.title('Direct Connect')
+		self.title('Direct connect')
 
 		# Icon
 		self.iconbitmap(DMR_ICON) #TODO looks bad
@@ -1319,13 +1398,16 @@ class DirectConnectUI(tk.Toplevel):
 		# Priority
 		self.grab_set()
 
+		# Bind enter key
+		self.bind("<Return>", lambda event:self.connect())
+
 		# Host Label
 		self.host_label = ttk.Label(self, text="Host")
 		self.host_label.grid(row=0, column=0, columnspan=1, padx=10, pady=20)
 
 		# Host Entry
 		self.host_entry = ttk.Entry(self, width=35)
-		self.host_entry.insert(0, dmr_config.data["GENERAL"]["default-host"])
+		self.host_entry.insert(0, dmr_config.data["GENERAL"]["default_host"])
 		self.host_entry.grid(row=0, column=1, columnspan=3, padx=10, pady=20, sticky="w")
 
 		# Port Label
@@ -1334,13 +1416,14 @@ class DirectConnectUI(tk.Toplevel):
 
 		# Port Entry
 		self.port_entry = ttk.Entry(self, width=5)
-		self.port_entry.insert(0, dmr_config.data["GENERAL"]["default-port"])
+		self.port_entry.insert(0, dmr_config.data["GENERAL"]["default_port"])
 		self.port_entry.grid(row=1, column=1, columnspan=1, padx=10, pady=0, sticky="w")
 
-		# Connect Button #TODO bind return key to button
+		# Connect Button
 		self.button = ttk.Button(self, text="Connect", command=self.connect, default="active")
 		self.button.grid(row=1, column=3, columnspan=1, padx=10, pady=0, sticky="e")
 
+		#TODO add cancel button
 
 	def connect(self):
 		"""TODO"""
