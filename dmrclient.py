@@ -1252,6 +1252,11 @@ class UI(tk.Tk):
 		center_window(self)
 
 
+		# Key bindings
+
+		self.bind("<F1>", lambda event:self.direct_connect()) #TODO change?
+
+
 		# Menu
 
 		menu = Menu(self)  
@@ -1334,7 +1339,7 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# Path frame
 		self.path_frame = tk.LabelFrame(self, text="Custom installation path")		
-		self.path_frame.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
+		self.path_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10, sticky="w")
 
 		# Path entry
 		self.path_frame.entry = ttk.Entry(self.path_frame, width = 40)
@@ -1345,9 +1350,19 @@ class SC4SettingsUI(tk.Toplevel):
 		self.path_frame.button = ttk.Button(self.path_frame, text="Browse...", command=self.browse_path)
 		self.path_frame.button.grid(row=0, column=1, columnspan=1, padx=10, pady=10)
 
+		# Resolution frame
+		self.resolution_frame = tk.LabelFrame(self, text="Resolution")		
+		self.resolution_frame.grid(row=1, column=0, columnspan=1, padx=10, pady=5, sticky="w")
+
+		# Resolution combo box
+		self.resolution_frame.combo_box = ttk.Combobox(self.resolution_frame)
+		self.resolution_frame.combo_box.insert(0, dmr_config.data["SC4"]["resw"] + "x" + dmr_config.data["SC4"]["resh"])
+		self.resolution_frame.combo_box["values"] = ("800x600 (4:3)", "1024x768 (4:3)", "1280x1024 (4:3)", "1600x1200 (4:3)", "1280x800 (16:9)", "1440x900 (16:9)", "1680x1050 (16:9)", "1920x1080 (16:9)", "2048x1152 (16:9)")
+		self.resolution_frame.combo_box.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
+
 		# Ok/Cancel frame
 		self.ok_cancel = tk.Frame(self)
-		self.ok_cancel.grid(row=99, column=0, sticky="e")
+		self.ok_cancel.grid(row=99, column=1, sticky="e")
 
 		# Ok button
 		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Ok", command=self.ok, default="active")
@@ -1390,9 +1405,9 @@ class DirectConnectUI(tk.Toplevel):
 		self.iconbitmap(DMR_ICON) #TODO looks bad
 
 		# Geometry
-		self.geometry('290x110')
-		self.maxsize(290, 110)
-		self.minsize(290, 110)
+		self.geometry('350x110')
+		self.maxsize(350, 110)
+		self.minsize(350, 110)
 		self.grid()
 		center_window(self)
 		
@@ -1410,7 +1425,7 @@ class DirectConnectUI(tk.Toplevel):
 		self.host_label.grid(row=0, column=0, columnspan=1, padx=10, pady=20)
 
 		# Host Entry
-		self.host_entry = ttk.Entry(self, width=35)
+		self.host_entry = ttk.Entry(self, width=43)
 		self.host_entry.insert(0, dmr_config.data["GENERAL"]["default_host"])
 		self.host_entry.grid(row=0, column=1, columnspan=3, padx=10, pady=20, sticky="w")
 		self.host_entry.focus()
@@ -1424,11 +1439,18 @@ class DirectConnectUI(tk.Toplevel):
 		self.port_entry.insert(0, dmr_config.data["GENERAL"]["default_port"])
 		self.port_entry.grid(row=1, column=1, columnspan=1, padx=10, pady=0, sticky="w")
 
-		# Connect Button
-		self.button = ttk.Button(self, text="Connect", command=self.connect, default="active")
-		self.button.grid(row=1, column=3, columnspan=1, padx=10, pady=0, sticky="e")
+		# Connect/Cancel frame
+		self.connect_cancel = tk.Frame(self)
+		self.connect_cancel.grid(row=1, column=3, sticky="e")
 
-		#TODO add cancel button
+		# Connect button
+		self.connect_cancel.connect_button = ttk.Button(self.connect_cancel, text="Connect", command=self.connect, default="active")
+		self.connect_cancel.connect_button.grid(row=0, column=0, columnspan=1, padx=3, pady=5, sticky="w")
+
+		# Cancel button
+		self.connect_cancel.cancel_button = ttk.Button(self.connect_cancel, text="Cancel", command=self.destroy)
+		self.connect_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=7, pady=5, sticky="e")
+
 
 	def connect(self):
 		"""TODO"""
@@ -1483,16 +1505,12 @@ class ServerListUI(tk.Frame):
 		self.grid()
 
 
-		# Key bindings
-
-		#TODO
-
-
 		# Label
 
-		self.label = ttk.Label()
-		self.label.grid(column=0, row=0, rowspan=1, columnspan=4, padx=10, pady=10)
+		self.label = ttk.Label(self)
+		self.label.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10)
 		self.label['text'] = "Loading server list..."
+
 
 		# Tree
 
@@ -1549,7 +1567,7 @@ class ServerListUI(tk.Frame):
 		
 		self.tree['show'] = 'headings'
 
-		self.tree.grid(column=0, row=1, rowspan=10, columnspan=4, padx=10, pady=10, sticky="we")
+		self.tree.grid(column=0, row=5, rowspan=1, columnspan=1, padx=10, pady=10, sticky="we")
 
 		self.tree.insert('', 'end', 'item1', values=("[SC4MP] Vanilla", "23 (2)", "36%", "542MB", "43ms", "5/5"))
 		self.tree.insert('', 'end', 'item2')
