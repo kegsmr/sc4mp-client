@@ -1328,8 +1328,9 @@ class SC4SettingsUI(tk.Toplevel):
 		# Priority
 		self.grab_set()
 
-		# Bind enter key
+		# Key bindings
 		self.bind("<Return>", lambda event:self.ok())
+		self.bind("<Escape>", lambda event:self.destroy())
 
 		# Path frame
 		self.path_frame = tk.LabelFrame(self, text="Custom installation path")		
@@ -1398,8 +1399,11 @@ class DirectConnectUI(tk.Toplevel):
 		# Priority
 		self.grab_set()
 
-		# Bind enter key
+		# Key bindings
 		self.bind("<Return>", lambda event:self.connect())
+		self.bind("<Escape>", lambda event:self.destroy())
+		self.bind("<Up>", lambda event:self.host_entry.focus())
+		self.bind("<Down>", lambda event:self.port_entry.focus())
 
 		# Host Label
 		self.host_label = ttk.Label(self, text="Host")
@@ -1409,6 +1413,7 @@ class DirectConnectUI(tk.Toplevel):
 		self.host_entry = ttk.Entry(self, width=35)
 		self.host_entry.insert(0, dmr_config.data["GENERAL"]["default_host"])
 		self.host_entry.grid(row=0, column=1, columnspan=3, padx=10, pady=20, sticky="w")
+		self.host_entry.focus()
 
 		# Port Label
 		self.port_label = ttk.Label(self, text="Port")
@@ -1478,6 +1483,11 @@ class ServerListUI(tk.Frame):
 		self.grid()
 
 
+		# Key bindings
+
+		#TODO
+
+
 		# Label
 
 		self.label = ttk.Label()
@@ -1526,7 +1536,7 @@ class ServerListUI(tk.Frame):
 			column_names.append(column[0])
 		column_names = tuple(column_names)
 
-		self.tree = ttk.Treeview(self)
+		self.tree = ttk.Treeview(self, selectmode="browse")
 
 		self.tree['columns'] = column_names
 
@@ -1566,6 +1576,9 @@ class ServerLoaderUI(tk.Toplevel):
 
 		# Priority
 		self.lift()
+
+		# Key bindings
+		self.bind("<Escape>", lambda event:self.destroy())
 
 		# Label
 		self.label = ttk.Label(self)
