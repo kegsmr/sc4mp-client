@@ -1337,6 +1337,9 @@ class SC4SettingsUI(tk.Toplevel):
 		self.bind("<Return>", lambda event:self.ok())
 		self.bind("<Escape>", lambda event:self.destroy())
 
+		# Config update
+		self.config_update = []
+
 		# Path frame
 		self.path_frame = tk.LabelFrame(self, text="Custom installation path")		
 		self.path_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10, sticky="w")
@@ -1345,6 +1348,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.path_frame.entry = ttk.Entry(self.path_frame, width = 40)
 		self.path_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
 		self.path_frame.entry.insert(0, dmr_config.data["SC4"]["game_path"])
+		self.config_update.append((self.path_frame.entry, "game_path"))
 
 		# Path browse button
 		self.path_frame.button = ttk.Button(self.path_frame, text="Browse...", command=self.browse_path)
@@ -1359,6 +1363,15 @@ class SC4SettingsUI(tk.Toplevel):
 		self.resolution_frame.combo_box.insert(0, dmr_config.data["SC4"]["resw"] + "x" + dmr_config.data["SC4"]["resh"])
 		self.resolution_frame.combo_box["values"] = ("800x600 (4:3)", "1024x768 (4:3)", "1280x1024 (4:3)", "1600x1200 (4:3)", "1280x800 (16:9)", "1440x900 (16:9)", "1680x1050 (16:9)", "1920x1080 (16:9)", "2048x1152 (16:9)")
 		self.resolution_frame.combo_box.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
+		self.config_update.append((self.resolution_frame.combo_box, "res"))
+
+		# Additional properties frame
+		self.additional_properties_frame = tk.LabelFrame(self, text="Additional properties")		
+		self.resolution_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+
+		# Additional properties entry
+		self.additional_properties_frame.entry = ttk.Entry(self.additional_properties_frame, width = 80)
+		self.additional_properties_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
 
 		# Ok/Cancel frame
 		self.ok_cancel = tk.Frame(self)
@@ -1383,7 +1396,16 @@ class SC4SettingsUI(tk.Toplevel):
 
 	def ok(self):
 		"""TODO"""
-		dmr_config.data["SC4"]["game_path"] = self.path_frame.entry.get()
+		for item in self.config_update:
+			data = item[0].get()
+			key = item[1]
+			if (key == "res"):
+				res = data.split(' ')[0]
+				resw, resh = res.split('x')
+				dmr_config.data["SC4"]["resw"] = resw
+				dmr_config.data["SC4"]["resh"] = resh
+			else:
+				dmr_config.data["SC4"][key] = data
 		dmr_config.update()
 		self.destroy()
 
@@ -1632,18 +1654,27 @@ class GameMonitorUI(tk.Toplevel):
 		super().__init__()
 
 		# Geometry
-		self.geometry("300x100")
-		self.minsize(300, 50)
-		self.maxsize(300, 50)
+		self.overlay()
 		self.grid()
-		center_window(self)
-
+		
 		# Priority
 		self.wm_attributes("-topmost", True)
 
 		# Label
 		self.label = ttk.Label(self, anchor="e")
 		self.label.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="e")
+
+	
+	def overlay(self):
+		"""TODO"""
+		WIDTH = 300
+		HEIGHT = 50
+		screen_height = self.winfo_screenheight()
+		screen_width = self.winfo_screenwidth()
+		self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, screen_width - WIDTH, 0))
+		self.overrideredirect(True)
+		self.lift()
+		self.after(100, self.overlay)
 
 
 # Exceptions
