@@ -77,7 +77,8 @@ def load_config():
 			("game_path", default_sc4path),
 			("fullscreen", False),
 			("resw", default_resw),
-			("resh", default_resh)
+			("resh", default_resh),
+			("additional_properties", "")
 		])
 	]
 
@@ -944,13 +945,15 @@ class GameMonitor(th.Thread):
 	def run(self):
 		"""TODO"""
 		end = False
+		self.report_quietly("Connected.")
 		while (True):
 			ping = self.ping()
 			#print("Ping: " + str(ping))
 			if (ping != None):
-				self.report_quietly("Connected to server. Monitoring for changes...")
+				#self.report_quietly("Connected to server. Monitoring for changes...")
+				pass
 			else:
-				self.report(self.PREFIX, "Server unreachable.")
+				self.report(self.PREFIX, "Disconnected.")
 			new_city_paths, new_city_hashcodes = self.get_cities()
 			save_city_paths = []
 			#print("Old cities: " + str(self.city_paths))
@@ -1097,9 +1100,9 @@ class GameMonitor(th.Thread):
 		# Handle response from server
 		response = s.recv(DMR_BUFFER_SIZE).decode()
 		if (response == "ok"):
-			self.report(self.PREFIX, "Save push authorized") #TODO keep track locally of the client's claims
+			self.report(self.PREFIX, "Synced.") #TODO keep track locally of the client's claims
 		else:
-			self.report(self.PREFIX, "Save push not authorized. " + response)
+			self.report(self.PREFIX, " Save failed. " + response)
 
 		# Close socket
 		s.close()
@@ -1342,7 +1345,7 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# Path frame
 		self.path_frame = tk.LabelFrame(self, text="Custom installation path")		
-		self.path_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10, sticky="w")
+		self.path_frame.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="w")
 
 		# Path entry
 		self.path_frame.entry = ttk.Entry(self.path_frame, width = 40)
@@ -1356,7 +1359,7 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# Resolution frame
 		self.resolution_frame = tk.LabelFrame(self, text="Resolution")		
-		self.resolution_frame.grid(row=1, column=0, columnspan=1, padx=10, pady=5, sticky="w")
+		self.resolution_frame.grid(row=1, column=0, columnspan=1, rowspan=2, padx=10, pady=5, sticky="w")
 
 		# Resolution combo box
 		self.resolution_frame.combo_box = ttk.Combobox(self.resolution_frame)
@@ -1365,13 +1368,37 @@ class SC4SettingsUI(tk.Toplevel):
 		self.resolution_frame.combo_box.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
 		self.config_update.append((self.resolution_frame.combo_box, "res"))
 
+		# Fullscreen checkbutton
+		self.resolution_frame.fullscreen_checkbutton_variable = tk.BooleanVar(value=dmr_config.data["SC4"]["fullscreen"])
+		self.resolution_frame.fullscreen_checkbutton = ttk.Checkbutton(self.resolution_frame, text="Fullscreen", onvalue=True, offvalue=False, variable=self.resolution_frame.fullscreen_checkbutton_variable)
+		self.resolution_frame.fullscreen_checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=10, sticky="w")
+		self.config_update.append((self.resolution_frame.fullscreen_checkbutton_variable, "fullscreen"))
+
+		# CPU count frame
+		self.cpu_count_frame = tk.LabelFrame(self, text="CPU count")
+		self.cpu_count_frame.grid(row=1, column=1, columnspan=1, padx=10, pady=5, sticky="w")
+
+		# CPU count entry
+		self.cpu_count_frame.entry = ttk.Entry(self.cpu_count_frame, width = 10)
+		self.cpu_count_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
+
+		# CPU priority frame
+		self.cpu_priority_frame = tk.LabelFrame(self, text="CPU priority")
+		self.cpu_priority_frame.grid(row=1, column=2, columnspan=1, padx=10, pady=5, sticky="w")
+
+		# CPU priority entry
+		self.cpu_priority_frame.entry = ttk.Entry(self.cpu_priority_frame, width = 10)
+		self.cpu_priority_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
+
 		# Additional properties frame
 		self.additional_properties_frame = tk.LabelFrame(self, text="Additional properties")		
-		self.resolution_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+		self.additional_properties_frame.grid(row=3, column=0, columnspan=3, padx=10, pady=5, sticky="w")
 
 		# Additional properties entry
-		self.additional_properties_frame.entry = ttk.Entry(self.additional_properties_frame, width = 80)
-		self.additional_properties_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
+		self.additional_properties_frame.entry = ttk.Entry(self.additional_properties_frame, width = 55)
+		self.additional_properties_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
+		self.additional_properties_frame.entry.insert(0, dmr_config.data["SC4"]["additional_properties"])
+		self.config_update.append((self.additional_properties_frame.entry, "additional_properties"))
 
 		# Ok/Cancel frame
 		self.ok_cancel = tk.Frame(self)
@@ -1661,14 +1688,14 @@ class GameMonitorUI(tk.Toplevel):
 		self.wm_attributes("-topmost", True)
 
 		# Label
-		self.label = ttk.Label(self, anchor="e")
-		self.label.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="e")
+		self.label = ttk.Label(self, anchor="center")
+		self.label.grid(column=0, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="we")
 
 	
 	def overlay(self):
 		"""TODO"""
-		WIDTH = 300
-		HEIGHT = 50
+		WIDTH = 100
+		HEIGHT = 20
 		screen_height = self.winfo_screenheight()
 		screen_width = self.winfo_screenwidth()
 		self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, screen_width - WIDTH, 0))
