@@ -1379,7 +1379,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.cpu_count_frame.grid(row=1, column=1, columnspan=1, padx=10, pady=5, sticky="w")
 
 		# CPU count entry
-		self.cpu_count_frame.entry = ttk.Entry(self.cpu_count_frame, width = 10)
+		self.cpu_count_frame.entry = ttk.Entry(self.cpu_count_frame, width = 5)
 		self.cpu_count_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
 
 		# CPU priority frame
@@ -1402,7 +1402,7 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# Ok/Cancel frame
 		self.ok_cancel = tk.Frame(self)
-		self.ok_cancel.grid(row=99, column=1, sticky="e")
+		self.ok_cancel.grid(row=99, column=1, columnspan=2, sticky="e")
 
 		# Ok button
 		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Ok", command=self.ok, default="active")
