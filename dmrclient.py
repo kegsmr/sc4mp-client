@@ -502,6 +502,8 @@ class Server:
 			else:
 				raise CustomException("Authentication error.") #TODO needs a more helpful message
 			s.close()
+		else:
+			self.user_id = user_id
 
 		# Get the new salt
 		s = socket.socket()
