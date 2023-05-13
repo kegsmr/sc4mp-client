@@ -31,7 +31,7 @@ def find_data_files(source,target,patterns):
 
 #TODO: fails to compile!
 setup(
-	console=[{ #TODO: change to "windows" for final version
+	windows=[{ #TODO: change to "windows" for final version
 		"script": "dmrclient.py",
 		"icon_resources": [(1, "resources/icon.ico")],
 		"name": "DMR Client",
@@ -48,5 +48,6 @@ setup(
             "excludes":[]
 		}
 	},
+    zipfile=None,
 	data_files=find_data_files('resources','resources',['*'])
 )
