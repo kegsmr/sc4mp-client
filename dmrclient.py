@@ -913,13 +913,13 @@ class ServerLoader(th.Thread):
 			try:
 				config = configparser.RawConfigParser()
 				config.read(config_path)
-				config.set("Regional Settings", "Name", "[MP] " + config.get("Regional Settings", "Name")) #"[MP]" was "[DMR]"
+				config.set("Regional Settings", "Name", "[SC4MP] " + config.get("Regional Settings", "Name")) # "[SC4MP] was "[MP]" was "[DMR]"
 				with open(config_path, 'wt') as config_file:
 					config.write(config_file)
 			except:
 				show_error("Failed to prep region config for " + directory + ".")
 
-		shutil.unpack_archive(get_dmr_path("Regions.zip"), path)
+		#shutil.unpack_archive(get_dmr_path("Regions.zip"), path) #TODO maybe re-enable this at some point?
 
 
 class GameMonitor(th.Thread):
@@ -1001,6 +1001,8 @@ class GameMonitor(th.Thread):
 		regions_path = os.path.join(DMR_LAUNCHPATH, "Regions")
 		for region in self.server.regions:
 			region_path = os.path.join(regions_path, region)
+			if (not os.path.exists(region_path)):
+				os.makedirs(region_path)
 			if (os.path.isfile(region_path)):
 				continue
 			for city in os.listdir(region_path):
