@@ -480,24 +480,24 @@ class Server:
 		entry["host"] = self.host
 		entry["port"] = self.port	
 
-		# Get user_id and salt
+		# Get user_id and token
 		user_id = None
-		salt = None
+		token = None
 		try:
 			user_id = entry["user_id"]
-			salt = entry["salt"]
+			token = entry["token"]
 		except:
-			user_id = random_string(16)
+			user_id = random_string(32)
 
-		# Verify server can produce the user_id from the hash of the user_id and salt combined
-		if (salt != None):
-			hash = hashlib.md5((user_id + salt).encode()).hexdigest()
+		# Verify server can produce the user_id from the hash of the user_id and token combined
+		if (token != None):
+			hash = hashlib.sha256(((hashlib.sha256(user_id.encode()).hexdigest()[:32]) + token).encode()).hexdigest()
 			s = socket.socket()
 			s.connect((self.host, self.port))
 			s.send(b"user_id")
 			s.recv(DMR_BUFFER_SIZE)
 			s.send(hash.encode())
-			if (s.recv(DMR_BUFFER_SIZE).decode() == user_id):
+			if (s.recv(DMR_BUFFER_SIZE).decode() == hashlib.sha256(user_id.encode()).hexdigest()[:32]):
 				self.user_id = user_id
 			else:
 				raise CustomException("Authentication error.") #TODO needs a more helpful message
@@ -505,17 +505,17 @@ class Server:
 		else:
 			self.user_id = user_id
 
-		# Get the new salt
+		# Get the new token
 		s = socket.socket()
 		s.connect((self.host, self.port))
-		s.send(b"salt")
+		s.send(b"token")
 		s.recv(DMR_BUFFER_SIZE)
 		s.send(user_id.encode())
-		salt = s.recv(DMR_BUFFER_SIZE).decode()
+		token = s.recv(DMR_BUFFER_SIZE).decode()
 
-		# Set user_id and salt in the database entry
+		# Set user_id and token in the database entry
 		entry["user_id"] = user_id
-		entry["salt"] = salt
+		entry["token"] = token
 
 		# Update database
 		update_json(filename, data)
