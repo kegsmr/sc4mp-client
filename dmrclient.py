@@ -480,14 +480,20 @@ class Server:
 		entry["host"] = self.host
 		entry["port"] = self.port	
 
-		# Get user_id and token
+		# Get user_id
 		user_id = None
-		token = None
 		try:
 			user_id = entry["user_id"]
-			token = entry["token"]
+			
 		except:
 			user_id = random_string(32)
+
+		# Get token
+		token = None
+		try:
+			token = entry["token"]
+		except:
+			pass
 
 		# Verify server can produce the user_id from the hash of the user_id and token combined
 		if (token != None):
@@ -500,7 +506,7 @@ class Server:
 			if (s.recv(DMR_BUFFER_SIZE).decode() == hashlib.sha256(user_id.encode()).hexdigest()[:32]):
 				self.user_id = user_id
 			else:
-				raise CustomException("Authentication error.") #TODO needs a more helpful message
+				raise CustomException("Invalid token.") #"Authentication error."
 			s.close()
 		else:
 			self.user_id = user_id
@@ -512,6 +518,10 @@ class Server:
 		s.recv(DMR_BUFFER_SIZE)
 		s.send(user_id.encode())
 		token = s.recv(DMR_BUFFER_SIZE).decode()
+
+		# Raise exception if no token is received
+		if (len(token) < 1):
+			raise CustomException("You are banned from this server.")
 
 		# Set user_id and token in the database entry
 		entry["user_id"] = user_id
@@ -583,7 +593,7 @@ class ServerLoader(th.Thread):
 			self.report("", 'Connecting to server at ' + str(host) + ":" + str(port) + '...')
 			self.fetch_server()
 
-			self.report("", 'Authenticating server...')
+			self.report("", 'Authenticating...')
 			self.authenticate()
 
 			self.report("", "Loading plugins...")
