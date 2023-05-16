@@ -19,7 +19,7 @@ import traceback
 #import py2exe
 
 # Version
-DMR_VERSION = "v1.0.0 Alpha"
+DMR_VERSION = (1,0,0) #"v1.0.0"
 
 # Path to the resources subdirectory
 DMR_RESOURCES_PATH = "resources"
@@ -42,7 +42,7 @@ DMR_LAUNCHRESH = None
 DMR_CUSTOMPATH = None
 
 # Hard-coded constants
-DMR_TITLE = "DMR Client " + DMR_VERSION
+DMR_TITLE = "DMR Launcher v" + str(DMR_VERSION[0]) + "." + str(DMR_VERSION[1]) + "." + str(DMR_VERSION[2])
 DMR_ICON = os.path.join(DMR_RESOURCES_PATH, "icon.ico")
 DMR_HOST = socket.gethostname() #"127.0.0.1"
 DMR_PORT = 7246
@@ -1821,7 +1821,7 @@ def cmd(): #TODO incorporate this into the main method but enable this functiona
 
 	sys.stdout = Logger()
 
-	print("Client version " + DMR_VERSION)
+	print(DMR_TITLE)
 
 	prep()
 
@@ -1864,7 +1864,7 @@ def main():
 		sys.stdout = Logger()
 
 		# Version
-		print("Client version " + DMR_VERSION)
+		print(DMR_TITLE)
 
 		# Enable UI
 		global dmr_ui
