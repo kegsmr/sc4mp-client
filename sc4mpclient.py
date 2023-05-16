@@ -19,35 +19,35 @@ import traceback
 #import py2exe
 
 # Version
-DMR_VERSION = (1,0,0) #"v1.0.0"
+SC4MP_VERSION = (1,0,0) #"v1.0.0"
 
 # Path to the resources subdirectory
-DMR_RESOURCES_PATH = "resources"
+SC4MP_RESOURCES_PATH = "resources"
 
 # Global variables
-dmr_ui = None
-dmr_current_server = None
+sc4mp_ui = None
+sc4mp_current_server = None
 
 # Default config values
-default_dmrpath = os.path.join(os.path.expanduser('~'),"Documents","SimCity 4","_DMR") + "\\"
+default_sc4mppath = os.path.join(os.path.expanduser('~'),"Documents","SimCity 4","_SC4MP") + "\\"
 default_resw = 1280
 default_resh = 800
 default_sc4path = ""
 
 # Config constants
-DMR_LAUNCHPATH = None
-DMR_LAUNCHRESW = None
-DMR_LAUNCHRESH = None
-#DMR_SERVERPATH = "http://api.getpmr.com/" #TODO: will probably replace with a website hosting a server list
-DMR_CUSTOMPATH = None
+SC4MP_LAUNCHPATH = None
+SC4MP_LAUNCHRESW = None
+SC4MP_LAUNCHRESH = None
+#SC4MP_SERVERPATH = "http://api.getpmr.com/" #TODO: will probably replace with a website hosting a server list
+SC4MP_CUSTOMPATH = None
 
 # Hard-coded constants
-DMR_TITLE = "DMR Launcher v" + str(DMR_VERSION[0]) + "." + str(DMR_VERSION[1]) + "." + str(DMR_VERSION[2])
-DMR_ICON = os.path.join(DMR_RESOURCES_PATH, "icon.ico")
-DMR_HOST = socket.gethostname() #"127.0.0.1"
-DMR_PORT = 7246
-DMR_SEPARATOR = b"<SEPARATOR>"
-DMR_BUFFER_SIZE = 4096
+SC4MP_TITLE = "SC4MP Launcher v" + str(SC4MP_VERSION[0]) + "." + str(SC4MP_VERSION[1]) + "." + str(SC4MP_VERSION[2])
+SC4MP_ICON = os.path.join(SC4MP_RESOURCES_PATH, "icon.ico")
+SC4MP_HOST = socket.gethostname() #"127.0.0.1"
+SC4MP_PORT = 7246
+SC4MP_SEPARATOR = b"<SEPARATOR>"
+SC4MP_BUFFER_SIZE = 4096
 
 
 # Methods
@@ -61,7 +61,7 @@ def prep():
 def load_config():
 	"""TODO"""	
 
-	global dmr_config
+	global sc4mp_config
 
 	PATH = "config.ini"
 	DEFAULTS = [
@@ -70,7 +70,7 @@ def load_config():
 			("default_port", 7246)
 		]),
 		("STORAGE", [
-			("storage_path", default_dmrpath),
+			("storage_path", default_sc4mppath),
 			("cache_size", 4000000000)
 		]),
 		("SC4", [
@@ -84,21 +84,21 @@ def load_config():
 
 	print("Loading config...")
 
-	dmr_config = Config(PATH, DEFAULTS)
+	sc4mp_config = Config(PATH, DEFAULTS)
 
 	
 def update_config_constants(config):
 	"""TODO"""
 
-	global DMR_LAUNCHPATH
-	global DMR_LAUNCHRESW
-	global DMR_LAUNCHRESH
-	global DMR_CUSTOMPATH
+	global SC4MP_LAUNCHPATH
+	global SC4MP_LAUNCHRESW
+	global SC4MP_LAUNCHRESH
+	global SC4MP_CUSTOMPATH
 
-	DMR_LAUNCHPATH = config.data['STORAGE']['storage_path']
-	DMR_LAUNCHRESW = config.data['SC4']['resw']
-	DMR_LAUNCHRESH = config.data['SC4']['resh']
-	DMR_CUSTOMPATH = config.data['SC4']['game_path']
+	SC4MP_LAUNCHPATH = config.data['STORAGE']['storage_path']
+	SC4MP_LAUNCHRESW = config.data['SC4']['resw']
+	SC4MP_LAUNCHRESH = config.data['SC4']['resh']
+	SC4MP_CUSTOMPATH = config.data['SC4']['game_path']
 
 
 def create_subdirectories():
@@ -113,17 +113,17 @@ def create_subdirectories():
 
 	print("Creating subdirectories...")
 
-	directories = ["DMRCache", "DMRProfiles", "DMRSalvage", "Plugins", "Regions"] #"DMRBackups", os.path.join("DMRCache","Plugins"), os.path.join("DMRCache","Regions")]
+	directories = ["_Cache", "_Profiles", "_Salvage", "Plugins", "Regions"] #"SC4MPBackups", os.path.join("_Cache","Plugins"), os.path.join("_Cache","Regions")]
 
 	for directory in directories:
-		new_directory = os.path.join(DMR_LAUNCHPATH, directory)
+		new_directory = os.path.join(SC4MP_LAUNCHPATH, directory)
 		if not os.path.exists(new_directory):
 			try:
 				os.makedirs(new_directory)
 			except Exception as e:
-				raise CustomException("Failed to create DMR subdirectories.\n\n" + str(e))
+				raise CustomException("Failed to create SC4MP subdirectories.\n\n" + str(e))
 		"""if directory == "Plugins":
-			noticepath = os.path.join(DMR_LAUNCHPATH, directory, "__PUT YOUR PLUGINS IN THIS FOLDER__.txt")
+			noticepath = os.path.join(SC4MP_LAUNCHPATH, directory, "__PUT YOUR PLUGINS IN THIS FOLDER__.txt")
 			open(noticepath, 'a').close()"""
 
 
@@ -137,31 +137,31 @@ def connect(server):
 		TODO
 	"""
 	
-	if (dmr_ui != None):
+	if (sc4mp_ui != None):
 
 		# Hide main window
-		dmr_ui.withdraw()
+		sc4mp_ui.withdraw()
 
 		# Create the server loader ui
-		server_loader_ui = ServerLoaderUI(dmr_ui, server)
+		server_loader_ui = ServerLoaderUI(sc4mp_ui, server)
 
 		# Create and start the server loader
 		server_loader = ServerLoader(server_loader_ui, server)
 		server_loader.run()
 
 		# If the server loads correctly
-		if (dmr_current_server != None):
+		if (sc4mp_current_server != None):
 
 			# Start the TODO
-			game_monitor_ui_thread = GameMonitorUIThread(dmr_ui, server)
+			game_monitor_ui_thread = GameMonitorUIThread(sc4mp_ui, server)
 			game_monitor_ui_thread.start()
 			start_sc4()
 			game_monitor_ui_thread.ui.worker.game_running = False
-		dmr_ui.deiconify()
+		sc4mp_ui.deiconify()
 	else:
 		server_loader = ServerLoader(None, server)
 		server_loader.run()
-		if (dmr_current_server != None):
+		if (sc4mp_current_server != None):
 			game_monitor = GameMonitor(None, server)
 			game_monitor.start()
 			start_sc4()
@@ -185,9 +185,9 @@ def start_sc4():
 		os.path.abspath(os.path.join("\\", "Program Files", "Steam", "steamapps", "common", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
 		os.path.abspath(os.path.join("\\", "Program Files (x86)", "Maxis", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
 		os.path.abspath(os.path.join("\\", "Program Files", "Maxis", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
-		DMR_CUSTOMPATH,
-		os.path.join(DMR_CUSTOMPATH, "SimCity 4.exe"),
-		os.path.join(DMR_CUSTOMPATH, "Apps", "SimCity 4.exe")
+		SC4MP_CUSTOMPATH,
+		os.path.join(SC4MP_CUSTOMPATH, "SimCity 4.exe"),
+		os.path.join(SC4MP_CUSTOMPATH, "Apps", "SimCity 4.exe")
 	]
 
 	path = None
@@ -202,7 +202,7 @@ def start_sc4():
 		show_error("Path to Simcity 4 not found. Specify the correct path in settings.")
 		return
 
-	arguments = [path, ' -UserDir:"' + DMR_LAUNCHPATH + '"', ' -intro:off', ' -w', ' -CustomResolution:enabled', ' -r' + str(DMR_LAUNCHRESW) + 'x' + str(DMR_LAUNCHRESH) + 'x32']
+	arguments = [path, ' -UserDir:"' + SC4MP_LAUNCHPATH + '"', ' -intro:off', ' -w', ' -CustomResolution:enabled', ' -r' + str(SC4MP_LAUNCHRESW) + 'x' + str(SC4MP_LAUNCHRESH) + 'x32']
 
 	try:
 		subprocess.run(' '.join(arguments))
@@ -212,8 +212,8 @@ def start_sc4():
 	print("Simcity 4 closed.")
 
 
-def get_dmr_path(filename):
-	"""Gives the path of a given file in the DMR "resources" subdirectory
+def get_sc4mp_path(filename):
+	"""Gives the path of a given file in the SC4MP "resources" subdirectory
 
 	Arguments:
 		filename (str)
@@ -221,7 +221,7 @@ def get_dmr_path(filename):
 	Returns:
 		TODO type: the path to the given file
 	"""
-	return os.path.join(DMR_RESOURCES_PATH, filename)
+	return os.path.join(SC4MP_RESOURCES_PATH, filename)
 
 
 def md5(filename):
@@ -319,10 +319,10 @@ def show_error(e):
 
 	print("[ERROR] " + message)
 
-	if (dmr_ui != None):
-		if (dmr_ui == True):
+	if (sc4mp_ui != None):
+		if (sc4mp_ui == True):
 			tk.Tk().withdraw()
-		messagebox.showerror(DMR_TITLE, message)
+		messagebox.showerror(SC4MP_TITLE, message)
 
 
 def center_window(window):
@@ -449,7 +449,7 @@ class Server:
 			s = socket.socket()
 			s.connect((host, port))
 			s.send(request.encode())
-			return s.recv(DMR_BUFFER_SIZE).decode()
+			return s.recv(SC4MP_BUFFER_SIZE).decode()
 		except:
 			self.fetched = False
 			print('[ERROR] Error fetching "' + request + '" from ' + host + ":" + str(port) + '')
@@ -460,7 +460,7 @@ class Server:
 		"""TODO"""
 
 		# Get database
-		filename = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRProfiles", "servers.json"))
+		filename = os.path.join(SC4MP_LAUNCHPATH, os.path.join("_Profiles", "servers.json"))
 		data = None
 		try:
 			data = load_json(filename)
@@ -501,9 +501,9 @@ class Server:
 			s = socket.socket()
 			s.connect((self.host, self.port))
 			s.send(b"user_id")
-			s.recv(DMR_BUFFER_SIZE)
+			s.recv(SC4MP_BUFFER_SIZE)
 			s.send(hash.encode())
-			if (s.recv(DMR_BUFFER_SIZE).decode() == hashlib.sha256(user_id.encode()).hexdigest()[:32]):
+			if (s.recv(SC4MP_BUFFER_SIZE).decode() == hashlib.sha256(user_id.encode()).hexdigest()[:32]):
 				self.user_id = user_id
 			else:
 				raise CustomException("Invalid token.") #"Authentication error."
@@ -515,9 +515,9 @@ class Server:
 		s = socket.socket()
 		s.connect((self.host, self.port))
 		s.send(b"token")
-		s.recv(DMR_BUFFER_SIZE)
+		s.recv(SC4MP_BUFFER_SIZE)
 		s.send(user_id.encode())
-		token = s.recv(DMR_BUFFER_SIZE).decode()
+		token = s.recv(SC4MP_BUFFER_SIZE).decode()
 
 		# Raise exception if no token is received
 		if (len(token) < 1):
@@ -542,7 +542,7 @@ class Server:
 			s.connect((host, port))
 			start = time.time()
 			s.send(b"ping")
-			s.recv(DMR_BUFFER_SIZE)
+			s.recv(SC4MP_BUFFER_SIZE)
 			end = time.time()
 			s.close()
 			return round(1000 * (end - start))
@@ -578,8 +578,8 @@ class ServerLoader(th.Thread):
 
 		self.setDaemon(True)
 
-		if (dmr_ui != None):
-			dmr_ui.withdraw()
+		if (sc4mp_ui != None):
+			sc4mp_ui.withdraw()
 
 	
 	def run(self):
@@ -607,8 +607,8 @@ class ServerLoader(th.Thread):
 
 			self.report("", "Done.")
 
-			global dmr_current_server
-			dmr_current_server = self.server
+			global sc4mp_current_server
+			sc4mp_current_server = self.server
 
 		except Exception as e:
 
@@ -622,15 +622,15 @@ class ServerLoader(th.Thread):
 		if (self.ui != None):
 			self.ui.destroy()
 		
-		if (dmr_current_server != None):
-			dmr_config.data["GENERAL"]["default_host"] = self.server.host
-			dmr_config.data["GENERAL"]["default_port"] = self.server.port
-			dmr_config.update()
+		if (sc4mp_current_server != None):
+			sc4mp_config.data["GENERAL"]["default_host"] = self.server.host
+			sc4mp_config.data["GENERAL"]["default_port"] = self.server.port
+			sc4mp_config.update()
 			game_monitor = GameMonitor(self.server)
 			game_monitor.start()
 		else:
-			if (dmr_ui != None):
-				dmr_ui.deiconify()
+			if (sc4mp_ui != None):
+				sc4mp_ui.deiconify()
 
 		
 	def report(self, prefix, text):
@@ -678,7 +678,7 @@ class ServerLoader(th.Thread):
 			destination = "Plugins"
 		elif (type == "regions"):
 			destination = "Regions"
-		destination = os.path.join(DMR_LAUNCHPATH, destination)
+		destination = os.path.join(SC4MP_LAUNCHPATH, destination)
 
 		# Purge the destination directory
 		self.report("", "Purging " + type + " directory...")
@@ -691,20 +691,20 @@ class ServerLoader(th.Thread):
 		s.send(type.encode())
 
 		# Receive file count
-		file_count = int(s.recv(DMR_BUFFER_SIZE).decode())
+		file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
 
 		# Separator
-		s.send(DMR_SEPARATOR)
+		s.send(SC4MP_SEPARATOR)
 
 		# Receive file size
-		size = int(s.recv(DMR_BUFFER_SIZE).decode())
+		size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
 
 		# Receive files
 		size_downloaded = 0
 		for files_received in range(file_count):
 			percent = math.floor(100 * (size_downloaded / size))
 			self.report_progress('Downloading ' + type + "... (" + str(percent) + "%)", percent, 100)
-			s.send(DMR_SEPARATOR)
+			s.send(SC4MP_SEPARATOR)
 			size_downloaded += self.receive_or_cached(s, destination)
 		self.report_progress('Downloading ' + type + "... (100%)", 100, 100)
 
@@ -725,13 +725,13 @@ class ServerLoader(th.Thread):
 			directory = "Regions"
 
 		self.report("", "Purging " + type + " directory...")
-		purge_directory(os.path.join(DMR_LAUNCHPATH, directory))
+		purge_directory(os.path.join(SC4MP_LAUNCHPATH, directory))
 
 		s = self.create_socket() 
 
 		s.send(type.encode())
 
-		filename = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRCache", os.path.join(directory, server_id + ".zip")))
+		filename = os.path.join(SC4MP_LAUNCHPATH, os.path.join("_Cache", os.path.join(directory, server_id + ".zip")))
 
 		client_hashcode = None
 		if (os.path.exists(filename)):
@@ -739,7 +739,7 @@ class ServerLoader(th.Thread):
 
 		server_hashcode = ""
 		try:
-			server_hashcode = s.recv(DMR_BUFFER_SIZE).decode()
+			server_hashcode = s.recv(SC4MP_BUFFER_SIZE).decode()
 		except:
 			self.report("", "Error reading server hashcode for " + type + ".")
 
@@ -752,7 +752,7 @@ class ServerLoader(th.Thread):
 			self.receive_file(s, filename) 
 
 		self.report("", "Unpacking " + type + "...")
-		shutil.unpack_archive(filename, os.path.join(DMR_LAUNCHPATH, directory))
+		shutil.unpack_archive(filename, os.path.join(SC4MP_LAUNCHPATH, directory))
 
 		print("done.")
 
@@ -803,20 +803,20 @@ class ServerLoader(th.Thread):
 		"""TODO"""
 
 		# Receive hashcode and set cache filename
-		hash = s.recv(DMR_BUFFER_SIZE).decode()
-		target = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRCache", hash))
+		hash = s.recv(SC4MP_BUFFER_SIZE).decode()
+		target = os.path.join(SC4MP_LAUNCHPATH, os.path.join("_Cache", hash))
 
 		# Separator
-		s.send(DMR_SEPARATOR)
+		s.send(SC4MP_SEPARATOR)
 
 		# Receive filesize
-		filesize = int(s.recv(DMR_BUFFER_SIZE).decode())
+		filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
 
 		# Separator
-		s.send(DMR_SEPARATOR)
+		s.send(SC4MP_SEPARATOR)
 
 		# Receive relative path and set the destination
-		relpath = os.path.normpath(s.recv(DMR_BUFFER_SIZE).decode())
+		relpath = os.path.normpath(s.recv(SC4MP_BUFFER_SIZE).decode())
 		destination = os.path.join(rootpath, relpath)
 
 		# Use the cached file if it exists and has the same size
@@ -860,8 +860,8 @@ class ServerLoader(th.Thread):
 				os.remove(target)
 
 			# Delete cache files if cache too large to accomadate the new cache file
-			cache_directory = os.path.join(DMR_LAUNCHPATH, "DMRCache")
-			while (len(os.listdir(cache_directory)) > 0 and directory_size(cache_directory) > int(dmr_config.data["STORAGE"]["cache_size"]) - filesize):
+			cache_directory = os.path.join(SC4MP_LAUNCHPATH, "_Cache")
+			while (len(os.listdir(cache_directory)) > 0 and directory_size(cache_directory) > int(sc4mp_config.data["STORAGE"]["cache_size"]) - filesize):
 				os.remove(os.path.join(cache_directory, random.choice(os.listdir(cache_directory))))
 
 			# Receive the file. Write to both the destination and cache
@@ -869,7 +869,7 @@ class ServerLoader(th.Thread):
 			destination_file = open(destination, "wb")
 			cache_file = open(target, "wb")
 			while (filesize_read < filesize):
-				bytes_read = s.recv(DMR_BUFFER_SIZE)
+				bytes_read = s.recv(SC4MP_BUFFER_SIZE)
 				if not bytes_read:    
 					break
 				for file in [destination_file, cache_file]:
@@ -883,7 +883,7 @@ class ServerLoader(th.Thread):
 	def receive_file(self, s, filename):
 		"""TODO"""
 
-		filesize = int(s.recv(DMR_BUFFER_SIZE).decode())
+		filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
 
 		print("Receiving " + str(filesize) + " bytes...")
 		print('writing to "' + filename + '"')
@@ -894,7 +894,7 @@ class ServerLoader(th.Thread):
 		filesize_read = 0
 		with open(filename, "wb") as f:
 			while (filesize_read < filesize):
-				bytes_read = s.recv(DMR_BUFFER_SIZE)
+				bytes_read = s.recv(SC4MP_BUFFER_SIZE)
 				if not bytes_read:    
 					break
 				f.write(bytes_read)
@@ -907,12 +907,12 @@ class ServerLoader(th.Thread):
 
 		self.server.regions = []
 
-		path = os.path.join(DMR_LAUNCHPATH, "Regions")
+		path = os.path.join(SC4MP_LAUNCHPATH, "Regions")
 
 		for directory in os.listdir(path):
 			
 			# Backup directory
-			#backup_directory = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRBackups", os.path.join(self.server.server_id, directory)))
+			#backup_directory = os.path.join(SC4MP_LAUNCHPATH, os.path.join("SC4MPBackups", os.path.join(self.server.server_id, directory)))
 			#if (not os.path.exists(backup_directory)):
 			#	os.makedirs(backup_directory)
 
@@ -923,13 +923,13 @@ class ServerLoader(th.Thread):
 			try:
 				config = configparser.RawConfigParser()
 				config.read(config_path)
-				config.set("Regional Settings", "Name", "[MP] " + config.get("Regional Settings", "Name")) # can't choose between "[SC4MP]"", "[MP]", "[DMR]"
+				config.set("Regional Settings", "Name", "[SC4MP] " + config.get("Regional Settings", "Name")) # can't choose between "[SC4MP]"", "[MP]", "[SC4MP]"
 				with open(config_path, 'wt') as config_file:
 					config.write(config_file)
 			except:
 				show_error("Failed to prep region config for " + directory + ".")
 
-		#shutil.unpack_archive(get_dmr_path("Regions.zip"), path) #TODO maybe re-enable this at some point?
+		#shutil.unpack_archive(get_sc4mp_path("Regions.zip"), path) #TODO maybe re-enable this at some point?
 
 
 class GameMonitor(th.Thread):
@@ -947,7 +947,7 @@ class GameMonitor(th.Thread):
 		self.PREFIX = ""
 
 		self.ui = None
-		if (dmr_ui != None):
+		if (sc4mp_ui != None):
 			self.ui = GameMonitorUI()
 
 		self.game_launcher = GameLauncher()
@@ -999,16 +999,16 @@ class GameMonitor(th.Thread):
 			#TODO maybe only do this one in every 10 times the loop runs (>30s)
 		if (self.ui != None):
 			self.ui.destroy()
-		if (dmr_ui != None):
-			dmr_ui.deiconify()
-			dmr_ui.lift()
+		if (sc4mp_ui != None):
+			sc4mp_ui.deiconify()
+			sc4mp_ui.lift()
 
 
 	def get_cities(self):
 		"""TODO"""
 		city_paths = []
 		city_hashcodes = []
-		regions_path = os.path.join(DMR_LAUNCHPATH, "Regions")
+		regions_path = os.path.join(SC4MP_LAUNCHPATH, "Regions")
 		for region in self.server.regions:
 			region_path = os.path.join(regions_path, region)
 			if (not os.path.exists(region_path)):
@@ -1042,14 +1042,14 @@ class GameMonitor(th.Thread):
 
 		s.send(b"push_delete")
 
-		s.recv(DMR_BUFFER_SIZE)
+		s.recv(SC4MP_BUFFER_SIZE)
 		s.send(self.server.user_id.encode())
-		s.recv(DMR_BUFFER_SIZE)
+		s.recv(SC4MP_BUFFER_SIZE)
 		s.send(region.encode())
-		s.recv(DMR_BUFFER_SIZE)
+		s.recv(SC4MP_BUFFER_SIZE)
 		s.send(city.encode())
 
-		if (s.recv(DMR_BUFFER_SIZE).decode() == "ok"):
+		if (s.recv(SC4MP_BUFFER_SIZE).decode() == "ok"):
 			self.report(self.PREFIX, "Delete push authorized") #TODO placeholder
 		else:
 			self.report(self.PREFIX, "Delete push not authorized") #TODO placeholder
@@ -1076,20 +1076,20 @@ class GameMonitor(th.Thread):
 
 		# Send save request
 		s.send(b"push_save")
-		s.recv(DMR_BUFFER_SIZE)
+		s.recv(SC4MP_BUFFER_SIZE)
 
 		# Send password if required
 		if (self.server.password != None):
 			s.send(self.server.password.encode())
-			s.recv(DMR_BUFFER_SIZE)
+			s.recv(SC4MP_BUFFER_SIZE)
 
 		# Send user id
 		s.send(self.server.user_id.encode())
-		s.recv(DMR_BUFFER_SIZE)
+		s.recv(SC4MP_BUFFER_SIZE)
 
 		# Send file count
 		s.send(str(len(save_city_paths)).encode())
-		s.recv(DMR_BUFFER_SIZE)
+		s.recv(SC4MP_BUFFER_SIZE)
 
 		# Send files
 		for save_city_path in save_city_paths:
@@ -1100,21 +1100,21 @@ class GameMonitor(th.Thread):
 	
 			# Send region name
 			s.send(region.encode())
-			s.recv(DMR_BUFFER_SIZE)
+			s.recv(SC4MP_BUFFER_SIZE)
 
 			# Send city name
 			s.send(city.encode())
-			s.recv(DMR_BUFFER_SIZE)
+			s.recv(SC4MP_BUFFER_SIZE)
 
 			# Send file
 			self.send_file(s, save_city_path)
-			s.recv(DMR_BUFFER_SIZE)
+			s.recv(SC4MP_BUFFER_SIZE)
 
 		# Separator
-		s.send(DMR_SEPARATOR)
+		s.send(SC4MP_SEPARATOR)
 
 		# Handle response from server
-		response = s.recv(DMR_BUFFER_SIZE).decode()
+		response = s.recv(SC4MP_BUFFER_SIZE).decode()
 		if (response == "ok"):
 			self.report(self.PREFIX, "Synced.") #TODO keep track locally of the client's claims
 		else:
@@ -1127,7 +1127,7 @@ class GameMonitor(th.Thread):
 	def backup_city(self, filename):
 		region = os.path.split(os.path.dirname(filename))[1]
 		city = os.path.split(filename)[1]
-		backup_directory = os.path.join(DMR_LAUNCHPATH, os.path.join("DMRBackups", os.path.join(self.server.server_id, os.path.join(region, city))))
+		backup_directory = os.path.join(SC4MP_LAUNCHPATH, os.path.join("SC4MPBackups", os.path.join(self.server.server_id, os.path.join(region, city))))
 		if (not os.path.exists(backup_directory)):
 			os.makedirs(backup_directory)
 		shutil.copy(filename, os.path.join(backup_directory, datetime.now().strftime("%Y%m%d%H%M%S") + ".sc4"))
@@ -1183,11 +1183,11 @@ class GameMonitor(th.Thread):
 		filesize = os.path.getsize(filename)
 
 		s.send(str(filesize).encode())
-		s.recv(DMR_BUFFER_SIZE)
+		s.recv(SC4MP_BUFFER_SIZE)
 
 		with open(filename, "rb") as f:
 			while True:
-				bytes_read = f.read(DMR_BUFFER_SIZE)
+				bytes_read = f.read(SC4MP_BUFFER_SIZE)
 				if not bytes_read:
 					break
 				s.sendall(bytes_read)
@@ -1228,8 +1228,8 @@ class GameLauncher(th.Thread):
 		
 		self.game_running = False
 
-		global dmr_current_server
-		dmr_current_server = None
+		global sc4mp_current_server
+		sc4mp_current_server = None
 
 
 # User Interfaces
@@ -1252,12 +1252,12 @@ class UI(tk.Tk):
 
 		#Title
 
-		self.title(DMR_TITLE)
+		self.title(SC4MP_TITLE)
 
 
 		#Icon
 
-		self.wm_iconbitmap(DMR_ICON) #TODO looks bad
+		self.wm_iconbitmap(SC4MP_ICON) #TODO looks bad
 		#TODO taskbar icon
 
 
@@ -1310,7 +1310,7 @@ class UI(tk.Tk):
 	
 	def to_implement(self):
 		"""TODO"""
-		tk.messagebox.showerror(title=DMR_TITLE, message="This feature is incomplete and will be available in future versions of the client.")
+		tk.messagebox.showerror(title=SC4MP_TITLE, message="This feature is incomplete and will be available in future versions of the client.")
 
 
 	def direct_connect(self):
@@ -1340,7 +1340,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.title("SC4 settings")
 
 		# Icon
-		self.iconbitmap(DMR_ICON) #TODO looks bad
+		self.iconbitmap(SC4MP_ICON) #TODO looks bad
 
 		# Geometry
 		self.geometry('400x400')
@@ -1366,7 +1366,7 @@ class SC4SettingsUI(tk.Toplevel):
 		# Path entry
 		self.path_frame.entry = ttk.Entry(self.path_frame, width = 40)
 		self.path_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
-		self.path_frame.entry.insert(0, dmr_config.data["SC4"]["game_path"])
+		self.path_frame.entry.insert(0, sc4mp_config.data["SC4"]["game_path"])
 		self.config_update.append((self.path_frame.entry, "game_path"))
 
 		# Path browse button
@@ -1379,13 +1379,13 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# Resolution combo box
 		self.resolution_frame.combo_box = ttk.Combobox(self.resolution_frame)
-		self.resolution_frame.combo_box.insert(0, dmr_config.data["SC4"]["resw"] + "x" + dmr_config.data["SC4"]["resh"])
+		self.resolution_frame.combo_box.insert(0, sc4mp_config.data["SC4"]["resw"] + "x" + sc4mp_config.data["SC4"]["resh"])
 		self.resolution_frame.combo_box["values"] = ("800x600 (4:3)", "1024x768 (4:3)", "1280x1024 (4:3)", "1600x1200 (4:3)", "1280x800 (16:9)", "1440x900 (16:9)", "1680x1050 (16:9)", "1920x1080 (16:9)", "2048x1152 (16:9)")
 		self.resolution_frame.combo_box.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
 		self.config_update.append((self.resolution_frame.combo_box, "res"))
 
 		# Fullscreen checkbutton
-		self.resolution_frame.fullscreen_checkbutton_variable = tk.BooleanVar(value=dmr_config.data["SC4"]["fullscreen"])
+		self.resolution_frame.fullscreen_checkbutton_variable = tk.BooleanVar(value=sc4mp_config.data["SC4"]["fullscreen"])
 		self.resolution_frame.fullscreen_checkbutton = ttk.Checkbutton(self.resolution_frame, text="Fullscreen", onvalue=True, offvalue=False, variable=self.resolution_frame.fullscreen_checkbutton_variable)
 		self.resolution_frame.fullscreen_checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=10, sticky="w")
 		self.config_update.append((self.resolution_frame.fullscreen_checkbutton_variable, "fullscreen"))
@@ -1413,7 +1413,7 @@ class SC4SettingsUI(tk.Toplevel):
 		# Additional properties entry
 		self.additional_properties_frame.entry = ttk.Entry(self.additional_properties_frame, width = 55)
 		self.additional_properties_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
-		self.additional_properties_frame.entry.insert(0, dmr_config.data["SC4"]["additional_properties"])
+		self.additional_properties_frame.entry.insert(0, sc4mp_config.data["SC4"]["additional_properties"])
 		self.config_update.append((self.additional_properties_frame.entry, "additional_properties"))
 
 		# Ok/Cancel frame
@@ -1445,11 +1445,11 @@ class SC4SettingsUI(tk.Toplevel):
 			if (key == "res"):
 				res = data.split(' ')[0]
 				resw, resh = res.split('x')
-				dmr_config.data["SC4"]["resw"] = resw
-				dmr_config.data["SC4"]["resh"] = resh
+				sc4mp_config.data["SC4"]["resw"] = resw
+				sc4mp_config.data["SC4"]["resh"] = resh
 			else:
-				dmr_config.data["SC4"][key] = data
-		dmr_config.update()
+				sc4mp_config.data["SC4"][key] = data
+		sc4mp_config.update()
 		self.destroy()
 
 
@@ -1467,7 +1467,7 @@ class DirectConnectUI(tk.Toplevel):
 		self.title('Direct connect')
 
 		# Icon
-		self.iconbitmap(DMR_ICON) #TODO looks bad
+		self.iconbitmap(SC4MP_ICON) #TODO looks bad
 
 		# Geometry
 		self.geometry('350x110')
@@ -1491,7 +1491,7 @@ class DirectConnectUI(tk.Toplevel):
 
 		# Host Entry
 		self.host_entry = ttk.Entry(self, width=43)
-		self.host_entry.insert(0, dmr_config.data["GENERAL"]["default_host"])
+		self.host_entry.insert(0, sc4mp_config.data["GENERAL"]["default_host"])
 		self.host_entry.grid(row=0, column=1, columnspan=3, padx=10, pady=20, sticky="w")
 		self.host_entry.focus()
 
@@ -1501,7 +1501,7 @@ class DirectConnectUI(tk.Toplevel):
 
 		# Port Entry
 		self.port_entry = ttk.Entry(self, width=5)
-		self.port_entry.insert(0, dmr_config.data["GENERAL"]["default_port"])
+		self.port_entry.insert(0, sc4mp_config.data["GENERAL"]["default_port"])
 		self.port_entry.grid(row=1, column=1, columnspan=1, padx=10, pady=0, sticky="w")
 
 		# Connect/Cancel frame
@@ -1524,12 +1524,12 @@ class DirectConnectUI(tk.Toplevel):
 		port = self.port_entry.get()
 		try:
 			if (len(host) < 1 or host == "0" or host == "localhost" or host == "127.0.0.1"):
-				host = DMR_HOST
+				host = SC4MP_HOST
 				#raise CustomException("Invalid host")
 			try:
 				port = int(port)
 			except:
-				port = DMR_PORT
+				port = SC4MP_PORT
 				#raise CustomException("Invalid port")
 			ServerLoaderUI(Server(host, port))
 			self.destroy()
@@ -1746,7 +1746,7 @@ class Logger():
 	def __init__(self):
 		"""TODO"""
 		self.terminal = sys.stdout
-		self.log = "dmrclient.log" #"dmrclient-" + datetime.now().strftime("%Y%m%d%H%M%S") + ".log"
+		self.log = "sc4mpclient.log" #"sc4mpclient-" + datetime.now().strftime("%Y%m%d%H%M%S") + ".log"
 		if (os.path.exists(self.log)):
 			os.remove(self.log)
    
@@ -1762,7 +1762,7 @@ class Logger():
 			timestamp = datetime.now().strftime("[%H:%M:%S] ")
 
 			# Label
-			label = "[DMR"
+			label = "[SC4MP"
 			for item in inspect.stack()[1:]:
 				try:
 					label += "/" + item[0].f_locals["self"].__class__.__name__
@@ -1789,7 +1789,7 @@ class Logger():
 					type = current_type
 					color = current_color
 					break
-			if (label == "[DMR] " and type == "[INFO] "):
+			if (label == "[SC4MP] " and type == "[INFO] "):
 				color = '\033[94m '
 
 			# Assemble
@@ -1821,7 +1821,7 @@ def cmd(): #TODO incorporate this into the main method but enable this functiona
 
 	sys.stdout = Logger()
 
-	print(DMR_TITLE)
+	print(SC4MP_TITLE)
 
 	prep()
 
@@ -1838,14 +1838,14 @@ def cmd(): #TODO incorporate this into the main method but enable this functiona
 	else:
 		port = int(port)
 
-	#global dmr_ui, dmr_ui_root
-	#dmr_ui = True
-	#dmr_ui_root = UI()
-	#dmr_ui_root.withdraw()
+	#global sc4mp_ui, sc4mp_ui_root
+	#sc4mp_ui = True
+	#sc4mp_ui_root = UI()
+	#sc4mp_ui_root.withdraw()
 
 	connect(Server(host, port))
 
-	#dmr_ui.destroy()
+	#sc4mp_ui.destroy()
 
 
 def main():
@@ -1864,23 +1864,23 @@ def main():
 		sys.stdout = Logger()
 
 		# Version
-		print(DMR_TITLE)
+		print(SC4MP_TITLE)
 
 		# Enable UI
-		global dmr_ui
-		dmr_ui = True
+		global sc4mp_ui
+		sc4mp_ui = True
 
 		# Prep
 		prep()
 
 		# UI
-		dmr_ui = UI()
-		dmr_ui.mainloop()
+		sc4mp_ui = UI()
+		sc4mp_ui.mainloop()
 
 	except Exception as e:
 
 		# Error 
-		show_error("A fatal error occurred.\n\n" + traceback.format_exc()) # Please send the following information to the developers of the " + DMR_TITLE + " so this can be resolved: #TODO add traceback
+		show_error("A fatal error occurred.\n\n" + traceback.format_exc()) # Please send the following information to the developers of the " + SC4MP_TITLE + " so this can be resolved: #TODO add traceback
 
 if __name__ == '__main__':
 	main()

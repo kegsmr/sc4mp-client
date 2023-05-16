@@ -29,15 +29,14 @@ def find_data_files(source,target,patterns):
                 ret.setdefault(path,[]).append(filename)
     return sorted(ret.items())
 
-#TODO: fails to compile!
 setup(
-	windows=[{ #TODO: change to "windows" for final version
-		"script": "dmrclient.py",
+	windows=[{
+		"script": "sc4mpclient.py",
 		"icon_resources": [(1, "resources/icon.ico")],
-		"name": "DMR Client",
-		"author": "DMR",
-        "description": "DMR Multiplayer Mod for SimCity 4",
-		"version": "v1.0.0 Alpha"
+		"name": "SC4MP Launcher",
+		"author": "Simcity 4 Multiplayer Project",
+        "description": "Multiplayer launcher for Simcity 4",
+		"version": "v1.0.0"
 	}],
 	options={
 		"py2exe": {
