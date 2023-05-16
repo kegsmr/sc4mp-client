@@ -923,7 +923,7 @@ class ServerLoader(th.Thread):
 			try:
 				config = configparser.RawConfigParser()
 				config.read(config_path)
-				config.set("Regional Settings", "Name", "[SC4MP] " + config.get("Regional Settings", "Name")) # "[SC4MP] was "[MP]" was "[DMR]"
+				config.set("Regional Settings", "Name", "[MP] " + config.get("Regional Settings", "Name")) # can't choose between "[SC4MP]"", "[MP]", "[DMR]"
 				with open(config_path, 'wt') as config_file:
 					config.write(config_file)
 			except:
