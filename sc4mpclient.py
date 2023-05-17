@@ -1118,7 +1118,7 @@ class GameMonitor(th.Thread):
 		if (response == "ok"):
 			self.report(self.PREFIX, "Synced.") #TODO keep track locally of the client's claims
 		else:
-			self.report(self.PREFIX, "Save failed. " + response)
+			self.report(self.PREFIX, "Sync failed! " + response)
 
 		# Close socket
 		s.close()
