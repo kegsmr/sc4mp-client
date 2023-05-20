@@ -960,10 +960,9 @@ class GameMonitor(th.Thread):
 		self.report_quietly("Connected.")
 		while (True):
 			ping = self.ping()
-			#print("Ping: " + str(ping))
 			if (ping != None):
+				print("Ping: " + str(ping))
 				#self.report_quietly("Connected to server. Monitoring for changes...")
-				pass
 			else:
 				self.report(self.PREFIX, "Disconnected.")
 			new_city_paths, new_city_hashcodes = self.get_cities()
