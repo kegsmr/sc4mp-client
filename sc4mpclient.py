@@ -1772,7 +1772,7 @@ class Logger():
 					break
 				except:
 					pass
-			label += "] "
+			label += "] [" + th.current_thread().getName() + "] "
 
 			# Type and color
 			type = "[INFO] "
