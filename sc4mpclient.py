@@ -959,43 +959,47 @@ class GameMonitor(th.Thread):
 		end = False
 		self.report_quietly("Connected.")
 		while (True):
-			ping = self.ping()
-			if (ping != None):
-				print("Ping: " + str(ping))
-				#self.report_quietly("Connected to server. Monitoring for changes...")
-			else:
-				self.report(self.PREFIX, "Disconnected.")
-			new_city_paths, new_city_hashcodes = self.get_cities()
-			save_city_paths = []
-			#print("Old cities: " + str(self.city_paths))
-			#print("New cities: " + str(new_city_paths))
-			#for city_path in self.city_paths: #TODO
-			#	if (not city_path in new_city_paths): #TODO
-			#		self.push_delete(city_path) #TODO
-			save_city_paths_length = -1
-			while (len(save_city_paths) != save_city_paths_length):
-				save_city_paths_length = len(save_city_paths)
-				for new_city_path in new_city_paths:
-					if (not new_city_path in self.city_paths):
-						save_city_paths.append(new_city_path)
-					else:
-						city_hashcode = self.city_hashcodes[self.city_paths.index(new_city_path)]
-						new_city_hashcode = new_city_hashcodes[new_city_paths.index(new_city_path)]
-						if (city_hashcode != new_city_hashcode):
-							#print(city_hashcode + " != " + new_city_hashcode)
+			try:
+				ping = self.ping()
+				if (ping != None):
+					print("Ping: " + str(ping))
+					#self.report_quietly("Connected to server. Monitoring for changes...")
+				else:
+					self.report(self.PREFIX, "Disconnected.")
+				new_city_paths, new_city_hashcodes = self.get_cities()
+				save_city_paths = []
+				#print("Old cities: " + str(self.city_paths))
+				#print("New cities: " + str(new_city_paths))
+				#for city_path in self.city_paths: #TODO
+				#	if (not city_path in new_city_paths): #TODO
+				#		self.push_delete(city_path) #TODO
+				save_city_paths_length = -1
+				while (len(save_city_paths) != save_city_paths_length):
+					save_city_paths_length = len(save_city_paths)
+					for new_city_path in new_city_paths:
+						if (not new_city_path in self.city_paths):
 							save_city_paths.append(new_city_path)
-				self.city_paths = new_city_paths
-				self.city_hashcodes = new_city_hashcodes
+						else:
+							city_hashcode = self.city_hashcodes[self.city_paths.index(new_city_path)]
+							new_city_hashcode = new_city_hashcodes[new_city_paths.index(new_city_path)]
+							if (city_hashcode != new_city_hashcode):
+								#print(city_hashcode + " != " + new_city_hashcode)
+								save_city_paths.append(new_city_path)
+					self.city_paths = new_city_paths
+					self.city_hashcodes = new_city_hashcodes
+					time.sleep(3)
+				if (len(save_city_paths) > 0):
+					self.push_save(save_city_paths)
+				if (end == True):
+					break
+				if (not self.game_launcher.game_running):
+					end = True
 				time.sleep(3)
-			if (len(save_city_paths) > 0):
-				self.push_save(save_city_paths)
-			if (end == True):
-				break
-			if (not self.game_launcher.game_running):
-				end = True
-			time.sleep(3)
-			#TODO request update from server, download one new city (not owned by user and hashcode missing in local region files) and add it to self.city_paths, self.city_hashcodes so as to not send it right back to the server in a save push
-			#TODO maybe only do this one in every 10 times the loop runs (>30s)
+				#TODO request update from server, download one new city (not owned by user and hashcode missing in local region files) and add it to self.city_paths, self.city_hashcodes so as to not send it right back to the server in a save push
+				#TODO maybe only do this one in every 10 times the loop runs (>30s)
+			except Exception as e:
+				print(print("[ERROR] " + str(e)))
+				time.sleep(3)
 		if (self.ui != None):
 			self.ui.destroy()
 		if (sc4mp_ui != None):
