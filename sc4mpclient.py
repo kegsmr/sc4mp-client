@@ -998,7 +998,7 @@ class GameMonitor(th.Thread):
 				#TODO request update from server, download one new city (not owned by user and hashcode missing in local region files) and add it to self.city_paths, self.city_hashcodes so as to not send it right back to the server in a save push
 				#TODO maybe only do this one in every 10 times the loop runs (>30s)
 			except Exception as e:
-				print(print("[ERROR] " + str(e)))
+				print("[ERROR] " + str(e))
 				time.sleep(3)
 		if (self.ui != None):
 			self.ui.destroy()
