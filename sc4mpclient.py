@@ -1389,7 +1389,7 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# Resolution combo box
 		self.resolution_frame.combo_box = ttk.Combobox(self.resolution_frame)
-		self.resolution_frame.combo_box.insert(0, sc4mp_config.data["SC4"]["resw"] + "x" + sc4mp_config.data["SC4"]["resh"])
+		self.resolution_frame.combo_box.insert(0, str(sc4mp_config.data["SC4"]["resw"]) + "x" + str(sc4mp_config.data["SC4"]["resh"]))
 		self.resolution_frame.combo_box["values"] = ("800x600 (4:3)", "1024x768 (4:3)", "1280x1024 (4:3)", "1600x1200 (4:3)", "1280x800 (16:9)", "1440x900 (16:9)", "1680x1050 (16:9)", "1920x1080 (16:9)", "2048x1152 (16:9)")
 		self.resolution_frame.combo_box.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
 		self.config_update.append((self.resolution_frame.combo_box, "res"))
