@@ -682,7 +682,10 @@ class ServerLoader(th.Thread):
 
 		# Purge the destination directory
 		self.report("", "Purging " + type + " directory...")
-		purge_directory(destination)
+		try:
+			purge_directory(destination)
+		except CustomException:
+			raise CustomException("Simcity 4 is already running!")
 
 		# Create the socket
 		s = self.create_socket() 
@@ -965,7 +968,7 @@ class GameMonitor(th.Thread):
 					print("Ping: " + str(ping))
 					#self.report_quietly("Connected to server. Monitoring for changes...")
 				else:
-					self.report(self.PREFIX, "Disconnected.")
+					self.report(self.PREFIX + "[WARNING] ", "Disconnected.")
 				new_city_paths, new_city_hashcodes = self.get_cities()
 				save_city_paths = []
 				#print("Old cities: " + str(self.city_paths))
@@ -989,7 +992,11 @@ class GameMonitor(th.Thread):
 					self.city_hashcodes = new_city_hashcodes
 					time.sleep(3)
 				if (len(save_city_paths) > 0):
-					self.push_save(save_city_paths)
+					try:
+						self.push_save(save_city_paths)
+					except Exception as e:
+						print("[ERROR] " + str(e))
+						self.report("[WARNING] ", "Sync failed! Unexpected client-side error.")
 				if (end == True):
 					break
 				if (not self.game_launcher.game_running):
@@ -1121,7 +1128,7 @@ class GameMonitor(th.Thread):
 		if (response == "ok"):
 			self.report(self.PREFIX, "Synced.") #TODO keep track locally of the client's claims
 		else:
-			self.report(self.PREFIX, "Sync failed! " + response)
+			self.report(self.PREFIX + "[WARNING] ", "Sync failed! " + response)
 
 		# Close socket
 		s.close()
