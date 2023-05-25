@@ -44,7 +44,8 @@ setup(
             "bundle_files": 1,
 			"optimize": 2,
 			"compressed": True,
-            "excludes":[]
+            "excludes":[],
+            "verbose": 4
 		}
 	},
     zipfile=None,
