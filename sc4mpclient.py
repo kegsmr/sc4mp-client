@@ -1477,7 +1477,7 @@ class DirectConnectUI(tk.Toplevel):
 		self.title('Direct connect')
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON) #TODO looks bad
+		self.iconbitmap(SC4MP_ICON)
 
 		# Geometry
 		self.geometry('350x110')
@@ -1660,6 +1660,9 @@ class ServerLoaderUI(tk.Toplevel):
 
 		# Init
 		super().__init__()
+
+		# Icon
+		self.iconbitmap(SC4MP_ICON)
 
 		# Geometry
 		self.minsize(800, 100)
