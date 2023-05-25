@@ -36,7 +36,6 @@ setup(
 		"name": "SC4MP Launcher",
 		"author": "Simcity 4 Multiplayer Project",
         "description": "Multiplayer launcher for Simcity 4",
-		"version": "v1.0.0"
 	}],
 	options={
 		"py2exe": {
