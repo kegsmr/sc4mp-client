@@ -170,17 +170,7 @@ def connect(server):
 			game_monitor.game_running = False
 
 
-def start_sc4():
-	"""Attempts to find the install path of Simcity 4 and launches the game with custom launch parameters if found.
-
-	Arguments:
-		TODO
-
-	Returns:
-		TODO
-	"""
-
-	print("Starting Simcity 4...")
+def get_sc4_path():
 
 	possiblePaths = [
 		os.path.abspath(os.path.join("\\", "Program Files (x86)", "Steam", "steamapps", "common", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
@@ -199,6 +189,23 @@ def start_sc4():
 			if os.path.isfile(possiblePath):
 				path = '"' + possiblePath + '"'
 				break
+
+	return path
+
+
+def start_sc4():
+	"""Attempts to find the install path of Simcity 4 and launches the game with custom launch parameters if found.
+
+	Arguments:
+		TODO
+
+	Returns:
+		TODO
+	"""
+
+	print("Starting Simcity 4...")
+
+	path = get_sc4_path()
 
 	if not path:
 		show_error("Path to Simcity 4 not found. Specify the correct path in settings.")
@@ -1362,8 +1369,8 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry('400x400')
-		self.maxsize(400, 400)
-		self.minsize(400, 400)
+		self.maxsize(385, 270)
+		self.minsize(385, 270)
 		self.grid()
 		center_window(self)
 		
@@ -1391,12 +1398,16 @@ class SC4SettingsUI(tk.Toplevel):
 		self.path_frame.button = ttk.Button(self.path_frame, text="Browse...", command=self.browse_path)
 		self.path_frame.button.grid(row=0, column=1, columnspan=1, padx=10, pady=10)
 
+		# Path label
+		#self.path_frame.label = ttk.Label(self.path_frame, text='If the launcher fails to find Simcity 4 installed on your computer, \nspecify the path to the game installation here.')
+		#self.path_frame.label.grid(row=1, column=0, columnspan=2, padx=10, pady=5)
+
 		# Resolution frame
 		self.resolution_frame = tk.LabelFrame(self, text="Resolution")		
 		self.resolution_frame.grid(row=1, column=0, columnspan=1, rowspan=2, padx=10, pady=5, sticky="w")
 
 		# Resolution combo box
-		self.resolution_frame.combo_box = ttk.Combobox(self.resolution_frame)
+		self.resolution_frame.combo_box = ttk.Combobox(self.resolution_frame, width=15)
 		self.resolution_frame.combo_box.insert(0, str(sc4mp_config.data["SC4"]["resw"]) + "x" + str(sc4mp_config.data["SC4"]["resh"]))
 		self.resolution_frame.combo_box["values"] = ("800x600 (4:3)", "1024x768 (4:3)", "1280x1024 (4:3)", "1600x1200 (4:3)", "1280x800 (16:9)", "1440x900 (16:9)", "1680x1050 (16:9)", "1920x1080 (16:9)", "2048x1152 (16:9)")
 		self.resolution_frame.combo_box.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
@@ -1405,36 +1416,36 @@ class SC4SettingsUI(tk.Toplevel):
 		# Fullscreen checkbutton
 		self.resolution_frame.fullscreen_checkbutton_variable = tk.BooleanVar(value=sc4mp_config.data["SC4"]["fullscreen"])
 		self.resolution_frame.fullscreen_checkbutton = ttk.Checkbutton(self.resolution_frame, text="Fullscreen", onvalue=True, offvalue=False, variable=self.resolution_frame.fullscreen_checkbutton_variable)
-		self.resolution_frame.fullscreen_checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=10, sticky="w")
+		self.resolution_frame.fullscreen_checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=19, sticky="w")
 		self.config_update.append((self.resolution_frame.fullscreen_checkbutton_variable, "fullscreen"))
 
 		# CPU count frame
 		self.cpu_count_frame = tk.LabelFrame(self, text="CPU count")
-		self.cpu_count_frame.grid(row=1, column=1, columnspan=1, padx=10, pady=5, sticky="w")
+		self.cpu_count_frame.grid(row=1, column=1, columnspan=1, rowspan=1, padx=10, pady=5, sticky="w")
 
 		# CPU count entry
-		self.cpu_count_frame.entry = ttk.Entry(self.cpu_count_frame, width = 5)
+		self.cpu_count_frame.entry = ttk.Entry(self.cpu_count_frame, width = 10)
 		self.cpu_count_frame.entry.insert(0, str(sc4mp_config.data["SC4"]["cpu_count"]))
 		self.cpu_count_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
 		self.config_update.append((self.cpu_count_frame.entry, "cpu_count"))
 
 		# CPU priority frame
 		self.cpu_priority_frame = tk.LabelFrame(self, text="CPU priority")
-		self.cpu_priority_frame.grid(row=1, column=2, columnspan=1, padx=10, pady=5, sticky="w")
+		self.cpu_priority_frame.grid(row=1, column=2, columnspan=1, rowspan=1, padx=10, pady=5, sticky="e")
 
 		# CPU priority entry
-		self.cpu_priority_frame.combo_box = ttk.Combobox(self.cpu_priority_frame, width = 10)
+		self.cpu_priority_frame.combo_box = ttk.Combobox(self.cpu_priority_frame, width = 8)
 		self.cpu_priority_frame.combo_box.insert(0, sc4mp_config.data["SC4"]["cpu_priority"])
 		self.cpu_priority_frame.combo_box["values"] = ("low", "normal", "high")
 		self.cpu_priority_frame.combo_box.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
 		self.config_update.append((self.cpu_priority_frame.combo_box, "cpu_priority"))
 
 		# Additional properties frame
-		self.additional_properties_frame = tk.LabelFrame(self, text="Additional properties")		
-		self.additional_properties_frame.grid(row=3, column=0, columnspan=3, padx=10, pady=5, sticky="w")
+		self.additional_properties_frame = tk.LabelFrame(self, text="Additional launch properties")		
+		self.additional_properties_frame.grid(row=2, column=1, columnspan=2, padx=10, pady=5, sticky="w")
 
 		# Additional properties entry
-		self.additional_properties_frame.entry = ttk.Entry(self.additional_properties_frame, width = 55)
+		self.additional_properties_frame.entry = ttk.Entry(self.additional_properties_frame, width = 30)
 		self.additional_properties_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
 		self.additional_properties_frame.entry.insert(0, sc4mp_config.data["SC4"]["additional_properties"])
 		self.config_update.append((self.additional_properties_frame.entry, "additional_properties"))
@@ -1445,11 +1456,11 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# Ok button
 		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Ok", command=self.ok, default="active")
-		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=5, pady=5, sticky="w")
+		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
 
 		# Cancel button
 		self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
-		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=5, pady=5, sticky="e")
+		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=15, pady=10, sticky="e")
 
 
 	def browse_path(self):
