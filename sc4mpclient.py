@@ -211,10 +211,14 @@ def start_sc4():
 		show_error("Path to Simcity 4 not found. Specify the correct path in settings.")
 		return
 
-	arguments = [path, '-UserDir:"' + SC4MP_LAUNCHPATH + '"', '-intro:off', '-CustomResolution:enabled', '-r' + str(SC4MP_LAUNCHRESW) + 'x' + str(SC4MP_LAUNCHRESH) + 'x32', "-CPUCount:" + sc4mp_config.data["SC4"]["cpu_count"], "-CPUPriority:" + sc4mp_config.data["SC4"]["cpu_priority"], sc4mp_config.data["SC4"]["additional_properties"]]
+	arguments = [path, '-UserDir:"' + SC4MP_LAUNCHPATH + '"', '-intro:off', '-CustomResolution:enabled', '-r' + str(SC4MP_LAUNCHRESW) + 'x' + str(SC4MP_LAUNCHRESH) + 'x32', "-CPUCount:" + sc4mp_config.data["SC4"]["cpu_count"], "-CPUPriority:" + sc4mp_config.data["SC4"]["cpu_priority"]]
 
-	if (sc4mp_config.data["SC4"]["fullscreen"] == False):
+	if (sc4mp_config.data["SC4"]["fullscreen"]):
+		arguments.append('-f')
+	else:
 		arguments.append('-w')
+
+	arguments.append(sc4mp_config.data["SC4"]["additional_properties"])
 
 	command = ' '.join(arguments)
 	print(command)
@@ -338,6 +342,22 @@ def show_error(e):
 		if (sc4mp_ui == True):
 			tk.Tk().withdraw()
 		messagebox.showerror(SC4MP_TITLE, message)
+
+
+def show_warning(e):
+	"""TODO"""
+	message = None
+	if (isinstance(e, str)):
+		message = e
+	else: 
+		message = str(e)
+
+	print("[WARNING] " + message)
+
+	if (sc4mp_ui != None):
+		if (sc4mp_ui == True):
+			tk.Tk().withdraw()
+		messagebox.showwarning(SC4MP_TITLE, message)
 
 
 def center_window(window):
@@ -599,6 +619,18 @@ class ServerLoader(th.Thread):
 	
 	def run(self):
 		"""TODO"""
+
+		if (self.ui != None):
+			if (get_sc4_path() == None):
+				show_warning('No Simcity 4 installation found. \n\nPlease provide the correct installation path.')
+				path = filedialog.askdirectory(parent=self.ui)
+				if (len(path) > 0):
+					sc4mp_config.data["SC4"]["game_path"] = path
+					sc4mp_config.update()
+				else:
+					self.ui.destroy()
+					sc4mp_ui.deiconify()
+					return
 	
 		host = self.server.host
 		port = self.server.port
