@@ -78,6 +78,8 @@ def load_config():
 			("fullscreen", False),
 			("resw", default_resw),
 			("resh", default_resh),
+			("cpu_count", 1),
+			("cpu_priority", "normal"),
 			("additional_properties", "")
 		])
 	]
@@ -202,10 +204,16 @@ def start_sc4():
 		show_error("Path to Simcity 4 not found. Specify the correct path in settings.")
 		return
 
-	arguments = [path, ' -UserDir:"' + SC4MP_LAUNCHPATH + '"', ' -intro:off', ' -w', ' -CustomResolution:enabled', ' -r' + str(SC4MP_LAUNCHRESW) + 'x' + str(SC4MP_LAUNCHRESH) + 'x32']
+	arguments = [path, '-UserDir:"' + SC4MP_LAUNCHPATH + '"', '-intro:off', '-CustomResolution:enabled', '-r' + str(SC4MP_LAUNCHRESW) + 'x' + str(SC4MP_LAUNCHRESH) + 'x32', "-CPUCount:" + sc4mp_config.data["SC4"]["cpu_count"], "-CPUPriority:" + sc4mp_config.data["SC4"]["cpu_priority"], sc4mp_config.data["SC4"]["additional_properties"]]
+
+	if (sc4mp_config.data["SC4"]["fullscreen"] == False):
+		arguments.append('-w')
+
+	command = ' '.join(arguments)
+	print(command)
 
 	try:
-		subprocess.run(' '.join(arguments))
+		subprocess.run(command)
 	except PermissionError as e:
 		show_error("Permission denied. Run the program as administrator.\n\n" + str(e))
 
@@ -1406,15 +1414,20 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# CPU count entry
 		self.cpu_count_frame.entry = ttk.Entry(self.cpu_count_frame, width = 5)
+		self.cpu_count_frame.entry.insert(0, str(sc4mp_config.data["SC4"]["cpu_count"]))
 		self.cpu_count_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
+		self.config_update.append((self.cpu_count_frame.entry, "cpu_count"))
 
 		# CPU priority frame
 		self.cpu_priority_frame = tk.LabelFrame(self, text="CPU priority")
 		self.cpu_priority_frame.grid(row=1, column=2, columnspan=1, padx=10, pady=5, sticky="w")
 
 		# CPU priority entry
-		self.cpu_priority_frame.entry = ttk.Entry(self.cpu_priority_frame, width = 10)
-		self.cpu_priority_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
+		self.cpu_priority_frame.combo_box = ttk.Combobox(self.cpu_priority_frame, width = 10)
+		self.cpu_priority_frame.combo_box.insert(0, sc4mp_config.data["SC4"]["cpu_priority"])
+		self.cpu_priority_frame.combo_box["values"] = ("low", "normal", "high")
+		self.cpu_priority_frame.combo_box.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
+		self.config_update.append((self.cpu_priority_frame.combo_box, "cpu_priority"))
 
 		# Additional properties frame
 		self.additional_properties_frame = tk.LabelFrame(self, text="Additional properties")		
