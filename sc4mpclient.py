@@ -16,6 +16,7 @@ import string
 import math
 import inspect
 import traceback
+import webbrowser
 #import py2exe
 
 # Version
@@ -177,9 +178,9 @@ def get_sc4_path():
 		os.path.abspath(os.path.join("\\", "Program Files", "Steam", "steamapps", "common", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
 		os.path.abspath(os.path.join("\\", "Program Files (x86)", "Maxis", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
 		os.path.abspath(os.path.join("\\", "Program Files", "Maxis", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
-		SC4MP_CUSTOMPATH,
-		os.path.join(SC4MP_CUSTOMPATH, "SimCity 4.exe"),
-		os.path.join(SC4MP_CUSTOMPATH, "Apps", "SimCity 4.exe")
+		sc4mp_config.data['SC4']['game_path'],
+		os.path.join(sc4mp_config.data['SC4']['game_path'], "SimCity 4.exe"),
+		os.path.join(sc4mp_config.data['SC4']['game_path'], "Apps", "SimCity 4.exe")
 	]
 
 	path = None
@@ -211,7 +212,7 @@ def start_sc4():
 		show_error("Path to Simcity 4 not found. Specify the correct path in settings.")
 		return
 
-	arguments = [path, '-UserDir:"' + SC4MP_LAUNCHPATH + '"', '-intro:off', '-CustomResolution:enabled', '-r' + str(SC4MP_LAUNCHRESW) + 'x' + str(SC4MP_LAUNCHRESH) + 'x32', "-CPUCount:" + sc4mp_config.data["SC4"]["cpu_count"], "-CPUPriority:" + sc4mp_config.data["SC4"]["cpu_priority"]]
+	arguments = [path, '-UserDir:"' + SC4MP_LAUNCHPATH + '"', '-intro:off', '-CustomResolution:enabled', '-r' + str(sc4mp_config.data["SC4"]["resw"]) + 'x' + str(sc4mp_config.data["SC4"]["resh"]) + 'x32', "-CPUCount:" + sc4mp_config.data["SC4"]["cpu_count"], "-CPUPriority:" + sc4mp_config.data["SC4"]["cpu_priority"]]
 
 	if (sc4mp_config.data["SC4"]["fullscreen"]):
 		arguments.append('-f')
@@ -221,7 +222,7 @@ def start_sc4():
 	arguments.append(sc4mp_config.data["SC4"]["additional_properties"])
 
 	command = ' '.join(arguments)
-	print(command)
+	print("'" + command + "'")
 
 	try:
 		subprocess.run(command)
@@ -621,7 +622,7 @@ class ServerLoader(th.Thread):
 		"""TODO"""
 
 		if (self.ui != None):
-			if (get_sc4_path() == None):
+			while (get_sc4_path() == None):
 				show_warning('No Simcity 4 installation found. \n\nPlease provide the correct installation path.')
 				path = filedialog.askdirectory(parent=self.ui)
 				if (len(path) > 0):
@@ -675,6 +676,11 @@ class ServerLoader(th.Thread):
 			sc4mp_config.update()
 			game_monitor = GameMonitor(self.server)
 			game_monitor.start()
+		#elif (self.server == None):
+		#	game_launcher = GameLauncher()
+		#	game_launcher.run()
+		#	if (sc4mp_ui != None):
+		#		sc4mp_ui.deiconify()
 		else:
 			if (sc4mp_ui != None):
 				sc4mp_ui.deiconify()
@@ -1361,9 +1367,12 @@ class UI(tk.Tk):
 
 		# Server List
 
-		self.server_list = ServerListUI(self)
-		self.server_list.grid(row = 0, column = 0)
-
+		if (False): #TODO re-enable server list
+			self.server_list = ServerListUI(self)
+			self.server_list.grid(row = 0, column = 0)
+		else:
+			self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Direct connect..." in the menu bar and enter the IP address and port of the server you wish to connect to.')
+			self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 	
 	def to_implement(self):
 		"""TODO"""
@@ -1482,6 +1491,10 @@ class SC4SettingsUI(tk.Toplevel):
 		self.additional_properties_frame.entry.insert(0, sc4mp_config.data["SC4"]["additional_properties"])
 		self.config_update.append((self.additional_properties_frame.entry, "additional_properties"))
 
+		# Preview button
+		self.preview_button = ttk.Button(self, text="Preview", command=self.preview)
+		self.preview_button.grid(row=99, column=0, columnspan=1, padx=15, pady=10, sticky="w")
+
 		# Ok/Cancel frame
 		self.ok_cancel = tk.Frame(self)
 		self.ok_cancel.grid(row=99, column=1, columnspan=2, sticky="e")
@@ -1503,8 +1516,7 @@ class SC4SettingsUI(tk.Toplevel):
 			self.path_frame.entry.insert(0, path)
 
 
-	def ok(self):
-		"""TODO"""
+	def update(self):
 		for item in self.config_update:
 			data = item[0].get()
 			key = item[1]
@@ -1515,8 +1527,67 @@ class SC4SettingsUI(tk.Toplevel):
 				sc4mp_config.data["SC4"]["resh"] = resh
 			else:
 				sc4mp_config.data["SC4"][key] = data
+		
+
+	def ok(self):
+		"""TODO"""
+		self.update()
 		sc4mp_config.update()
 		self.destroy()
+
+
+	def preview(self):
+		"""TODO"""
+
+		# Hide the settings window and main ui
+		self.withdraw()
+		sc4mp_ui.withdraw()
+
+		# Backup the current config data
+		config_data_backup = sc4mp_config.data["SC4"].copy()
+
+		# Update the config
+		self.update()
+
+		# Load the game
+		try:
+
+			# Check if a path to Simcity 4 can be found, prompt for a custom path if needed
+			while (get_sc4_path() == None):
+				show_warning('No Simcity 4 installation found. \n\nPlease provide the correct installation path.')
+				path = filedialog.askdirectory(parent=sc4mp_ui)
+				if (len(path) > 0):
+					sc4mp_config.data["SC4"]["game_path"] = path
+					self.path_frame.entry.delete(0, 'end')
+					self.path_frame.entry.insert(0, path)
+				else:
+					break
+			
+			# Load the game if a path to Simcity 4 can be found
+			if (get_sc4_path() != None):
+
+				# Purge plugins and regions
+				purge_directory(os.path.join(SC4MP_LAUNCHPATH, "plugins"))
+				purge_directory(os.path.join(SC4MP_LAUNCHPATH, "regions"))
+				
+				# Run the game launcher (on the current thread)
+				game_launcher = GameLauncher()
+				game_launcher.run()
+
+		# Catch any and all errors
+		except Exception as e:
+
+			# Show an error popup
+			show_error("An error occurred.\n\n" + str(e))
+
+		# Restore the old config data
+		sc4mp_config.data["SC4"] = config_data_backup
+
+		# Show and lift the main ui and settings ui once the game has shutdown
+		sc4mp_ui.deiconify()
+		sc4mp_ui.lift()
+		self.deiconify()
+		self.lift()
 
 
 class DirectConnectUI(tk.Toplevel):
@@ -1640,7 +1711,7 @@ class ServerListUI(tk.Frame):
 
 		self.label = ttk.Label(self)
 		self.label.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10)
-		self.label['text'] = "Loading server list..."
+		self.label['text'] = 'To get started, select a server below and click "Connect."' #"Loading server list..."
 
 
 		# Tree
