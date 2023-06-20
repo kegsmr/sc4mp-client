@@ -601,6 +601,17 @@ class ServerList(th.Thread):
 		print("(to implement)") #TODO
 
 
+	def run(self):
+		"""TODO"""
+
+		try:
+
+			print("TO IMPLEMENT") #TODO
+
+		except Exception as e:
+
+			show_error(e)
+
 class ServerLoader(th.Thread):
 	"""TODO"""
 
@@ -622,69 +633,76 @@ class ServerLoader(th.Thread):
 	def run(self):
 		"""TODO"""
 
-		if (self.ui != None):
-			while (get_sc4_path() == None):
-				show_warning('No Simcity 4 installation found. \n\nPlease provide the correct installation path.')
-				path = filedialog.askdirectory(parent=self.ui)
-				if (len(path) > 0):
-					sc4mp_config.data["SC4"]["game_path"] = path
-					sc4mp_config.update()
-				else:
-					self.ui.destroy()
-					sc4mp_ui.deiconify()
-					return
-	
-		host = self.server.host
-		port = self.server.port
-
 		try:
 
-			self.report("", 'Connecting to server at ' + str(host) + ":" + str(port) + '...')
-			self.fetch_server()
+			if (self.ui != None):
+				while (get_sc4_path() == None):
+					show_warning('No Simcity 4 installation found. \n\nPlease provide the correct installation path.')
+					path = filedialog.askdirectory(parent=self.ui)
+					if (len(path) > 0):
+						sc4mp_config.data["SC4"]["game_path"] = path
+						sc4mp_config.update()
+					else:
+						self.ui.destroy()
+						sc4mp_ui.deiconify()
+						return
+		
+			host = self.server.host
+			port = self.server.port
 
-			self.report("", 'Authenticating...')
-			self.authenticate()
+			try:
 
-			self.report("", "Loading plugins...")
-			self.load("plugins")
+				self.report("", 'Connecting to server at ' + str(host) + ":" + str(port) + '...')
+				self.fetch_server()
 
-			self.report("", "Loading regions...")
-			self.load("regions")
+				self.report("", 'Authenticating...')
+				self.authenticate()
 
-			self.report("", "Prepping regions...")
-			self.prep_regions()
+				self.report("", "Loading plugins...")
+				self.load("plugins")
 
-			self.report("", "Done.")
+				self.report("", "Loading regions...")
+				self.load("regions")
 
-			global sc4mp_current_server
-			sc4mp_current_server = self.server
+				self.report("", "Prepping regions...")
+				self.prep_regions()
+
+				self.report("", "Done.")
+
+				global sc4mp_current_server
+				sc4mp_current_server = self.server
+
+			except Exception as e:
+
+				if (self.ui != None and self.ui.winfo_exists() == 1):
+					show_error("An error occurred while connecting to the server.\n\n" + str(e))
+				else:
+					print("[ERROR] " + str(e))
+
+			#time.sleep(1)
+
+			if (self.ui != None):
+				self.ui.destroy()
+			
+			if (sc4mp_current_server != None):
+				sc4mp_config.data["GENERAL"]["default_host"] = self.server.host
+				sc4mp_config.data["GENERAL"]["default_port"] = self.server.port
+				sc4mp_config.update()
+				game_monitor = GameMonitor(self.server)
+				game_monitor.start()
+			#elif (self.server == None):
+			#	game_launcher = GameLauncher()
+			#	game_launcher.run()
+			#	if (sc4mp_ui != None):
+			#		sc4mp_ui.deiconify()
+			else:
+				if (sc4mp_ui != None):
+					sc4mp_ui.deiconify()
 
 		except Exception as e:
 
-			if (self.ui != None and self.ui.winfo_exists() == 1):
-				show_error("An error occurred while connecting to the server.\n\n" + str(e))
-			else:
-				print("[ERROR] " + str(e))
+			show_error(e)
 
-		#time.sleep(1)
-
-		if (self.ui != None):
-			self.ui.destroy()
-		
-		if (sc4mp_current_server != None):
-			sc4mp_config.data["GENERAL"]["default_host"] = self.server.host
-			sc4mp_config.data["GENERAL"]["default_port"] = self.server.port
-			sc4mp_config.update()
-			game_monitor = GameMonitor(self.server)
-			game_monitor.start()
-		#elif (self.server == None):
-		#	game_launcher = GameLauncher()
-		#	game_launcher.run()
-		#	if (sc4mp_ui != None):
-		#		sc4mp_ui.deiconify()
-		else:
-			if (sc4mp_ui != None):
-				sc4mp_ui.deiconify()
 
 		
 	def report(self, prefix, text):
@@ -1013,59 +1031,66 @@ class GameMonitor(th.Thread):
 
 	def run(self):
 		"""TODO"""
-		end = False
-		self.report_quietly("Connected.")
-		while (True):
-			try:
-				ping = self.ping()
-				if (ping != None):
-					print("Ping: " + str(ping))
-					#self.report_quietly("Connected to server. Monitoring for changes...")
-				else:
-					self.report(self.PREFIX + "[WARNING] ", "Disconnected.")
-				new_city_paths, new_city_hashcodes = self.get_cities()
-				save_city_paths = []
-				#print("Old cities: " + str(self.city_paths))
-				#print("New cities: " + str(new_city_paths))
-				#for city_path in self.city_paths: #TODO
-				#	if (not city_path in new_city_paths): #TODO
-				#		self.push_delete(city_path) #TODO
-				save_city_paths_length = -1
-				while (len(save_city_paths) != save_city_paths_length):
-					save_city_paths_length = len(save_city_paths)
-					for new_city_path in new_city_paths:
-						if (not new_city_path in self.city_paths):
-							save_city_paths.append(new_city_path)
-						else:
-							city_hashcode = self.city_hashcodes[self.city_paths.index(new_city_path)]
-							new_city_hashcode = new_city_hashcodes[new_city_paths.index(new_city_path)]
-							if (city_hashcode != new_city_hashcode):
-								#print(city_hashcode + " != " + new_city_hashcode)
+
+		try:
+
+			end = False
+			self.report_quietly("Connected.")
+			while (True):
+				try:
+					ping = self.ping()
+					if (ping != None):
+						print("Ping: " + str(ping))
+						#self.report_quietly("Connected to server. Monitoring for changes...")
+					else:
+						self.report(self.PREFIX + "[WARNING] ", "Disconnected.")
+					new_city_paths, new_city_hashcodes = self.get_cities()
+					save_city_paths = []
+					#print("Old cities: " + str(self.city_paths))
+					#print("New cities: " + str(new_city_paths))
+					#for city_path in self.city_paths: #TODO
+					#	if (not city_path in new_city_paths): #TODO
+					#		self.push_delete(city_path) #TODO
+					save_city_paths_length = -1
+					while (len(save_city_paths) != save_city_paths_length):
+						save_city_paths_length = len(save_city_paths)
+						for new_city_path in new_city_paths:
+							if (not new_city_path in self.city_paths):
 								save_city_paths.append(new_city_path)
-					self.city_paths = new_city_paths
-					self.city_hashcodes = new_city_hashcodes
+							else:
+								city_hashcode = self.city_hashcodes[self.city_paths.index(new_city_path)]
+								new_city_hashcode = new_city_hashcodes[new_city_paths.index(new_city_path)]
+								if (city_hashcode != new_city_hashcode):
+									#print(city_hashcode + " != " + new_city_hashcode)
+									save_city_paths.append(new_city_path)
+						self.city_paths = new_city_paths
+						self.city_hashcodes = new_city_hashcodes
+						time.sleep(3)
+					if (len(save_city_paths) > 0):
+						try:
+							self.push_save(save_city_paths)
+						except Exception as e:
+							print("[ERROR] " + str(e))
+							self.report("[WARNING] ", "Sync failed! Unexpected client-side error.")
+					if (end == True):
+						break
+					if (not self.game_launcher.game_running):
+						end = True
 					time.sleep(3)
-				if (len(save_city_paths) > 0):
-					try:
-						self.push_save(save_city_paths)
-					except Exception as e:
-						print("[ERROR] " + str(e))
-						self.report("[WARNING] ", "Sync failed! Unexpected client-side error.")
-				if (end == True):
-					break
-				if (not self.game_launcher.game_running):
-					end = True
-				time.sleep(3)
-				#TODO request update from server, download one new city (not owned by user and hashcode missing in local region files) and add it to self.city_paths, self.city_hashcodes so as to not send it right back to the server in a save push
-				#TODO maybe only do this one in every 10 times the loop runs (>30s)
-			except Exception as e:
-				print("[ERROR] " + str(e))
-				time.sleep(3)
-		if (self.ui != None):
-			self.ui.destroy()
-		if (sc4mp_ui != None):
-			sc4mp_ui.deiconify()
-			sc4mp_ui.lift()
+					#TODO request update from server, download one new city (not owned by user and hashcode missing in local region files) and add it to self.city_paths, self.city_hashcodes so as to not send it right back to the server in a save push
+					#TODO maybe only do this one in every 10 times the loop runs (>30s)
+				except Exception as e:
+					print("[ERROR] " + str(e))
+					time.sleep(3)
+			if (self.ui != None):
+				self.ui.destroy()
+			if (sc4mp_ui != None):
+				sc4mp_ui.deiconify()
+				sc4mp_ui.lift()
+
+		except Exception as e:
+
+			show_error(e)
 
 
 	def get_cities(self):
@@ -1285,15 +1310,22 @@ class GameLauncher(th.Thread):
 		self.game_running = True
 		self.setDaemon(True)
 
+
 	def run(self):
 		"""TODO"""
 		
-		start_sc4()
-		
-		self.game_running = False
+		try:
 
-		global sc4mp_current_server
-		sc4mp_current_server = None
+			start_sc4()
+			
+			self.game_running = False
+
+			global sc4mp_current_server
+			sc4mp_current_server = None
+
+		except Exception as e:
+
+			show_error(e)
 
 
 # User Interfaces
