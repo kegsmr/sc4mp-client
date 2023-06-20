@@ -67,12 +67,13 @@ def load_config():
 	PATH = "config.ini"
 	DEFAULTS = [
 		("GENERAL", [
+			("username", os.getlogin()),
 			("default_host", ""),
 			("default_port", 7246)
 		]),
 		("STORAGE", [
 			("storage_path", default_sc4mppath),
-			("cache_size", 4000000000)
+			("cache_size", 4000)
 		]),
 		("SC4", [
 			("game_path", default_sc4path),
@@ -212,9 +213,9 @@ def start_sc4():
 		show_error("Path to Simcity 4 not found. Specify the correct path in settings.")
 		return
 
-	arguments = [path, '-UserDir:"' + SC4MP_LAUNCHPATH + '"', '-intro:off', '-CustomResolution:enabled', '-r' + str(sc4mp_config.data["SC4"]["resw"]) + 'x' + str(sc4mp_config.data["SC4"]["resh"]) + 'x32', "-CPUCount:" + sc4mp_config.data["SC4"]["cpu_count"], "-CPUPriority:" + sc4mp_config.data["SC4"]["cpu_priority"]]
+	arguments = [path, '-UserDir:"' + SC4MP_LAUNCHPATH + '"', '-intro:off', '-CustomResolution:enabled', '-r' + str(sc4mp_config.data["SC4"]["resw"]) + 'x' + str(sc4mp_config.data["SC4"]["resh"]) + 'x32', "-CPUCount:" + str(sc4mp_config.data["SC4"]["cpu_count"]), "-CPUPriority:" + sc4mp_config.data["SC4"]["cpu_priority"]]
 
-	if (sc4mp_config.data["SC4"]["fullscreen"]):
+	if (sc4mp_config.data["SC4"]["fullscreen"] == True):
 		arguments.append('-f')
 	else:
 		arguments.append('-w')
@@ -917,7 +918,7 @@ class ServerLoader(th.Thread):
 
 			# Delete cache files if cache too large to accomadate the new cache file
 			cache_directory = os.path.join(SC4MP_LAUNCHPATH, "_Cache")
-			while (len(os.listdir(cache_directory)) > 0 and directory_size(cache_directory) > int(sc4mp_config.data["STORAGE"]["cache_size"]) - filesize):
+			while (len(os.listdir(cache_directory)) > 0 and directory_size(cache_directory) > (1000000 * int(sc4mp_config.data["STORAGE"]["cache_size"])) - filesize):
 				os.remove(os.path.join(cache_directory, random.choice(os.listdir(cache_directory))))
 
 			# Receive the file. Write to both the destination and cache
@@ -1344,8 +1345,8 @@ class UI(tk.Tk):
 		menu = Menu(self)  
 		
 		settings = Menu(menu, tearoff=0)  
-		settings.add_command(label="General...", command=self.to_implement)     
-		settings.add_command(label="Storage...", command=self.to_implement)    
+		settings.add_command(label="General...", command=self.general_settings)     
+		settings.add_command(label="Storage...", command=self.storage_settings)    
 		settings.add_command(label="SC4...", command=self.SC4_settings)  
 		settings.add_separator()  
 		settings.add_command(label="Exit", command=self.quit)  
@@ -1353,8 +1354,9 @@ class UI(tk.Tk):
 
 		servers = Menu(menu, tearoff=0)  
 		servers.add_command(label="Direct connect...", command=self.direct_connect)  
-		servers.add_separator()  
-		servers.add_command(label="Host...", command=self.to_implement)   
+		#servers.add_command(label="Refresh", command=self.direct_connect) #TODO
+		#servers.add_separator()  #TODO
+		#servers.add_command(label="Host...", command=self.to_implement)   #TODO
 		menu.add_cascade(label="Servers", menu=servers)  
 
 		help = Menu(menu, tearoff=0)  
@@ -1374,6 +1376,7 @@ class UI(tk.Tk):
 			self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Direct connect..." in the menu bar and enter the IP address and port of the server you wish to connect to.')
 			self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 	
+
 	def to_implement(self):
 		"""TODO"""
 		tk.messagebox.showerror(title=SC4MP_TITLE, message="This feature is incomplete and will be available in future versions of the client.")
@@ -1385,10 +1388,222 @@ class UI(tk.Tk):
 		DirectConnectUI()
 
 
+	def general_settings(self):
+		print('"General settings..."')
+		GeneralSettingsUI()
+
+	
+	def storage_settings(self):
+		print('"Storage settings..."')
+		StorageSettingsUI()
+
+
 	def SC4_settings(self):
 		"""TODO"""
 		print('"SC4 settings..."')
 		SC4SettingsUI()
+
+
+class GeneralSettingsUI(tk.Toplevel):
+
+
+	def __init__(self):
+		"""TODO"""
+
+		print("Initializing...")
+
+		# Init
+		super().__init__()
+
+		# Title
+		self.title("General settings")
+
+		# Icon
+		self.iconbitmap(SC4MP_ICON)
+
+		# Geometry
+		self.geometry('400x400')
+		self.maxsize(290, 130)
+		self.minsize(290, 130)
+		self.grid()
+		center_window(self)
+		
+		# Priority
+		self.grab_set()
+
+		# Key bindings
+		self.bind("<Return>", lambda event:self.ok())
+		self.bind("<Escape>", lambda event:self.destroy())
+
+		# Config update
+		self.config_update = []
+
+		# Username frame
+		self.username_frame = ttk.LabelFrame(self, text="Nickname")
+		self.username_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
+
+		# Username entry
+		self.username_frame.entry = ttk.Entry(self.username_frame, width = 40)
+		self.username_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
+		self.username_frame.entry.insert(0, sc4mp_config.data["GENERAL"]["username"])
+		self.config_update.append((self.username_frame.entry, "username"))
+
+		#TODO explain what the nickname is used for?
+
+		# Reset button
+		self.reset_button = ttk.Button(self, text="Reset", command=self.reset)
+		self.reset_button.grid(row=99, column=0, columnspan=1, padx=10, pady=10, sticky="sw")
+
+		# Ok/Cancel frame
+		self.ok_cancel = tk.Frame(self)
+		self.ok_cancel.grid(row=99, column=1, columnspan=2, sticky="se")
+
+		# Ok button
+		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Ok", command=self.ok, default="active")
+		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
+
+		# Cancel button
+		self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
+		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
+
+
+	def update(self):
+		for item in self.config_update:
+			data = item[0].get()
+			key = item[1]
+			sc4mp_config.data["GENERAL"][key] = data
+		
+
+	def ok(self):
+		"""TODO"""
+		self.update()
+		sc4mp_config.update()
+		self.destroy()
+
+
+	def reset(self):
+		"""TODO"""
+		if (messagebox.askokcancel(title=SC4MP_TITLE, message="Revert settings to the default configuration?", icon="warning")):
+			self.destroy()
+			sc4mp_config.data.pop("GENERAL")
+			sc4mp_config.update()
+			sc4mp_config.data = Config(sc4mp_config.PATH, sc4mp_config.DEFAULTS).data
+			self.__init__()
+
+
+class StorageSettingsUI(tk.Toplevel):
+
+
+	def __init__(self):
+		"""TODO"""
+
+		print("Initializing...")
+
+		# Init
+		super().__init__()
+
+		# Title
+		self.title("Storage settings")
+
+		# Icon
+		self.iconbitmap(SC4MP_ICON)
+
+		# Geometry
+		self.geometry('400x400')
+		self.maxsize(450, 215)
+		self.minsize(450, 215)
+		self.grid()
+		center_window(self)
+		
+		# Priority
+		self.grab_set()
+
+		# Key bindings
+		self.bind("<Return>", lambda event:self.ok())
+		self.bind("<Escape>", lambda event:self.destroy())
+
+		# Config update
+		self.config_update = []
+
+		# Path frame
+		self.path_frame = tk.LabelFrame(self, text="Launch path")		
+		self.path_frame.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="w")
+
+		# Path entry
+		self.path_frame.entry = ttk.Entry(self.path_frame, width = 50)
+		self.path_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
+		self.path_frame.entry.insert(0, sc4mp_config.data["STORAGE"]["storage_path"])
+		self.config_update.append((self.path_frame.entry, "storage_path"))
+
+		# Path browse button
+		self.path_frame.button = ttk.Button(self.path_frame, text="Browse...", command=self.browse_path)
+		self.path_frame.button.grid(row=0, column=1, columnspan=1, padx=10, pady=10)
+
+		# Path label
+		self.path_frame.label = ttk.Label(self.path_frame, text='Do NOT change this to your normal launch directory, or else your regions \nwill be deleted!')
+		self.path_frame.label.grid(row=1, column=0, columnspan=2, padx=10, pady=(0,10), sticky="w")
+
+		# Cache size frame
+		self.cache_size_frame = tk.LabelFrame(self, text="Cache size")
+		self.cache_size_frame.grid(row=99, column=0, columnspan=1, padx=10, pady=10, sticky="w")
+
+		# Cache size entry
+		self.cache_size_frame.entry = ttk.Entry(self.cache_size_frame, width=10)
+		self.cache_size_frame.entry.insert(0, str(sc4mp_config.data["STORAGE"]["cache_size"]))
+		self.cache_size_frame.entry.grid(row=0, column=0, columnspan=1, padx=(10,0), pady=10, sticky="w")
+		self.config_update.append((self.cache_size_frame.entry, "cache_size"))
+
+		# Cache size label
+		self.cache_size_frame.label = ttk.Label(self.cache_size_frame, text="mb")
+		self.cache_size_frame.label.grid(row=0, column=1, columnspan=1, padx=(2,10), pady=10, sticky="w")
+
+		# Reset button
+		self.reset_button = ttk.Button(self, text="Reset", command=self.reset)
+		self.reset_button.grid(row=99, column=1, columnspan=1, padx=10, pady=10, sticky="sw")
+
+		# Ok/Cancel frame
+		self.ok_cancel = tk.Frame(self)
+		self.ok_cancel.grid(row=99, column=2, columnspan=2, sticky="se")
+
+		# Ok button
+		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Ok", command=self.ok, default="active")
+		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
+
+		# Cancel button
+		self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
+		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
+
+
+	def browse_path(self):
+		"""TODO"""
+		path = filedialog.askdirectory(parent=self)
+		if (len(path) > 0):
+			self.path_frame.entry.delete(0, 'end')
+			self.path_frame.entry.insert(0, path)
+
+
+	def update(self):
+		for item in self.config_update:
+			data = item[0].get()
+			key = item[1]
+			sc4mp_config.data["STORAGE"][key] = data
+		
+
+	def ok(self):
+		"""TODO"""
+		self.update()
+		sc4mp_config.update()
+		self.destroy()
+
+
+	def reset(self):
+		"""TODO"""
+		if (messagebox.askokcancel(title=SC4MP_TITLE, message="Revert settings to the default configuration?", icon="warning")):
+			self.destroy()
+			sc4mp_config.data.pop("STORAGE")
+			sc4mp_config.update()
+			sc4mp_config.data = Config(sc4mp_config.PATH, sc4mp_config.DEFAULTS).data
+			self.__init__()
 
 
 class SC4SettingsUI(tk.Toplevel):
@@ -1410,8 +1625,8 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry('400x400')
-		self.maxsize(385, 270)
-		self.minsize(385, 270)
+		self.maxsize(385, 305)
+		self.minsize(385, 305)
 		self.grid()
 		center_window(self)
 		
@@ -1440,8 +1655,8 @@ class SC4SettingsUI(tk.Toplevel):
 		self.path_frame.button.grid(row=0, column=1, columnspan=1, padx=10, pady=10)
 
 		# Path label
-		#self.path_frame.label = ttk.Label(self.path_frame, text='If the launcher fails to find Simcity 4 installed on your computer, \nspecify the path to the game installation here.')
-		#self.path_frame.label.grid(row=1, column=0, columnspan=2, padx=10, pady=5)
+		self.path_frame.label = ttk.Label(self.path_frame, text='If the launcher fails to find Simcity 4 installed on your computer, \nspecify the path to the game installation here.')
+		self.path_frame.label.grid(row=1, column=0, columnspan=2, padx=10, pady=(0,10))
 
 		# Resolution frame
 		self.resolution_frame = tk.LabelFrame(self, text="Resolution")		
@@ -1457,7 +1672,7 @@ class SC4SettingsUI(tk.Toplevel):
 		# Fullscreen checkbutton
 		self.resolution_frame.fullscreen_checkbutton_variable = tk.BooleanVar(value=sc4mp_config.data["SC4"]["fullscreen"])
 		self.resolution_frame.fullscreen_checkbutton = ttk.Checkbutton(self.resolution_frame, text="Fullscreen", onvalue=True, offvalue=False, variable=self.resolution_frame.fullscreen_checkbutton_variable)
-		self.resolution_frame.fullscreen_checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=19, sticky="w")
+		self.resolution_frame.fullscreen_checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(14,25), sticky="w")
 		self.config_update.append((self.resolution_frame.fullscreen_checkbutton_variable, "fullscreen"))
 
 		# CPU count frame
@@ -1491,9 +1706,17 @@ class SC4SettingsUI(tk.Toplevel):
 		self.additional_properties_frame.entry.insert(0, sc4mp_config.data["SC4"]["additional_properties"])
 		self.config_update.append((self.additional_properties_frame.entry, "additional_properties"))
 
+		# Reset/Preview frame
+		self.reset_preview = tk.Frame(self)
+		self.reset_preview.grid(row=99, column=0, columnspan=2, sticky="w")
+
+		# Reset button
+		self.reset_preview.reset_button = ttk.Button(self.reset_preview, text="Reset", command=self.reset)
+		self.reset_preview.reset_button.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
+
 		# Preview button
-		self.preview_button = ttk.Button(self, text="Preview", command=self.preview)
-		self.preview_button.grid(row=99, column=0, columnspan=1, padx=15, pady=10, sticky="w")
+		self.reset_preview.preview_button = ttk.Button(self.reset_preview, text="Preview", command=self.preview)
+		self.reset_preview.preview_button.grid(row=0, column=1, columnspan=1, padx=0, pady=10, sticky="e")
 
 		# Ok/Cancel frame
 		self.ok_cancel = tk.Frame(self)
@@ -1505,7 +1728,7 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# Cancel button
 		self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
-		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=15, pady=10, sticky="e")
+		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
 
 
 	def browse_path(self):
@@ -1534,6 +1757,16 @@ class SC4SettingsUI(tk.Toplevel):
 		self.update()
 		sc4mp_config.update()
 		self.destroy()
+
+
+	def reset(self):
+		"""TODO"""
+		if (messagebox.askokcancel(title=SC4MP_TITLE, message="Revert settings to the default configuration?", icon="warning")):
+			self.destroy()
+			sc4mp_config.data.pop("SC4")
+			sc4mp_config.update()
+			sc4mp_config.data = Config(sc4mp_config.PATH, sc4mp_config.DEFAULTS).data
+			self.__init__()
 
 
 	def preview(self):
