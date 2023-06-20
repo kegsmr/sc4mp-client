@@ -612,6 +612,7 @@ class ServerList(th.Thread):
 
 			show_error(e)
 
+
 class ServerLoader(th.Thread):
 	"""TODO"""
 
