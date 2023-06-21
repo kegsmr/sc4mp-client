@@ -484,6 +484,7 @@ class Server:
 
 		try:
 			s = socket.socket()
+			s.settimeout(10)
 			s.connect((host, port))
 			s.send(request.encode())
 			return s.recv(SC4MP_BUFFER_SIZE).decode()
@@ -705,7 +706,6 @@ class ServerLoader(th.Thread):
 			show_error(e)
 
 
-		
 	def report(self, prefix, text):
 		"""TODO"""
 		if (self.ui != None):
@@ -840,6 +840,8 @@ class ServerLoader(th.Thread):
 		port = self.server.port
 
 		s = socket.socket()
+
+		s.settimeout(10)
 
 		tries_left = 6
 
