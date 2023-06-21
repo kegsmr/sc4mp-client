@@ -1395,10 +1395,10 @@ class UI(tk.Tk):
 		help = Menu(menu, tearoff=0)  	
 		help.add_command(label="Readme...", command=self.readme) 
 		feedback_submenu = Menu(help, tearoff=0)
-		feedback_submenu.add_command(label="Github", command=self.github)
-		feedback_submenu.add_command(label="Discord", command=self.discord)
+		feedback_submenu.add_command(label="Github...", command=self.github)
+		feedback_submenu.add_command(label="Discord...", command=self.discord)
 		#feedback_submenu.add_command(label="Simtropolis", command=self.simtropolis)
-		help.add_cascade(label="Feedback...", menu=feedback_submenu)  
+		help.add_cascade(label="Feedback", menu=feedback_submenu)  
 		menu.add_cascade(label="Help", menu=help)  
 		
 		self.config(menu=menu)  
