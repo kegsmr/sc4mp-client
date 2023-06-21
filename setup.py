@@ -3,6 +3,10 @@ import py2exe
 import sys
 import os
 import glob
+from datetime import datetime
+import shutil
+
+VERSION = (0,1,0)
 
 sys.argv.append('py2exe')
 
@@ -50,3 +54,8 @@ setup(
     zipfile=None,
 	data_files=find_data_files('resources','resources',['*'])
 )
+
+target = "dist"
+destination = os.path.join(os.path.join("builds", "sc4mp-client-v" + str(VERSION[0]) + "." + str(VERSION[1]) + "." + str(VERSION[2]) + "." + datetime.now().strftime("%Y%m%d%H%M%S")))
+print('Creating zip archive of "' + target + '" at "' + destination + '"')
+shutil.make_archive(destination, "zip", target)
