@@ -67,7 +67,7 @@ def load_config():
 	PATH = "config.ini"
 	DEFAULTS = [
 		("GENERAL", [
-			("username", os.getlogin()),
+			("nickname", os.getlogin()),
 			("default_host", ""),
 			("default_port", 7246)
 		]),
@@ -1490,15 +1490,15 @@ class GeneralSettingsUI(tk.Toplevel):
 		# Config update
 		self.config_update = []
 
-		# Username frame
-		self.username_frame = ttk.LabelFrame(self, text="Nickname")
-		self.username_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
+		# Nickname frame
+		self.nickname_frame = ttk.LabelFrame(self, text="Nickname")
+		self.nickname_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
 
-		# Username entry
-		self.username_frame.entry = ttk.Entry(self.username_frame, width = 40)
-		self.username_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
-		self.username_frame.entry.insert(0, sc4mp_config.data["GENERAL"]["username"])
-		self.config_update.append((self.username_frame.entry, "username"))
+		# Nickname entry
+		self.nickname_frame.entry = ttk.Entry(self.nickname_frame, width = 40)
+		self.nickname_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
+		self.nickname_frame.entry.insert(0, sc4mp_config.data["GENERAL"]["nickname"])
+		self.config_update.append((self.nickname_frame.entry, "nickname"))
 
 		#TODO explain what the nickname is used for?
 
