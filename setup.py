@@ -8,6 +8,13 @@ import shutil
 
 VERSION = (0,1,0)
 
+for item in os.listdir("dist"):
+    item = os.path.join("dist", item)
+    if (os.path.isfile(item)):
+        os.remove(item)
+    else:
+        shutil.rmtree(item)
+
 sys.argv.append('py2exe')
 
 def find_data_files(source,target,patterns):
