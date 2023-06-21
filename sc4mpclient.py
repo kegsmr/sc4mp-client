@@ -1392,9 +1392,13 @@ class UI(tk.Tk):
 		#servers.add_command(label="Host...", command=self.to_implement)   #TODO
 		menu.add_cascade(label="Servers", menu=servers)  
 
-		help = Menu(menu, tearoff=0)  
-		help.add_command(label="Readme...", command=self.to_implement)  
-		help.add_command(label="Feedback...", command=self.to_implement)  
+		help = Menu(menu, tearoff=0)  	
+		help.add_command(label="Readme...", command=self.readme) 
+		feedback_submenu = Menu(help, tearoff=0)
+		feedback_submenu.add_command(label="Github", command=self.github)
+		feedback_submenu.add_command(label="Discord", command=self.discord)
+		#feedback_submenu.add_command(label="Simtropolis", command=self.simtropolis)
+		help.add_cascade(label="Feedback...", menu=feedback_submenu)  
 		menu.add_cascade(label="Help", menu=help)  
 		
 		self.config(menu=menu)  
@@ -1435,6 +1439,21 @@ class UI(tk.Tk):
 		"""TODO"""
 		print('"SC4 settings..."')
 		SC4SettingsUI()
+
+
+	def readme(self):
+		"""TODO"""
+		webbrowser.open_new_tab("Readme.html")
+
+
+	def github(self):
+		"""TODO"""
+		webbrowser.open_new_tab("https://github.com/keggre/sc4mp-client/issues")
+
+
+	def discord(self):
+		"""TODO"""
+		webbrowser.open_new_tab("https://discord.gg/zb8gW2aARY")
 
 
 class GeneralSettingsUI(tk.Toplevel):
