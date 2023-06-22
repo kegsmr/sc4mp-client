@@ -67,6 +67,13 @@ shutil.copy("README.md", "dist")
 shutil.copy("License.txt", "dist")
 shutil.copy("Readme.html", "dist")
 
+try:
+    print('Copying server distribution to "dist"...')
+    shutil.copy("D:\\Users\\Kegan\\Desktop\\Projects\\mod\\sc4\\SC4MP\\sc4mp-server\\dist\\sc4mpserver.exe", "dist")
+    shutil.copytree("D:\\Users\\Kegan\\Desktop\\Projects\\mod\\sc4\\SC4MP\\sc4mp-server\\dist\\resources", "dist\\resources", dirs_exist_ok=True)
+except:
+    print('Failed!')
+
 target = "dist"
 destination = os.path.join(os.path.join("builds", "sc4mp-client-v" + str(VERSION[0]) + "." + str(VERSION[1]) + "." + str(VERSION[2]) + "." + datetime.now().strftime("%Y%m%d%H%M%S")))
 print('Creating zip archive of "' + target + '" at "' + destination + '"')

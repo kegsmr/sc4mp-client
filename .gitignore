@@ -4,3 +4,4 @@ setupbuilds
 config.ini
 *.log
 testing.py
+*.exe
