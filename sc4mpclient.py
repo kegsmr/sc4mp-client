@@ -39,7 +39,7 @@ default_sc4path = ""
 SC4MP_LAUNCHPATH = None
 SC4MP_LAUNCHRESW = None
 SC4MP_LAUNCHRESH = None
-#SC4MP_SERVERPATH = "http://api.getpmr.com/" #TODO: will probably replace with a server list host
+SC4MP_SERVERS = [("64.223.232.94", 7246)]
 SC4MP_CUSTOMPATH = None
 
 # Hard-coded constants
