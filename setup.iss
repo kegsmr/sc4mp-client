@@ -34,6 +34,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\dist\Readme.html"; DestDir: "{app}"; Flags: isreadme
 Source: "D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
