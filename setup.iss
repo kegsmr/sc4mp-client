@@ -20,7 +20,7 @@ LicenseFile=D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\dist\Lice
 ; Remove the following line to run in administrative install mode (install for all users.)
 PrivilegesRequired=lowest
 OutputDir=D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\setupbuilds
-OutputBaseFilename=SC4MP Setup
+OutputBaseFilename=sc4mp-client-setup-v{#MyAppVersion}
 SetupIconFile=D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\dist\resources\icon.ico
 Compression=lzma
 SolidCompression=yes
@@ -34,6 +34,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
