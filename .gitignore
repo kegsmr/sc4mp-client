@@ -1,5 +1,6 @@
 dist
 builds
+setupbuilds
 config.ini
 *.log
 testing.py
