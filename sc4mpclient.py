@@ -29,6 +29,15 @@ SC4MP_RESOURCES_PATH = "resources"
 sc4mp_ui = None
 sc4mp_current_server = None
 
+# Global constants
+SC4MP_TITLE = "SC4MP Launcher v" + str(SC4MP_VERSION[0]) + "." + str(SC4MP_VERSION[1]) + "." + str(SC4MP_VERSION[2])
+SC4MP_ICON = os.path.join(SC4MP_RESOURCES_PATH, "icon.ico")
+SC4MP_SERVERS = [("64.223.232.94", 7246)]
+SC4MP_HOST = socket.gethostname() #"127.0.0.1"
+SC4MP_PORT = 7246
+SC4MP_SEPARATOR = b"<SEPARATOR>"
+SC4MP_BUFFER_SIZE = 4096
+
 # Default config values
 default_sc4mppath = os.path.join(os.path.expanduser('~'),"Documents","SimCity 4","_SC4MP") + "\\"
 default_resw = 1280
@@ -39,16 +48,7 @@ default_sc4path = ""
 SC4MP_LAUNCHPATH = None
 SC4MP_LAUNCHRESW = None
 SC4MP_LAUNCHRESH = None
-SC4MP_SERVERS = [("64.223.232.94", 7246)]
 SC4MP_CUSTOMPATH = None
-
-# Hard-coded constants
-SC4MP_TITLE = "SC4MP Launcher v" + str(SC4MP_VERSION[0]) + "." + str(SC4MP_VERSION[1]) + "." + str(SC4MP_VERSION[2])
-SC4MP_ICON = os.path.join(SC4MP_RESOURCES_PATH, "icon.ico")
-SC4MP_HOST = socket.gethostname() #"127.0.0.1"
-SC4MP_PORT = 7246
-SC4MP_SEPARATOR = b"<SEPARATOR>"
-SC4MP_BUFFER_SIZE = 4096
 
 
 # Methods
@@ -307,13 +307,13 @@ def event_generate(ui, event, when):
 		ui.event_generate(event, when=when)
 
 
-def create_empty_json(filename):
+'''def create_empty_json(filename):
 	"""TODO"""
 	with open(filename, 'w') as file:
 		data = dict()
 		file.seek(0)
 		json.dump(data, file, indent=4)
-		file.truncate()
+		file.truncate()'''
 
 
 def load_json(filename):
@@ -787,7 +787,7 @@ class ServerLoader(th.Thread):
 		#print("done.")
 
 		
-	def old_load(self, type):
+	'''def old_load(self, type):
 		"""TODO"""
 
 		host = self.server.host
@@ -830,7 +830,7 @@ class ServerLoader(th.Thread):
 		self.report("", "Unpacking " + type + "...")
 		shutil.unpack_archive(filename, os.path.join(SC4MP_LAUNCHPATH, directory))
 
-		print("done.")
+		print("done.")'''
 
 
 	def create_socket(self):
@@ -1118,7 +1118,7 @@ class GameMonitor(th.Thread):
 		return city_paths, city_hashcodes
 
 
-	def push_delete(self, city_path):
+	'''def push_delete(self, city_path):
 		"""TODO"""
 
 		self.report(self.PREFIX, 'Pushing deletion of "' + city_path + '"')
@@ -1144,7 +1144,7 @@ class GameMonitor(th.Thread):
 		if (s.recv(SC4MP_BUFFER_SIZE).decode() == "ok"):
 			self.report(self.PREFIX, "Delete push authorized") #TODO placeholder
 		else:
-			self.report(self.PREFIX, "Delete push not authorized") #TODO placeholder
+			self.report(self.PREFIX, "Delete push not authorized") #TODO placeholder'''
 
 		
 	def push_save(self, save_city_paths):
@@ -2139,7 +2139,7 @@ class GameMonitorUI(tk.Toplevel):
 		"""TODO"""
 		WIDTH = 100
 		HEIGHT = 20
-		screen_height = self.winfo_screenheight()
+		#screen_height = self.winfo_screenheight()
 		screen_width = self.winfo_screenwidth()
 		self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, screen_width - WIDTH, 0))
 		self.overrideredirect(True)
@@ -2236,7 +2236,7 @@ class Logger():
 
 # Main Method
 
-def cmd(): #TODO incorporate this into the main method but enable this functionality using commandline arguments
+'''def cmd(): #TODO incorporate this into the main method but enable this functionality using commandline arguments
 	"""This method is meant to be run in a terminal instead of the main method for testing purposes.
 
 	Arguments:
@@ -2272,7 +2272,7 @@ def cmd(): #TODO incorporate this into the main method but enable this functiona
 
 	connect(Server(host, port))
 
-	#sc4mp_ui.destroy()
+	#sc4mp_ui.destroy()'''
 
 
 def main():
