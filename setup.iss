@@ -5,6 +5,7 @@
 #define MyAppVersion "0.1.0"
 #define MyAppPublisher "Simcity 4 Multiplayer Project"
 #define MyAppExeName "sc4mpclient.exe"
+#define TimeStamp GetDateTimeString('yyyymmddhhnnss', '', '')
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
@@ -20,7 +21,7 @@ LicenseFile=D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\dist\Lice
 ; Remove the following line to run in administrative install mode (install for all users.)
 PrivilegesRequired=lowest
 OutputDir=D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\setupbuilds
-OutputBaseFilename=sc4mp-client-setup-v{#MyAppVersion}
+OutputBaseFilename=sc4mp-client-setup-v{#MyAppVersion}.{#TimeStamp}
 SetupIconFile=D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\dist\resources\icon.ico
 Compression=lzma
 SolidCompression=yes
