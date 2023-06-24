@@ -17,7 +17,6 @@ import math
 import inspect
 import traceback
 import webbrowser
-#import py2exe
 
 # Version
 SC4MP_VERSION = (0,1,0)
@@ -380,6 +379,18 @@ def center_window(window):
 	y = win.winfo_screenheight() // 2 - win_height // 2
 	win.geometry('{}x{}+{}+{}'.format(width, height, x, y))
 	win.deiconify()
+
+
+def prep_server(path):
+	"""TODO"""
+	subprocess.Popen("sc4mpserver.exe -prep --server-path " + str(path))
+
+
+def start_server(path):
+	"""TODO"""
+	subprocess.Popen("sc4mpserver.exe --server-path " + str(path), creationflags=subprocess.CREATE_NEW_CONSOLE)
+
+	#th.Thread(target=lambda: subprocess.Popen("sc4mpserver.exe --server-path " + str(path))).start()
 
 
 # Objects
@@ -1383,15 +1394,18 @@ class UI(tk.Tk):
 		settings.add_command(label="General...", command=self.general_settings)     
 		settings.add_command(label="Storage...", command=self.storage_settings)    
 		settings.add_command(label="SC4...", command=self.SC4_settings)  
-		settings.add_separator()  
+		settings.add_separator()
+		settings.add_command(label="Updates...", command=self.update) 
+		settings.add_separator()
 		settings.add_command(label="Exit", command=self.quit)  
-		menu.add_cascade(label="Settings", menu=settings)  
+		menu.add_cascade(label="Settings", menu=settings)  #TODO rename to "Launcher" and put settings in cascade?
 
 		servers = Menu(menu, tearoff=0)  
-		servers.add_command(label="Direct connect...", command=self.direct_connect)  
-		#servers.add_command(label="Refresh", command=self.direct_connect) #TODO
-		#servers.add_separator()  #TODO
-		#servers.add_command(label="Host...", command=self.to_implement)   #TODO
+		
+		servers.add_command(label="Host...", command=self.host)
+		servers.add_separator()
+		servers.add_command(label="Connect...", command=self.direct_connect)  #"Direct connect..."
+		#servers.add_command(label="Refresh", command=self.to_implement) #TODO
 		menu.add_cascade(label="Servers", menu=servers)  
 
 		help = Menu(menu, tearoff=0)  	
@@ -1412,13 +1426,19 @@ class UI(tk.Tk):
 			self.server_list = ServerListUI(self)
 			self.server_list.grid(row = 0, column = 0)
 		else:
-			self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Direct connect..." in the menu bar and enter the IP address and port of the server you wish to connect to.')
+			self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Connect..." in the menu bar and enter the IP address and port of the server you wish to connect to.')
 			self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 	
 
 	def to_implement(self):
 		"""TODO"""
 		tk.messagebox.showerror(title=SC4MP_TITLE, message="This feature is incomplete and will be available in future versions of the client.")
+
+
+	def host(self):
+		"""TODO"""
+		print('"Host..."')
+		HostUI()
 
 
 	def direct_connect(self):
@@ -1441,6 +1461,10 @@ class UI(tk.Tk):
 		"""TODO"""
 		print('"SC4 settings..."')
 		SC4SettingsUI()
+
+
+	def update(self):
+		webbrowser.open_new_tab("https://github.com/keggre/sc4mp-client/releases/")
 
 
 	def readme(self):
@@ -1875,6 +1899,128 @@ class SC4SettingsUI(tk.Toplevel):
 		sc4mp_ui.lift()
 		self.deiconify()
 		self.lift()
+
+
+class HostUI(tk.Toplevel):
+
+
+	def __init__(self):
+		"""TODO"""
+
+		print("Initializing...")
+
+		# Create default server configuration
+		path = os.path.join("_Servers", "default")
+		if (not os.path.exists(path)):
+			os.makedirs(path)
+			prep_server(path)
+
+		# Init
+		super().__init__()
+
+		# Title
+		self.title("Host")
+
+		# Icon
+		self.iconbitmap(SC4MP_ICON)
+
+		# Geometry
+		self.geometry('400x400')
+		self.maxsize(305, 375)
+		self.minsize(305, 375)
+		self.grid()
+		center_window(self)
+		
+		# Priority
+		self.grab_set()
+
+		# Key bindings
+		self.bind("<Return>", lambda event:self.ok())
+		self.bind("<Escape>", lambda event:self.destroy())
+
+		# Label
+		self.label = ttk.Label(self, text="Select a server configuration to launch with.", justify="center")
+		self.label.grid(row=0, column=0, columnspan=3, padx=10, pady=10)
+
+		# Rename/Config/Files frame
+		self.rename_config_files = tk.Frame(self)
+		self.rename_config_files.grid(row=1, column=0, columnspan=3, sticky="w")
+
+		# Rename button
+		self.rename_config_files.rename_button = ttk.Button(self.rename_config_files, text="Rename...", command=self.rename, default="disabled")
+		self.rename_config_files.rename_button.grid(row=0, column=0, columnspan=1, padx=(10, 5), pady=10, sticky="w")
+
+		# Config button
+		self.rename_config_files.config_button = ttk.Button(self.rename_config_files, text="Edit...", command=self.config, default="disabled")
+		self.rename_config_files.config_button.grid(row=0, column=1, columnspan=1, padx=5, pady=10)
+
+		# Files button
+		self.rename_config_files.files_button = ttk.Button(self.rename_config_files, text="Locate...", command=self.files, default="disabled")
+		self.rename_config_files.files_button.grid(row=0, column=2, columnspan=1, padx=5, pady=10, sticky="e")
+
+		# List box
+		self.list_box_variable = tk.Variable(value=os.listdir("_Servers"))
+		self.list_box = tk.Listbox(self, width=47, height=15, listvariable=self.list_box_variable)
+		self.list_box.select_set(0)
+		self.list_box.grid(row=2, column=0, columnspan=3, padx=10, pady=0)
+
+		# New button
+		self.new_button = ttk.Button(self, text="New...", command=self.new)
+		self.new_button.grid(row=3, column=0, columnspan=1, padx=10, pady=10, sticky="w")
+
+		# Ok/Cancel frame
+		self.ok_cancel = tk.Frame(self)
+		self.ok_cancel.grid(row=3, column=1, columnspan=2, sticky="se")
+
+		# Ok button
+		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Host", command=self.ok, default="active")
+		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
+
+		# Cancel button
+		self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
+		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
+
+
+	def rename(self):
+		"""TODO"""
+
+		#TODO
+
+		return
+	
+
+	def config(self):
+		"""TODO"""
+
+		#TODO
+
+		return
+	
+
+	def files(self):
+		"""TODO"""
+
+		#TODO
+
+		return
+	
+
+	def new(self):
+		"""TODO"""
+
+		#TODO
+
+		return
+
+
+	def ok(self):
+		"""TODO"""
+
+		path = os.path.join("_Servers", self.list_box_variable.get()[self.list_box.curselection()[0]])
+
+		start_server(path)
+
+		self.destroy()
 
 
 class DirectConnectUI(tk.Toplevel):
