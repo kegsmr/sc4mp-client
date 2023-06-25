@@ -18,17 +18,23 @@ import inspect
 import traceback
 import webbrowser
 
+
 # Version
+
 SC4MP_VERSION = (0,1,0)
 
-# Path to the resources subdirectory
-SC4MP_RESOURCES_PATH = "resources"
 
 # Global variables
+
 sc4mp_ui = None
 sc4mp_current_server = None
 
+
 # Global constants
+
+SC4MP_RESOURCES_PATH = "resources"
+SC4MP_LOG_PATH = "sc4mpclient.log"
+
 SC4MP_TITLE = "SC4MP Launcher v" + str(SC4MP_VERSION[0]) + "." + str(SC4MP_VERSION[1]) + "." + str(SC4MP_VERSION[2])
 SC4MP_ICON = os.path.join(SC4MP_RESOURCES_PATH, "icon.ico")
 SC4MP_SERVERS = [("64.223.232.94", 7246)]
@@ -37,13 +43,17 @@ SC4MP_PORT = 7246
 SC4MP_SEPARATOR = b"<SEPARATOR>"
 SC4MP_BUFFER_SIZE = 4096
 
-# Default config values
+
+# Default config values #TODO incorporate in config class
+
 default_sc4mppath = os.path.join(os.path.expanduser('~'),"Documents","SimCity 4","_SC4MP") + "\\"
 default_resw = 1280
 default_resh = 800
 default_sc4path = ""
 
-# Config constants
+
+# Config constants #TODO incorporate in config class
+
 SC4MP_LAUNCHPATH = None
 SC4MP_LAUNCHRESW = None
 SC4MP_LAUNCHRESH = None
@@ -2319,7 +2329,7 @@ class Logger():
 	def __init__(self):
 		"""TODO"""
 		self.terminal = sys.stdout
-		self.log = "sc4mpclient.log" #"sc4mpclient-" + datetime.now().strftime("%Y%m%d%H%M%S") + ".log"
+		self.log = SC4MP_LOG_PATH
 		if (os.path.exists(self.log)):
 			os.remove(self.log)
    
@@ -2335,20 +2345,20 @@ class Logger():
 			timestamp = datetime.now().strftime("[%H:%M:%S] ")
 
 			# Label
-			label = "[SC4MP"
+			label = "[SC4MP/" + th.current_thread().getName() + "] "
 			for item in inspect.stack()[1:]:
 				try:
-					label += "/" + item[0].f_locals["self"].__class__.__name__
+					label += "(" + item[0].f_locals["self"].__class__.__name__ + ") "
 					break
 				except:
 					pass
-			label += "] [" + th.current_thread().getName() + "] "
+			
 
 			# Type and color
 			type = "[INFO] "
-			color = '\033[0m '
+			color = '\033[90m '
 			TYPES_COLORS = [
-				("[INFO] ", '\033[94m '),
+				("[INFO] ", '\033[90m '), #'\033[94m '
 				("[PROMPT]", '\033[1m '),
 				("[WARNING] ", '\033[93m '),
 				("[ERROR] ", '\033[91m '),
@@ -2362,9 +2372,9 @@ class Logger():
 					type = current_type
 					color = current_color
 					break
-			if (label == "[SC4MP] " and type == "[INFO] "):
-				color = '\033[94m '
-
+			if (th.current_thread().getName() == "Main" and type == "[INFO] "):
+				color = '\033[0m '
+			
 			# Assemble
 			output = color + timestamp + label + type + message
 
@@ -2435,6 +2445,7 @@ def main():
 
 		# Output
 		sys.stdout = Logger()
+		th.current_thread().name = "Main"
 
 		# Version
 		print(SC4MP_TITLE)
