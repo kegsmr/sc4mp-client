@@ -18,46 +18,56 @@ import inspect
 import traceback
 import webbrowser
 
-
-# Version
-
 SC4MP_VERSION = (0,1,0)
 
+SC4MP_SERVERS = [("64.223.232.94", 7246)]
 
-# Global variables
-
-sc4mp_ui = None
-sc4mp_current_server = None
-
-
-# Global constants
-
-SC4MP_RESOURCES_PATH = "resources"
+SC4MP_CONFIG_PATH = "config.ini"
 SC4MP_LOG_PATH = "sc4mpclient.log"
+SC4MP_RESOURCES_PATH = "resources"
 
 SC4MP_TITLE = "SC4MP Launcher v" + str(SC4MP_VERSION[0]) + "." + str(SC4MP_VERSION[1]) + "." + str(SC4MP_VERSION[2])
 SC4MP_ICON = os.path.join(SC4MP_RESOURCES_PATH, "icon.ico")
-SC4MP_SERVERS = [("64.223.232.94", 7246)]
-SC4MP_HOST = socket.gethostname() #"127.0.0.1"
+
+SC4MP_HOST = socket.gethostname()
 SC4MP_PORT = 7246
+
 SC4MP_SEPARATOR = b"<SEPARATOR>"
 SC4MP_BUFFER_SIZE = 4096
 
+SC4MP_DELAY = .1
 
-# Default config values #TODO incorporate in config class
-
-default_sc4mppath = os.path.join(os.path.expanduser('~'),"Documents","SimCity 4","_SC4MP") + "\\"
-default_resw = 1280
-default_resh = 800
-default_sc4path = ""
-
-
-# Config constants #TODO incorporate in config class
+SC4MP_CONFIG_DEFAULTS = [
+	("GENERAL", [
+		("nickname", os.getlogin()),
+		("default_host", ""),
+		("default_port", SC4MP_PORT)
+	]),
+	("STORAGE", [
+		("storage_path", os.path.join(os.path.expanduser('~'),"Documents","SimCity 4","_SC4MP") + "\\"),
+		("cache_size", 4000)
+	]),
+	("SC4", [
+		("game_path", ""),
+		("fullscreen", False),
+		("resw", 1280),
+		("resh", 800),
+		("cpu_count", 1),
+		("cpu_priority", "normal"),
+		("additional_properties", "")
+	])
+]
 
 SC4MP_LAUNCHPATH = None
 SC4MP_LAUNCHRESW = None
 SC4MP_LAUNCHRESH = None
 SC4MP_CUSTOMPATH = None
+
+sc4mp_args = sys.argv
+
+sc4mp_ui = None
+
+sc4mp_current_server = None
 
 
 # Methods
@@ -73,31 +83,9 @@ def load_config():
 
 	global sc4mp_config
 
-	PATH = "config.ini"
-	DEFAULTS = [
-		("GENERAL", [
-			("nickname", os.getlogin()),
-			("default_host", ""),
-			("default_port", 7246)
-		]),
-		("STORAGE", [
-			("storage_path", default_sc4mppath),
-			("cache_size", 4000)
-		]),
-		("SC4", [
-			("game_path", default_sc4path),
-			("fullscreen", False),
-			("resw", default_resw),
-			("resh", default_resh),
-			("cpu_count", 1),
-			("cpu_priority", "normal"),
-			("additional_properties", "")
-		])
-	]
-
 	print("Loading config...")
 
-	sc4mp_config = Config(PATH, DEFAULTS)
+	sc4mp_config = Config(SC4MP_CONFIG_PATH, SC4MP_CONFIG_DEFAULTS)
 
 	
 def update_config_constants(config):
