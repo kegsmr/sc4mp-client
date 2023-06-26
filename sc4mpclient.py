@@ -96,10 +96,10 @@ def update_config_constants(config):
 	global SC4MP_LAUNCHRESH
 	global SC4MP_CUSTOMPATH
 
-	SC4MP_LAUNCHPATH = config.data['STORAGE']['storage_path']
-	SC4MP_LAUNCHRESW = config.data['SC4']['resw']
-	SC4MP_LAUNCHRESH = config.data['SC4']['resh']
-	SC4MP_CUSTOMPATH = config.data['SC4']['game_path']
+	SC4MP_LAUNCHPATH = config['STORAGE']['storage_path']
+	SC4MP_LAUNCHRESW = config['SC4']['resw']
+	SC4MP_LAUNCHRESH = config['SC4']['resh']
+	SC4MP_CUSTOMPATH = config['SC4']['game_path']
 
 
 def create_subdirectories():
@@ -176,9 +176,9 @@ def get_sc4_path():
 		os.path.abspath(os.path.join("\\", "Program Files", "Steam", "steamapps", "common", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
 		os.path.abspath(os.path.join("\\", "Program Files (x86)", "Maxis", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
 		os.path.abspath(os.path.join("\\", "Program Files", "Maxis", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
-		sc4mp_config.data['SC4']['game_path'],
-		os.path.join(sc4mp_config.data['SC4']['game_path'], "SimCity 4.exe"),
-		os.path.join(sc4mp_config.data['SC4']['game_path'], "Apps", "SimCity 4.exe")
+		sc4mp_config['SC4']['game_path'],
+		os.path.join(sc4mp_config['SC4']['game_path'], "SimCity 4.exe"),
+		os.path.join(sc4mp_config['SC4']['game_path'], "Apps", "SimCity 4.exe")
 	]
 
 	path = None
@@ -210,14 +210,14 @@ def start_sc4():
 		show_error("Path to Simcity 4 not found. Specify the correct path in settings.")
 		return
 
-	arguments = [path, '-UserDir:"' + SC4MP_LAUNCHPATH + '"', '-intro:off', '-CustomResolution:enabled', '-r' + str(sc4mp_config.data["SC4"]["resw"]) + 'x' + str(sc4mp_config.data["SC4"]["resh"]) + 'x32', "-CPUCount:" + str(sc4mp_config.data["SC4"]["cpu_count"]), "-CPUPriority:" + sc4mp_config.data["SC4"]["cpu_priority"]]
+	arguments = [path, '-UserDir:"' + SC4MP_LAUNCHPATH + '"', '-intro:off', '-CustomResolution:enabled', '-r' + str(sc4mp_config["SC4"]["resw"]) + 'x' + str(sc4mp_config["SC4"]["resh"]) + 'x32', "-CPUCount:" + str(sc4mp_config["SC4"]["cpu_count"]), "-CPUPriority:" + sc4mp_config["SC4"]["cpu_priority"]]
 
-	if (sc4mp_config.data["SC4"]["fullscreen"] == True):
+	if (sc4mp_config["SC4"]["fullscreen"] == True):
 		arguments.append('-f')
 	else:
 		arguments.append('-w')
 
-	arguments.append(sc4mp_config.data["SC4"]["additional_properties"])
+	arguments.append(sc4mp_config["SC4"]["additional_properties"])
 
 	command = ' '.join(arguments)
 	print("'" + command + "'")
@@ -391,6 +391,14 @@ def start_server(path):
 	#th.Thread(target=lambda: subprocess.Popen("sc4mpserver.exe --server-path " + str(path))).start()
 
 
+def update_config_value(section, item, value):
+	"""TODO"""
+	try:
+		t = type(sc4mp_config[section][item])
+		sc4mp_config[section][item] = t(value)
+	except:
+		print("[ERROR] Invalid config value for \"" + item + "\" in section \"" + section + "\"")
+
 # Objects
 
 class Config:
@@ -424,7 +432,8 @@ class Config:
 				try:
 					for item_name in section.keys():
 						try:
-							self.data[section_name][item_name] = parser.get(section_name, item_name)
+							t = type(self.data[section_name][item_name])
+							self.data[section_name][item_name] = t(parser.get(section_name, item_name))
 						except:
 							pass
 				except:
@@ -434,6 +443,16 @@ class Config:
 
 		# Update config file
 		self.update()
+
+
+	def __getitem__(self, key):
+		"""TODO"""
+		return self.data.__getitem__(key)
+
+
+	def __setitem__(self, key):
+		"""TODO"""
+		return self.data.__setitem__(key)
 
 
 	def update(self):
@@ -651,7 +670,7 @@ class ServerLoader(th.Thread):
 					show_warning('No Simcity 4 installation found. \n\nPlease provide the correct installation path.')
 					path = filedialog.askdirectory(parent=self.ui)
 					if (len(path) > 0):
-						sc4mp_config.data["SC4"]["game_path"] = path
+						sc4mp_config["SC4"]["game_path"] = path
 						sc4mp_config.update()
 					else:
 						self.ui.destroy()
@@ -696,8 +715,8 @@ class ServerLoader(th.Thread):
 				self.ui.destroy()
 			
 			if (sc4mp_current_server != None):
-				sc4mp_config.data["GENERAL"]["default_host"] = self.server.host
-				sc4mp_config.data["GENERAL"]["default_port"] = self.server.port
+				sc4mp_config["GENERAL"]["default_host"] = self.server.host
+				sc4mp_config["GENERAL"]["default_port"] = self.server.port
 				sc4mp_config.update()
 				game_monitor = GameMonitor(self.server)
 				game_monitor.start()
@@ -948,7 +967,7 @@ class ServerLoader(th.Thread):
 
 			# Delete cache files if cache too large to accomadate the new cache file
 			cache_directory = os.path.join(SC4MP_LAUNCHPATH, "_Cache")
-			while (len(os.listdir(cache_directory)) > 0 and directory_size(cache_directory) > (1000000 * int(sc4mp_config.data["STORAGE"]["cache_size"])) - filesize):
+			while (len(os.listdir(cache_directory)) > 0 and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize):
 				os.remove(os.path.join(cache_directory, random.choice(os.listdir(cache_directory))))
 
 			# Receive the file. Write to both the destination and cache
@@ -1350,7 +1369,7 @@ class UI(tk.Tk):
 		"""TODO"""
 
 
-		print("Initializing...")
+		#print("Initializing...")
 
 
 		# Init
@@ -1486,7 +1505,7 @@ class GeneralSettingsUI(tk.Toplevel):
 	def __init__(self):
 		"""TODO"""
 
-		print("Initializing...")
+		#print("Initializing...")
 
 		# Init
 		super().__init__()
@@ -1521,7 +1540,7 @@ class GeneralSettingsUI(tk.Toplevel):
 		# Nickname entry
 		self.nickname_frame.entry = ttk.Entry(self.nickname_frame, width = 40)
 		self.nickname_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
-		self.nickname_frame.entry.insert(0, sc4mp_config.data["GENERAL"]["nickname"])
+		self.nickname_frame.entry.insert(0, sc4mp_config["GENERAL"]["nickname"])
 		self.config_update.append((self.nickname_frame.entry, "nickname"))
 
 		#TODO explain what the nickname is used for?
@@ -1547,7 +1566,7 @@ class GeneralSettingsUI(tk.Toplevel):
 		for item in self.config_update:
 			data = item[0].get()
 			key = item[1]
-			sc4mp_config.data["GENERAL"][key] = data
+			update_config_value("GENERAL", key, data)
 		
 
 	def ok(self):
@@ -1573,7 +1592,7 @@ class StorageSettingsUI(tk.Toplevel):
 	def __init__(self):
 		"""TODO"""
 
-		print("Initializing...")
+		#print("Initializing...")
 
 		# Init
 		super().__init__()
@@ -1608,7 +1627,7 @@ class StorageSettingsUI(tk.Toplevel):
 		# Path entry
 		self.path_frame.entry = ttk.Entry(self.path_frame, width = 50)
 		self.path_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
-		self.path_frame.entry.insert(0, sc4mp_config.data["STORAGE"]["storage_path"])
+		self.path_frame.entry.insert(0, sc4mp_config["STORAGE"]["storage_path"])
 		self.config_update.append((self.path_frame.entry, "storage_path"))
 
 		# Path browse button
@@ -1625,7 +1644,7 @@ class StorageSettingsUI(tk.Toplevel):
 
 		# Cache size entry
 		self.cache_size_frame.entry = ttk.Entry(self.cache_size_frame, width=10)
-		self.cache_size_frame.entry.insert(0, str(sc4mp_config.data["STORAGE"]["cache_size"]))
+		self.cache_size_frame.entry.insert(0, str(sc4mp_config["STORAGE"]["cache_size"]))
 		self.cache_size_frame.entry.grid(row=0, column=0, columnspan=1, padx=(10,0), pady=10, sticky="w")
 		self.config_update.append((self.cache_size_frame.entry, "cache_size"))
 
@@ -1662,14 +1681,22 @@ class StorageSettingsUI(tk.Toplevel):
 		for item in self.config_update:
 			data = item[0].get()
 			key = item[1]
-			sc4mp_config.data["STORAGE"][key] = data
+			if (key == "storage_path" and type(data) is str and not data == sc4mp_config["STORAGE"]["storage_path"]):
+				if (os.path.exists(os.path.join(data, "Plugins")) or os.path.exists(os.path.join(str(data), "Regions"))):
+					if (not messagebox.askokcancel(title=SC4MP_TITLE, message="The directory \"" + data + "\" already contains Simcity 4 user data. \n\nProceeding will result in the IRREVERSIBLE DELETION of these files! \n\nThis is your final warning, do you wish to proceed?", icon="warning")):
+						raise CustomException("Operation cancelled by user.")
+			update_config_value("STORAGE", key, data)
+		create_subdirectories
 		
 
 	def ok(self):
 		"""TODO"""
-		self.update()
-		sc4mp_config.update()
-		self.destroy()
+		try:
+			self.update()
+			sc4mp_config.update()
+			self.destroy()
+		except CustomException:
+			pass
 
 
 	def reset(self):
@@ -1688,7 +1715,7 @@ class SC4SettingsUI(tk.Toplevel):
 	def __init__(self):
 		"""TODO"""
 
-		print("Initializing...")
+		#print("Initializing...")
 
 		# Init
 		super().__init__()
@@ -1723,7 +1750,7 @@ class SC4SettingsUI(tk.Toplevel):
 		# Path entry
 		self.path_frame.entry = ttk.Entry(self.path_frame, width = 40)
 		self.path_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
-		self.path_frame.entry.insert(0, sc4mp_config.data["SC4"]["game_path"])
+		self.path_frame.entry.insert(0, sc4mp_config["SC4"]["game_path"])
 		self.config_update.append((self.path_frame.entry, "game_path"))
 
 		# Path browse button
@@ -1740,13 +1767,13 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# Resolution combo box
 		self.resolution_frame.combo_box = ttk.Combobox(self.resolution_frame, width=15)
-		self.resolution_frame.combo_box.insert(0, str(sc4mp_config.data["SC4"]["resw"]) + "x" + str(sc4mp_config.data["SC4"]["resh"]))
+		self.resolution_frame.combo_box.insert(0, str(sc4mp_config["SC4"]["resw"]) + "x" + str(sc4mp_config["SC4"]["resh"]))
 		self.resolution_frame.combo_box["values"] = ("800x600 (4:3)", "1024x768 (4:3)", "1280x1024 (4:3)", "1600x1200 (4:3)", "1280x800 (16:9)", "1440x900 (16:9)", "1680x1050 (16:9)", "1920x1080 (16:9)", "2048x1152 (16:9)")
 		self.resolution_frame.combo_box.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
 		self.config_update.append((self.resolution_frame.combo_box, "res"))
 
 		# Fullscreen checkbutton
-		self.resolution_frame.fullscreen_checkbutton_variable = tk.BooleanVar(value=sc4mp_config.data["SC4"]["fullscreen"])
+		self.resolution_frame.fullscreen_checkbutton_variable = tk.BooleanVar(value=sc4mp_config["SC4"]["fullscreen"])
 		self.resolution_frame.fullscreen_checkbutton = ttk.Checkbutton(self.resolution_frame, text="Fullscreen", onvalue=True, offvalue=False, variable=self.resolution_frame.fullscreen_checkbutton_variable)
 		self.resolution_frame.fullscreen_checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(14,25), sticky="w")
 		self.config_update.append((self.resolution_frame.fullscreen_checkbutton_variable, "fullscreen"))
@@ -1757,7 +1784,7 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# CPU count entry
 		self.cpu_count_frame.entry = ttk.Entry(self.cpu_count_frame, width = 10)
-		self.cpu_count_frame.entry.insert(0, str(sc4mp_config.data["SC4"]["cpu_count"]))
+		self.cpu_count_frame.entry.insert(0, str(sc4mp_config["SC4"]["cpu_count"]))
 		self.cpu_count_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
 		self.config_update.append((self.cpu_count_frame.entry, "cpu_count"))
 
@@ -1767,7 +1794,7 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# CPU priority entry
 		self.cpu_priority_frame.combo_box = ttk.Combobox(self.cpu_priority_frame, width = 8)
-		self.cpu_priority_frame.combo_box.insert(0, sc4mp_config.data["SC4"]["cpu_priority"])
+		self.cpu_priority_frame.combo_box.insert(0, sc4mp_config["SC4"]["cpu_priority"])
 		self.cpu_priority_frame.combo_box["values"] = ("low", "normal", "high")
 		self.cpu_priority_frame.combo_box.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
 		self.config_update.append((self.cpu_priority_frame.combo_box, "cpu_priority"))
@@ -1779,7 +1806,7 @@ class SC4SettingsUI(tk.Toplevel):
 		# Additional properties entry
 		self.additional_properties_frame.entry = ttk.Entry(self.additional_properties_frame, width = 30)
 		self.additional_properties_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
-		self.additional_properties_frame.entry.insert(0, sc4mp_config.data["SC4"]["additional_properties"])
+		self.additional_properties_frame.entry.insert(0, sc4mp_config["SC4"]["additional_properties"])
 		self.config_update.append((self.additional_properties_frame.entry, "additional_properties"))
 
 		# Reset/Preview frame
@@ -1822,10 +1849,10 @@ class SC4SettingsUI(tk.Toplevel):
 			if (key == "res"):
 				res = data.split(' ')[0]
 				resw, resh = res.split('x')
-				sc4mp_config.data["SC4"]["resw"] = resw
-				sc4mp_config.data["SC4"]["resh"] = resh
+				update_config_value("SC4", "resw", resw)
+				update_config_value("SC4", "resh", resh)
 			else:
-				sc4mp_config.data["SC4"][key] = data
+				update_config_value("SC4", key, data)
 		
 
 	def ok(self):
@@ -1853,7 +1880,7 @@ class SC4SettingsUI(tk.Toplevel):
 		sc4mp_ui.withdraw()
 
 		# Backup the current config data
-		config_data_backup = sc4mp_config.data["SC4"].copy()
+		config_data_backup = sc4mp_config["SC4"].copy()
 
 		# Update the config
 		self.update()
@@ -1866,7 +1893,7 @@ class SC4SettingsUI(tk.Toplevel):
 				show_warning('No Simcity 4 installation found. \n\nPlease provide the correct installation path.')
 				path = filedialog.askdirectory(parent=sc4mp_ui)
 				if (len(path) > 0):
-					sc4mp_config.data["SC4"]["game_path"] = path
+					sc4mp_config["SC4"]["game_path"] = path
 					self.path_frame.entry.delete(0, 'end')
 					self.path_frame.entry.insert(0, path)
 				else:
@@ -1890,7 +1917,7 @@ class SC4SettingsUI(tk.Toplevel):
 			show_error("An error occurred.\n\n" + str(e))
 
 		# Restore the old config data
-		sc4mp_config.data["SC4"] = config_data_backup
+		sc4mp_config["SC4"] = config_data_backup
 
 		# Show and lift the main ui and settings ui once the game has shutdown
 		sc4mp_ui.deiconify()
@@ -1905,7 +1932,7 @@ class HostUI(tk.Toplevel):
 	def __init__(self):
 		"""TODO"""
 
-		print("Initializing...")
+		#print("Initializing...")
 
 		# Create default server configuration
 		path = os.path.join("_Servers", "default")
@@ -2026,7 +2053,7 @@ class DirectConnectUI(tk.Toplevel):
 
 	def __init__(self):
 		
-		print("Initializing...")
+		#print("Initializing...")
 
 		# Init
 		super().__init__()
@@ -2059,7 +2086,7 @@ class DirectConnectUI(tk.Toplevel):
 
 		# Host Entry
 		self.host_entry = ttk.Entry(self, width=43)
-		self.host_entry.insert(0, sc4mp_config.data["GENERAL"]["default_host"])
+		self.host_entry.insert(0, sc4mp_config["GENERAL"]["default_host"])
 		self.host_entry.grid(row=0, column=1, columnspan=3, padx=10, pady=20, sticky="w")
 		self.host_entry.focus()
 
@@ -2069,7 +2096,7 @@ class DirectConnectUI(tk.Toplevel):
 
 		# Port Entry
 		self.port_entry = ttk.Entry(self, width=5)
-		self.port_entry.insert(0, sc4mp_config.data["GENERAL"]["default_port"])
+		self.port_entry.insert(0, sc4mp_config["GENERAL"]["default_port"])
 		self.port_entry.grid(row=1, column=1, columnspan=1, padx=10, pady=0, sticky="w")
 
 		# Connect/Cancel frame
@@ -2120,7 +2147,7 @@ class ServerListUI(tk.Frame):
 		"""TODO"""
 
 
-		print("Initializing...")
+		#print("Initializing...")
 
 
 		# Parameters
@@ -2214,7 +2241,7 @@ class ServerLoaderUI(tk.Toplevel):
 	def __init__(self, server):
 		"""TODO"""
 
-		print("Initializing...")
+		#print("Initializing...")
 
 		# Init
 		super().__init__()
@@ -2262,7 +2289,7 @@ class GameMonitorUI(tk.Toplevel):
 	def __init__(self):
 		"""TODO"""
 
-		print("Initializing...")
+		#print("Initializing...")
 
 		# Init
 		super().__init__()
@@ -2347,7 +2374,7 @@ class Logger():
 			color = '\033[90m '
 			TYPES_COLORS = [
 				("[INFO] ", '\033[90m '), #'\033[94m '
-				("[PROMPT]", '\033[1m '),
+				("[PROMPT]", '\033[01m '),
 				("[WARNING] ", '\033[93m '),
 				("[ERROR] ", '\033[91m '),
 				("[FATAL] ", '\033[91m ')
@@ -2361,7 +2388,7 @@ class Logger():
 					color = current_color
 					break
 			if (th.current_thread().getName() == "Main" and type == "[INFO] "):
-				color = '\033[0m '
+				color = '\033[00m '
 			
 			# Assemble
 			output = color + timestamp + label + type + message
