@@ -432,8 +432,14 @@ class Config:
 				try:
 					for item_name in section.keys():
 						try:
-							t = type(self.data[section_name][item_name])
-							self.data[section_name][item_name] = t(parser.get(section_name, item_name))
+							from_file = parser.get(section_name, item_name)
+							if (from_file == "True"):
+								self.data[section_name][item_name] = True
+							elif (from_file == "False"):
+								self.data[section_name][item_name] = False
+							else:
+								t = type(self.data[section_name][item_name])
+								self.data[section_name][item_name] = t(from_file)
 						except:
 							pass
 				except:
