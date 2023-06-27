@@ -128,7 +128,7 @@ def create_subdirectories():
 			open(noticepath, 'a').close()"""
 
 
-def connect(server):
+'''def connect(server):
 	"""TODO
 
 	Arguments:
@@ -166,7 +166,7 @@ def connect(server):
 			game_monitor = GameMonitor(None, server)
 			game_monitor.start()
 			start_sc4()
-			game_monitor.game_running = False
+			game_monitor.game_running = False'''
 
 
 def get_sc4_path():
@@ -450,9 +450,9 @@ class Config:
 		return self.data.__getitem__(key)
 
 
-	def __setitem__(self, key):
+	def __setitem__(self, key, value):
 		"""TODO"""
-		return self.data.__setitem__(key)
+		return self.data.__setitem__(key, value)
 
 
 	def update(self):
@@ -497,6 +497,7 @@ class Server:
 		self.server_id = self.request("server_id")
 		self.server_name = self.request("server_name")
 		self.server_description = self.request("server_description")
+		self.password_enabled = self.request("password_enabled")
 
 		#TODO add server host and port to serverlist?
 
@@ -550,7 +551,6 @@ class Server:
 		user_id = None
 		try:
 			user_id = entry["user_id"]
-			
 		except:
 			user_id = random_string(32)
 
@@ -611,7 +611,8 @@ class Server:
 			s.recv(SC4MP_BUFFER_SIZE)
 			end = time.time()
 			s.close()
-			return round(1000 * (end - start))
+			self.server_ping = round(1000 * (end - start))
+			return self.server_ping
 		except socket.error as e:
 			return None
 
@@ -684,6 +685,8 @@ class ServerLoader(th.Thread):
 
 				self.report("", 'Connecting to server at ' + str(host) + ":" + str(port) + '...')
 				self.fetch_server()
+				if (self.ui != None):
+					self.ui.title(self.server.server_name)
 
 				self.report("", 'Authenticating...')
 				self.authenticate()
@@ -767,8 +770,36 @@ class ServerLoader(th.Thread):
 
 	def authenticate(self):
 		"""TODO"""
+		tries = 0
+		while (not self.check_password()):
+			if (sc4mp_ui):
+				if (tries >= 5):
+					raise CustomException("Too many password attempts.")
+				PasswordDialogUI(self, tries)
+				time.sleep(1)
+				tries += 1
+			else:
+				raise CustomException("Incorrect password.")
 		self.server.authenticate()
 		
+
+	def check_password(self):
+		"""TODO"""
+		if (self.server.password_enabled):
+			if (self.server.password == None):
+				return False
+			s = self.create_socket()
+			self.ui.label['text'] = "Authenticating..."
+			s.send(b'check_password')
+			s.recv(SC4MP_BUFFER_SIZE)
+			s.send(self.server.password.encode())
+			if (s.recv(SC4MP_BUFFER_SIZE) == b'yes'):
+				return True
+			else:
+				return False
+		else:
+			return True
+
 
 	def load(self, type):
 		"""TODO"""
@@ -1055,6 +1086,7 @@ class GameMonitor(th.Thread):
 		self.ui = None
 		if (sc4mp_ui != None):
 			self.ui = GameMonitorUI()
+			self.ui.title(server.server_name)
 
 		self.game_launcher = GameLauncher()
 		self.game_launcher.start()
@@ -1072,9 +1104,13 @@ class GameMonitor(th.Thread):
 					ping = self.ping()
 					if (ping != None):
 						print("Ping: " + str(ping))
+						if (self.ui != None):
+							self.ui.ping_frame.right['text'] = str(ping)
 						#self.report_quietly("Connected to server. Monitoring for changes...")
 					else:
 						self.report(self.PREFIX + "[WARNING] ", "Disconnected.")
+						if (self.ui != None):
+							self.ui.ping_frame.right['text'] = "None"
 					new_city_paths, new_city_hashcodes = self.get_cities()
 					save_city_paths = []
 					#print("Old cities: " + str(self.city_paths))
@@ -1198,10 +1234,10 @@ class GameMonitor(th.Thread):
 		s.send(b"push_save")
 		s.recv(SC4MP_BUFFER_SIZE)
 
-		# Send password if required
-		if (self.server.password != None):
-			s.send(self.server.password.encode())
-			s.recv(SC4MP_BUFFER_SIZE)
+		# Send password if required #TODO
+		#if (self.server.password_enabled):
+		#	s.send(self.server.password.encode())
+		#	s.recv(SC4MP_BUFFER_SIZE)
 
 		# Send user id
 		s.send(self.server.user_id.encode())
@@ -1400,7 +1436,9 @@ class UI(tk.Tk):
 
 		# Key bindings
 
-		self.bind("<F1>", lambda event:self.direct_connect()) #TODO change?
+		self.bind("<F1>", lambda event:self.host())
+		self.bind("<F2>", lambda event:self.direct_connect())
+		self.bind("<F3>", lambda event:self.refresh())
 
 
 		# Menu
@@ -1422,7 +1460,7 @@ class UI(tk.Tk):
 		servers.add_command(label="Host...", command=self.host)
 		servers.add_separator()
 		servers.add_command(label="Connect...", command=self.direct_connect)  #"Direct connect..."
-		#servers.add_command(label="Refresh", command=self.to_implement) #TODO
+		servers.add_command(label="Refresh", command=self.refresh)
 		menu.add_cascade(label="Servers", menu=servers)  
 
 		help = Menu(menu, tearoff=0)  	
@@ -1452,18 +1490,6 @@ class UI(tk.Tk):
 		tk.messagebox.showerror(title=SC4MP_TITLE, message="This feature is incomplete and will be available in future versions of the client.")
 
 
-	def host(self):
-		"""TODO"""
-		print('"Host..."')
-		HostUI()
-
-
-	def direct_connect(self):
-		"""TODO"""
-		print('"Direct connect..."')
-		DirectConnectUI()
-
-
 	def general_settings(self):
 		print('"General settings..."')
 		GeneralSettingsUI()
@@ -1482,6 +1508,23 @@ class UI(tk.Tk):
 
 	def update(self):
 		webbrowser.open_new_tab("https://github.com/keggre/sc4mp-client/releases/")
+
+
+	def host(self):
+		"""TODO"""
+		print('"Host..."')
+		HostUI()
+
+
+	def direct_connect(self):
+		"""TODO"""
+		print('"Direct connect..."')
+		DirectConnectUI()
+
+
+	def refresh(self):
+		"""TODO"""
+		self.to_implement() #TODO
 
 
 	def readme(self):
@@ -1683,7 +1726,7 @@ class StorageSettingsUI(tk.Toplevel):
 			key = item[1]
 			if (key == "storage_path" and type(data) is str and not data == sc4mp_config["STORAGE"]["storage_path"]):
 				if (os.path.exists(os.path.join(data, "Plugins")) or os.path.exists(os.path.join(str(data), "Regions"))):
-					if (not messagebox.askokcancel(title=SC4MP_TITLE, message="The directory \"" + data + "\" already contains Simcity 4 user data. \n\nProceeding will result in the IRREVERSIBLE DELETION of these files! \n\nThis is your final warning, do you wish to proceed?", icon="warning")):
+					if (not messagebox.askokcancel(title=SC4MP_TITLE, message="The directory \"" + data + "\" already contains Simcity 4 user data. \n\nProceeding will result in the IRREVERSIBLE DELETION of these files! \n\nThis is your final warning, do you wish to proceed?", icon="warning")): #TODO make message box show yes/no and not ok/cancel
 						raise CustomException("Operation cancelled by user.")
 			update_config_value("STORAGE", key, data)
 		create_subdirectories
@@ -2132,6 +2175,93 @@ class DirectConnectUI(tk.Toplevel):
 			show_error(e)
 
 
+class PasswordDialogUI(tk.Toplevel):
+
+	
+	def __init__(self, server_loader, tries):
+		
+		print("Initializing...")
+
+		# Parameters
+		self.server_loader = server_loader
+		self.tries = tries
+
+		# Hide server loader
+		self.server_loader.ui.withdraw()
+
+		# Init
+		super().__init__()
+
+		# Title
+		self.title("" + self.server_loader.server.server_name + "")
+
+		# Icon
+		self.iconbitmap(SC4MP_ICON)
+
+		# Geometry
+		self.geometry('350x110')
+		self.maxsize(350, 110)
+		self.minsize(350, 110)
+		self.grid()
+		center_window(self)
+		
+		# Priority
+		self.grab_set()
+
+		# Key bindings
+		self.bind("<Return>", lambda event:self.ok())
+		self.bind("<Escape>", lambda event:self.cancel())
+
+		# Password label
+		self.password_label = ttk.Label(self, text="Password")
+		self.password_label.grid(row=0, column=0, columnspan=1, padx=10, pady=20)
+
+		# Password entry
+		self.password_entry = ttk.Entry(self, width=38)
+		#self.password_entry.insert(0, sc4mp_config["GENERAL"]["default_host"])
+		self.password_entry.grid(row=0, column=1, columnspan=3, padx=10, pady=20, sticky="w")
+		self.password_entry.config(show="*")
+		self.password_entry.focus()
+
+		# OK/Cancel frame
+		self.ok_cancel = tk.Frame(self)
+		self.ok_cancel.grid(row=1, column=3, sticky="e")
+
+		# OK button
+		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Ok", command=self.ok, default="active")
+		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=3, pady=5, sticky="w")
+
+		# Cancel button
+		self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.cancel)
+		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=7, pady=5, sticky="e")
+
+		# Update loop
+		self.wait = True
+		while (self.wait):
+			if (len(self.password_entry.get()) < 1):
+				self.ok_cancel.ok_button['state'] = tk.DISABLED
+			else:
+				self.ok_cancel.ok_button['state'] = tk.NORMAL
+			time.sleep(SC4MP_DELAY)
+
+
+	def ok(self):
+		"""TODO"""
+		password = self.password_entry.get()
+		if (len(password) > 0):
+			self.server_loader.server.password = password
+			self.wait = False
+			self.destroy()
+			self.server_loader.ui.deiconify()
+
+
+	def cancel(self):
+		"""TODO"""
+		self.server_loader.ui.destroy()
+		self.wait = False
+		self.destroy()
+
+
 class ServerListUI(tk.Frame):
 	"""ServerList UI wrapper.
 
@@ -2246,6 +2376,9 @@ class ServerLoaderUI(tk.Toplevel):
 		# Init
 		super().__init__()
 
+		# Title
+		self.title(server.host + ":" + str(server.port))
+
 		# Icon
 		self.iconbitmap(SC4MP_ICON)
 
@@ -2284,6 +2417,64 @@ class ServerLoaderUI(tk.Toplevel):
 
 class GameMonitorUI(tk.Toplevel):
 	"""TODO"""
+
+
+	def __init__(self):
+		"""TODO"""
+
+		print("Initializing...")
+
+		# Init
+		super().__init__()
+
+		# Title
+		self.title(SC4MP_TITLE)
+
+		# Icon
+		self.iconbitmap(SC4MP_ICON)
+
+		# Geometry
+		self.geometry("400x400")
+		self.minsize(400, 80)
+		self.maxsize(400, 80)
+		self.grid()
+
+		# Protocol
+		self.protocol("WM_DELETE_WINDOW", self.disable)
+
+		# Status frame
+		self.status_frame = tk.Frame(self)
+		self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+
+		# Status label left
+		self.status_frame.left = ttk.Label(self.status_frame, text="Status:")
+		self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
+
+		# Status label right
+		self.status_frame.right = ttk.Label(self.status_frame, text="")
+		self.status_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=10, sticky="w")
+		self.label = self.status_frame.right
+
+		# Ping frame
+		self.ping_frame = tk.Frame(self)
+		self.ping_frame.grid(column=0, row=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+
+		# Ping label left
+		self.ping_frame.left = ttk.Label(self.ping_frame, text="Ping:")
+		self.ping_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
+
+		# Ping label right
+		self.ping_frame.right = ttk.Label(self.ping_frame, text="")
+		self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+
+
+	def disable(self):
+		"""TODO"""
+		pass
+
+
+class GameOverlayUI(tk.Toplevel):
+	"""TODO"""
 	
 
 	def __init__(self):
@@ -2304,8 +2495,8 @@ class GameMonitorUI(tk.Toplevel):
 		# Label
 		self.label = ttk.Label(self, anchor="center")
 		self.label.grid(column=0, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="we")
-
 	
+
 	def overlay(self):
 		"""TODO"""
 		WIDTH = 100
