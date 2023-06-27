@@ -41,7 +41,10 @@ SC4MP_CONFIG_DEFAULTS = [
 	("GENERAL", [
 		("nickname", os.getlogin()),
 		("default_host", ""),
-		("default_port", SC4MP_PORT)
+		("default_port", SC4MP_PORT),
+		("use_overlay", 1),
+		("custom_plugins", False),
+		("custom_plugins_path", os.path.join(os.path.expanduser('~'),"Documents","SimCity 4","Plugins"))
 	]),
 	("STORAGE", [
 		("storage_path", os.path.join(os.path.expanduser('~'),"Documents","SimCity 4","_SC4MP") + "\\"),
@@ -114,7 +117,7 @@ def create_subdirectories():
 
 	print("Creating subdirectories...")
 
-	directories = ["_Cache", "_Profiles", "_Salvage", "Plugins", "Regions"] #"SC4MPBackups", os.path.join("_Cache","Plugins"), os.path.join("_Cache","Regions")]
+	directories = ["_Cache", "_Profiles", "_Salvage", "Plugins", os.path.join("Plugins", "server"), os.path.join("Plugins", "client"), "Regions"] #"SC4MPBackups", os.path.join("_Cache","Plugins"), os.path.join("_Cache","Regions")]
 
 	for directory in directories:
 		new_directory = os.path.join(SC4MP_LAUNCHPATH, directory)
@@ -503,7 +506,8 @@ class Server:
 		self.server_id = self.request("server_id")
 		self.server_name = self.request("server_name")
 		self.server_description = self.request("server_description")
-		self.password_enabled = self.request("password_enabled")
+		self.password_enabled = self.request("password_enabled") == "yes"
+		self.user_plugins_enabled = self.request("user_plugins_enabled") == "yes"
 
 		#TODO add server host and port to serverlist?
 
@@ -697,10 +701,10 @@ class ServerLoader(th.Thread):
 				self.report("", 'Authenticating...')
 				self.authenticate()
 
-				self.report("", "Loading plugins...")
+				self.report("", "Synchronizing plugins...")
 				self.load("plugins")
 
-				self.report("", "Loading regions...")
+				self.report("", "Synchronizing regions...")
 				self.load("regions")
 
 				self.report("", "Prepping regions...")
@@ -781,8 +785,9 @@ class ServerLoader(th.Thread):
 			if (sc4mp_ui):
 				if (tries >= 5):
 					raise CustomException("Too many password attempts.")
+				if (tries > 0):
+					time.sleep(3)
 				PasswordDialogUI(self, tries)
-				time.sleep(1)
 				tries += 1
 			else:
 				raise CustomException("Incorrect password.")
@@ -813,13 +818,13 @@ class ServerLoader(th.Thread):
 		# Select the destination directory according to the parameter
 		destination = None
 		if (type == "plugins"):
-			destination = "Plugins"
+			destination = os.path.join("Plugins", "server")
 		elif (type == "regions"):
 			destination = "Regions"
 		destination = os.path.join(SC4MP_LAUNCHPATH, destination)
 
 		# Purge the destination directory
-		self.report("", "Purging " + type + " directory...")
+		self.report("", 'Synchronizing ' + type + "...") #"", "Purging " + type + " directory...")
 		try:
 			purge_directory(destination)
 		except CustomException:
@@ -844,10 +849,18 @@ class ServerLoader(th.Thread):
 		size_downloaded = 0
 		for files_received in range(file_count):
 			percent = math.floor(100 * (size_downloaded / size))
-			self.report_progress('Downloading ' + type + "... (" + str(percent) + "%)", percent, 100)
+			self.report_progress('Synchronizing ' + type + "... (" + str(percent) + "%)", percent, 100)
 			s.send(SC4MP_SEPARATOR)
 			size_downloaded += self.receive_or_cached(s, destination)
-		self.report_progress('Downloading ' + type + "... (100%)", 100, 100)
+		self.report_progress('Synchronizing ' + type + "... (100%)", 100, 100)
+
+		# Copy custom plugins
+		self.report("", 'Synchronizing ' + type + "...")
+		client_plugins_destination = os.path.join(SC4MP_LAUNCHPATH, "Plugins", "client")
+		if (type == "plugins" and self.server.user_plugins_enabled and sc4mp_config["GENERAL"]["custom_plugins"]):
+			shutil.copytree(sc4mp_config["GENERAL"]["custom_plugins_path"], client_plugins_destination, dirs_exist_ok=True) #zzz_SC4MP
+		elif (type == "plugins"):
+			purge_directory(client_plugins_destination)
 
 		#print("done.")
 
@@ -1138,7 +1151,7 @@ class GameMonitor(th.Thread):
 									save_city_paths.append(new_city_path)
 						self.city_paths = new_city_paths
 						self.city_hashcodes = new_city_hashcodes
-						time.sleep(3)
+						time.sleep(10) #3 #TODO make configurable?
 					if (len(save_city_paths) > 0):
 						try:
 							self.push_save(save_city_paths)
@@ -1442,9 +1455,8 @@ class UI(tk.Tk):
 
 		# Key bindings
 
-		self.bind("<F1>", lambda event:self.host())
-		self.bind("<F2>", lambda event:self.direct_connect())
-		self.bind("<F3>", lambda event:self.refresh())
+		self.bind("<F1>", lambda event:self.direct_connect())
+		self.bind("<F2>", lambda event:self.host())
 
 
 		# Menu
@@ -1654,8 +1666,8 @@ class StorageSettingsUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry('400x400')
-		self.maxsize(450, 215)
-		self.minsize(450, 215)
+		self.maxsize(450, 250)
+		self.minsize(450, 250)
 		self.grid()
 		center_window(self)
 		
@@ -1684,7 +1696,7 @@ class StorageSettingsUI(tk.Toplevel):
 		self.path_frame.button.grid(row=0, column=1, columnspan=1, padx=10, pady=10)
 
 		# Path label
-		self.path_frame.label = ttk.Label(self.path_frame, text='Do NOT change this to your normal launch directory, or else your regions \nwill be deleted!')
+		self.path_frame.label = ttk.Label(self.path_frame, text='Do NOT change this to your normal launch directory, or else your plugins\n and regions will be deleted!')
 		self.path_frame.label.grid(row=1, column=0, columnspan=2, padx=10, pady=(0,10), sticky="w")
 
 		# Cache size frame
@@ -1700,6 +1712,10 @@ class StorageSettingsUI(tk.Toplevel):
 		# Cache size label
 		self.cache_size_frame.label = ttk.Label(self.cache_size_frame, text="mb")
 		self.cache_size_frame.label.grid(row=0, column=1, columnspan=1, padx=(2,10), pady=10, sticky="w")
+
+		# Clear cache button
+		self.cache_size_frame.button = ttk.Button(self.cache_size_frame, text="Clear cache", command=self.clear_cache)
+		self.cache_size_frame.button.grid(row=1, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="w")
 
 		# Reset button
 		self.reset_button = ttk.Button(self, text="Reset", command=self.reset)
@@ -1718,6 +1734,12 @@ class StorageSettingsUI(tk.Toplevel):
 		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
 
 
+	def clear_cache(self):
+		"""TODO"""
+		#if (messagebox.askokcancel(title=SC4MP_TITLE, message="Clear the download cache?", icon="warning")): #TODO make yes/no
+		purge_directory(os.path.join(SC4MP_LAUNCHPATH, "_Cache"))
+
+
 	def browse_path(self):
 		"""TODO"""
 		path = filedialog.askdirectory(parent=self)
@@ -1732,7 +1754,7 @@ class StorageSettingsUI(tk.Toplevel):
 			key = item[1]
 			if (key == "storage_path" and type(data) is str and not data == sc4mp_config["STORAGE"]["storage_path"]):
 				if (os.path.exists(os.path.join(data, "Plugins")) or os.path.exists(os.path.join(str(data), "Regions"))):
-					if (not messagebox.askokcancel(title=SC4MP_TITLE, message="The directory \"" + data + "\" already contains Simcity 4 user data. \n\nProceeding will result in the IRREVERSIBLE DELETION of these files! \n\nThis is your final warning, do you wish to proceed?", icon="warning")): #TODO make message box show yes/no and not ok/cancel
+					if (not messagebox.askokcancel(title=SC4MP_TITLE, message="The directory \"" + data + "\" already contains Simcity 4 plugins and regions. \n\nProceeding will result in the IRREVERSIBLE DELETION of these files! \n\nThis is your final warning, do you wish to proceed?", icon="warning")): #TODO make message box show yes/no and not ok/cancel
 						raise CustomException("Operation cancelled by user.")
 			update_config_value("STORAGE", key, data)
 		create_subdirectories
@@ -1750,7 +1772,7 @@ class StorageSettingsUI(tk.Toplevel):
 
 	def reset(self):
 		"""TODO"""
-		if (messagebox.askokcancel(title=SC4MP_TITLE, message="Revert settings to the default configuration?", icon="warning")):
+		if (messagebox.askokcancel(title=SC4MP_TITLE, message="Revert settings to the default configuration?", icon="warning")): #TODO make yes/no
 			self.destroy()
 			sc4mp_config.data.pop("STORAGE")
 			sc4mp_config.update()
