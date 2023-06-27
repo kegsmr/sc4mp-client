@@ -1151,7 +1151,7 @@ class GameMonitor(th.Thread):
 									save_city_paths.append(new_city_path)
 						self.city_paths = new_city_paths
 						self.city_hashcodes = new_city_hashcodes
-						time.sleep(10) #3 #TODO make configurable?
+						time.sleep(3) #10 #3 #TODO make configurable?
 					if (len(save_city_paths) > 0):
 						try:
 							self.push_save(save_city_paths)
