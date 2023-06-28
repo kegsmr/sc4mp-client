@@ -20,7 +20,7 @@ import webbrowser
 
 SC4MP_VERSION = (0,1,0)
 
-SC4MP_OFFICIAL_SERVERS = [("64.223.232.94", 7246)]
+SC4MP_OFFICIAL_SERVERS = [("64.223.232.94", 7240)]
 
 SC4MP_CONFIG_PATH = "config.ini"
 SC4MP_LOG_PATH = "sc4mpclient.log"
