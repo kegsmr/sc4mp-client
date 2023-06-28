@@ -30,7 +30,7 @@ SC4MP_TITLE = "SC4MP Launcher v" + str(SC4MP_VERSION[0]) + "." + str(SC4MP_VERSI
 SC4MP_ICON = os.path.join(SC4MP_RESOURCES_PATH, "icon.ico")
 
 SC4MP_HOST = socket.gethostname()
-SC4MP_PORT = 7246
+SC4MP_PORT = 7240
 
 SC4MP_SEPARATOR = b"<SEPARATOR>"
 SC4MP_BUFFER_SIZE = 4096
@@ -40,6 +40,8 @@ SC4MP_DELAY = .1
 SC4MP_CONFIG_DEFAULTS = [
 	("GENERAL", [
 		("nickname", os.getlogin()),
+		("use_custom_user_id", False),
+		("custom_user_id", ""),
 		("default_host", ""),
 		("default_port", SC4MP_PORT),
 		("use_overlay", 1),
@@ -177,6 +179,8 @@ def get_sc4_path():
 	possiblePaths = [
 		os.path.abspath(os.path.join("\\", "Program Files (x86)", "Steam", "steamapps", "common", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
 		os.path.abspath(os.path.join("\\", "Program Files", "Steam", "steamapps", "common", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
+		os.path.abspath(os.path.join("\\", "Program Files (x86)", "Origin Games", "SimCity 4 Deluxe Edition", "Apps", "SimCity 4.exe")),
+		os.path.abspath(os.path.join("\\", "Program Files", "Origin Games", "SimCity 4 Deluxe Edition", "Apps", "SimCity 4.exe")),
 		os.path.abspath(os.path.join("\\", "Program Files (x86)", "Maxis", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
 		os.path.abspath(os.path.join("\\", "Program Files", "Maxis", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
 		sc4mp_config['SC4']['game_path'],
@@ -330,7 +334,7 @@ def update_json(filename, data):
 		file.truncate()
 
 
-def show_error(e):
+def show_error(e, no_ui=False):
 	"""TODO"""
 	message = None
 	if (isinstance(e, str)):
@@ -338,12 +342,28 @@ def show_error(e):
 	else: 
 		message = str(e)
 
-	print("[ERROR] " + message)
+	print("[ERROR] " + message + "\n\n" + traceback.format_exc())
+
+	if (not no_ui):
+		if (sc4mp_ui != None):
+			if (sc4mp_ui == True):
+				tk.Tk().withdraw()
+			messagebox.showerror(SC4MP_TITLE, message)
+
+
+def fatal_error():
+	"""TODO"""
+
+	message = "A fatal error occurred.\n\n" + traceback.format_exc()
+
+	print("[FATAL] " + message)
 
 	if (sc4mp_ui != None):
 		if (sc4mp_ui == True):
 			tk.Tk().withdraw()
 		messagebox.showerror(SC4MP_TITLE, message)
+
+	sys.exit()
 
 
 def show_warning(e):
@@ -400,7 +420,7 @@ def update_config_value(section, item, value):
 		t = type(sc4mp_config[section][item])
 		sc4mp_config[section][item] = t(value)
 	except:
-		print("[ERROR] Invalid config value for \"" + item + "\" in section \"" + section + "\"")
+		show_error("Invalid config value for \"" + item + "\" in section \"" + section + "\"", no_ui=True)
 
 # Objects
 
@@ -529,7 +549,7 @@ class Server:
 			return s.recv(SC4MP_BUFFER_SIZE).decode()
 		except:
 			self.fetched = False
-			print('[ERROR] Error fetching "' + request + '" from ' + host + ":" + str(port) + '')
+			show_error('Error fetching "' + request + '" from ' + host + ":" + str(port) + '', no_ui=True)
 			return None
 
 
@@ -720,7 +740,7 @@ class ServerLoader(th.Thread):
 				if (self.ui != None and self.ui.winfo_exists() == 1):
 					show_error("An error occurred while connecting to the server.\n\n" + str(e))
 				else:
-					print("[ERROR] " + str(e))
+					show_error(e, no_ui=True)
 
 			#time.sleep(1)
 
@@ -786,6 +806,7 @@ class ServerLoader(th.Thread):
 				if (tries >= 5):
 					raise CustomException("Too many password attempts.")
 				if (tries > 0):
+					print("[WARNING] Incorrect password.")
 					time.sleep(3)
 				PasswordDialogUI(self, tries)
 				tries += 1
@@ -938,7 +959,7 @@ class ServerLoader(th.Thread):
 				
 				if (tries_left > 0):
 				
-					print("[ERROR] " + str(e))
+					show_error(e, no_ui=True)
 
 					count = 5
 					while(count > 0):
@@ -1114,32 +1135,67 @@ class GameMonitor(th.Thread):
 	def run(self):
 		"""TODO"""
 
+		# Catch all errors and show an error message
 		try:
 
+			# Declare variable to break loop after the game closes
 			end = False
+
+			# Set initial status in ui
 			self.report_quietly("Ready.") #"Monitoring for changes...")
+			
+			# Infinite loop that can be broken by the "end" variable
 			while (True):
+
+				# Catch all errors and show an error message in the console
 				try:
+
+					# Ping the server
 					ping = self.ping()
+
+					# If server is responsive
 					if (ping != None):
+
+						# Print the ping in the console
 						print("Ping: " + str(ping))
+						
+						# If runnning with ui
 						if (self.ui != None):
+
 							#if (self.ui.label["text"] == "Disconnected."):
 							#	self.ui.label["text"] = "Reconnected."
+							
+							# Display the ping in the ui
 							self.ui.ping_frame.right['text'] = str(ping) + "ms"
+
 						#self.report_quietly("Connected to server. Monitoring for changes...")
+					
+					# If server is unresponsive
 					else:
+
+						# Display a warning in the console
 						print("[WARNING] Disconnected.")
+
+						# If running with ui
 						if (self.ui != None):
+
+							# Update the ping text in the ui
 							self.ui.ping_frame.right['text'] = "Server unresponsive."
+
+					# Store current state of "Regions" directory in two local variables
 					new_city_paths, new_city_hashcodes = self.get_cities()
+					
+					# Declare local variable to store paths of savegames to push to the server
 					save_city_paths = []
+
+					# Print statements for debugging
 					#print("Old cities: " + str(self.city_paths))
 					#print("New cities: " + str(new_city_paths))
-					#for city_path in self.city_paths: #TODO
-					#	if (not city_path in new_city_paths): #TODO
-					#		self.push_delete(city_path) #TODO
+
+					# Declare local variable to store amount of altered savegame files detected in last pass
 					save_city_paths_length = -1
+
+					# Loop until the 
 					while (len(save_city_paths) != save_city_paths_length):
 						save_city_paths_length = len(save_city_paths)
 						for new_city_path in new_city_paths:
@@ -1154,21 +1210,24 @@ class GameMonitor(th.Thread):
 						self.city_paths = new_city_paths
 						self.city_hashcodes = new_city_hashcodes
 						time.sleep(6) #10 #3 #TODO make configurable?
+
+					
 					if (len(save_city_paths) > 0):
 						try:
 							self.push_save(save_city_paths)
 						except Exception as e:
-							print("[ERROR] " + str(e))
+							show_error(e, no_ui=True)
 							self.report("[WARNING] ", "Sync failed! Unexpected client-side error.")
 					if (end == True):
 						break
 					if (not self.game_launcher.game_running):
 						end = True
 					time.sleep(3)
+					
 					#TODO request update from server, download one new city (not owned by user and hashcode missing in local region files) and add it to self.city_paths, self.city_hashcodes so as to not send it right back to the server in a save push
 					#TODO maybe only do this one in every 10 times the loop runs (>30s)
 				except Exception as e:
-					print("[ERROR] " + str(e))
+					show_error(e, no_ui=True)
 					time.sleep(3)
 			if (self.ui != None):
 				self.ui.destroy()
@@ -1337,7 +1396,7 @@ class GameMonitor(th.Thread):
 				
 				if (tries_left > 0):
 				
-					print("[ERROR] " + str(e))
+					show_error(e, no_ui=True)
 
 					count = 5
 					while(count > 0):
@@ -1437,12 +1496,17 @@ class UI(tk.Tk):
 		super().__init__()
 
 
-		#Title
+		# Exceptions
+
+		self.report_callback_exception = self.show_error
+
+
+		# Title
 
 		self.title(SC4MP_TITLE)
 
 
-		#Icon
+		# Icon
 
 		self.wm_iconbitmap(SC4MP_ICON) #TODO looks bad
 		#TODO taskbar icon
@@ -1507,6 +1571,12 @@ class UI(tk.Tk):
 			self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Connect..." in the menu bar and enter the IP address and port of the server you wish to connect to.')
 			self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 	
+
+	def show_error(self, *args):
+		"""TODO"""
+		#show_error("An error occurred.\n\n" + traceback.format_exception(*args)[-1])
+		fatal_error()
+
 
 	def to_implement(self):
 		"""TODO"""
@@ -2703,7 +2773,8 @@ def main():
 	except Exception as e:
 
 		# Error 
-		show_error("A fatal error occurred.\n\n" + traceback.format_exc()) # Please send the following information to the developers of the " + SC4MP_TITLE + " so this can be resolved: #TODO add traceback
+		fatal_error()
+		#show_error("A fatal error occurred.\n\n" + str(e)) #traceback.format_exc() #Please send the following information to the developers of the " + SC4MP_TITLE + " so this can be resolved:
 
 if __name__ == '__main__':
 	main()
