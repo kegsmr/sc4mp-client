@@ -1153,90 +1153,100 @@ class GameMonitor(th.Thread):
 					# Ping the server
 					ping = self.ping()
 
-					# If server is responsive
+					# If the server is responsive print the ping in the console and display the ping in the ui
 					if (ping != None):
-
-						# Print the ping in the console
 						print("Ping: " + str(ping))
-						
-						# If runnning with ui
 						if (self.ui != None):
-
-							#if (self.ui.label["text"] == "Disconnected."):
-							#	self.ui.label["text"] = "Reconnected."
-							
-							# Display the ping in the ui
 							self.ui.ping_frame.right['text'] = str(ping) + "ms"
-
-						#self.report_quietly("Connected to server. Monitoring for changes...")
 					
-					# If server is unresponsive
+					# If the server is unresponsive print a warning in the console and update the ui accordingly
 					else:
-
-						# Display a warning in the console
 						print("[WARNING] Disconnected.")
-
-						# If running with ui
 						if (self.ui != None):
-
-							# Update the ping text in the ui
 							self.ui.ping_frame.right['text'] = "Server unresponsive."
 
-					# Store current state of "Regions" directory in two local variables
-					new_city_paths, new_city_hashcodes = self.get_cities()
+					#new_city_paths, new_city_hashcodes = self.get_cities()
 					
-					# Declare local variable to store paths of savegames to push to the server
+					# Array of savegames to push to the server
 					save_city_paths = []
 
 					# Print statements for debugging
 					#print("Old cities: " + str(self.city_paths))
 					#print("New cities: " + str(new_city_paths))
 
-					# Declare local variable to store amount of altered savegame files detected in last pass
+					# Will be used to store the amount of savegames detected in the previous iteration of the following while loop (-1 means the while loop will always run at least one time!)
 					save_city_paths_length = -1
 
-					# Loop until the 
+					# Loop until no new/modified savegames were found in the last iteration of the loop (meant to prevent fragmented save pushes, not the best solution because it relies somewhat on the loop delay)
 					while (len(save_city_paths) != save_city_paths_length):
+
+						# Update the new/modified savegame counter
 						save_city_paths_length = len(save_city_paths)
+
+						# Store the paths and hashcodes of savegames in the "Regions" directory to two local arrays
+						new_city_paths, new_city_hashcodes = self.get_cities() #TODO I think this should be here...?
+						
+						# Loop through the paths of the savegames currently found in the "Regions" directory
 						for new_city_path in new_city_paths:
+							
+							# If it's a new savegame, add it to the list of savegames to be pushed to the server
 							if (not new_city_path in self.city_paths):
 								save_city_paths.append(new_city_path)
+							
+							# If it's not a new savegame, check if it's a modified savegame. If so, add it to the same list
 							else:
 								city_hashcode = self.city_hashcodes[self.city_paths.index(new_city_path)]
 								new_city_hashcode = new_city_hashcodes[new_city_paths.index(new_city_path)]
 								if (city_hashcode != new_city_hashcode):
-									#print(city_hashcode + " != " + new_city_hashcode)
 									save_city_paths.append(new_city_path)
+
+						# For future comparisons
 						self.city_paths = new_city_paths
 						self.city_hashcodes = new_city_hashcodes
-						time.sleep(6) #10 #3 #TODO make configurable?
 
+						# Report waiting to sync if new/modified savegames found
+						if (len(save_city_paths) > 0):
+							self.report("", "Syncing...") #Scanning #Waiting to sync
+
+						# Wait
+						time.sleep(6) #10 #3 #TODO make configurable?
 					
+					# If there are any new/modified savegame files, push them to the server. If errors occur, log them in the console and display a warning
 					if (len(save_city_paths) > 0):
 						try:
 							self.push_save(save_city_paths)
 						except Exception as e:
 							show_error(e, no_ui=True)
 							self.report("[WARNING] ", "Sync failed! Unexpected client-side error.")
+
+					# Break the loop when signaled
 					if (end == True):
 						break
+
+					# Signal to break the loop when the game is no longer running
 					if (not self.game_launcher.game_running):
 						end = True
+
+					# Wait
 					time.sleep(3)
 					
 					#TODO request update from server, download one new city (not owned by user and hashcode missing in local region files) and add it to self.city_paths, self.city_hashcodes so as to not send it right back to the server in a save push
 					#TODO maybe only do this one in every 10 times the loop runs (>30s)
+				
 				except Exception as e:
 					show_error(e, no_ui=True)
 					time.sleep(3)
+			
+			# Destroy the game monitor ui if running
 			if (self.ui != None):
 				self.ui.destroy()
+
+			# Show the main ui once again
 			if (sc4mp_ui != None):
 				sc4mp_ui.deiconify()
 				sc4mp_ui.lift()
 
 		except Exception as e:
-
 			show_error(e)
 
 
