@@ -20,7 +20,7 @@ import webbrowser
 
 SC4MP_VERSION = (0,1,0)
 
-SC4MP_SERVERS = [("64.223.232.94", 7246)]
+SC4MP_OFFICIAL_SERVERS = [("64.223.232.94", 7246)]
 
 SC4MP_CONFIG_PATH = "config.ini"
 SC4MP_LOG_PATH = "sc4mpclient.log"
@@ -1117,19 +1117,21 @@ class GameMonitor(th.Thread):
 		try:
 
 			end = False
-			self.report_quietly("Connected.")
+			self.report_quietly("Ready.") #"Monitoring for changes...")
 			while (True):
 				try:
 					ping = self.ping()
 					if (ping != None):
 						print("Ping: " + str(ping))
 						if (self.ui != None):
-							self.ui.ping_frame.right['text'] = str(ping)
+							#if (self.ui.label["text"] == "Disconnected."):
+							#	self.ui.label["text"] = "Reconnected."
+							self.ui.ping_frame.right['text'] = str(ping) + "ms"
 						#self.report_quietly("Connected to server. Monitoring for changes...")
 					else:
-						self.report(self.PREFIX + "[WARNING] ", "Disconnected.")
+						print("[WARNING] Disconnected.")
 						if (self.ui != None):
-							self.ui.ping_frame.right['text'] = "None"
+							self.ui.ping_frame.right['text'] = "Server unresponsive."
 					new_city_paths, new_city_hashcodes = self.get_cities()
 					save_city_paths = []
 					#print("Old cities: " + str(self.city_paths))
@@ -1151,7 +1153,7 @@ class GameMonitor(th.Thread):
 									save_city_paths.append(new_city_path)
 						self.city_paths = new_city_paths
 						self.city_hashcodes = new_city_hashcodes
-						time.sleep(3) #10 #3 #TODO make configurable?
+						time.sleep(6) #10 #3 #TODO make configurable?
 					if (len(save_city_paths) > 0):
 						try:
 							self.push_save(save_city_paths)
@@ -1241,12 +1243,12 @@ class GameMonitor(th.Thread):
 		#	self.backup_city(save_city_path)
 
 		# Report progress: save
-		self.report(self.PREFIX, 'Pushing save...') #for "' + new_city_path + '"')
+		self.report(self.PREFIX, 'Syncing...') #Pushing save #for "' + new_city_path + '"')
 
 		# Create socket
 		s = self.create_socket()
 		if (s == None):
-			self.report(self.PREFIX, 'Unable to push save because the server is unreachable.') #'Unable to save the city "' + new_city + '" because the server is unreachable.'
+			self.report(self.PREFIX, 'Sync failed! Server unreachable.') #'Unable to save the city "' + new_city + '" because the server is unreachable.'
 			return
 
 		# Send save request
@@ -1316,7 +1318,9 @@ class GameMonitor(th.Thread):
 
 		s = socket.socket()
 
-		tries_left = 60
+		s.settimeout(10)
+
+		tries_left = 36
 
 		while(True):
 
@@ -1353,7 +1357,8 @@ class GameMonitor(th.Thread):
 	def send_file(self, s, filename):
 		"""TODO"""
 
-		self.report("", 'Sending file "' + filename + '"...')
+		self.report_quietly("Syncing...")
+		print('Sending file "' + filename + '"...')
 
 		filesize = os.path.getsize(filename)
 
