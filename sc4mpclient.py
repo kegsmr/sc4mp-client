@@ -862,6 +862,8 @@ class ServerLoader(th.Thread):
 		elif (type == "regions"):
 			destination = "Regions"
 		destination = os.path.join(SC4MP_LAUNCHPATH, destination)
+		if (not os.path.exists(destination)):
+			os.makedirs(destination)
 
 		# Synchronize or clear custom plugins
 		if (type == "plugins"):
