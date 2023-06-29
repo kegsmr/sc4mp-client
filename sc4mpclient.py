@@ -557,7 +557,7 @@ class Server:
 		"""TODO"""
 
 		# Get database
-		filename = os.path.join(SC4MP_LAUNCHPATH, os.path.join("_Profiles", "servers.json"))
+		filename = os.path.join(SC4MP_LAUNCHPATH, "_Profiles", "servers.json")
 		data = None
 		try:
 			data = load_json(filename)
@@ -981,7 +981,7 @@ class ServerLoader(th.Thread):
 
 		# Receive hashcode and set cache filename
 		hash = s.recv(SC4MP_BUFFER_SIZE).decode()
-		target = os.path.join(SC4MP_LAUNCHPATH, os.path.join("_Cache", hash))
+		target = os.path.join(SC4MP_LAUNCHPATH, "_Cache", hash)
 
 		# Separator
 		s.send(SC4MP_SEPARATOR)
@@ -1095,7 +1095,7 @@ class ServerLoader(th.Thread):
 
 			self.server.regions.append(directory)
 
-			config_path = os.path.join(path, os.path.join(directory, "region.ini"))
+			config_path = os.path.join(path, directory, "region.ini")
 			
 			try:
 				config = configparser.RawConfigParser()
@@ -1142,7 +1142,7 @@ class GameMonitor(th.Thread):
 			end = False
 
 			# Set initial status in ui
-			self.report_quietly("Ready.") #"Monitoring for changes...")
+			self.report_quietly("Welcome, start a city and save to claim a tile.") #Ready. #"Monitoring for changes...")
 			
 			# Infinite loop that can be broken by the "end" variable
 			while (True):
@@ -1206,7 +1206,7 @@ class GameMonitor(th.Thread):
 
 						# Report waiting to sync if new/modified savegames found
 						if (len(save_city_paths) > 0):
-							self.report("", "Syncing...") #Scanning #Waiting to sync
+							self.report("", "Saving...") #Scanning #Waiting to sync
 
 						# Wait
 						time.sleep(6) #10 #3 #TODO make configurable?
@@ -1217,7 +1217,7 @@ class GameMonitor(th.Thread):
 							self.push_save(save_city_paths)
 						except Exception as e:
 							show_error(e, no_ui=True)
-							self.report("[WARNING] ", "Sync failed! Unexpected client-side error.")
+							self.report("[WARNING] ", "Save push failed! Unexpected client-side error.")
 
 					# Break the loop when signaled
 					if (end == True):
@@ -1229,10 +1229,42 @@ class GameMonitor(th.Thread):
 
 					# Wait
 					time.sleep(3)
+
+					#TODO fix refresh
+					# Refresh by asking the server for the hashcodes of all its savegames (excluding ones already claimed by the user) and downloading the savegames missing locally, tossing them directly into the respective region (was supposed to work but Simcity 4 actually tries to keep files of the same checksum)
+					'''if (ping != None): #TODO add configurable refresh interval
+						old_text = self.ui.label["text"]
+						self.report("", "Refreshing...")
+						with self.create_socket() as s:
+							self.report("", "Refreshing...")
+							s.send(b'refresh')
+							s.recv(SC4MP_BUFFER_SIZE)
+							s.send(self.server.user_id.encode())
+							timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+							file_count = 0
+							while (True):
+								message = s.recv(SC4MP_BUFFER_SIZE).decode()
+								if (message == "done"):
+									break
+								else:
+									hashcode = message
+									#print(hashcode)
+									if (hashcode in self.city_hashcodes):
+										s.send(b'present')
+									else:
+										s.send(b'missing')
+										region = s.recv(SC4MP_BUFFER_SIZE).decode()
+										s.send(SC4MP_SEPARATOR)
+										destination = os.path.join(SC4MP_LAUNCHPATH, "Regions", region, "_refresh_" + timestamp + "_" + str(file_count) + ".sc4")
+										self.receive_file(s, destination)
+										self.city_paths.append(destination)
+										self.city_hashcodes.append(hashcode)
+										s.send(SC4MP_SEPARATOR)
+										file_count += 1
+							s.close()
+							print("- " + str(file_count) + " savegame(s) downloaded.")
+						self.ui.label["text"] = old_text'''
 					
-					#TODO request update from server, download one new city (not owned by user and hashcode missing in local region files) and add it to self.city_paths, self.city_hashcodes so as to not send it right back to the server in a save push
-					#TODO maybe only do this one in every 10 times the loop runs (>30s)
-				
 				except Exception as e:
 					show_error(e, no_ui=True)
 					time.sleep(3)
@@ -1300,7 +1332,29 @@ class GameMonitor(th.Thread):
 		else:
 			self.report(self.PREFIX, "Delete push not authorized") #TODO placeholder'''
 
-		
+	
+	def receive_file(self, s, filename):
+		"""TODO"""
+
+		filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+
+		print("Receiving " + str(filesize) + " bytes...")
+		print('writing to "' + filename + '"')
+
+		if (os.path.exists(filename)):
+			os.remove(filename)
+
+		filesize_read = 0
+		with open(filename, "wb") as f:
+			while (filesize_read < filesize):
+				bytes_read = s.recv(SC4MP_BUFFER_SIZE)
+				if not bytes_read:    
+					break
+				f.write(bytes_read)
+				filesize_read += len(bytes_read)
+				#print('Downloading "' + filename + '" (' + str(filesize_read) + " / " + str(filesize) + " bytes)...", int(filesize_read), int(filesize)) #os.path.basename(os.path.normpath(filename))
+
+
 	def push_save(self, save_city_paths):
 		"""TODO"""
 
@@ -1312,12 +1366,12 @@ class GameMonitor(th.Thread):
 		#	self.backup_city(save_city_path)
 
 		# Report progress: save
-		self.report(self.PREFIX, 'Syncing...') #Pushing save #for "' + new_city_path + '"')
+		self.report(self.PREFIX, 'Saving...') #Pushing save #for "' + new_city_path + '"')
 
 		# Create socket
 		s = self.create_socket()
 		if (s == None):
-			self.report(self.PREFIX, 'Sync failed! Server unreachable.') #'Unable to save the city "' + new_city + '" because the server is unreachable.'
+			self.report(self.PREFIX, 'Save push failed! Server unreachable.') #'Unable to save the city "' + new_city + '" because the server is unreachable.'
 			return
 
 		# Send save request
@@ -1362,9 +1416,9 @@ class GameMonitor(th.Thread):
 		# Handle response from server
 		response = s.recv(SC4MP_BUFFER_SIZE).decode()
 		if (response == "ok"):
-			self.report(self.PREFIX, "Synced.") #TODO keep track locally of the client's claims
+			self.report(self.PREFIX, "Saved successfully at " + datetime.now().strftime("%H:%M") + ".") #TODO keep track locally of the client's claims
 		else:
-			self.report(self.PREFIX + "[WARNING] ", "Sync failed! " + response)
+			self.report(self.PREFIX + "[WARNING] ", "Save push failed! " + response)
 
 		# Close socket
 		s.close()
@@ -1373,7 +1427,7 @@ class GameMonitor(th.Thread):
 	def backup_city(self, filename):
 		region = os.path.split(os.path.dirname(filename))[1]
 		city = os.path.split(filename)[1]
-		backup_directory = os.path.join(SC4MP_LAUNCHPATH, os.path.join("SC4MPBackups", os.path.join(self.server.server_id, os.path.join(region, city))))
+		backup_directory = os.path.join(SC4MP_LAUNCHPATH, "SC4MPBackups", self.server.server_id, region, city)
 		if (not os.path.exists(backup_directory)):
 			os.makedirs(backup_directory)
 		shutil.copy(filename, os.path.join(backup_directory, datetime.now().strftime("%Y%m%d%H%M%S") + ".sc4"))
@@ -1426,7 +1480,7 @@ class GameMonitor(th.Thread):
 	def send_file(self, s, filename):
 		"""TODO"""
 
-		self.report_quietly("Syncing...")
+		self.report_quietly("Saving...")
 		print('Sending file "' + filename + '"...')
 
 		filesize = os.path.getsize(filename)
@@ -2548,8 +2602,8 @@ class GameMonitorUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry("400x400")
-		self.minsize(400, 80)
-		self.maxsize(400, 80)
+		self.minsize(420, 80)
+		self.maxsize(420, 80)
 		self.grid()
 
 		# Protocol
