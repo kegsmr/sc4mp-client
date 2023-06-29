@@ -20,7 +20,7 @@ import webbrowser
 
 SC4MP_VERSION = (0,1,0)
 
-SC4MP_OFFICIAL_SERVERS = [("64.223.232.94", 7240)]
+SC4MP_OFFICIAL_SERVERS = [("sc4mp.org", 7240)]
 
 SC4MP_CONFIG_PATH = "config.ini"
 SC4MP_LOG_PATH = "sc4mpclient.log"
@@ -42,7 +42,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("nickname", os.getlogin()),
 		("use_custom_user_id", False),
 		("custom_user_id", ""),
-		("default_host", ""),
+		("default_host", "sc4mp.org"),
 		("default_port", SC4MP_PORT),
 		("use_overlay", 1),
 		("custom_plugins", False),
