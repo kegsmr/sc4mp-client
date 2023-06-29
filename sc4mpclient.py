@@ -422,6 +422,25 @@ def update_config_value(section, item, value):
 	except:
 		show_error("Invalid config value for \"" + item + "\" in section \"" + section + "\"", no_ui=True)
 
+
+def get_fullpaths_recursively(path):
+	"""TODO"""
+	fullpaths = []
+	for path, directories, files in os.walk(path):
+		for file in files:
+			fullpaths.append(os.path.join(path, file))
+	return fullpaths
+
+
+def get_relpaths_recursively(path):
+	"""TODO"""
+	fullpaths = get_fullpaths_recursively(path)
+	relpaths = []
+	for fullpath in fullpaths:
+		relpaths.append(os.path.relpath(fullpath, path))
+	return relpaths
+
+
 # Objects
 
 class Config:
@@ -844,6 +863,46 @@ class ServerLoader(th.Thread):
 			destination = "Regions"
 		destination = os.path.join(SC4MP_LAUNCHPATH, destination)
 
+		# Synchronize or clear custom plugins
+		if (type == "plugins"):
+			client_plugins_source = sc4mp_config["GENERAL"]["custom_plugins_path"]
+			client_plugins_destination = os.path.join(SC4MP_LAUNCHPATH, "Plugins", "client")
+			if (self.server.user_plugins_enabled and sc4mp_config["GENERAL"]["custom_plugins"]):
+				self.report("", "Synchronizing custom plugins...")
+				destination_relpaths = get_fullpaths_recursively(client_plugins_destination)
+				for relpath in destination_relpaths:
+					if (not os.path.exists(os.path.join(client_plugins_source, relpath))):
+						filename = os.path.join(client_plugins_destination, relpath)
+						print("- removing \"" + filename + "\"")
+						os.remove(filename)
+				source_relpaths = get_relpaths_recursively(client_plugins_source)
+				source_size = 1
+				for relpath in source_relpaths:
+					source_size += os.path.getsize(os.path.join(client_plugins_source, relpath))
+				destination_size = 1
+				for relpath in source_relpaths:
+					percent = math.floor(100 * (destination_size / source_size))
+					self.report_progress("Synchronizing custom plugins... (" + str(percent) + "%)", percent, 100)
+					s = os.path.join(client_plugins_source, relpath)
+					d = os.path.join(client_plugins_destination, relpath)
+					destination_size += os.path.getsize(s)
+					if (os.path.exists(d)):
+						if (md5(s) == md5(d)):
+							print("- verified \"" + d + "\"")
+							continue
+						else:
+							print("- removing \"" + d + "\"")
+							os.remove(d)
+					print("- copying \"" + s + "\"")
+					directory = os.path.split(d)[0]
+					if (not os.path.exists(directory)):
+						os.makedirs(directory)
+					shutil.copy(s, d)
+				#shutil.copytree(sc4mp_config["GENERAL"]["custom_plugins_path"], client_plugins_destination, dirs_exist_ok=True) #zzz_SC4MP
+			else:
+				self.report("", "Clearing custom plugins...")
+				purge_directory(client_plugins_destination)
+
 		# Purge the destination directory
 		self.report("", 'Synchronizing ' + type + "...") #"", "Purging " + type + " directory...")
 		try:
@@ -874,14 +933,6 @@ class ServerLoader(th.Thread):
 			s.send(SC4MP_SEPARATOR)
 			size_downloaded += self.receive_or_cached(s, destination)
 		self.report_progress('Synchronizing ' + type + "... (100%)", 100, 100)
-
-		# Copy custom plugins
-		self.report("", 'Synchronizing ' + type + "...")
-		client_plugins_destination = os.path.join(SC4MP_LAUNCHPATH, "Plugins", "client")
-		if (type == "plugins" and self.server.user_plugins_enabled and sc4mp_config["GENERAL"]["custom_plugins"]):
-			shutil.copytree(sc4mp_config["GENERAL"]["custom_plugins_path"], client_plugins_destination, dirs_exist_ok=True) #zzz_SC4MP
-		elif (type == "plugins"):
-			purge_directory(client_plugins_destination)
 
 		#print("done.")
 
