@@ -870,40 +870,46 @@ class ServerLoader(th.Thread):
 			client_plugins_source = sc4mp_config["GENERAL"]["custom_plugins_path"]
 			client_plugins_destination = os.path.join(SC4MP_LAUNCHPATH, "Plugins", "client")
 			if (self.server.user_plugins_enabled and sc4mp_config["GENERAL"]["custom_plugins"]):
-				self.report("", "Synchronizing custom plugins...")
-				destination_relpaths = get_fullpaths_recursively(client_plugins_destination)
-				for relpath in destination_relpaths:
-					if (not os.path.exists(os.path.join(client_plugins_source, relpath))):
-						filename = os.path.join(client_plugins_destination, relpath)
-						print("- removing \"" + filename + "\"")
-						os.remove(filename)
-				source_relpaths = get_relpaths_recursively(client_plugins_source)
-				source_size = 1
-				for relpath in source_relpaths:
-					source_size += os.path.getsize(os.path.join(client_plugins_source, relpath))
-				destination_size = 1
-				for relpath in source_relpaths:
-					percent = math.floor(100 * (destination_size / source_size))
-					self.report_progress("Synchronizing custom plugins... (" + str(percent) + "%)", percent, 100)
-					s = os.path.join(client_plugins_source, relpath)
-					d = os.path.join(client_plugins_destination, relpath)
-					destination_size += os.path.getsize(s)
-					if (os.path.exists(d)):
-						if (md5(s) == md5(d)):
-							print("- verified \"" + d + "\"")
-							continue
-						else:
-							print("- removing \"" + d + "\"")
-							os.remove(d)
-					print("- copying \"" + s + "\"")
-					directory = os.path.split(d)[0]
-					if (not os.path.exists(directory)):
-						os.makedirs(directory)
-					shutil.copy(s, d)
-				#shutil.copytree(sc4mp_config["GENERAL"]["custom_plugins_path"], client_plugins_destination, dirs_exist_ok=True) #zzz_SC4MP
+				try:
+					self.report("", "Synchronizing custom plugins...")
+					destination_relpaths = get_fullpaths_recursively(client_plugins_destination)
+					for relpath in destination_relpaths:
+						if (not os.path.exists(os.path.join(client_plugins_source, relpath))):
+							filename = os.path.join(client_plugins_destination, relpath)
+							print("- removing \"" + filename + "\"")
+							os.remove(filename)
+					source_relpaths = get_relpaths_recursively(client_plugins_source)
+					source_size = 1
+					for relpath in source_relpaths:
+						source_size += os.path.getsize(os.path.join(client_plugins_source, relpath))
+					destination_size = 1
+					for relpath in source_relpaths:
+						percent = math.floor(100 * (destination_size / source_size))
+						self.report_progress("Synchronizing custom plugins... (" + str(percent) + "%)", percent, 100)
+						s = os.path.join(client_plugins_source, relpath)
+						d = os.path.join(client_plugins_destination, relpath)
+						destination_size += os.path.getsize(s)
+						if (os.path.exists(d)):
+							if (md5(s) == md5(d)):
+								print("- verified \"" + d + "\"")
+								continue
+							else:
+								print("- removing \"" + d + "\"")
+								os.remove(d)
+						print("- copying \"" + s + "\"")
+						directory = os.path.split(d)[0]
+						if (not os.path.exists(directory)):
+							os.makedirs(directory)
+						shutil.copy(s, d)
+					#shutil.copytree(sc4mp_config["GENERAL"]["custom_plugins_path"], client_plugins_destination, dirs_exist_ok=True) #zzz_SC4MP
+				except:
+					raise CustomException("Unexpected error while loading custom plugins.")
 			else:
-				self.report("", "Clearing custom plugins...")
-				purge_directory(client_plugins_destination)
+				try:
+					self.report("", "Clearing custom plugins...")
+					purge_directory(client_plugins_destination)
+				except:
+					raise CustomException("Simcity 4 is already running!")
 
 		# Purge the destination directory
 		self.report("", 'Synchronizing ' + type + "...") #"", "Purging " + type + " directory...")
@@ -1642,7 +1648,7 @@ class UI(tk.Tk):
 		# Key bindings
 
 		self.bind("<F1>", lambda event:self.direct_connect())
-		self.bind("<F2>", lambda event:self.host())
+		#self.bind("<F2>", lambda event:self.host()) #TODO
 
 
 		# Menu
@@ -1661,10 +1667,10 @@ class UI(tk.Tk):
 
 		servers = Menu(menu, tearoff=0)  
 		
-		servers.add_command(label="Host...", command=self.host)
-		servers.add_separator()
+		#servers.add_command(label="Host...", command=self.host) #TODO
+		#servers.add_separator() #TODO
 		servers.add_command(label="Connect...", command=self.direct_connect)  #"Direct connect..."
-		servers.add_command(label="Refresh", command=self.refresh)
+		#servers.add_command(label="Refresh", command=self.refresh) #TODO
 		menu.add_cascade(label="Servers", menu=servers)  
 
 		help = Menu(menu, tearoff=0)  	
