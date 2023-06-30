@@ -870,45 +870,45 @@ class ServerLoader(th.Thread):
 			client_plugins_source = sc4mp_config["GENERAL"]["custom_plugins_path"]
 			client_plugins_destination = os.path.join(SC4MP_LAUNCHPATH, "Plugins", "client")
 			if (self.server.user_plugins_enabled and sc4mp_config["GENERAL"]["custom_plugins"]):
-				try:
-					self.report("", "Synchronizing custom plugins...")
-					destination_relpaths = get_fullpaths_recursively(client_plugins_destination)
-					for relpath in destination_relpaths:
-						if (not os.path.exists(os.path.join(client_plugins_source, relpath))):
-							filename = os.path.join(client_plugins_destination, relpath)
-							print("- removing \"" + filename + "\"")
-							os.remove(filename)
-					source_relpaths = get_relpaths_recursively(client_plugins_source)
-					source_size = 1
-					for relpath in source_relpaths:
-						source_size += os.path.getsize(os.path.join(client_plugins_source, relpath))
-					destination_size = 1
-					for relpath in source_relpaths:
-						percent = math.floor(100 * (destination_size / source_size))
-						self.report_progress("Synchronizing custom plugins... (" + str(percent) + "%)", percent, 100)
-						s = os.path.join(client_plugins_source, relpath)
-						d = os.path.join(client_plugins_destination, relpath)
-						destination_size += os.path.getsize(s)
-						if (os.path.exists(d)):
-							if (md5(s) == md5(d)):
-								print("- verified \"" + d + "\"")
-								continue
-							else:
-								print("- removing \"" + d + "\"")
-								os.remove(d)
-						print("- copying \"" + s + "\"")
-						directory = os.path.split(d)[0]
-						if (not os.path.exists(directory)):
-							os.makedirs(directory)
-						shutil.copy(s, d)
-					#shutil.copytree(sc4mp_config["GENERAL"]["custom_plugins_path"], client_plugins_destination, dirs_exist_ok=True) #zzz_SC4MP
-				except:
-					raise CustomException("Unexpected error while loading custom plugins.")
+				#try:
+				self.report("", "Synchronizing custom plugins...")
+				destination_relpaths = get_fullpaths_recursively(client_plugins_destination)
+				for relpath in destination_relpaths:
+					if (not os.path.exists(os.path.join(client_plugins_source, relpath))):
+						filename = os.path.join(client_plugins_destination, relpath)
+						print("- removing \"" + filename + "\"")
+						os.remove(u"\\\\?\\" + filename)
+				source_relpaths = get_relpaths_recursively(client_plugins_source)
+				source_size = 1
+				for relpath in source_relpaths:
+					source_size += os.path.getsize(u"\\\\?\\" + os.path.join(client_plugins_source, relpath))
+				destination_size = 1
+				for relpath in source_relpaths:
+					percent = math.floor(100 * (destination_size / source_size))
+					self.report_progress("Synchronizing custom plugins... (" + str(percent) + "%)", percent, 100)
+					s = u"\\\\?\\" + os.path.join(client_plugins_source, relpath)
+					d = u"\\\\?\\" + os.path.join(client_plugins_destination, relpath)
+					destination_size += os.path.getsize(s)
+					if (os.path.exists(d)):
+						if (md5(s) == md5(d)):
+							print("- verified \"" + d + "\"")
+							continue
+						else:
+							print("- removing \"" + d + "\"")
+							os.remove(d)
+					print("- copying \"" + s + "\"")
+					directory = os.path.split(d)[0]
+					if (not os.path.exists(directory)):
+						os.makedirs(directory)
+					shutil.copy(s, d)
+				#shutil.copytree(sc4mp_config["GENERAL"]["custom_plugins_path"], client_plugins_destination, dirs_exist_ok=True) #zzz_SC4MP
+				#except:
+				#	raise CustomException("Unexpected error while loading custom plugins.")
 			else:
 				try:
 					self.report("", "Clearing custom plugins...")
 					purge_directory(client_plugins_destination)
-				except:
+				except CustomException:
 					raise CustomException("Simcity 4 is already running!")
 
 		# Purge the destination directory
