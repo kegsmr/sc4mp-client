@@ -42,8 +42,8 @@ SC4MP_CONFIG_DEFAULTS = [
 		("nickname", os.getlogin()),
 		#("use_custom_user_id", False), #TODO
 		#("custom_user_id", ""), #TODO
-		("default_host", "sc4mp.org"),
-		("default_port", SC4MP_PORT),
+		("default_host", SC4MP_OFFICIAL_SERVERS[0][0]),
+		("default_port", SC4MP_OFFICIAL_SERVERS[0][1]),
 		#("use_overlay", 1), #TODO
 		("custom_plugins", False),
 		("custom_plugins_path", os.path.join(os.path.expanduser('~'),"Documents","SimCity 4","Plugins"))
