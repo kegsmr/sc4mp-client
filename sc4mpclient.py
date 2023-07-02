@@ -20,17 +20,25 @@ from tkinter import Menu, filedialog, messagebox, ttk
 
 SC4MP_VERSION = (0,1,0)
 
-SC4MP_OFFICIAL_SERVERS = [("servers.sc4mp.org", 7240)]
+SC4MP_SERVERS = [("servers.sc4mp.org", 7240)]
+
+SC4MP_URL = "https://sc4mp.org/"
+SC4MP_RELEASES_URL = "https://github.com/keggre/sc4mp-client/releases/"
+SC4MP_FEEDBACK_LINKS = [
+	("Github...", "https://github.com/keggre/sc4mp-client/issues/"),
+	("Discord...", "https://discord.gg/zb8gW2aARY"),
+]
 
 SC4MP_CONFIG_PATH = "config.ini"
 SC4MP_LOG_PATH = "sc4mpclient.log"
+SC4MP_README_PATH = "readme.html"
 SC4MP_RESOURCES_PATH = "resources"
 
 SC4MP_TITLE = "SC4MP Launcher v" + str(SC4MP_VERSION[0]) + "." + str(SC4MP_VERSION[1]) + "." + str(SC4MP_VERSION[2])
 SC4MP_ICON = os.path.join(SC4MP_RESOURCES_PATH, "icon.ico")
 
-SC4MP_HOST = SC4MP_OFFICIAL_SERVERS[0][0] #socket.gethostname()
-SC4MP_PORT = SC4MP_OFFICIAL_SERVERS[0][1] #7240
+SC4MP_HOST = SC4MP_SERVERS[0][0] #socket.gethostname()
+SC4MP_PORT = SC4MP_SERVERS[0][1] #7240
 
 SC4MP_SEPARATOR = b"<SEPARATOR>"
 SC4MP_BUFFER_SIZE = 4096
@@ -1661,15 +1669,17 @@ class UI(tk.Tk):
 
 		menu = Menu(self)  
 		
-		settings = Menu(menu, tearoff=0)  
-		settings.add_command(label="General...", command=self.general_settings)     
-		settings.add_command(label="Storage...", command=self.storage_settings)    
-		settings.add_command(label="SC4...", command=self.SC4_settings)  
-		settings.add_separator()
-		settings.add_command(label="Updates...", command=self.update) 
-		settings.add_separator()
-		settings.add_command(label="Exit", command=self.quit)  
-		menu.add_cascade(label="Settings", menu=settings)  #TODO rename to "Launcher" and put settings in cascade?
+		launcher = Menu(menu, tearoff=0)  
+		settings_submenu = Menu(menu, tearoff=0)
+		settings_submenu.add_command(label="General...", command=self.general_settings)     
+		settings_submenu.add_command(label="Storage...", command=self.storage_settings)    
+		settings_submenu.add_command(label="SC4...", command=self.SC4_settings)
+		launcher.add_cascade(label="Settings", menu=settings_submenu) 
+		launcher.add_separator()
+		launcher.add_command(label="Updates...", command=lambda:webbrowser.open_new_tab(SC4MP_RELEASES_URL)) 
+		launcher.add_separator()
+		launcher.add_command(label="Exit", command=self.quit)  
+		menu.add_cascade(label="Launcher", menu=launcher)  #TODO rename to "Launcher" and put settings in cascade?
 
 		servers = Menu(menu, tearoff=0)  
 		
@@ -1680,12 +1690,15 @@ class UI(tk.Tk):
 		menu.add_cascade(label="Servers", menu=servers)  
 
 		help = Menu(menu, tearoff=0)  	
-		help.add_command(label="Readme...", command=self.readme) 
+		help.add_command(label="About...", command=self.about)
+		help.add_command(label="Readme...", command=self.readme)
+		help.add_separator()
 		feedback_submenu = Menu(help, tearoff=0)
-		feedback_submenu.add_command(label="Github...", command=self.github)
-		feedback_submenu.add_command(label="Discord...", command=self.discord)
-		#feedback_submenu.add_command(label="Simtropolis", command=self.simtropolis)
-		help.add_cascade(label="Feedback", menu=feedback_submenu)  
+		feedback_submenu.add_command(label=SC4MP_FEEDBACK_LINKS[0][0], command=lambda:webbrowser.open_new_tab(SC4MP_FEEDBACK_LINKS[0][1]))
+		feedback_submenu.add_command(label=SC4MP_FEEDBACK_LINKS[1][0], command=lambda:webbrowser.open_new_tab(SC4MP_FEEDBACK_LINKS[1][1]))
+		#for link in SC4MP_FEEDBACK_LINKS:
+		#	feedback_submenu.add_command(label=link[0], command=lambda:webbrowser.open_new_tab(link[1])) #TODO why does the github button open discord?
+		help.add_cascade(label="Feedback", menu=feedback_submenu)
 		menu.add_cascade(label="Help", menu=help)  
 		
 		self.config(menu=menu)  
@@ -1728,8 +1741,8 @@ class UI(tk.Tk):
 		SC4SettingsUI()
 
 
-	def update(self):
-		webbrowser.open_new_tab("https://github.com/keggre/sc4mp-client/releases/")
+	#def update(self):
+	#	webbrowser.open_new_tab("https://github.com/keggre/sc4mp-client/releases/")
 
 
 	def host(self):
@@ -1749,19 +1762,25 @@ class UI(tk.Tk):
 		self.to_implement() #TODO
 
 
+	def about(self):
+		"""TODO"""
+		self.to_implement()
+		#AboutUI()
+
+
 	def readme(self):
 		"""TODO"""
-		webbrowser.open_new_tab("Readme.html")
+		webbrowser.open_new_tab(SC4MP_README_PATH)
 
 
-	def github(self):
-		"""TODO"""
-		webbrowser.open_new_tab("https://github.com/keggre/sc4mp-client/issues")
+	#def github(self):
+	#	"""TODO"""
+	#	webbrowser.open_new_tab("https://github.com/keggre/sc4mp-client/issues")
 
 
-	def discord(self):
-		"""TODO"""
-		webbrowser.open_new_tab("https://discord.gg/zb8gW2aARY")
+	#def discord(self):
+	#	"""TODO"""
+	#	webbrowser.open_new_tab("https://discord.gg/zb8gW2aARY")
 
 
 class GeneralSettingsUI(tk.Toplevel):
@@ -2848,8 +2867,6 @@ def main():
 
 		# Title
 		print(SC4MP_TITLE)
-
-		print(sc4mp_args)
 
 		# "-no-ui" argument
 		global sc4mp_ui
