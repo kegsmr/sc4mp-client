@@ -454,6 +454,20 @@ def get_arg_value(arg, args):
 	return args[args.index(arg) + 1]
 
 
+def request_header(s, server):
+	"""TODO"""
+
+	s.recv(SC4MP_BUFFER_SIZE)
+	s.send((str(SC4MP_VERSION[0]) + "." + str(SC4MP_VERSION[1]) + "." + str(SC4MP_VERSION[2])).encode())
+
+	if (server.password_enabled):
+		s.recv(SC4MP_BUFFER_SIZE)
+		s.send(server.password.encode())
+
+	s.recv(SC4MP_BUFFER_SIZE)
+	s.send(server.user_id.encode())
+
+
 # Objects
 
 class Config:
@@ -643,8 +657,7 @@ class Server:
 		s = socket.socket()
 		s.connect((self.host, self.port))
 		s.send(b"token")
-		s.recv(SC4MP_BUFFER_SIZE)
-		s.send(user_id.encode())
+		request_header(s, self)
 		token = s.recv(SC4MP_BUFFER_SIZE).decode()
 
 		# Raise exception if no token is received
@@ -937,6 +950,9 @@ class ServerLoader(th.Thread):
 
 		# Request the type of data
 		s.send(type.encode())
+
+		# Request header
+		request_header(s, self.server)
 
 		# Receive file count
 		file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
@@ -1311,6 +1327,7 @@ class GameMonitor(th.Thread):
 						with self.create_socket() as s:
 							self.report("", "Refreshing...")
 							s.send(b'refresh')
+							request_header(s, self.server)
 							s.recv(SC4MP_BUFFER_SIZE)
 							s.send(self.server.user_id.encode())
 							timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -1448,16 +1465,8 @@ class GameMonitor(th.Thread):
 			return
 
 		# Send save request
-		s.send(b"push_save")
-		s.recv(SC4MP_BUFFER_SIZE)
-
-		# Send password if required #TODO
-		#if (self.server.password_enabled):
-		#	s.send(self.server.password.encode())
-		#	s.recv(SC4MP_BUFFER_SIZE)
-
-		# Send user id
-		s.send(self.server.user_id.encode())
+		s.send(b"save")
+		request_header(s, self.server)
 		s.recv(SC4MP_BUFFER_SIZE)
 
 		# Send file count
