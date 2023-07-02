@@ -1,22 +1,22 @@
 import configparser
 import hashlib
+import inspect
+import json
+import math
 import os
+import random
 import shutil
 import socket
+import string
 import subprocess
 import sys
 import threading as th
 import time
 import tkinter as tk
-from datetime import datetime
-from tkinter import Menu, messagebox, ttk, filedialog
-import json
-import random
-import string
-import math
-import inspect
 import traceback
 import webbrowser
+from datetime import datetime
+from tkinter import Menu, filedialog, messagebox, ttk
 
 SC4MP_VERSION = (0,1,0)
 
