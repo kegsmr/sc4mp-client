@@ -47,14 +47,14 @@ SC4MP_DELAY = .1
 
 SC4MP_CONFIG_DEFAULTS = [
 	("GENERAL", [
-		("nickname", os.getlogin()),
+		("nickname", os.getlogin()), #TODO unused
 		#("use_custom_user_id", False), #TODO
 		#("custom_user_id", ""), #TODO
 		("default_host", SC4MP_HOST),
 		("default_port", SC4MP_PORT),
 		#("use_overlay", 1), #TODO
-		("custom_plugins", False),
-		("custom_plugins_path", os.path.join(os.path.expanduser('~'),"Documents","SimCity 4","Plugins"))
+		("custom_plugins", False), #TODO needs to be added in ui 
+		("custom_plugins_path", os.path.join(os.path.expanduser('~'),"Documents","SimCity 4","Plugins")) #TODO needs to be added in ui 
 	]),
 	("STORAGE", [
 		("storage_path", os.path.join(os.path.expanduser('~'),"Documents","SimCity 4","_SC4MP") + "\\"),
