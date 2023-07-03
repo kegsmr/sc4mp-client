@@ -1248,6 +1248,18 @@ class ServerLoader(th.Thread):
 			except:
 				show_error("Failed to prep region config for " + directory + ".")
 
+		downloads_path = os.path.join(path, "downloads")
+		if (not os.path.exists(downloads_path)):
+			os.makedirs(downloads_path)
+		try:
+			salvage_directory = os.path.join(SC4MP_LAUNCHPATH, "_Salvage", self.server.server_id)
+			save_directory = os.path.join(salvage_directory, os.listdir(salvage_directory)[-1])
+			region_directory = os.path.join(save_directory, os.listdir(save_directory)[0])
+			for filename in os.listdir(region_directory):
+				shutil.copy(os.path.join(region_directory, filename), os.path.join(downloads_path, filename))
+		except Exception as e:
+			show_error(e, no_ui=True)
+
 		#shutil.unpack_archive(get_sc4mp_path("Regions.zip"), path) #TODO maybe re-enable this at some point?
 
 
@@ -1511,6 +1523,16 @@ class GameMonitor(th.Thread):
 		# Report progress: save
 		self.report(self.PREFIX, 'Saving...') #Pushing save #for "' + new_city_path + '"')
 
+		# Salvage
+		salvage_directory = os.path.join(SC4MP_LAUNCHPATH, "_Salvage", self.server.server_id, datetime.now().strftime("%Y%m%d%H%M%S"))
+		for path in save_city_paths:
+			relpath = os.path.relpath(path, os.path.join(SC4MP_LAUNCHPATH, "Regions"))
+			filename = os.path.join(salvage_directory, relpath)
+			directory = os.path.split(filename)[0]
+			if (not os.path.exists(directory)):
+				os.makedirs(directory)
+			shutil.copy(path, filename)
+
 		# Create socket
 		s = self.create_socket()
 		if (s == None):
@@ -1552,6 +1574,7 @@ class GameMonitor(th.Thread):
 		response = s.recv(SC4MP_BUFFER_SIZE).decode()
 		if (response == "ok"):
 			self.report(self.PREFIX, "Saved successfully at " + datetime.now().strftime("%H:%M") + ".") #TODO keep track locally of the client's claims
+			shutil.rmtree(salvage_directory) #TODO make configurable
 		else:
 			self.report(self.PREFIX + "[WARNING] ", "Save push failed! " + response)
 
