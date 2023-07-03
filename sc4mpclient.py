@@ -2886,7 +2886,7 @@ def main():
 			if (sc4mp_host == None or sc4mp_port == None):
 				print("[PROMPT] Connect to server:")
 			if (sc4mp_host == None):
-				sc4mp_host = input("[PROMPT] - Enter server IP... ")
+				sc4mp_host = input("[PROMPT] - Enter server address... ")
 			if (sc4mp_port == None):
 				sc4mp_port = int(input("[PROMPT] - Enter server port... "))
 			ServerLoader(None, Server(sc4mp_host, sc4mp_port)).run()
