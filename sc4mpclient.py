@@ -845,7 +845,8 @@ class ServerLoader(th.Thread):
 			if (self.server.password == None):
 				return False
 			s = self.create_socket()
-			self.ui.label['text'] = "Authenticating..."
+			if (self.ui != None):
+				self.ui.label['text'] = "Authenticating..."
 			s.send(b'check_password')
 			s.recv(SC4MP_BUFFER_SIZE)
 			s.send(self.server.password.encode())
@@ -2871,6 +2872,15 @@ def main():
 				sc4mp_port = int(get_arg_value("--port", sc4mp_args))
 			except:
 				raise CustomException("Invalid arguments.")
+			
+		# "--password" argument
+		global sc4mp_password
+		sc4mp_password = None
+		if ("--password" in sc4mp_args):
+			try:
+				sc4mp_password = int(get_arg_value("--password", sc4mp_args))
+			except:
+				raise CustomException("Invalid arguments.")
 
 		# Prep
 		prep()
@@ -2879,7 +2889,9 @@ def main():
 		if (sc4mp_ui):
 			sc4mp_ui = UI()
 			if (sc4mp_host != None and sc4mp_port != None):
-				ServerLoaderUI(Server(sc4mp_host, sc4mp_port))
+				server = Server(sc4mp_host, sc4mp_port)
+				server.password = sc4mp_password
+				ServerLoaderUI(server)
 			sc4mp_ui.mainloop()
 		else:
 			sc4mp_ui = None
@@ -2889,7 +2901,12 @@ def main():
 				sc4mp_host = input("[PROMPT] - Enter server address... ")
 			if (sc4mp_port == None):
 				sc4mp_port = int(input("[PROMPT] - Enter server port... "))
-			ServerLoader(None, Server(sc4mp_host, sc4mp_port)).run()
+			server = Server(sc4mp_host, sc4mp_port)
+			server.fetch()
+			if (sc4mp_password == None and server.password_enabled):
+				sc4mp_password = input("[PROMPT] - Enter server password... ")
+			server.password = sc4mp_password
+			ServerLoader(None, server).run()
 
 	except Exception as e:
 
