@@ -533,6 +533,8 @@ class Config:
 								self.data[section_name][item_name] = True
 							elif (from_file == "False"):
 								self.data[section_name][item_name] = False
+							elif (from_file == "None"):
+								self.data[section_name][item_name] = None
 							else:
 								t = type(self.data[section_name][item_name])
 								self.data[section_name][item_name] = t(from_file)
