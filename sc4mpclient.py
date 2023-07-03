@@ -441,6 +441,11 @@ def get_relpaths_recursively(path):
 	return relpaths
 
 
+def get_arg_value(arg, args):
+	"""TODO"""
+	return args[args.index(arg) + 1]
+
+
 # Objects
 
 class Config:
@@ -2824,45 +2829,6 @@ class Logger():
 
 # Main Method
 
-'''def cmd(): #TODO incorporate this into the main method but enable this functionality using commandline arguments
-	"""This method is meant to be run in a terminal instead of the main method for testing purposes.
-
-	Arguments:
-		None
-
-	Returns:
-		None
-	"""
-
-	sys.stdout = Logger()
-
-	print(SC4MP_TITLE)
-
-	prep()
-
-	print("[PROMPT] Connect to server:")
-
-	host = input("[PROMPT] - Enter server IP... ")
-	port = input("[PROMPT] - Enter server port... ")
-
-	if (len(host) < 1):
-		host = socket.gethostname()
-
-	if (len(port) < 1):
-		port = 7246
-	else:
-		port = int(port)
-
-	#global sc4mp_ui, sc4mp_ui_root
-	#sc4mp_ui = True
-	#sc4mp_ui_root = UI()
-	#sc4mp_ui_root.withdraw()
-
-	connect(Server(host, port))
-
-	#sc4mp_ui.destroy()'''
-
-
 def main():
 	"""The main method.
 
@@ -2879,19 +2845,51 @@ def main():
 		sys.stdout = Logger()
 		th.current_thread().name = "Main"
 
-		# Version
+		# Title
 		print(SC4MP_TITLE)
 
-		# Enable UI
+		print(sc4mp_args)
+
+		# "-no-ui" argument
 		global sc4mp_ui
-		sc4mp_ui = True
+		sc4mp_ui = not "-no-ui" in sc4mp_args
+
+		# "--host" argument
+		global sc4mp_host
+		sc4mp_host = None
+		if ("--host" in sc4mp_args):
+			try:
+				sc4mp_host = get_arg_value("--host", sc4mp_args)
+			except:
+				raise CustomException("Invalid arguments.")
+
+		# "--port" argument
+		global sc4mp_port
+		sc4mp_port = None
+		if ("--port" in sc4mp_args):
+			try:
+				sc4mp_port = int(get_arg_value("--port", sc4mp_args))
+			except:
+				raise CustomException("Invalid arguments.")
 
 		# Prep
 		prep()
 
-		# UI
-		sc4mp_ui = UI()
-		sc4mp_ui.mainloop()
+		# Client
+		if (sc4mp_ui):
+			sc4mp_ui = UI()
+			if (sc4mp_host != None and sc4mp_port != None):
+				ServerLoaderUI(Server(sc4mp_host, sc4mp_port))
+			sc4mp_ui.mainloop()
+		else:
+			sc4mp_ui = None
+			if (sc4mp_host == None or sc4mp_port == None):
+				print("[PROMPT] Connect to server:")
+			if (sc4mp_host == None):
+				sc4mp_host = input("[PROMPT] - Enter server IP... ")
+			if (sc4mp_port == None):
+				sc4mp_port = int(input("[PROMPT] - Enter server port... "))
+			ServerLoader(None, Server(sc4mp_host, sc4mp_port)).run()
 
 	except Exception as e:
 
