@@ -29,8 +29,8 @@ SC4MP_RESOURCES_PATH = "resources"
 SC4MP_TITLE = "SC4MP Launcher v" + str(SC4MP_VERSION[0]) + "." + str(SC4MP_VERSION[1]) + "." + str(SC4MP_VERSION[2])
 SC4MP_ICON = os.path.join(SC4MP_RESOURCES_PATH, "icon.ico")
 
-SC4MP_HOST = socket.gethostname()
-SC4MP_PORT = 7240
+SC4MP_HOST = SC4MP_OFFICIAL_SERVERS[0][0] #socket.gethostname()
+SC4MP_PORT = SC4MP_OFFICIAL_SERVERS[0][1] #7240
 
 SC4MP_SEPARATOR = b"<SEPARATOR>"
 SC4MP_BUFFER_SIZE = 4096
@@ -42,8 +42,8 @@ SC4MP_CONFIG_DEFAULTS = [
 		("nickname", os.getlogin()),
 		#("use_custom_user_id", False), #TODO
 		#("custom_user_id", ""), #TODO
-		("default_host", SC4MP_OFFICIAL_SERVERS[0][0]),
-		("default_port", SC4MP_OFFICIAL_SERVERS[0][1]),
+		("default_host", SC4MP_HOST),
+		("default_port", SC4MP_PORT),
 		#("use_overlay", 1), #TODO
 		("custom_plugins", False),
 		("custom_plugins_path", os.path.join(os.path.expanduser('~'),"Documents","SimCity 4","Plugins"))
@@ -2387,7 +2387,7 @@ class DirectConnectUI(tk.Toplevel):
 		host = self.host_entry.get()
 		port = self.port_entry.get()
 		try:
-			if (len(host) < 1 or host == "0" or host == "localhost" or host == "127.0.0.1"):
+			if (len(host) < 1):
 				host = SC4MP_HOST
 				#raise CustomException("Invalid host")
 			try:
