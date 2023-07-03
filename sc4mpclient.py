@@ -601,11 +601,17 @@ class Server:
 		self.server_id = self.request("server_id")
 		self.server_name = self.request("server_name")
 		self.server_description = self.request("server_description")
-		self.server_version = unformat_version(self.request("server_version"))
+		self.server_version = self.request("server_version")
 		self.password_enabled = self.request("password_enabled") == "yes"
 		self.user_plugins_enabled = self.request("user_plugins_enabled") == "yes"
 
-		self.update_database()
+		if (self.server_version != None):
+			self.server_version = unformat_version(self.server_version)
+
+		try:
+			self.update_database()
+		except Exception as e:
+			show_error(e, no_ui = True)
 
 		#TODO add server host and port to serverlist?
 
@@ -897,6 +903,7 @@ class ServerLoader(th.Thread):
 			raise CustomException("The server requires a new version (v" + format_version(self.server.server_version) + ") of the SC4MP Launcher. Please update the launcher to connect to this server.")
 		if (self.ui != None):
 			self.ui.title(self.server.server_name)
+
 
 	def authenticate(self):
 		"""TODO"""
