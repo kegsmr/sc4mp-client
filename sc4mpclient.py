@@ -84,13 +84,14 @@ sc4mp_current_server = None
 # Methods
 
 def prep():
-	"""TODO"""
+	"""Prepares the client to launch."""
+	
 	load_config()
 	create_subdirectories()
 
 
 def load_config():
-	"""TODO"""	
+	"""Loads settings from the configuration file."""
 
 	global sc4mp_config
 
@@ -100,7 +101,7 @@ def load_config():
 
 	
 def update_config_constants(config):
-	"""TODO"""
+	"""For backwards compatibility. Updates the global config constants that are sometimes used internally."""
 
 	global SC4MP_LAUNCHPATH
 	global SC4MP_LAUNCHRESW
@@ -114,14 +115,7 @@ def update_config_constants(config):
 
 
 def create_subdirectories():
-	"""Creates the required subdirectories in the launch directory if they do not yet exist.
-
-	Arguments:
-		None
-
-	Returns:
-		TODO
-	"""
+	"""Creates the required subdirectories in the launch directory if they do not yet exist."""
 
 	print("Creating subdirectories...")
 
@@ -140,14 +134,7 @@ def create_subdirectories():
 
 
 '''def connect(server):
-	"""TODO
-
-	Arguments:
-		TODO
-
-	Returns:
-		TODO
-	"""
+	"""Deprecated."""
 	
 	if (sc4mp_ui != None):
 
@@ -181,6 +168,7 @@ def create_subdirectories():
 
 
 def get_sc4_path():
+	"""Returns the path to the Simcity 4 executable if found."""
 
 	possiblePaths = [
 		os.path.abspath(os.path.join("\\", "Program Files (x86)", "Steam", "steamapps", "common", "SimCity 4 Deluxe", "Apps", "SimCity 4.exe")),
@@ -206,14 +194,7 @@ def get_sc4_path():
 
 
 def start_sc4():
-	"""Attempts to find the install path of Simcity 4 and launches the game with custom launch parameters if found.
-
-	Arguments:
-		TODO
-
-	Returns:
-		TODO
-	"""
+	"""Attempts to find the install path of Simcity 4 and launches the game with custom launch parameters if found."""
 
 	print("Starting Simcity 4...")
 
@@ -244,26 +225,12 @@ def start_sc4():
 
 
 def get_sc4mp_path(filename):
-	"""Gives the path of a given file in the SC4MP "resources" subdirectory
-
-	Arguments:
-		filename (str)
-
-	Returns:
-		TODO type: the path to the given file
-	"""
+	"""Returns the path to a given file in the SC4MP "resources" subdirectory"""
 	return os.path.join(SC4MP_RESOURCES_PATH, filename)
 
 
 def md5(filename):
-	"""Creates the hashcode for a given file.
-
-	Arguments:
-		filename (str)
-
-	Returns:
-		TODO type: hashcode
-	"""
+	"""Returns an md5 hashcode generated from a given file."""
 	hash_md5 = hashlib.md5()
 	with open(filename, "rb") as f:
 		for chunk in iter(lambda: f.read(4096), b""):
@@ -272,19 +239,12 @@ def md5(filename):
 
 
 def random_string(length):
-	"""TODO"""
+	"""Returns a random string of ascii letters of the specified length."""
 	return ''.join(random.SystemRandom().choice(string.ascii_letters + string.digits) for i in range(length))
 
 
 def purge_directory(directory):
-	"""TODO
-
-	Arguments:
-		TODO
-
-	Returns:
-		TODO
-	"""
+	"""Deletes every file within a directory."""
 	for filename in os.listdir(directory):
 		file_path = os.path.join(directory, filename)
 		try:
@@ -297,7 +257,7 @@ def purge_directory(directory):
 
 
 def directory_size(directory):
-	"""TODO"""
+	"""Returns the size of a directory recursively."""
 
 	size = 0
 
@@ -312,13 +272,13 @@ def directory_size(directory):
 
 
 def event_generate(ui, event, when):
-	"""Not used."""
+	"""Deprecated."""
 	if (ui != None):
 		ui.event_generate(event, when=when)
 
 
 '''def create_empty_json(filename):
-	"""TODO"""
+	"""Deprecated."""
 	with open(filename, 'w') as file:
 		data = dict()
 		file.seek(0)
@@ -327,13 +287,13 @@ def event_generate(ui, event, when):
 
 
 def load_json(filename):
-	"""TODO"""
+	"""Returns data from a json file as a dictionary."""
 	with open(filename, 'r') as file:
 		return json.load(file)
 
 
 def update_json(filename, data):
-	"""TODO"""
+	"""Writes data as a dictionary to a json file."""
 	with open(filename, 'w') as file:
 		file.seek(0)
 		json.dump(data, file, indent=4)
@@ -341,7 +301,7 @@ def update_json(filename, data):
 
 
 def show_error(e, no_ui=False):
-	"""TODO"""
+	"""Shows an error message in the console and optionally in the UI."""
 	message = None
 	if (isinstance(e, str)):
 		message = e
@@ -358,7 +318,7 @@ def show_error(e, no_ui=False):
 
 
 def fatal_error():
-	"""TODO"""
+	"""Shows a fatal error message in the console and the UI. Exits the program."""
 
 	message = "A fatal error occurred.\n\n" + traceback.format_exc()
 
@@ -373,7 +333,7 @@ def fatal_error():
 
 
 def show_warning(e):
-	"""TODO"""
+	"""Shows a warning in the console and the UI."""
 	message = None
 	if (isinstance(e, str)):
 		message = e
@@ -389,11 +349,7 @@ def show_warning(e):
 
 
 def center_window(window):
-	"""
-	TODO
-	centers a tkinter window
-	:param win: the main window or Toplevel window to center
-	"""
+	"""Centers a tkinter window."""
 	win = window
 	win.update_idletasks()
 	width = win.winfo_width()
@@ -409,19 +365,19 @@ def center_window(window):
 
 
 def prep_server(path):
-	"""TODO"""
+	"""Runs the server executable in prep mode. Takes the server path as an argument."""
 	subprocess.Popen("sc4mpserver.exe -prep --server-path " + str(path))
 
 
 def start_server(path):
-	"""TODO"""
+	"""Runs the server executable. Takes the server path as an argument."""
 	subprocess.Popen("sc4mpserver.exe --server-path " + str(path), creationflags=subprocess.CREATE_NEW_CONSOLE)
 
 	#th.Thread(target=lambda: subprocess.Popen("sc4mpserver.exe --server-path " + str(path))).start()
 
 
 def update_config_value(section, item, value):
-	"""TODO"""
+	"""Updates a value in the config, attempting to convert it to the proper data type."""
 	try:
 		t = type(sc4mp_config[section][item])
 		sc4mp_config[section][item] = t(value)
@@ -430,7 +386,7 @@ def update_config_value(section, item, value):
 
 
 def get_fullpaths_recursively(path):
-	"""TODO"""
+	"""Returns full paths of all files in a directory recursively."""
 	fullpaths = []
 	for path, directories, files in os.walk(path):
 		for file in files:
@@ -439,7 +395,7 @@ def get_fullpaths_recursively(path):
 
 
 def get_relpaths_recursively(path):
-	"""TODO"""
+	"""Returns relative paths of all files in a directory recursively."""
 	fullpaths = get_fullpaths_recursively(path)
 	relpaths = []
 	for fullpath in fullpaths:
@@ -448,12 +404,12 @@ def get_relpaths_recursively(path):
 
 
 def get_arg_value(arg, args):
-	"""TODO"""
+	"""Returns the following token in commandline arguments."""
 	return args[args.index(arg) + 1]
 
 
 def request_header(s, server):
-	"""TODO"""
+	"""A "handshake" between the client and server which establishes that a request can be made."""
 
 	s.recv(SC4MP_BUFFER_SIZE)
 	s.send(format_version(SC4MP_VERSION).encode())
@@ -467,12 +423,12 @@ def request_header(s, server):
 
 
 def format_version(version):
-	"""TODO"""
+	"""Converts a version number from a tuple to a string."""
 	return str(version[0]) + "." + str(version[1]) + "." + str(version[2])
 
 
 def unformat_version(version):
-	"""TODO"""
+	"""Converts a version number from a string to a tuple."""
 	strings = version.split(".")
 	ints = []
 	for string in strings:
@@ -481,7 +437,7 @@ def unformat_version(version):
 
 
 def set_server_data(entry, server):
-	"""TODO"""
+	"""Updates the json entry for a given server with the appropriate values."""
 	entry["host"] = server.host
 	entry["port"] = server.port
 	entry["server_name"] = server.server_name
@@ -496,7 +452,7 @@ def set_server_data(entry, server):
 # Objects
 
 class Config:
-	"""TODO"""
+	"""Represents """
 
 
 	def __init__(self, path, defaults):
