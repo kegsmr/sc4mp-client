@@ -482,6 +482,19 @@ def unformat_version(version):
 	return tuple(ints)
 
 
+def set_server_data(entry, server):
+	"""TODO"""
+	entry["host"] = server.host
+	entry["port"] = server.port
+	entry["server_name"] = server.server_name
+	entry["server_description"] = server.server_description
+	entry["server_version"] = format_version(server.server_version)
+	entry["password_enabled"] = server.password_enabled
+	entry["user_plugins"] = server.user_plugins_enabled
+	entry.setdefault("first_contact", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+	entry["last_contact"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
 # Objects
 
 class Config:
@@ -590,9 +603,35 @@ class Server:
 		self.password_enabled = self.request("password_enabled") == "yes"
 		self.user_plugins_enabled = self.request("user_plugins_enabled") == "yes"
 
+		self.update_database()
+
 		#TODO add server host and port to serverlist?
 
-			
+
+	def update_database(self):
+
+		# Get database
+		filename = os.path.join(SC4MP_LAUNCHPATH, "_Profiles", "servers.json")
+		data = None
+		try:
+			data = load_json(filename)
+		except:
+			data = dict()
+
+		# Get database entry for server
+		key = self.server_id
+		entry = data.get(key, dict())
+		if (entry == None):
+			entry = dict()
+		data[key] = entry
+
+		# Set values in database entry
+		set_server_data(entry, self)
+
+		# Update database
+		update_json(filename, data)
+
+
 	def request(self, request):
 		"""TODO"""
 
@@ -631,12 +670,6 @@ class Server:
 		if (entry == None):
 			entry = dict()
 		data[key] = entry
-
-		# Set values in database entry
-		entry["server_name"] = self.server_name
-		entry["server_description"] = self.server_description
-		entry["host"] = self.host
-		entry["port"] = self.port	
 
 		# Get user_id
 		user_id = None
@@ -682,6 +715,8 @@ class Server:
 		# Set user_id and token in the database entry
 		entry["user_id"] = user_id
 		entry["token"] = token
+		entry.setdefault("first_logon", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+		entry["last_logon"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 		# Update database
 		update_json(filename, data)
