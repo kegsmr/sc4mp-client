@@ -452,11 +452,10 @@ def set_server_data(entry, server):
 # Objects
 
 class Config:
-	"""Represents """
+	"""Encapsules a dictionary that represents config values set by the user."""
 
 
 	def __init__(self, path, defaults):
-		"""TODO"""
 
 		# Parameters
 		self.PATH = path
@@ -504,17 +503,15 @@ class Config:
 
 
 	def __getitem__(self, key):
-		"""TODO"""
 		return self.data.__getitem__(key)
 
 
 	def __setitem__(self, key, value):
-		"""TODO"""
 		return self.data.__setitem__(key, value)
 
 
 	def update(self):
-		"""TODO"""
+		"""Writes config values set by the user to the config file."""
 		parser = configparser.RawConfigParser()
 		for section_name in self.data.keys():
 			parser.add_section(section_name)
@@ -531,11 +528,10 @@ class Config:
 
 
 class Server:
-	"""TODO"""
+	"""An interface for interaction with a server."""
 
 
 	def __init__(self, host, port):
-		"""TODO"""
 
 		self.host = host
 		self.port = port
@@ -546,7 +542,7 @@ class Server:
 
 
 	def fetch(self):
-		"""TODO"""
+		"""Retreives basic information from a server and saves them as instance variables. Updates the json entry for the server if possible."""
 
 		# Mark server as fetched
 		self.fetched = True
@@ -571,6 +567,7 @@ class Server:
 
 
 	def update_database(self):
+		"""Updates the json entry for the server."""
 
 		# Get database
 		filename = os.path.join(SC4MP_LAUNCHPATH, "_Profiles", "servers.json")
@@ -595,7 +592,7 @@ class Server:
 
 
 	def request(self, request):
-		"""TODO"""
+		"""Requests a given value from the server."""
 
 		if (self.fetched == False):
 			return
