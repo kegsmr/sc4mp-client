@@ -23,11 +23,9 @@ SC4MP_VERSION = (0,1,0)
 SC4MP_SERVERS = [("servers.sc4mp.org", 7240)]
 
 SC4MP_URL = "https://sc4mp.org/"
+SC4MP_CONTRIBUTORS_URL = "https://github.com/keggre/sc4mp-client/contributors/"
+SC4MP_ISSUES_URL = "https://github.com/keggre/sc4mp-client/issues/"
 SC4MP_RELEASES_URL = "https://github.com/keggre/sc4mp-client/releases/"
-SC4MP_FEEDBACK_LINKS = [
-	("Github...", "https://github.com/keggre/sc4mp-client/issues/"),
-	("Discord...", "https://discord.gg/zb8gW2aARY"),
-]
 
 SC4MP_CONFIG_PATH = "config.ini"
 SC4MP_LOG_PATH = "sc4mpclient.log"
@@ -1787,13 +1785,14 @@ class UI(tk.Tk):
 		help.add_command(label="About...", command=self.about)
 		help.add_command(label="Readme...", command=self.readme)
 		help.add_separator()
-		feedback_submenu = Menu(help, tearoff=0)
-		feedback_submenu.add_command(label=SC4MP_FEEDBACK_LINKS[0][0], command=lambda:webbrowser.open_new_tab(SC4MP_FEEDBACK_LINKS[0][1]))
-		feedback_submenu.add_command(label=SC4MP_FEEDBACK_LINKS[1][0], command=lambda:webbrowser.open_new_tab(SC4MP_FEEDBACK_LINKS[1][1]))
+		help.add_command(label="Feedback...", command=lambda:webbrowser.open_new_tab(SC4MP_ISSUES_URL))
+		#feedback_submenu = Menu(help, tearoff=0)
+		#feedback_submenu.add_command(label=SC4MP_FEEDBACK_LINKS[0][0], command=lambda:webbrowser.open_new_tab(SC4MP_FEEDBACK_LINKS[0][1]))
+		#feedback_submenu.add_command(label=SC4MP_FEEDBACK_LINKS[1][0], command=lambda:webbrowser.open_new_tab(SC4MP_FEEDBACK_LINKS[1][1]))
 		#for link in SC4MP_FEEDBACK_LINKS:
 		#	feedback_submenu.add_command(label=link[0], command=lambda:webbrowser.open_new_tab(link[1])) #TODO why does the github button open discord?
-		help.add_cascade(label="Feedback", menu=feedback_submenu)
-		menu.add_cascade(label="Help", menu=help)  
+		#help.add_cascade(label="Feedback", menu=feedback_submenu)
+		menu.add_cascade(label="Help", menu=help)
 		
 		self.config(menu=menu)  
 

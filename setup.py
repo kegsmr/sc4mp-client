@@ -65,7 +65,7 @@ setup(
 )
 
 print('Copying extra files to "dist"...')
-shutil.copy("README.md", "dist")
+#shutil.copy("README.md", "dist")
 shutil.copy("License.txt", "dist")
 shutil.copy("Readme.html", "dist")
 
