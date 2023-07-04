@@ -458,7 +458,7 @@ def request_header(s, server):
 	"""TODO"""
 
 	s.recv(SC4MP_BUFFER_SIZE)
-	s.send((str(SC4MP_VERSION[0]) + "." + str(SC4MP_VERSION[1]) + "." + str(SC4MP_VERSION[2])).encode())
+	s.send(format_version(SC4MP_VERSION).encode())
 
 	if (server.password_enabled):
 		s.recv(SC4MP_BUFFER_SIZE)
@@ -466,6 +466,20 @@ def request_header(s, server):
 
 	s.recv(SC4MP_BUFFER_SIZE)
 	s.send(server.user_id.encode())
+
+
+def format_version(version):
+	"""TODO"""
+	return str(version[0]) + "." + str(version[1]) + "." + str(version[2])
+
+
+def unformat_version(version):
+	"""TODO"""
+	strings = version.split(".")
+	ints = []
+	for string in strings:
+		ints.append(int(string))
+	return tuple(ints)
 
 
 # Objects
@@ -572,6 +586,7 @@ class Server:
 		self.server_id = self.request("server_id")
 		self.server_name = self.request("server_name")
 		self.server_description = self.request("server_description")
+		self.server_version = unformat_version(self.request("server_version"))
 		self.password_enabled = self.request("password_enabled") == "yes"
 		self.user_plugins_enabled = self.request("user_plugins_enabled") == "yes"
 
@@ -760,9 +775,7 @@ class ServerLoader(th.Thread):
 
 				self.report("", 'Connecting to server at ' + str(host) + ":" + str(port) + '...')
 				self.fetch_server()
-				if (self.ui != None):
-					self.ui.title(self.server.server_name)
-
+				
 				self.report("", 'Authenticating...')
 				self.authenticate()
 
@@ -841,7 +854,12 @@ class ServerLoader(th.Thread):
 			self.server.fetch()
 			if (self.server.fetched == False):
 				raise CustomException("Unable to find server. Check the IP address and port, then try again.")
-		
+		if (self.server.server_version < SC4MP_VERSION):
+			raise CustomException("The server requires an outdated version (v" + format_version(self.server.server_version) + ") of the SC4MP Launcher. Please contact the server administrators.")
+		if (self.server.server_version > SC4MP_VERSION):
+			raise CustomException("The server requires a new version (v" + format_version(self.server.server_version) + ") of the SC4MP Launcher. Please update the launcher to connect to this server.")
+		if (self.ui != None):
+			self.ui.title(self.server.server_name)
 
 	def authenticate(self):
 		"""TODO"""
