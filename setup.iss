@@ -21,7 +21,7 @@ LicenseFile=D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\dist\Lice
 ; Remove the following line to run in administrative install mode (install for all users.)
 PrivilegesRequired=lowest
 OutputDir=D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\setupbuilds
-OutputBaseFilename=sc4mp-client-setup-v{#MyAppVersion}.{#TimeStamp}
+OutputBaseFilename=sc4mp-client-installer-windows-v{#MyAppVersion}.{#TimeStamp}
 SetupIconFile=D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\dist\resources\icon.ico
 Compression=lzma
 SolidCompression=yes
