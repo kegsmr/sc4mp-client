@@ -1777,7 +1777,7 @@ class UI(tk.Tk):
 		
 		#servers.add_command(label="Host...", command=self.host) #TODO
 		#servers.add_separator() #TODO
-		servers.add_command(label="Connect...", command=self.direct_connect)  #"Direct connect..."
+		servers.add_command(label="Connect...", accelerator="F1", command=self.direct_connect)  #"Direct connect..."
 		#servers.add_command(label="Refresh", command=self.refresh) #TODO
 		menu.add_cascade(label="Servers", menu=servers)  
 
