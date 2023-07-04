@@ -1218,7 +1218,8 @@ class ServerLoader(th.Thread):
 			for filename in os.listdir(region_directory):
 				shutil.copy(os.path.join(region_directory, filename), os.path.join(downloads_path, filename))
 		except Exception as e:
-			show_error(e, no_ui=True)
+			pass
+			#show_error(e, no_ui=True)
 
 		#shutil.unpack_archive(get_sc4mp_path("Regions.zip"), path) #TODO maybe re-enable this at some point?
 
