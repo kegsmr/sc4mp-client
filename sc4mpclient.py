@@ -16,16 +16,20 @@ import tkinter as tk
 import traceback
 import webbrowser
 from datetime import datetime
-from tkinter import Menu, filedialog, messagebox, ttk
+from tkinter import Menu, filedialog, messagebox, ttk, font
 
 SC4MP_VERSION = "0.1.0"
 
 SC4MP_SERVERS = [("servers.sc4mp.org", 7240)]
 
-SC4MP_URL = "https://sc4mp.org/"
+SC4MP_URL = "www.sc4mp.org"
 SC4MP_CONTRIBUTORS_URL = "https://github.com/keggre/sc4mp-client/contributors/"
 SC4MP_ISSUES_URL = "https://github.com/keggre/sc4mp-client/issues/"
 SC4MP_RELEASES_URL = "https://github.com/keggre/sc4mp-client/releases/"
+
+SC4MP_AUTHOR_NAME = "Simcity 4 Multiplayer Project"
+SC4MP_WEBSITE_NAME = "sc4mp.org"
+SC4MP_LICENSE_NAME = "MIT-0"
 
 SC4MP_CONFIG_PATH = "config.ini"
 SC4MP_LOG_PATH = "sc4mpclient.log"
@@ -1811,8 +1815,7 @@ class UI(tk.Tk):
 
 	def about(self):
 		"""TODO"""
-		self.to_implement()
-		#AboutUI()
+		AboutUI()
 
 
 	def readme(self):
@@ -2547,6 +2550,82 @@ class PasswordDialogUI(tk.Toplevel):
 		"""TODO"""
 		self.server_loader.ui.destroy()
 		self.wait = False
+		self.destroy()
+
+
+class AboutUI(tk.Toplevel):
+
+
+	def __init__(self):
+		"""TODO"""
+
+		#print("Initializing...")
+
+		# Init
+		super().__init__()
+
+		# Title
+		self.title("About")
+
+		# Icon
+		self.iconbitmap(SC4MP_ICON)
+
+		# Geometry
+		self.geometry('400x400')
+		self.maxsize(265, 175)
+		self.minsize(265, 175)
+		self.grid()
+		center_window(self)
+		
+		# Priority
+		self.grab_set()
+
+		# Key bindings
+		self.bind("<Return>", lambda event:self.ok())
+		self.bind("<Escape>", lambda event:self.destroy())
+
+		# Title label 1
+		self.title_label_1 = ttk.Label(self, text="Title:")
+		self.title_label_1.grid(row=0, column=0, columnspan=1, padx=10, pady=(10,5), sticky="e")
+
+		# Title label 2
+		self.title_label_2 = ttk.Label(self, text=SC4MP_TITLE)
+		self.title_label_2.grid(row=0, column=1, columnspan=1, padx=10, pady=(10,5), sticky="w")
+
+		# Author label 1
+		self.author_label_1 = ttk.Label(self, text="Author:")
+		self.author_label_1.grid(row=1, column=0, columnspan=1, padx=10, pady=5, sticky="e")
+
+		# Author label 2
+		self.author_label_2 = tk.Label(self, text=SC4MP_AUTHOR_NAME, fg="blue", cursor="hand2") #, font=font.Font(underline=True))
+		self.author_label_2.grid(row=1, column=1, columnspan=1, padx=10, pady=5, sticky="w")
+		self.author_label_2.bind("<Button-1>", lambda e:webbrowser.open_new_tab(SC4MP_CONTRIBUTORS_URL))
+
+		# Website label 1
+		self.website_label_1 = ttk.Label(self, text="Website:")
+		self.website_label_1.grid(row=2, column=0, columnspan=1, padx=10, pady=5, sticky="e")
+
+		# Website label 2
+		self.website_label_2 = tk.Label(self, text=SC4MP_WEBSITE_NAME, fg="blue", cursor="hand2")
+		self.website_label_2.grid(row=2, column=1, columnspan=1, padx=10, pady=5, sticky="w")
+		self.website_label_2.bind("<Button-1>", lambda e:webbrowser.open_new_tab(SC4MP_URL))
+
+		# License label 1
+		self.license_label_1 = ttk.Label(self, text="License:")
+		self.license_label_1.grid(row=3, column=0, columnspan=1, padx=10, pady=5, sticky="e")
+
+		# License label 2
+		self.license_label_2 = tk.Label(self, text=SC4MP_LICENSE_NAME, fg="blue", cursor="hand2")
+		self.license_label_2.grid(row=3, column=1, columnspan=1, padx=10, pady=5, sticky="w")
+		self.license_label_2.bind("<Button-1>", lambda e:os.startfile("License.txt"))
+
+		# Ok button
+		self.ok_button = ttk.Button(self, text="Ok", command=self.ok, default="active")
+		self.ok_button.grid(row=4, column=1, columnspan=1, padx=0, pady=5, sticky="e")
+
+
+	def ok(self):
+		"""TODO"""
 		self.destroy()
 
 

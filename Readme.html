@@ -2,8 +2,141 @@
 <html lang="en">
     <head>
 		<title>Readme &bull; SC4MP Launcher 0.1.0</title>
+            <!--
+    
+            * {
+                margin: 0;
+                padding: 0;
+            }
+    
+            body {
+                background: #EEE5EC;
+                font-family: Verdana;
+                font-size: 14px;
+            }
+    
+            .wrapper {
+                background: #FFF;
+                border: 1px solid;
+                border-top: none;
+                margin: 0 auto 20px;
+                padding: 110px 10px 10px;
+                width: 600px;
+            }
+    
+            h1 {
+                background: url("resources/readme-flag.png");
+                height: 100px;
+                left: 50%;
+                margin-left: -325px;
+                position: absolute;
+                text-indent: -9999px;
+                top: 0;
+                width: 650px;
+            }
+    
+            h2 {
+                color: #6B4C75;
+                font-size: 19px;
+                margin-top: 10px;
+            }
+    
+            h3 {
+                color: #A38FA9;
+                font-size: 15px;
+                margin-top: 10px;
+            }
+    
+            p {
+                font-size: 14px;
+                line-height: 18px;
+                margin: 5px 0;
+            }
+    
+            a:link, a:visited { color: #2E75A4; }
+            a:hover { color: #438DBD; }
+            a:active { color: #F33; }
+    
+            .figure {
+                display: block;
+                margin: 15px auto;
+                text-align: center;
+            }
+    
+            .new {
+                color: #f09;
+            }
+    
+            -->
+        </style>
 	</head>
     <body>
-        <p>TODO</p>
+        <div class="wrapper">
+			<h1>SC4MP Launcher Readme for Version 0.1.0</h1>
+			<p>Thank you for joining Poppy Multiplayer Regions! This Readme will help you get started with the PMR Launcher. With just a few steps, you can connect to and play in multiplayer regions.</p>
+			
+			<h2>Getting started</h2>
+				<h3>Get a PMR account</h3>
+				<p>PMR uses accounts to verify everyone&rsquo;s saves. So, before you can get started with the client, you will need to <a href="http://getpmr.com/join">join PMR</a>.</p>
+				<h3>Run the launcher</h3>
+				<p>Open &lsquo;PMR Launcher&rsquo; to start the launcher. Since this your first time starting the launcher, it will give you a handy welcome message. Close it, and the Region Listings will open:</p>
+				<img class="figure" src="resources/readme-main.png" alt="" />
+				<h3>Connect to a region</h3>
+				<p>Choose a region by selecting it in the listing. Then, click &ldquo;Connect&rdquo; to play in it. You will be asked to log into your PMR account:</p>
+				<img class="figure" src="resources/readme-login.png" alt="" />
+				<p>Once you log in, the launcher will start downloading the region:</p>
+				<img class="figure" src="resources/readme-sync.png" alt="" />
+				<p>Finally, after the region has been downloaded, the launcher will automatically start SimCity 4. The Launcher Map will also open.</p> 
+				<img class="figure" src="resources/readme-launched.png" alt="" />
+				<p>Congrats! You have just connected to a Poppy Multiplayer Region. Read on to learn how to claim and save your city.</p>
+
+			<h2>Playing in a multiplayer region</h2>
+				<h3>How claims work</h3>
+				<p>PMR uses a claims system to protect cities from editing and to ensure that they are distributed fairly.</p>
+				<p>In this system, players can only save cities that they have previously claimed (all other saves are ignored by PMR). To claim an unoccupied tile, open it and save it. Choose wisely: you can only claim one tile per region, and you cannot abandon a claim.</p>
+				<h3>Using the Launcher Map</h3>
+				<p>The Launcher Map is an important tool to use with PMR. It shows which tiles are unoccupied (claimable), occupied, or claimed by you. For instance, this map shows that no tiles have been claimed yet:</p>
+				<img class="figure" src="resources/readme-map.png" alt="" />
+				<h3>Claiming a tile</h3>
+				<p>To claim an unoccupied tile (colored blue in the Launcher Map), just open and save it in SimCity 4. Within a few seconds, the launcher will recognize your save and try to push it to PMR:</p>
+				<img class="figure" src="resources/readme-mappush.png" alt="" />
+				<p>If your claim went through, you will see the tile turn green in the Launcher Map. If the claim was unsuccessful, the launcher will alert you and explain why.</p>
+				<p>Please note that you can only make one claim per region. You cannot abandon claims.</p>
+				<h3>Playing in a claimed city</h3>
+				<p>Once you have claimed your city, you can play in it and save it as usual. As long as the launcher is open and connected to PMR, your saves will be pushed automatically.</p>
+				<h3>Playing in others&rsquo; cities</h3>
+				<p>You are more than welcome to open and play in others&rsquo; cities. You can even edit and save them locally, but keep in mind that the changes will be ignored by PMR.</p>
+				<h3>Refreshing the region</h3>
+				<p>Although your saves are automatically pushed, the launcher cannot automatically pull others&rsquo; new changes due to in-game restrictions. To manually refresh the region, click &ldquo;Refresh Region&rdquo; from the Launcher Map and follow the on-screen instructions.</p>
+				<h3>Disconnecting</h3>
+				<p>To disconnect from a region, click &ldquo;Disconnect.&rdquo; Make sure that your last save has finished being pushed to PMR before disconnecting.</p>
+			<h2><span class="new">NEW!</span> Use your own plugins</h2>
+			<p>Although each region comes with a set of plugins, you may find it useful to use some of your personal plugins, such as the Network Addon Mod, with PMR. To do this, simply move your plugins from the regular "SimCity 4\Plugins\" directory to "SimCity 4\Plugins\_PMR\Plugins\".</p>
+			<p>The moved plugins will still be enabled when you play SimCity 4 without PMR, because the PMR plugins folder is located <em>within</em> the normal plugins folder.</p>
+			<h2>Configuring the launcher</h2>
+			<p>To configure the launcher, click &ldquo;SC4 Settings&hellip;&rdquo; from the Region Listings. The following window will appear:</p>
+			<img class="figure" src="resources/readme-settings.png" alt="" />
+				<h3>PMR working path</h3>
+				<p>When the launcher downloads regions, it writes to a special sandboxed folder. This prevents the launcher from interfering with your single-player regions and plugins. By default, the launcher will write to a directory named &ldquo;_PMR&rdquo; from the SimCity 4 directory in Documents.</p>
+				<p>If you want the launcher to write its files to another directory, specify it in this field. <strong>Do NOT set this path to your base SimCity 4 directory (&ldquo;Documents\SimCity 4\&rdquo;)!</strong> If you do this, the launcher will overwrite your regular regions and plugins. Unless you have a specific reason to do so, it&rsquo;s best to keep the default path.</p>
+				<p>The default value is "C:\Users\<var>[USERNAME]</var>\Documents\SimCity 4\_PMR\"</p>
+				<h3>Custom resolution</h3>
+				<p>In order to keep the Launcher Map in view, the launcher will always start SimCity 4 in windowed mode. However, you can specify a custom resolution for the window.</p>
+				<p>The default value is 1280 &times; 800 pixels.</p>
+				<h3>Path to SimCity 4.exe</h3>
+				<p>When attempting to launch SimCity 4.exe, the launcher will look for it in the standard installation locations. If the launcher cannot find your copy of the executable, you can provide a custom path to it.</p>
+				<p>You only need to set this if the launcher asks you to.</p>
+				<p>The default value is blank.</p>
+				<h3>Resetting the launcher</h3>
+				<p>To reset the configuration file of the launcher, simply empty the contents of &ldquo;config.ini&rdquo; in the resources directory (but keep the file).
+			<h2>Recovering from PMR interruptions</h2>
+			<p>The PMR Launcher has been designed to recover from most common errors. However, if PMR experiences a temporary outage, or the launcher unexpectedly quits, you may need to recover your latest save.</p>
+			<p>There is no automatic recovery system, but you can manually recover your unpushed saves by copying them from the PMR Regions directory to another folder. Then, when you reconnect to the region, you can copy it back. You may need to open and re-save your recovered city for the launcher to push it.</p>
+			<h2>Updates and more</h2>
+			<p>To see what&rsquo;s new with Poppy Multiplayer Regions, visit our official homepage at <a href="http://getpmr.com/">getpmr.com</a>
+			<h2>Credits</h2>
+			<p>This Readme was prepared for the PMR Launcher Release Candidate 1.0.0.</p>
+			<p>The Poppy Multiplayer Regions server and launcher are developed by <a href="http://j5.io/">Julian Cizmic.</a></p>
+		</div>
     </body>
 </html>
