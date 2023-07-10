@@ -17,12 +17,12 @@ AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={userdocs}\SimCity 4\{#MyAppName}
 DisableProgramGroupPage=yes
-LicenseFile=D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\dist\License.txt
+LicenseFile=dist\License.txt
 ; Remove the following line to run in administrative install mode (install for all users.)
 PrivilegesRequired=lowest
-OutputDir=D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\setupbuilds
-OutputBaseFilename=sc4mp-client-installer-windows-v{#MyAppVersion}.{#TimeStamp}
-SetupIconFile=D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\dist\resources\icon.ico
+OutputDir=setupbuilds
+OutputBaseFilename=sc4mp-client-installer-windows-32-v{#MyAppVersion}.{#TimeStamp}
+SetupIconFile=dist\resources\icon.ico
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -34,9 +34,9 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\dist\Readme.html"; DestDir: "{app}"; Flags: isreadme
-Source: "D:\Users\Kegan\Desktop\Projects\mod\sc4\SC4MP\sc4mp-client\dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\Readme.html"; DestDir: "{app}"; Flags: isreadme
+Source: "dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
