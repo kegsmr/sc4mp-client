@@ -18,7 +18,7 @@ import webbrowser
 from datetime import datetime
 from tkinter import Menu, filedialog, messagebox, ttk
 
-SC4MP_VERSION = (0,1,0)
+SC4MP_VERSION = "0.1.0"
 
 SC4MP_SERVERS = [("servers.sc4mp.org", 7240)]
 
@@ -32,7 +32,7 @@ SC4MP_LOG_PATH = "sc4mpclient.log"
 SC4MP_README_PATH = "readme.html"
 SC4MP_RESOURCES_PATH = "resources"
 
-SC4MP_TITLE = "SC4MP Launcher v" + str(SC4MP_VERSION[0]) + "." + str(SC4MP_VERSION[1]) + "." + str(SC4MP_VERSION[2])
+SC4MP_TITLE = "SC4MP Launcher v" + SC4MP_VERSION
 SC4MP_ICON = os.path.join(SC4MP_RESOURCES_PATH, "icon.ico")
 
 SC4MP_HOST = SC4MP_SERVERS[0][0] #socket.gethostname()
@@ -412,7 +412,7 @@ def request_header(s, server):
 	"""A "handshake" between the client and server which establishes that a request can be made."""
 
 	s.recv(SC4MP_BUFFER_SIZE)
-	s.send(format_version(SC4MP_VERSION).encode())
+	s.send(SC4MP_VERSION.encode())
 
 	if (server.password_enabled):
 		s.recv(SC4MP_BUFFER_SIZE)
@@ -848,9 +848,9 @@ class ServerLoader(th.Thread):
 			self.server.fetch()
 			if (self.server.fetched == False):
 				raise CustomException("Unable to find server. Check the IP address and port, then try again.")
-		if (self.server.server_version < SC4MP_VERSION):
+		if (self.server.server_version < unformat_version(SC4MP_VERSION)):
 			raise CustomException("The server requires an outdated version (v" + format_version(self.server.server_version) + ") of the SC4MP Launcher. Please contact the server administrators.")
-		if (self.server.server_version > SC4MP_VERSION):
+		if (self.server.server_version > unformat_version(SC4MP_VERSION)):
 			raise CustomException("The server requires a new version (v" + format_version(self.server.server_version) + ") of the SC4MP Launcher. Please update the launcher to connect to this server.")
 		if (self.ui != None):
 			self.ui.title(self.server.server_name)
