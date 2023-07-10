@@ -2,6 +2,7 @@ import glob
 import os
 import platform
 import shutil
+import struct
 import sys
 from datetime import datetime
 from distutils.core import setup
@@ -65,7 +66,6 @@ setup(
 )
 
 print('Copying extra files to "dist"...')
-#shutil.copy("README.md", "dist")
 shutil.copy("License.txt", "dist")
 shutil.copy("Readme.html", "dist")
 
@@ -77,6 +77,6 @@ except:
     print('Failed!')'''
 
 target = "dist"
-destination = os.path.join(os.path.join("builds", "sc4mp-client-" + platform.system().lower() + "-v" + str(VERSION[0]) + "." + str(VERSION[1]) + "." + str(VERSION[2]) + "." + datetime.now().strftime("%Y%m%d%H%M%S")))
+destination = os.path.join(os.path.join("builds", "sc4mp-client-" + platform.system().lower() + "-" + str(8 * struct.calcsize("P")) + "-v" + str(VERSION[0]) + "." + str(VERSION[1]) + "." + str(VERSION[2]) + "." + datetime.now().strftime("%Y%m%d%H%M%S")))
 print('Creating zip archive of "' + target + '" at "' + destination + '"')
 shutil.make_archive(destination, "zip", target)
