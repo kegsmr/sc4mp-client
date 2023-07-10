@@ -1820,16 +1820,6 @@ class UI(tk.Tk):
 		webbrowser.open_new_tab(SC4MP_README_PATH)
 
 
-	#def github(self):
-	#	"""TODO"""
-	#	webbrowser.open_new_tab("https://github.com/keggre/sc4mp-client/issues")
-
-
-	#def discord(self):
-	#	"""TODO"""
-	#	webbrowser.open_new_tab("https://discord.gg/zb8gW2aARY")
-
-
 class GeneralSettingsUI(tk.Toplevel):
 
 
