@@ -1842,8 +1842,8 @@ class GeneralSettingsUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry('400x400')
-		self.maxsize(290, 130)
-		self.minsize(290, 130)
+		self.maxsize(450, 230)
+		self.minsize(450, 230)
 		self.grid()
 		center_window(self)
 		
@@ -1857,15 +1857,39 @@ class GeneralSettingsUI(tk.Toplevel):
 		# Config update
 		self.config_update = []
 
+		# Path frame
+		self.path_frame = tk.LabelFrame(self, text="Custom plugins")		
+		self.path_frame.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="w")
+
+		# Path checkbutton
+		self.path_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["custom_plugins"])
+		self.path_frame.checkbutton = ttk.Checkbutton(self.path_frame, text="Enable", onvalue=True, offvalue=False, variable=self.path_frame.checkbutton_variable)
+		self.path_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=(10,5), sticky="w")
+		self.config_update.append((self.path_frame.checkbutton_variable, "custom_plugins"))
+
+		# Path entry
+		self.path_frame.entry = ttk.Entry(self.path_frame, width = 50)
+		self.path_frame.entry.grid(row=1, column=0, columnspan=1, padx=10, pady=10)
+		self.path_frame.entry.insert(0, sc4mp_config["GENERAL"]["custom_plugins_path"])
+		self.config_update.append((self.path_frame.entry, "custom_plugins_path"))
+
+		# Path browse button
+		self.path_frame.button = ttk.Button(self.path_frame, text="Browse...", command=self.browse_path)
+		self.path_frame.button.grid(row=1, column=1, columnspan=1, padx=10, pady=10)
+
+		# Path label
+		self.path_frame.label = ttk.Label(self.path_frame, text='Some servers allow users to load their own plugins alongside the server \nplugins. Specify your plugins directory here so that they can be loaded \nwhen joining a server.')
+		self.path_frame.label.grid(row=2, column=0, columnspan=2, padx=10, pady=(0,10), sticky="w")
+
 		# Nickname frame
-		self.nickname_frame = ttk.LabelFrame(self, text="Nickname")
-		self.nickname_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10)
+		'''self.nickname_frame = ttk.LabelFrame(self, text="Nickname")
+		self.nickname_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10)'''
 
 		# Nickname entry
-		self.nickname_frame.entry = ttk.Entry(self.nickname_frame, width = 40)
+		'''self.nickname_frame.entry = ttk.Entry(self.nickname_frame, width = 40)
 		self.nickname_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
 		self.nickname_frame.entry.insert(0, sc4mp_config["GENERAL"]["nickname"])
-		self.config_update.append((self.nickname_frame.entry, "nickname"))
+		self.config_update.append((self.nickname_frame.entry, "nickname"))'''
 
 		#TODO explain what the nickname is used for?
 
@@ -1884,6 +1908,14 @@ class GeneralSettingsUI(tk.Toplevel):
 		# Cancel button
 		self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
 		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
+
+
+	def browse_path(self):
+		"""TODO"""
+		path = filedialog.askdirectory(parent=self)
+		if (len(path) > 0):
+			self.path_frame.entry.delete(0, 'end')
+			self.path_frame.entry.insert(0, path)
 
 
 	def update(self):
@@ -1959,7 +1991,7 @@ class StorageSettingsUI(tk.Toplevel):
 		self.path_frame.button.grid(row=0, column=1, columnspan=1, padx=10, pady=10)
 
 		# Path label
-		self.path_frame.label = ttk.Label(self.path_frame, text='Do NOT change this to your normal launch directory, or else your plugins\n and regions will be deleted!')
+		self.path_frame.label = ttk.Label(self.path_frame, text='Do NOT change this to your normal launch directory, or else your plugins \nand regions will be deleted!')
 		self.path_frame.label.grid(row=1, column=0, columnspan=2, padx=10, pady=(0,10), sticky="w")
 
 		# Cache size frame
