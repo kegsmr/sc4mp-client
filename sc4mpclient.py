@@ -17,8 +17,7 @@ import traceback
 import webbrowser
 from datetime import datetime
 from tkinter import Menu, filedialog, messagebox, ttk, font
-
-import psutil
+import platform
 
 SC4MP_VERSION = "0.1.0"
 
@@ -229,10 +228,21 @@ def start_sc4():
 
 	# For compatability with the steam version of SC4
 	time.sleep(3)
-	while ("simcity 4.exe" in (process.name() for process in psutil.process_iter())):
+	while (process_exists("simcity 4.exe")):
 		time.sleep(1)
 
 	print("Simcity 4 closed.")
+
+
+def process_exists(process_name): #TODO add macos and linux compatability
+	"""TODO"""
+	if (platform.system() == "Windows"):
+		call = 'TASKLIST', '/FI', 'imagename eq %s' % process_name
+		output = subprocess.check_output(call, shell=True).decode()
+		last_line = output.strip().split('\r\n')[-1]
+		return last_line.lower().startswith(process_name.lower())
+	else:
+	    return False
 
 
 def get_sc4mp_path(filename):
