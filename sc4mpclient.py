@@ -18,6 +18,8 @@ import webbrowser
 from datetime import datetime
 from tkinter import Menu, filedialog, messagebox, ttk, font
 
+import psutil
+
 SC4MP_VERSION = "0.1.0"
 
 SC4MP_SERVERS = [("servers.sc4mp.org", 7240)]
@@ -224,6 +226,11 @@ def start_sc4():
 		subprocess.run(command)
 	except PermissionError as e:
 		show_error("Permission denied. Run the program as administrator.\n\n" + str(e))
+
+	# For compatability with the steam version of SC4
+	time.sleep(3)
+	while ("simcity 4.exe" in (process.name() for process in psutil.process_iter())):
+		time.sleep(1)
 
 	print("Simcity 4 closed.")
 
