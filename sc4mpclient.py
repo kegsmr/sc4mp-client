@@ -21,7 +21,7 @@ import webbrowser
 from datetime import datetime
 from tkinter import Menu, filedialog, font, messagebox, ttk
 
-SC4MP_VERSION = "0.1.0"
+SC4MP_VERSION = "0.2.0"
 
 SC4MP_SERVERS = [("servers.sc4mp.org", 7240)]
 
