@@ -1,13 +1,16 @@
 import configparser
 import hashlib
 import inspect
+import io
 import json
 import math
 import os
+import platform
 import random
 import shutil
 import socket
 import string
+import struct
 import subprocess
 import sys
 import threading as th
@@ -16,8 +19,7 @@ import tkinter as tk
 import traceback
 import webbrowser
 from datetime import datetime
-from tkinter import Menu, filedialog, messagebox, ttk, font
-import platform
+from tkinter import Menu, filedialog, font, messagebox, ttk
 
 SC4MP_VERSION = "0.1.0"
 
@@ -51,6 +53,7 @@ SC4MP_DELAY = .1
 SC4MP_CONFIG_DEFAULTS = [
 	("GENERAL", [
 		("nickname", os.getlogin()), #TODO unused
+		#(first_run, True) #TODO
 		#("use_custom_user_id", False), #TODO
 		#("custom_user_id", ""), #TODO
 		("default_host", SC4MP_HOST),
@@ -470,6 +473,38 @@ def set_server_data(entry, server):
 	entry["last_contact"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+def get_sc4_cfg_path(): #TODO can this find the cfg for the origin version?
+	"""TODO"""
+	return os.path.join(SC4MP_LAUNCHPATH, "simcity 4.cfg")
+
+
+def region_open(region):
+	"""TODO"""
+	cfg_path = get_sc4_cfg_path()
+	return b"\x00" + region.encode() + b"\x00" in DBPF(cfg_path).decompress_subfile("a9dd6e06").read() #TODO maybe the surrounding zeroes are just from that decompression error?
+
+
+def refresh_region_open():
+	"""TODO"""
+	return region_open("Refresh...")
+
+
+def report(message, object):
+	"""TODO"""
+	print(message)
+
+
+def prep_region_config(path):
+	try:
+		config = configparser.RawConfigParser()
+		config.read(path)
+		config.set("Regional Settings", "Name", "[SC4MP] " + config.get("Regional Settings", "Name"))
+		with open(path, 'wt') as config_file:
+			config.write(config_file)
+	except:
+		show_error("Failed to prep region config at " + path + ".")
+
+
 # Objects
 
 class Config:
@@ -720,6 +755,266 @@ class Server:
 			return self.server_ping
 		except socket.error as e:
 			return None
+
+
+class DBPF:
+	"""TODO include credits to original php file"""
+
+
+	def __init__(self, filename, offset=0):
+		"""TODO"""
+
+		report('Parsing "' + filename + '"...', self)
+
+		self.filename = filename
+		self.offset = offset
+
+		self.NONSENSE_BYTE_OFFSET = 9
+
+		# Try opening the file to read bytes
+		try:
+			self.file = open(self.filename, 'rb')
+		except Exception as e:
+			raise e #TODO
+
+		# Advance to offset
+		start = self.offset
+		if (self.offset > 0):
+			self.file.seek(self.offset)
+
+		# Verify that the file is a DBPF
+		test = self.file.read(4)
+		if (test != b"DBPF"):
+			return #TODO raise exception
+
+		# Read the header
+		self.majorVersion = self.read_UL4()
+		self.minorVersion = self.read_UL4()
+		self.reserved = self.file.read(12)
+		self.dateCreated = self.read_UL4()
+		self.dateModified = self.read_UL4()
+		self.indexMajorVersion = self.read_UL4()
+		self.indexCount = self.read_UL4()
+		self.indexOffset = self.read_UL4()
+		self.indexSize = self.read_UL4()
+		self.holesCount = self.read_UL4()
+		self.holesOffset = self.read_UL4()
+		self.holesSize = self.read_UL4()
+		self.indexMinorVersion = self.read_UL4() - 1
+		self.reserved2 = self.file.read(32)
+		self.header_end = self.file.tell()
+
+		# Seek to index table
+		self.file.seek(offset + self.indexOffset)
+
+		# Read index table
+		self.indexData = []
+		for index in range(0, self.indexCount):
+			self.indexData.append(dict())
+			self.indexData[index]['typeID'] = self.read_ID()
+			self.indexData[index]['groupID'] = self.read_ID()
+			self.indexData[index]['instanceID'] = self.read_ID()
+			if ((self.indexMajorVersion == "7") and (self.indexMinorVersion == "1")):
+				self.indexData[index]['instanceID2'] = self.read_ID()
+			self.indexData[index]['offset'] = self.read_UL4()
+			self.indexData[index]['filesize'] = self.read_UL4()
+			self.indexData[index]['compressed'] = False #TODO
+			self.indexData[index]['truesize'] = 0 #TODO
+
+
+	def decompress(self, length):
+
+		#report('Decompressing ' + str(length) + ' bytes...', self)
+
+		buf = ""
+		answer = bytes()
+		answerlen = 0
+		numplain = ""
+		numcopy = ""
+		offset = ""
+
+		while (length > 0):
+			try:
+				cc = self.read_UL1(self.file)
+			except Exception as e:
+				show_error(e)
+				break
+			length -= 1
+			#print("Control char is " + str(cc) + ", length remaining is " + str(length) + ".\n")
+			if (cc >= 252): #0xFC
+				numplain = cc & 3 #0x03
+				if (numplain > length):
+					numplain = length
+				numcopy = 0
+				offset = 0
+			elif (cc >= 224): #0xE0
+				numplain = (cc - 223) << 2 #223 = 0xdf
+				numcopy = 0
+				offset = 0
+			elif (cc >= 192): #0xC0
+				length -= 3
+				byte1 = self.read_UL1(self.file)
+				byte2 = self.read_UL1(self.file)
+				byte3 = self.read_UL1(self.file)
+				numplain = cc & 3 #0x03
+				numcopy = ((cc & 12) << 6) + 5 + byte3 #12 = 0x0c
+				offset = ((cc & 16) << 12) + (byte1 << 8) + byte2 #16 = 0x10
+			elif (cc >= 128): #0x80
+				length -= 2
+				byte1 = self.read_UL1(self.file)
+				byte2 = self.read_UL1(self.file)
+				numplain = (byte1 & 192) >> 6 #192 = 0xc0
+				numcopy = (cc & 63) + 4 #63 = 0x3f
+				offset = ((byte1 & 63) << 8) + byte2 #63 = 0x3f
+			else:
+				length -= 1
+				byte1 = self.read_UL1(self.file)
+				numplain = (cc & 3) #3 = 0x03
+				numcopy = ((cc & 28) >> 2) + 3 #28 = 0x1c
+				offset = ((cc & 96) << 3) + byte1 #96 = 0x60
+			length -= numplain
+
+			# This section basically copies the parts of the string to the end of the buffer:
+			if (numplain > 0):
+				buf = self.file.read(numplain)
+				answer = answer + buf
+			fromoffset = len(answer) - (offset + 1)  # 0 == last char
+			for index in range(numcopy):
+				#print(str(answer))
+				#print(str(cc))
+				#print(str(offset))
+				#print(str(fromoffset))
+				#TODO remove try and except block. decompression algorithm breaks with a control char of 206. the offset becomes larger than the length of the answer, causing a negative fromindex and an indexing error. for now it does not seem to affect city coordinates
+				try:
+					answer = answer + (answer[fromoffset + index]).to_bytes(1, 'little') #substr(fromoffset + index, 1)
+				except Exception as e:
+					#show_error(e) #TODO
+					return io.BytesIO(answer)
+			answerlen += numplain
+			answerlen += numcopy
+
+		return io.BytesIO(answer)
+
+
+	def read_UL1(self, file=None):
+		"""TODO"""
+		if (file == None):
+			file = self.file
+		return struct.unpack('<B', file.read(1))[0]
+
+
+	def read_UL2(self, file=None):
+		"""TODO"""
+		if (file == None):
+			file = self.file
+		return struct.unpack('<H', file.read(2))[0]
+	
+	
+	def read_UL4(self, file=None):
+		"""TODO"""
+		if (file == None):
+			file = self.file
+		return struct.unpack('<L', file.read(4))[0]
+
+
+	def read_ID(self, file=None):
+		"""TODO"""
+		if (file == None):
+			file = self.file
+		return file.read(4)[::-1].hex()
+
+
+	def get_indexData_entry_by_type_ID(self, type_id):
+		"""TODO"""
+		for entry in self.indexData:
+			if (entry['typeID'] == type_id):
+				return entry
+
+
+	def goto_subfile(self, type_id):
+		"""TODO"""
+		entry = self.get_indexData_entry_by_type_ID(type_id)
+		self.file.seek(entry['offset'])
+		#print(entry['offset'] + 9)
+
+
+	def get_subfile_size(self, type_id):
+		"""TODO"""
+		entry = self.get_indexData_entry_by_type_ID(type_id)
+		return entry['filesize']
+
+
+	#def get_subfile_header(self, type_id):
+	#	"""TODO"""
+	#	self.goto_subfile(type_id)
+	#	return (self.read_UL4(), self.read_ID(), ) #TODO how to read these values?
+
+
+	def decompress_subfile(self, type_id):
+		"""TODO"""
+		#report('Decompressing "' + type_id + '"...', self)
+		self.goto_subfile(type_id)
+		self.file.read(self.NONSENSE_BYTE_OFFSET)
+		return self.decompress(self.get_subfile_size(type_id))
+
+
+	def get_SC4ReadRegionalCity(self):
+		"""TODO"""
+
+		report('Parsing region view subfile of "' + self.filename + '"...', self)
+
+		data = self.decompress_subfile("ca027edb")
+	
+		#print(data.read())
+		#data.seek(0)
+
+		self.SC4ReadRegionalCity = dict()
+
+		self.SC4ReadRegionalCity['majorVersion'] = self.read_UL2(data)
+		self.SC4ReadRegionalCity['minorVersion'] = self.read_UL2(data)
+		
+		self.SC4ReadRegionalCity['tileXLocation'] = self.read_UL4(data)
+		self.SC4ReadRegionalCity['tileYLocation'] = self.read_UL4(data)
+		
+		self.SC4ReadRegionalCity['citySizeX'] = self.read_UL4(data)
+		self.SC4ReadRegionalCity['citySizeY'] = self.read_UL4(data)
+		
+		self.SC4ReadRegionalCity['residentialPopulation'] = self.read_UL4(data)
+		self.SC4ReadRegionalCity['commercialPopulation'] = self.read_UL4(data)
+		self.SC4ReadRegionalCity['industrialPopulation'] = self.read_UL4(data)
+
+		self.SC4ReadRegionalCity['unknown1'] = data.read(4) #TODO read float
+
+		self.SC4ReadRegionalCity['mayorRating'] = self.read_UL1(data)
+		self.SC4ReadRegionalCity['starCount'] = self.read_UL1(data)
+		self.SC4ReadRegionalCity['tutorialFlag'] = self.read_UL1(data)
+
+		self.SC4ReadRegionalCity['cityGUID'] = self.read_UL4(data)
+
+		self.SC4ReadRegionalCity['unknown5'] = self.read_UL4(data)
+		self.SC4ReadRegionalCity['unknown6'] = self.read_UL4(data)
+		self.SC4ReadRegionalCity['unknown7'] = self.read_UL4(data)
+		self.SC4ReadRegionalCity['unknown8'] = self.read_UL4(data)
+		self.SC4ReadRegionalCity['unknown9'] = self.read_UL4(data)
+
+		self.SC4ReadRegionalCity['modeFlag'] = self.read_UL1(data)
+
+		#TODO keep reading file
+
+		return self.SC4ReadRegionalCity
+
+	
+	def get_cSC4Simulator(self):
+		"""TODO"""
+
+		data = self.decompress_subfile("2990c1e5")
+
+		print(data.read())
+		data.seek(0)
+
+		self.cSC4Simulator = dict()
+
+		#TODO
 
 
 # Workers
@@ -1206,30 +1501,20 @@ class ServerLoader(th.Thread):
 	def prep_regions(self):
 		"""TODO"""
 
+		# Declare instance variable to store the names of the server region subdirectories
 		self.server.regions = []
 
+		# Path to regions directory
 		path = os.path.join(SC4MP_LAUNCHPATH, "Regions")
 
+		# Loop through the server regions, add them to the server regions instance variable and add prefixes to the region names in the region config files
 		for directory in os.listdir(path):
-			
-			# Backup directory
-			#backup_directory = os.path.join(SC4MP_LAUNCHPATH, os.path.join("SC4MPBackups", os.path.join(self.server.server_id, directory)))
-			#if (not os.path.exists(backup_directory)):
-			#	os.makedirs(backup_directory)
-
 			self.server.regions.append(directory)
-
-			config_path = os.path.join(path, directory, "region.ini")
 			
-			try:
-				config = configparser.RawConfigParser()
-				config.read(config_path)
-				config.set("Regional Settings", "Name", "[SC4MP] " + config.get("Regional Settings", "Name")) # can't choose between "[SC4MP]"", "[MP]", "[SC4MP]"
-				with open(config_path, 'wt') as config_file:
-					config.write(config_file)
-			except:
-				show_error("Failed to prep region config for " + directory + ".")
+			config_path = os.path.join(path, directory, "region.ini")
+			prep_region_config(config_path)
 
+		# Copy the latest failed save push into the region downloads subdirectory
 		downloads_path = os.path.join(path, "downloads")
 		if (not os.path.exists(downloads_path)):
 			os.makedirs(downloads_path)
@@ -1243,7 +1528,11 @@ class ServerLoader(th.Thread):
 			pass
 			#show_error(e, no_ui=True)
 
-		#shutil.unpack_archive(get_sc4mp_path("Regions.zip"), path) #TODO maybe re-enable this at some point?
+		# Create the refresh auxiliary region
+		refresh_path = os.path.join(path, "ZZZRefreshAuxiliary") #TODO possible name conflict!
+		os.makedirs(refresh_path)
+		shutil.copy(get_sc4mp_path("refresh-config.bmp"), os.path.join(refresh_path, "config.bmp"))
+		shutil.copy(get_sc4mp_path("refresh-region.ini"), os.path.join(refresh_path, "region.ini"))
 
 
 class GameMonitor(th.Thread):
@@ -1278,9 +1567,13 @@ class GameMonitor(th.Thread):
 			# Declare variable to break loop after the game closes
 			end = False
 
+			cfg_hashcode = None
+			old_refresh_region_open = False
+
 			# Set initial status in ui
 			self.report_quietly("Welcome, start a city and save to claim a tile.") #Ready. #"Monitoring for changes...")
 			
+		
 			# Infinite loop that can be broken by the "end" variable
 			while (True):
 
@@ -1341,12 +1634,13 @@ class GameMonitor(th.Thread):
 						self.city_paths = new_city_paths
 						self.city_hashcodes = new_city_hashcodes
 
-						# Report waiting to sync if new/modified savegames found
 						if (len(save_city_paths) > 0):
+							
+							# Report waiting to sync if new/modified savegames found
 							self.report("", "Saving...") #Scanning #Waiting to sync
-
-						# Wait
-						time.sleep(6) #10 #3 #TODO make configurable?
+							
+							# Wait
+							time.sleep(6) #5 #6 #10 #3 #TODO make configurable?
 					
 					# If there are any new/modified savegame files, push them to the server. If errors occur, log them in the console and display a warning
 					if (len(save_city_paths) > 0):
@@ -1355,6 +1649,7 @@ class GameMonitor(th.Thread):
 						except Exception as e:
 							show_error(e, no_ui=True)
 							self.report("[WARNING] ", "Save push failed! Unexpected client-side error.")
+						time.sleep(6)
 
 					# Break the loop when signaled
 					if (end == True):
@@ -1365,11 +1660,38 @@ class GameMonitor(th.Thread):
 						end = True
 
 					# Wait
-					time.sleep(3)
+					time.sleep(3) #1 #3
 
-					#TODO fix refresh
+					# Refresh
+					cfg_path = get_sc4_cfg_path()
+					try:
+						new_cfg_hashcode = md5(cfg_path)
+						if (cfg_hashcode != None and new_cfg_hashcode != cfg_hashcode):
+							#print("Region switched!")
+							new_refresh_region_open = refresh_region_open()
+							if (ping != None and new_refresh_region_open and (not old_refresh_region_open)):
+								#print("Refresh regions!")
+								old_text = self.ui.label["text"]
+								self.report("", "Refreshing...")
+								if (sc4mp_ui):
+									regions_refresher_ui = RegionsRefresherUI(self.server)
+									regions_refresher_ui.worker.run()
+									try:
+										regions_refresher_ui.destroy()
+									except:
+										pass
+								else:
+									regions_refresher = RegionsRefresher(None, self.server)
+									regions_refresher.run()
+								self.city_paths, self.city_hashcodes = self.get_cities()
+								self.report("", "Refreshed at " + datetime.now().strftime("%H:%M") + ".")
+								#self.ui.label["text"] = old_text
+							old_refresh_region_open = new_refresh_region_open
+						cfg_hashcode = new_cfg_hashcode
+					except Exception as e:
+						show_error(e, no_ui=True)
 					# Refresh by asking the server for the hashcodes of all its savegames (excluding ones already claimed by the user) and downloading the savegames missing locally, tossing them directly into the respective region (was supposed to work but Simcity 4 actually tries to keep files of the same checksum)
-					'''if (ping != None): #TODO add configurable refresh interval
+					'''if (ping != None):
 						old_text = self.ui.label["text"]
 						self.report("", "Refreshing...")
 						with self.create_socket() as s:
@@ -1405,7 +1727,7 @@ class GameMonitor(th.Thread):
 					
 				except Exception as e:
 					show_error(e, no_ui=True)
-					time.sleep(3)
+					time.sleep(5) #3
 			
 			# Destroy the game monitor ui if running
 			if (self.ui != None):
@@ -1681,6 +2003,230 @@ class GameLauncher(th.Thread):
 		except Exception as e:
 
 			show_error(e)
+
+
+class RegionsRefresher(th.Thread):
+	
+
+	def __init__(self, ui, server):
+
+		th.Thread.__init__(self)
+
+		self.ui = ui
+		self.server = server
+
+		self.setDaemon(True)
+
+
+	def run(self):
+		"""TODO"""
+		
+		try:
+
+			# Report
+			self.report("", "Refreshing regions...")
+			
+			# Set destination
+			destination = os.path.join(SC4MP_LAUNCHPATH, "Regions")
+
+			# Purge the region directories
+			for region in self.server.regions:
+				purge_directory(os.path.join(destination, region))
+
+			# Create the socket
+			s = self.create_socket() 
+
+			# Request regions
+			s.send(b"regions")
+
+			# Request header
+			request_header(s, self.server)
+
+			# Receive file count
+			file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+
+			# Separator
+			s.send(SC4MP_SEPARATOR)
+
+			# Receive file size
+			size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+
+			# Receive files
+			size_downloaded = 0
+			for files_received in range(file_count):
+				percent = math.floor(100 * (size_downloaded / size))
+				self.report_progress('Refreshing regions...' + "(" + str(percent) + "%)", percent, 100)
+				s.send(SC4MP_SEPARATOR)
+				size_downloaded += self.receive_or_cached(s, destination)
+			self.report_progress('Refreshing regions...' + "(" + str(100) + "%)", 100, 100)
+
+			# Report
+			self.report("", "Refreshing regions...")
+
+			# Prep region configs
+			for region in self.server.regions:
+				prep_region_config(os.path.join(destination, region, "region.ini"))
+
+			# Report
+			self.report("", "Done.")
+
+			# Wait
+			#time.sleep(1)
+
+		except Exception as e:
+
+			if (self.ui != None):
+				self.ui.withdraw()
+
+			show_error("An error occurred while refreshing regions.\n\n" + str(e))
+
+
+	def report(self, prefix, text):
+		"""TODO"""
+		if (self.ui != None):
+			self.ui.label['text'] = text
+			self.ui.progress_bar.start(2)
+			self.ui.progress_bar['mode'] = "indeterminate"
+			self.ui.progress_bar['maximum'] = 100
+		print(prefix + text)
+		#time.sleep(1) # for testing
+
+
+	def report_progress(self, text, value, maximum):
+		"""TODO"""
+		if (self.ui != None):
+			self.ui.label['text'] = text
+			self.ui.progress_bar.stop()
+			self.ui.progress_bar['mode'] = "determinate"
+			self.ui.progress_bar['value'] = value
+			self.ui.progress_bar['maximum'] = maximum
+		print(text)
+		#time.sleep(.1) # for testing
+
+
+	def create_socket(self):
+		"""TODO"""
+
+		host = self.server.host
+		port = self.server.port
+
+		s = socket.socket()
+
+		s.settimeout(10)
+
+		tries_left = 6
+
+		while(True):
+
+			try:
+
+				self.report("", "Connecting...")
+				s.connect((host, port))
+
+				self.report("", "Connected.")
+
+				break
+
+			except socket.error as e:
+				
+				if (tries_left > 0):
+				
+					show_error(e, no_ui=True)
+
+					count = 5
+					while(count > 0):
+						self.report("[ERROR] ", "Connection failed. Retrying in " + str(count) + "...")					
+						count = count - 1
+						time.sleep(1)
+
+					tries_left = tries_left - 1
+
+				else:
+
+					raise CustomException("Maximum connection tries exceeded. Check your internet connection and firewall settings, then try again.\n\n" + str(e))
+
+		return s
+
+
+	def receive_or_cached(self, s, rootpath):
+		"""TODO"""
+
+		# Receive hashcode and set cache filename
+		hash = s.recv(SC4MP_BUFFER_SIZE).decode()
+		target = os.path.join(SC4MP_LAUNCHPATH, "_Cache", hash)
+
+		# Separator
+		s.send(SC4MP_SEPARATOR)
+
+		# Receive filesize
+		filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+
+		# Separator
+		s.send(SC4MP_SEPARATOR)
+
+		# Receive relative path and set the destination
+		relpath = os.path.normpath(s.recv(SC4MP_BUFFER_SIZE).decode())
+		destination = os.path.join(rootpath, relpath)
+
+		# Use the cached file if it exists and has the same size
+		if (os.path.exists(target) and os.path.getsize(target) == filesize):
+			
+			print('- using cached "' + hash + '"')
+
+			# Tell the server that the file is cached
+			s.send(b"cached")
+
+			# Create the destination directory if necessary
+			destination_directory = os.path.split(destination)[0]
+			if (not os.path.exists(destination_directory)):
+				os.makedirs(destination_directory)
+
+			# Delete the destination file if it exists
+			if (os.path.exists(destination)):
+				os.remove(destination)
+
+			# Copy the cached file to the destination
+			shutil.copy(target, destination)
+
+		else:
+
+			print('- caching "' + hash + '"...')
+
+			# Tell the server that the file is not cached
+			s.send(b"not cached")
+
+			# Create the destination directory if necessary
+			destination_directory = os.path.split(destination)[0]
+			if (not os.path.exists(destination_directory)):
+				os.makedirs(destination_directory)
+
+			# Delete the destination file if it exists
+			if (os.path.exists(destination)):
+				os.remove(destination)
+
+			# Delete the cache file if it exists
+			if (os.path.exists(target)):
+				os.remove(target)
+
+			# Delete cache files if cache too large to accomadate the new cache file
+			cache_directory = os.path.join(SC4MP_LAUNCHPATH, "_Cache")
+			while (len(os.listdir(cache_directory)) > 0 and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize):
+				os.remove(os.path.join(cache_directory, random.choice(os.listdir(cache_directory))))
+
+			# Receive the file. Write to both the destination and cache
+			filesize_read = 0
+			destination_file = open(destination, "wb")
+			cache_file = open(target, "wb")
+			while (filesize_read < filesize):
+				bytes_read = s.recv(SC4MP_BUFFER_SIZE)
+				if not bytes_read:    
+					break
+				for file in [destination_file, cache_file]:
+					file.write(bytes_read)
+				filesize_read += len(bytes_read)
+			
+		# Return the file size
+		return filesize
 
 
 # User Interfaces
@@ -2924,6 +3470,65 @@ class GameOverlayUI(tk.Toplevel):
 		self.overrideredirect(True)
 		self.lift()
 		self.after(100, self.overlay)
+
+
+class RegionsRefresherUI(tk.Toplevel):
+	"""TODO"""
+
+
+	def __init__(self, server):
+		"""TODO"""
+
+		#print("Initializing...")
+
+		# Init
+		super().__init__()
+
+		# Title
+		self.title(server.server_name)
+
+		# Icon
+		self.iconbitmap(SC4MP_ICON)
+
+		# Geometry
+		self.minsize(800, 100)
+		self.maxsize(800, 100)
+		self.grid()
+		center_window(self)
+
+		# Priority
+		self.attributes("-topmost", True)
+		self.overlay()
+
+		# Label
+		self.label = ttk.Label(self)
+		self.label['text'] = "Loading..."
+		self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=10)
+
+		# Progress bar
+		self.progress_bar = ttk.Progressbar(
+			self,
+			orient='horizontal',
+			mode='indeterminate',
+			length=780,
+			maximum=100
+		)
+		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=10)
+		self.progress_bar.start(2)
+
+		# Worker
+		self.worker = RegionsRefresher(self, server)
+
+
+	def overlay(self):
+		"""TODO"""
+		#print("Overlaying...")
+		try:
+			self.overrideredirect(True)
+			self.lift()
+			self.after(100, self.overlay)
+		except Exception as e:
+			show_error(e, no_ui=True)
 
 
 # Exceptions
