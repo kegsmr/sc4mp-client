@@ -1672,7 +1672,7 @@ class GameMonitor(th.Thread):
 							if (new_refresh_region_open and (not old_refresh_region_open)):
 								#print("Refresh regions!")
 								if (ping == None):
-									self.report("", "Unable to refresh regions at this time.")
+									self.report("[WARNING]", "Unable to refresh regions at this time.")
 								else:
 									old_text = self.ui.label["text"]
 									self.report("", "Refreshing...")
