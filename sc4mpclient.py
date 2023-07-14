@@ -1167,7 +1167,7 @@ class ServerLoader(th.Thread):
 		if (self.server.server_version < unformat_version(SC4MP_VERSION)):
 			raise CustomException("The server requires an outdated version (v" + format_version(self.server.server_version) + ") of the SC4MP Launcher. Please contact the server administrators.")
 		if (self.server.server_version > unformat_version(SC4MP_VERSION)):
-			raise CustomException("The server requires a new version (v" + format_version(self.server.server_version) + ") of the SC4MP Launcher. Please update the launcher to connect to this server.")
+			raise CustomException("The server requires a newer version (v" + format_version(self.server.server_version) + ") of the SC4MP Launcher. Please update the launcher to connect to this server.")
 		if (self.ui != None):
 			self.ui.title(self.server.server_name)
 
