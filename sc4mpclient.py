@@ -21,7 +21,7 @@ import webbrowser
 from datetime import datetime
 from tkinter import Menu, filedialog, font, messagebox, ttk
 
-SC4MP_VERSION = "0.2.0"
+SC4MP_VERSION = "0.2.1"
 
 SC4MP_SERVERS = [("servers.sc4mp.org", 7240)]
 
@@ -2058,10 +2058,10 @@ class RegionsRefresher(th.Thread):
 			size_downloaded = 0
 			for files_received in range(file_count):
 				percent = math.floor(100 * (size_downloaded / size))
-				self.report_progress('Refreshing regions...' + "(" + str(percent) + "%)", percent, 100)
+				self.report_progress('Refreshing regions... ' + "(" + str(percent) + "%)", percent, 100)
 				s.send(SC4MP_SEPARATOR)
 				size_downloaded += self.receive_or_cached(s, destination)
-			self.report_progress('Refreshing regions...' + "(" + str(100) + "%)", 100, 100)
+			self.report_progress('Refreshing regions... ' + "(" + str(100) + "%)", 100, 100)
 
 			# Report
 			self.report("", "Refreshing regions...")
