@@ -1669,23 +1669,26 @@ class GameMonitor(th.Thread):
 						if (cfg_hashcode != None and new_cfg_hashcode != cfg_hashcode):
 							#print("Region switched!")
 							new_refresh_region_open = refresh_region_open()
-							if (ping != None and new_refresh_region_open and (not old_refresh_region_open)):
+							if (new_refresh_region_open and (not old_refresh_region_open)):
 								#print("Refresh regions!")
-								old_text = self.ui.label["text"]
-								self.report("", "Refreshing...")
-								if (sc4mp_ui):
-									regions_refresher_ui = RegionsRefresherUI(self.server)
-									regions_refresher_ui.worker.run()
-									try:
-										regions_refresher_ui.destroy()
-									except:
-										pass
+								if (ping == None):
+									self.report("", "Unable to refresh regions at this time.")
 								else:
-									regions_refresher = RegionsRefresher(None, self.server)
-									regions_refresher.run()
-								self.city_paths, self.city_hashcodes = self.get_cities()
-								self.report("", "Refreshed at " + datetime.now().strftime("%H:%M") + ".")
-								#self.ui.label["text"] = old_text
+									old_text = self.ui.label["text"]
+									self.report("", "Refreshing...")
+									if (sc4mp_ui):
+										regions_refresher_ui = RegionsRefresherUI(self.server)
+										regions_refresher_ui.worker.run()
+										try:
+											regions_refresher_ui.destroy()
+										except:
+											pass
+									else:
+										regions_refresher = RegionsRefresher(None, self.server)
+										regions_refresher.run()
+									self.city_paths, self.city_hashcodes = self.get_cities()
+									self.report("", "Regions refreshed at " + datetime.now().strftime("%H:%M") + ".")
+									#self.ui.label["text"] = old_text
 							old_refresh_region_open = new_refresh_region_open
 						cfg_hashcode = new_cfg_hashcode
 					except Exception as e:
