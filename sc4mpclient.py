@@ -3171,8 +3171,8 @@ class AboutUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry('400x400')
-		self.maxsize(265, 175)
-		self.minsize(265, 175)
+		self.maxsize(550, 286)
+		self.minsize(550, 286)
 		self.grid()
 		center_window(self)
 		
@@ -3183,44 +3183,50 @@ class AboutUI(tk.Toplevel):
 		self.bind("<Return>", lambda event:self.ok())
 		self.bind("<Escape>", lambda event:self.destroy())
 
+		# Image
+		self.canvas = tk.Canvas(self, width=256, height=256)
+		self.canvas.image = tk.PhotoImage(file=get_sc4mp_path("icon.png"))
+		self.canvas.create_image(128, 128, anchor="center", image=self.canvas.image)    
+		self.canvas.grid(row=0, column=0, rowspan=5, columnspan=1, padx=10, pady=(10,0), sticky="n")
+
 		# Title label 1
 		self.title_label_1 = ttk.Label(self, text="Title:")
-		self.title_label_1.grid(row=0, column=0, columnspan=1, padx=10, pady=(10,5), sticky="e")
+		self.title_label_1.grid(row=0, column=1, columnspan=1, padx=10, pady=(20,5), sticky="e")
 
 		# Title label 2
 		self.title_label_2 = ttk.Label(self, text=SC4MP_TITLE)
-		self.title_label_2.grid(row=0, column=1, columnspan=1, padx=10, pady=(10,5), sticky="w")
+		self.title_label_2.grid(row=0, column=2, columnspan=1, padx=10, pady=(20,5), sticky="w")
 
 		# Author label 1
 		self.author_label_1 = ttk.Label(self, text="Author:")
-		self.author_label_1.grid(row=1, column=0, columnspan=1, padx=10, pady=5, sticky="e")
+		self.author_label_1.grid(row=1, column=1, columnspan=1, padx=10, pady=5, sticky="e")
 
 		# Author label 2
 		self.author_label_2 = tk.Label(self, text=SC4MP_AUTHOR_NAME, fg="blue", cursor="hand2") #, font=font.Font(underline=True))
-		self.author_label_2.grid(row=1, column=1, columnspan=1, padx=10, pady=5, sticky="w")
+		self.author_label_2.grid(row=1, column=2, columnspan=1, padx=10, pady=5, sticky="w")
 		self.author_label_2.bind("<Button-1>", lambda e:webbrowser.open_new_tab(SC4MP_CONTRIBUTORS_URL))
 
 		# Website label 1
 		self.website_label_1 = ttk.Label(self, text="Website:")
-		self.website_label_1.grid(row=2, column=0, columnspan=1, padx=10, pady=5, sticky="e")
+		self.website_label_1.grid(row=2, column=1, columnspan=1, padx=10, pady=5, sticky="e")
 
 		# Website label 2
 		self.website_label_2 = tk.Label(self, text=SC4MP_WEBSITE_NAME, fg="blue", cursor="hand2")
-		self.website_label_2.grid(row=2, column=1, columnspan=1, padx=10, pady=5, sticky="w")
+		self.website_label_2.grid(row=2, column=2, columnspan=1, padx=10, pady=5, sticky="w")
 		self.website_label_2.bind("<Button-1>", lambda e:webbrowser.open_new_tab(SC4MP_URL))
 
 		# License label 1
 		self.license_label_1 = ttk.Label(self, text="License:")
-		self.license_label_1.grid(row=3, column=0, columnspan=1, padx=10, pady=5, sticky="e")
+		self.license_label_1.grid(row=3, column=1, columnspan=1, padx=10, pady=(5,80), sticky="e")
 
 		# License label 2
 		self.license_label_2 = tk.Label(self, text=SC4MP_LICENSE_NAME, fg="blue", cursor="hand2")
-		self.license_label_2.grid(row=3, column=1, columnspan=1, padx=10, pady=5, sticky="w")
+		self.license_label_2.grid(row=3, column=2, columnspan=1, padx=10, pady=(5,80), sticky="w")
 		self.license_label_2.bind("<Button-1>", lambda e:os.startfile("License.txt"))
 
 		# Ok button
 		self.ok_button = ttk.Button(self, text="Ok", command=self.ok, default="active")
-		self.ok_button.grid(row=4, column=1, columnspan=1, padx=0, pady=5, sticky="e")
+		self.ok_button.grid(row=4, column=2, columnspan=1, padx=0, pady=5, sticky="se")
 
 
 	def ok(self):
