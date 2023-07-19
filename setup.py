@@ -9,7 +9,9 @@ from distutils.core import setup
 
 import py2exe
 
-VERSION = "0.2.0"
+import sc4mpclient
+
+VERSION = sc4mpclient.SC4MP_VERSION
 
 for item in os.listdir("dist"):
     item = os.path.join("dist", item)
@@ -47,9 +49,6 @@ setup(
 	windows=[{
 		"script": "sc4mpclient.py",
 		"icon_resources": [(1, "resources/icon.ico")],
-		"name": "SC4MP Launcher",
-		"author": "Simcity 4 Multiplayer Project",
-        "description": "Multiplayer launcher for Simcity 4",
 	}],
 	options={
 		"py2exe": {
