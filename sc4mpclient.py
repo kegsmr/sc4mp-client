@@ -9,6 +9,7 @@ import platform
 import random
 import shutil
 import socket
+import ipaddress
 import string
 import struct
 import subprocess
@@ -21,9 +22,20 @@ import webbrowser
 from datetime import datetime
 from tkinter import Menu, filedialog, font, messagebox, ttk
 
-SC4MP_VERSION = "0.2.1"
+SC4MP_VERSION = "0.3.0"
 
-SC4MP_SERVERS = [("servers.sc4mp.org", 7240)]
+SC4MP_SERVERS = [
+	("servers.sc4mp.org", 7240), 
+	("servers.sc4mp.org", 7241), 
+	("servers.sc4mp.org", 7242), 
+	("servers.sc4mp.org", 7243),
+	("servers.sc4mp.org", 7244),
+	("servers.sc4mp.org", 7245),
+	("servers.sc4mp.org", 7246),
+	("servers.sc4mp.org", 7247),
+	("servers.sc4mp.org", 7248),
+	("servers.sc4mp.org", 7249),
+]
 
 SC4MP_URL = "www.sc4mp.org"
 SC4MP_CONTRIBUTORS_URL = "https://github.com/keggre/sc4mp-client/contributors/"
@@ -49,6 +61,8 @@ SC4MP_SEPARATOR = b"<SEPARATOR>"
 SC4MP_BUFFER_SIZE = 4096
 
 SC4MP_DELAY = .1
+
+SC4MP_SERVERLIST_ENABLED = True #TODO
 
 SC4MP_CONFIG_DEFAULTS = [
 	("GENERAL", [
@@ -312,8 +326,15 @@ def event_generate(ui, event, when):
 
 def load_json(filename):
 	"""Returns data from a json file as a dictionary."""
-	with open(filename, 'r') as file:
-		return json.load(file)
+	try:
+		with open(filename, 'r') as file:
+			data = json.load(file)
+			if (data == None):
+				return dict()
+			else:
+				return data
+	except FileNotFoundError:
+		return dict()
 
 
 def update_json(filename, data):
@@ -466,7 +487,8 @@ def set_server_data(entry, server):
 	entry["port"] = server.port
 	entry["server_name"] = server.server_name
 	entry["server_description"] = server.server_description
-	entry["server_version"] = format_version(server.server_version)
+	entry["server_url"] = server.server_url
+	entry["server_version"] = server.server_version
 	entry["password_enabled"] = server.password_enabled
 	entry["user_plugins"] = server.user_plugins_enabled
 	entry.setdefault("first_contact", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
@@ -503,6 +525,29 @@ def prep_region_config(path):
 			config.write(config_file)
 	except:
 		show_error("Failed to prep region config at " + path + ".")
+
+
+def format_filesize(size):
+	if (size >= 10 ** 11):
+		return ">99GB"
+	elif (size >= 10 ** 10):
+		return str(int(size / (10 ** 9))) + "GB"
+	elif (size >= 10 ** 9):
+		return str(float(int(size / (10 ** 8)) / 10)) + "GB"
+	elif (size >= 10 ** 8):
+		return str(int(size / (10 ** 6))) + "MB"
+	elif (size >= 10 ** 7):
+		return str(int(size / (10 ** 6))) + "MB"
+	elif (size >= 10 ** 6):
+		return str(float(int(size / (10 ** 5)) / 10)) + "MB"
+	elif (size >= 10 ** 5):
+		return str(int(size / (10 ** 3))) + "KB"
+	elif (size >= 10 ** 4):
+		return str(int(size / (10 ** 3))) + "KB"
+	elif (size >= 10 ** 3):
+		return str(float(int(size / (10 ** 2)) / 10)) + "KB"
+	else:
+		return str(int(size)) + "B"
 
 
 # Objects
@@ -607,19 +652,29 @@ class Server:
 		self.server_id = self.request("server_id")
 		self.server_name = self.request("server_name")
 		self.server_description = self.request("server_description")
+		self.server_url = self.request("server_url")
 		self.server_version = self.request("server_version")
 		self.password_enabled = self.request("password_enabled") == "yes"
 		self.user_plugins_enabled = self.request("user_plugins_enabled") == "yes"
 
-		if (self.server_version != None):
-			self.server_version = unformat_version(self.server_version)
+		#if (self.server_version != None):
+		#	self.server_version = unformat_version(self.server_version)
 
-		try:
-			self.update_database()
-		except Exception as e:
-			show_error(e, no_ui = True)
+		if (self.fetched == True):
+			try:
+				self.update_database()
+			except Exception as e:
+				show_error(e, no_ui = True)
 
-		#TODO add server host and port to serverlist?
+
+	def fetch_stats(self):
+		"""TODO"""
+
+		# Request server info
+		self.stat_mayors = (random.randint(0,5000),random.randint(0,5000)) #TODO
+		self.stat_claimed = (float(random.randint(0, 100)) / 100) #TODO
+		self.stat_download = (random.randint(0, 10 ** 11)) #TODO
+		self.stat_ping = self.ping()
 
 
 	def update_database(self):
@@ -664,7 +719,7 @@ class Server:
 			return s.recv(SC4MP_BUFFER_SIZE).decode()
 		except:
 			self.fetched = False
-			show_error('Error fetching "' + request + '" from ' + host + ":" + str(port) + '', no_ui=True)
+			print('[WARNING] Unable to fetch "' + request + '" from ' + host + ":" + str(port) + '')
 			return None
 
 
@@ -1023,12 +1078,31 @@ class ServerList(th.Thread):
 	"""TODO"""
 
 
-	def __init__(self):
+	def __init__(self, ui):
 		"""TODO"""
+
+		th.Thread.__init__(self)
+
+		self.ui = ui
 
 		self.setDaemon(True)
 
-		print("(to implement)") #TODO
+		self.end = False
+		self.ended = False
+
+		self.servers = dict()
+
+		self.unfetched_servers = SC4MP_SERVERS
+		
+		#TODO get lan
+		#for offset in range(64512):
+		#	pass
+
+		data = load_json(os.path.join(SC4MP_LAUNCHPATH, "_Profiles", "servers.json"))
+		for key in data.keys():
+			self.unfetched_servers.append((data[key]["host"], data[key]["port"]))
+
+		self.fetched_servers = []
 
 
 	def run(self):
@@ -1036,11 +1110,138 @@ class ServerList(th.Thread):
 
 		try:
 
-			print("TO IMPLEMENT") #TODO
+			while (self.end == False):
+
+				# Enable or disable connect button and update labels
+				if (self.ui.tree.focus() == ""):
+					self.ui.connect_button['state'] = tk.DISABLED
+				else:
+					self.ui.connect_button['state'] = tk.NORMAL
+					self.ui.address_label["text"] = self.servers[self.ui.tree.focus()].host + ":" + str(self.servers[self.ui.tree.focus()].port)
+					self.ui.description_label["text"] = self.servers[self.ui.tree.focus()].server_description
+					self.ui.url_label["text"] = self.servers[self.ui.tree.focus()].server_url
+					
+				# Fetch the next unfetched server
+				if (len(self.unfetched_servers) > 0):
+					unfetched_server = self.unfetched_servers.pop(0)
+					ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
+
+				# Add all fetched servers to the server dictionary if not already present
+				while (len(self.fetched_servers) > 0):
+					fetched_server = self.fetched_servers.pop(0)
+					if (fetched_server.server_id not in self.servers.keys()):
+						self.servers[fetched_server.server_id] = fetched_server
+
+				# Update the treeview
+				for key in self.servers.keys():
+					if (not self.ui.tree.exists(key)):
+						self.ui.tree.insert('', 'end', key, values=self.format_server(self.servers[key]))
+
+				# Delay
+				time.sleep(SC4MP_DELAY)
+
+			self.ended = True
 
 		except Exception as e:
 
-			show_error(e)
+			show_error(e, no_ui=True)
+
+
+	def format_server(self, server):
+		"""TODO"""
+		return ("", server.server_name, str(server.stat_mayors[0]) + " (" + str(server.stat_mayors[1]) + ")", str(int(server.stat_claimed * 100)) + "%", format_filesize(server.stat_download), str(server.stat_ping) + "ms", "X/5")
+
+
+class ServerFetcher(th.Thread):
+
+
+	def __init__(self, parent, server):
+
+		th.Thread.__init__(self)
+
+		self.parent = parent
+		self.server = server
+
+		self.setDaemon(True)
+
+
+	def run(self):
+
+		try:
+
+			for key in self.parent.servers.keys():
+				server = self.parent.servers[key]
+				if (self.server.host == server.host and self.server.port == server.port):
+					return
+
+			print("Fetching " + self.server.host + ":" + str(self.server.port) + "...")
+
+			self.server.fetch()
+			self.server.fetch_stats()
+
+			self.server_list()
+
+			print("Done.")
+
+			self.parent.fetched_servers.append(self.server)
+
+			#TODO start server pinger
+
+		except Exception as e:
+
+			#show_error(e, no_ui=True)
+			print("[WARNING] Failed!")
+
+	
+	def server_list(self):
+		"""TODO"""
+		s = self.create_socket(self.server)
+		s.send(b"server_list")
+		size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+		s.send(SC4MP_SEPARATOR)
+		for count in range(size):
+			host = s.recv(SC4MP_BUFFER_SIZE).decode()
+			s.send(SC4MP_SEPARATOR)
+			port = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+			s.send(SC4MP_SEPARATOR)
+			self.parent.unfetched_servers.append((host, port))
+
+
+	def create_socket(self, server):
+		"""TODO"""
+		host = server.host
+		port = server.port
+		try:
+			s = socket.socket()
+			s.settimeout(10)
+			s.connect((host, port))
+			return s
+		except:
+			return None
+
+
+class ServerPinger(th.Thread):
+
+
+	def __init__(self, parent, server):
+
+		th.Thread.__init__(self)
+
+		self.parent = parent
+		self.server = server
+
+		self.setDaemon(True)
+
+
+	def run(self):
+
+		try:
+
+			print("TODO")
+
+		except Exception as e:
+
+			show_error(e, no_ui=True)
 
 
 class ServerLoader(th.Thread):
@@ -1164,9 +1365,9 @@ class ServerLoader(th.Thread):
 			self.server.fetch()
 			if (self.server.fetched == False):
 				raise CustomException("Unable to find server. Check the IP address and port, then try again.")
-		if (self.server.server_version < unformat_version(SC4MP_VERSION)):
+		if (unformat_version(self.server.server_version) < unformat_version(SC4MP_VERSION)):
 			raise CustomException("The server requires an outdated version (v" + format_version(self.server.server_version) + ") of the SC4MP Launcher. Please contact the server administrators.")
-		if (self.server.server_version > unformat_version(SC4MP_VERSION)):
+		if (unformat_version(self.server.server_version) > unformat_version(SC4MP_VERSION)):
 			raise CustomException("The server requires a newer version (v" + format_version(self.server.server_version) + ") of the SC4MP Launcher. Please update the launcher to connect to this server.")
 		if (self.ui != None):
 			self.ui.title(self.server.server_name)
@@ -1181,7 +1382,7 @@ class ServerLoader(th.Thread):
 					raise CustomException("Too many password attempts.")
 				if (tries > 0):
 					print("[WARNING] Incorrect password.")
-					time.sleep(3)
+					#time.sleep(3) #TODO uncomment?
 				PasswordDialogUI(self, tries)
 				tries += 1
 			else:
@@ -1509,10 +1710,10 @@ class ServerLoader(th.Thread):
 
 		# Loop through the server regions, add them to the server regions instance variable and add prefixes to the region names in the region config files
 		for directory in os.listdir(path):
-			self.server.regions.append(directory)
-			
-			config_path = os.path.join(path, directory, "region.ini")
-			prep_region_config(config_path)
+			if os.path.isdir(os.path.join(path, directory)):
+				self.server.regions.append(directory)
+				config_path = os.path.join(path, directory, "region.ini")
+				prep_region_config(config_path)
 
 		# Copy the latest failed save push into the region downloads subdirectory
 		downloads_path = os.path.join(path, "downloads")
@@ -2303,7 +2504,7 @@ class UI(tk.Tk):
 		#servers.add_command(label="Host...", command=self.host) #TODO
 		#servers.add_separator() #TODO
 		servers.add_command(label="Connect...", accelerator="F1", command=self.direct_connect)  #"Direct connect..."
-		#servers.add_command(label="Refresh", command=self.refresh) #TODO
+		servers.add_command(label="Refresh", command=self.refresh)
 		menu.add_cascade(label="Servers", menu=servers)  
 
 		help = Menu(menu, tearoff=0)  	
@@ -2324,9 +2525,9 @@ class UI(tk.Tk):
 
 		# Server List
 
-		if (False): #TODO re-enable server list
+		if (SC4MP_SERVERLIST_ENABLED):
 			self.server_list = ServerListUI(self)
-			self.server_list.grid(row = 0, column = 0)
+			self.server_list.grid(row=0, column=0, padx=0, pady=0, sticky="w")
 		else:
 			self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Connect..." in the menu bar and enter the IP address and port of the server you wish to connect to.')
 			self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
@@ -2377,7 +2578,12 @@ class UI(tk.Tk):
 
 	def refresh(self):
 		"""TODO"""
-		self.to_implement() #TODO
+		self.server_list.worker.end = True
+		#while (self.server_list.worker.ended == False):
+		#	time.sleep(SC4MP_DELAY)
+		self.server_list.tree.delete(*self.server_list.tree.get_children())
+		self.server_list.worker = ServerList(self.server_list)
+		self.server_list.worker.start()
 
 
 	def about(self):
@@ -3267,18 +3473,40 @@ class ServerListUI(tk.Frame):
 		self.grid()
 
 
+		# Key bindings
+
+		self.root.bind("<Return>", lambda event: self.connect())
+		self.root.bind("<Up>", lambda event:self.focus_tree())
+		self.root.bind("<Down>", lambda event:self.focus_tree())
+
+
+		# Image
+
+		self.canvas = tk.Canvas(self, width=800, height=100)
+		self.canvas.image = tk.PhotoImage(file=get_sc4mp_path("banner.png"))
+		self.canvas.create_image(400, 50, image=self.canvas.image)    
+		self.canvas["borderwidth"] = 0
+		self.canvas["highlightthickness"] = 0
+		self.canvas.grid(row=0, column=0, rowspan=1, columnspan=2, padx=0, pady=0)
+
+
 		# Label
 
 		self.label = ttk.Label(self)
-		self.label.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10)
+		self.label.grid(column=0, row=1, rowspan=1, columnspan=2, padx=10, pady=(15, 10))
 		self.label['text'] = 'To get started, select a server below and click "Connect."' #"Loading server list..."
 
 
 		# Tree
 
-		NORMAL_COLUMN_WIDTH = 97
+		NORMAL_COLUMN_WIDTH = 93
 
 		COLUMNS = [
+			(
+				"",
+				int(NORMAL_COLUMN_WIDTH / 3),
+				"w"
+    		),
 			(
 				"Name",
 				3 * NORMAL_COLUMN_WIDTH,
@@ -3316,7 +3544,7 @@ class ServerListUI(tk.Frame):
 			column_names.append(column[0])
 		column_names = tuple(column_names)
 
-		self.tree = ttk.Treeview(self, selectmode="browse")
+		self.tree = ttk.Treeview(self, selectmode="browse", height=12)
 
 		self.tree['columns'] = column_names
 
@@ -3329,11 +3557,79 @@ class ServerListUI(tk.Frame):
 		
 		self.tree['show'] = 'headings'
 
-		self.tree.grid(column=0, row=5, rowspan=1, columnspan=1, padx=10, pady=10, sticky="we")
+		self.tree.focus_set()
 
-		self.tree.insert('', 'end', 'item1', values=("[SC4MP] Vanilla", "23 (2)", "36%", "542MB", "43ms", "5/5"))
-		self.tree.insert('', 'end', 'item2')
-		self.tree.insert('', 'end', 'item3')
+		self.tree.bind("<Double-1>", lambda event: self.connect())
+
+		self.tree.grid(column=0, row=2, rowspan=1, columnspan=2, padx=11, pady=10, sticky="n")
+
+		#SERVER = Server(SC4MP_HOST, SC4MP_PORT)
+		#SERVER.fetch()
+		#self.tree.insert('', 'end', SERVER.server_id, values=self.worker.format_server(SERVER))
+
+
+		# Description label
+
+		self.description_label = ttk.Label(self)
+		self.description_label.grid(column=0, row=5, rowspan=1, columnspan=1, padx=20, pady=10, sticky="nw")
+		self.description_label['text'] = ""
+
+
+		# Address label
+
+		self.address_label = ttk.Label(self)
+		self.address_label.grid(row=5, column=1, columnspan=1, padx=15, pady=(10, 90), sticky="ne")
+		self.address_label['text'] = ""
+
+
+		# URL label
+
+		self.url_label = tk.Label(self, fg="blue", cursor="hand2")
+		self.url_label.grid(row=6, column=0, columnspan=1, padx=15, pady=(10, 10), sticky="sw")
+		self.url_label['text'] = ""
+		self.url_label.bind("<Button-1>", lambda e:webbrowser.open_new_tab(self.url_label["text"]))
+
+
+		# Connect button
+
+		self.connect_button = ttk.Button(self, text="Connect", command=self.connect, default="active")
+		self.connect_button['state'] = tk.DISABLED
+		self.connect_button.grid(row=6, column=1, columnspan=1, padx=15, pady=10, sticky="se")
+
+
+		# Worker
+		self.worker = ServerList(self)
+		self.worker.start()
+
+
+	def focus_tree(self):
+		"""TODO"""
+		self.tree.focus_set()
+		if (self.tree.focus() == ""):
+			children = self.tree.get_children()
+			self.tree.focus(children[0])
+
+
+	def connect(self):
+		"""TODO"""
+		print('"Connect"')
+		server_id = self.tree.focus()
+		if (server_id == ""):
+			return
+		server = self.worker.servers[server_id]
+		host = server.host
+		port = server.port
+		try:
+			if (len(host) < 1):
+				host = SC4MP_HOST
+			try:
+				port = int(port)
+			except:
+				port = SC4MP_PORT
+			ServerLoaderUI(Server(host, port))
+			self.tree.focus_set()
+		except Exception as e:
+			show_error(e)
 
 
 class ServerLoaderUI(tk.Toplevel):
