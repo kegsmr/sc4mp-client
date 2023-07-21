@@ -1121,47 +1121,41 @@ class ServerList(th.Thread):
 			print("Fetching servers...")
 
 			while (self.end == False):
-				
-				try:
 
-					# Enable or disable connect button and update labels
-					if (self.ui.tree.focus() == ""):
-						self.ui.connect_button['state'] = tk.DISABLED
-					else:
-						self.ui.connect_button['state'] = tk.NORMAL
-						self.ui.address_label["text"] = self.servers[self.ui.tree.focus()].host + ":" + str(self.servers[self.ui.tree.focus()].port)
-						self.ui.description_label["text"] = self.servers[self.ui.tree.focus()].server_description
-						self.ui.url_label["text"] = self.servers[self.ui.tree.focus()].server_url
-						
-					# Fetch the next unfetched server
-					if (len(self.unfetched_servers) > 0):
-						unfetched_server = self.unfetched_servers.pop(0)
-						if (unfetched_server not in self.tried_servers):
-							self.tried_servers.append(unfetched_server)
-							ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
+				# Enable or disable connect button and update labels
+				if (self.ui.tree.focus() == ""):
+					self.ui.connect_button['state'] = tk.DISABLED
+				else:
+					self.ui.connect_button['state'] = tk.NORMAL
+					self.ui.address_label["text"] = self.servers[self.ui.tree.focus()].host + ":" + str(self.servers[self.ui.tree.focus()].port)
+					self.ui.description_label["text"] = self.servers[self.ui.tree.focus()].server_description
+					self.ui.url_label["text"] = self.servers[self.ui.tree.focus()].server_url
+					
+				# Fetch the next unfetched server
+				if (len(self.unfetched_servers) > 0):
+					unfetched_server = self.unfetched_servers.pop(0)
+					if (unfetched_server not in self.tried_servers):
+						self.tried_servers.append(unfetched_server)
+						ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
 
-					# Add all fetched servers to the server dictionary if not already present
-					while (len(self.fetched_servers) > 0):
-						fetched_server = self.fetched_servers.pop(0)
-						if (fetched_server.server_id not in self.servers.keys()):
-							self.servers[fetched_server.server_id] = fetched_server
+				# Add all fetched servers to the server dictionary if not already present
+				while (len(self.fetched_servers) > 0):
+					fetched_server = self.fetched_servers.pop(0)
+					if (fetched_server.server_id not in self.servers.keys()):
+						self.servers[fetched_server.server_id] = fetched_server
 
-					# Update the treeview
-					new_rows = False
+				# Update the treeview
+				new_rows = False
+				for key in self.servers.keys():
+					if (not self.ui.tree.exists(key)):
+						self.ui.tree.insert('', 'end', key, values=self.format_server(self.servers[key]))
+						new_rows = True
+
+				# Update and sort the tree
+				if (new_rows):
 					for key in self.servers.keys():
-						if (not self.ui.tree.exists(key)):
-							self.ui.tree.insert('', 'end', key, values=self.format_server(self.servers[key]))
-							new_rows = True
-
-					# Update and sort the tree
-					if (new_rows):
-						for key in self.servers.keys():
-							self.ui.tree.item(key, values=self.format_server(self.servers[key]))
-							#TODO sort
-
-				except Exception as e:
-
-					show_error(e, no_ui=True)
+						self.ui.tree.item(key, values=self.format_server(self.servers[key]))
+						#TODO sort
 
 				# Delay
 				time.sleep(SC4MP_DELAY)
@@ -1170,7 +1164,7 @@ class ServerList(th.Thread):
 
 		except Exception as e:
 
-			show_error(e, no_ui=True)
+			show_error("An error occurred while fetching servers.\n\n" + str(e))
 
 
 	def format_server(self, server):
