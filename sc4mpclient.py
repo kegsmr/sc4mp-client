@@ -1092,7 +1092,7 @@ class ServerList(th.Thread):
 
 		self.servers = dict()
 
-		self.unfetched_servers = SC4MP_SERVERS
+		self.unfetched_servers = SC4MP_SERVERS.copy()
 		
 		#TODO get lan
 		#for offset in range(64512):
