@@ -1112,6 +1112,8 @@ class ServerList(th.Thread):
 		self.stat_download = []
 		self.stat_ping = []
 
+		self.lock_image = tk.PhotoImage(file=get_sc4mp_path("lock.png"))
+
 
 	def run(self):
 		"""TODO"""
@@ -1119,6 +1121,9 @@ class ServerList(th.Thread):
 		try:
 
 			print("Fetching servers...")
+
+			#for i in range(200):
+			#	self.ui.tree.insert('', 'end', str(i), values=(str(i)))
 
 			while (self.end == False):
 
@@ -1144,18 +1149,35 @@ class ServerList(th.Thread):
 					if (fetched_server.server_id not in self.servers.keys()):
 						self.servers[fetched_server.server_id] = fetched_server
 
-				# Update the treeview
+				# Add new rows to the tree
 				new_rows = False
 				for key in self.servers.keys():
+					self.calculate_rating(self.servers[key])
 					if (not self.ui.tree.exists(key)):
-						self.ui.tree.insert('', 'end', key, values=self.format_server(self.servers[key]))
+						if (self.servers[key].password_enabled):
+							image = self.lock_image
+						else:
+							image=tk.PhotoImage()
+						self.ui.tree.insert('', 'end', key, values=self.format_server(self.servers[key]), image=image)
 						new_rows = True
 
 				# Update and sort the tree
 				if (new_rows):
-					for key in self.servers.keys():
-						self.ui.tree.item(key, values=self.format_server(self.servers[key]))
-						#TODO sort
+					unsorted_servers = self.servers.copy()
+					while(len(unsorted_servers) > 0):
+						min_key = None
+						min_value = None
+						for key in unsorted_servers.keys():
+							value = unsorted_servers[key].rating
+							if (min_key == None):
+								min_key = key
+							if (min_value == None or value < min_value):
+								min_key = key
+								min_value = value
+						server = unsorted_servers.pop(min_key)
+						key = server.server_id
+						self.ui.tree.move(key, self.ui.tree.parent(key), 0)
+						self.ui.tree.item(key, values=self.format_server(server))
 
 				# Delay
 				time.sleep(SC4MP_DELAY)
@@ -1169,8 +1191,7 @@ class ServerList(th.Thread):
 
 	def format_server(self, server):
 		"""TODO"""
-		self.calculate_rating(server)
-		return ("", server.server_name, str(server.stat_mayors) + " (" + str(server.stat_mayors_online) + ")", str(int(server.stat_claimed * 100)) + "%", format_filesize(server.stat_download), str(server.stat_ping) + "ms", str(round(server.rating)))
+		return (server.server_name, str(server.stat_mayors) + " (" + str(server.stat_mayors_online) + ")", str(int(server.stat_claimed * 100)) + "%", format_filesize(server.stat_download), str(server.stat_ping) + "ms", str(round(server.rating, 1)))
 
 	
 	def calculate_rating(self, server):
@@ -3557,23 +3578,28 @@ class ServerListUI(tk.Frame):
 		# Label
 
 		self.label = ttk.Label(self)
-		self.label.grid(column=0, row=1, rowspan=1, columnspan=2, padx=10, pady=(15, 10))
+		self.label.grid(row=1, column=0, rowspan=1, columnspan=2, padx=10, pady=(15, 10))
 		self.label['text'] = 'To get started, select a server below and click "Connect."' #"Loading server list..."
+
+
+		# Frame
+
+		self.frame = tk.Frame(self)
+		self.frame.grid(row=2, column=0, rowspan=1, columnspan=2, padx=15, pady=10, sticky="n")
 
 
 		# Tree
 
-		NORMAL_COLUMN_WIDTH = 93
-
+		NORMAL_COLUMN_WIDTH = 90
 		COLUMNS = [
-			(
-				"",
-				int(NORMAL_COLUMN_WIDTH / 3),
-				"w"
-    		),
+			#(
+			#	"",
+			#	int(NORMAL_COLUMN_WIDTH / 3),
+			#	"w"
+    		#),
 			(
 				"Name",
-				3 * NORMAL_COLUMN_WIDTH,
+				3 * NORMAL_COLUMN_WIDTH - 15,
 				"w"
     		),
 		    (
@@ -3608,57 +3634,72 @@ class ServerListUI(tk.Frame):
 			column_names.append(column[0])
 		column_names = tuple(column_names)
 
-		self.tree = ttk.Treeview(self, selectmode="browse", height=12)
+		self.tree = ttk.Treeview(self.frame, columns=column_names, selectmode="browse", height=12)
 
-		self.tree['columns'] = column_names
+		self.tree.column("#0", width=45, anchor="center", stretch=False)
 
 		for column in COLUMNS:
 			column_name = column[0]
 			column_width = column[1]
 			column_anchor = column[2]
-			self.tree.column(column_name, width=column_width, anchor=column_anchor)
+			self.tree.column(column_name, width=column_width, anchor=column_anchor, stretch=False)
 			self.tree.heading(column_name, text=column_name)
 		
-		self.tree['show'] = 'headings'
-
-		self.tree.focus_set()
+		#self.tree['show'] = 'headings'
 
 		self.tree.bind("<Double-1>", lambda event: self.connect())
 
-		self.tree.grid(column=0, row=2, rowspan=1, columnspan=2, padx=11, pady=10, sticky="n")
+		self.tree.focus_set()
 
-		#SERVER = Server(SC4MP_HOST, SC4MP_PORT)
-		#SERVER.fetch()
-		#self.tree.insert('', 'end', SERVER.server_id, values=self.worker.format_server(SERVER))
+		self.tree.pack(side="left")
+
+
+		# Scrollbar
+
+		self.scrollbar = ttk.Scrollbar(self.frame, orient ="vertical", command = self.tree.yview)
+		self.scrollbar.pack(side="right", fill="y")
+		self.tree.configure(yscrollcommand=self.scrollbar.set)
 
 
 		# Description label
 
 		self.description_label = ttk.Label(self)
-		self.description_label.grid(column=0, row=5, rowspan=1, columnspan=1, padx=20, pady=10, sticky="nw")
+		self.description_label.grid(row=3, column=0, rowspan=1, columnspan=1, padx=20, pady=10, sticky="nw")
 		self.description_label['text'] = ""
 
 
 		# Address label
 
 		self.address_label = ttk.Label(self)
-		self.address_label.grid(row=5, column=1, columnspan=1, padx=15, pady=(10, 90), sticky="ne")
+		self.address_label.grid(row=3, column=1, columnspan=1, padx=15, pady=(10, 90), sticky="ne")
 		self.address_label['text'] = ""
 
 
 		# URL label
 
 		self.url_label = tk.Label(self, fg="blue", cursor="hand2")
-		self.url_label.grid(row=6, column=0, columnspan=1, padx=15, pady=(10, 10), sticky="sw")
+		self.url_label.grid(row=4, column=0, columnspan=1, padx=15, pady=(10, 10), sticky="sw")
 		self.url_label['text'] = ""
 		self.url_label.bind("<Button-1>", lambda e:webbrowser.open_new_tab(self.url_label["text"]))
 
 
+		# Refresh / connect frame
+
+		self.refresh_connect = tk.Frame(self)
+		self.refresh_connect.grid(row=4, column=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="se")
+
+
+		# Refresh button
+
+		self.refresh_button = ttk.Button(self.refresh_connect, text="Refresh", command=self.root.refresh)
+		self.refresh_button.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="se")
+
+
 		# Connect button
 
-		self.connect_button = ttk.Button(self, text="Connect", command=self.connect, default="active")
+		self.connect_button = ttk.Button(self.refresh_connect, text="Connect", command=self.connect, default="active")
 		self.connect_button['state'] = tk.DISABLED
-		self.connect_button.grid(row=6, column=1, columnspan=1, padx=15, pady=10, sticky="se")
+		self.connect_button.grid(row=0, column=1, columnspan=1, padx=(0,15), pady=10, sticky="se")
 
 
 		# Worker
