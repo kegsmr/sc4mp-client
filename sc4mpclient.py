@@ -1124,7 +1124,7 @@ class ServerList(th.Thread):
 			print("Fetching servers...")
 
 			#for i in range(200):
-			#	self.ui.tree.insert('', 'end', str(i), values=(str(i)))
+			#	self.ui.tree.insert('', 'end', values=(""))
 
 			while (self.end == False):
 
