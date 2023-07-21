@@ -1112,7 +1112,8 @@ class ServerList(th.Thread):
 		self.stat_download = []
 		self.stat_ping = []
 
-		self.lock_image = tk.PhotoImage(file=get_sc4mp_path("lock.png"))
+		self.blank_icon = tk.PhotoImage(file=get_sc4mp_path("blank-icon.png"))
+		self.lock_icon = tk.PhotoImage(file=get_sc4mp_path("lock-icon.png"))
 
 
 	def run(self):
@@ -1154,11 +1155,11 @@ class ServerList(th.Thread):
 				for key in self.servers.keys():
 					self.calculate_rating(self.servers[key])
 					if (not self.ui.tree.exists(key)):
-						if (self.servers[key].password_enabled):
-							image = self.lock_image
+						if (not self.servers[key].password_enabled):
+							image = self.blank_icon
 						else:
-							image=tk.PhotoImage()
-						self.ui.tree.insert('', 'end', key, values=self.format_server(self.servers[key]), image=image)
+							image = self.lock_icon
+						self.ui.tree.insert('', 'end', key, text=self.servers[key].server_name, values=self.format_server(self.servers[key]), image=image)
 						new_rows = True
 
 				# Update and sort the tree
@@ -1191,7 +1192,7 @@ class ServerList(th.Thread):
 
 	def format_server(self, server):
 		"""TODO"""
-		return (server.server_name, str(server.stat_mayors) + " (" + str(server.stat_mayors_online) + ")", str(int(server.stat_claimed * 100)) + "%", format_filesize(server.stat_download), str(server.stat_ping) + "ms", str(round(server.rating, 1)))
+		return (str(server.stat_mayors) + " (" + str(server.stat_mayors_online) + ")", str(int(server.stat_claimed * 100)) + "%", format_filesize(server.stat_download), str(server.stat_ping) + "ms", str(round(server.rating, 1)))
 
 	
 	def calculate_rating(self, server):
@@ -3590,60 +3591,62 @@ class ServerListUI(tk.Frame):
 
 		# Tree
 
-		NORMAL_COLUMN_WIDTH = 90
+		NORMAL_COLUMN_WIDTH = 93
 		COLUMNS = [
-			#(
-			#	"",
-			#	int(NORMAL_COLUMN_WIDTH / 3),
-			#	"w"
-    		#),
 			(
+				"#0",
 				"Name",
-				3 * NORMAL_COLUMN_WIDTH - 15,
+				3 * NORMAL_COLUMN_WIDTH,
 				"w"
     		),
 		    (
+				"#1",
 				"Mayors",
 				NORMAL_COLUMN_WIDTH,
 				"center"
     		),
 			(
+				"#2",
 				"Claimed",
 				NORMAL_COLUMN_WIDTH,
 				"center"
     		),
 			(
+				"#3",
 				"Download",
 				NORMAL_COLUMN_WIDTH,
 				"center"
     		),
 			(
+				"#4",
 				"Ping",
 				NORMAL_COLUMN_WIDTH,
 				"center"
     		),
 			(
+				"#5",
 				"Rating",
 				NORMAL_COLUMN_WIDTH,
 				"center"
     		)
 		]
 
-		column_names = []
+		column_ids = []
 		for column in COLUMNS:
-			column_names.append(column[0])
-		column_names = tuple(column_names)
+			column_ids.append(column[0])
+		column_ids = tuple(column_ids[1:])
 
-		self.tree = ttk.Treeview(self.frame, columns=column_names, selectmode="browse", height=12)
+		self.tree = ttk.Treeview(self.frame, columns=column_ids, selectmode="browse", height=12)
 
-		self.tree.column("#0", width=45, anchor="center", stretch=False)
+		#self.tree.column("#0", width=45, anchor="center", stretch=False)
 
 		for column in COLUMNS:
-			column_name = column[0]
-			column_width = column[1]
-			column_anchor = column[2]
-			self.tree.column(column_name, width=column_width, anchor=column_anchor, stretch=False)
-			self.tree.heading(column_name, text=column_name)
+			column_id = column[0]
+			column_name = column[1]
+			column_width = column[2]
+			column_anchor = column[3]
+			self.tree.column(column_id, width=column_width, anchor=column_anchor, stretch=False)
+			self.tree.heading(column_id, text=column_name)
 		
 		#self.tree['show'] = 'headings'
 
