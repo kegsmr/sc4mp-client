@@ -1161,7 +1161,7 @@ class ServerList(th.Thread):
 
 				except Exception as e:
 
-					show_error(e)
+					show_error(e, no_ui=True)
 
 				# Delay
 				time.sleep(SC4MP_DELAY)
@@ -1255,11 +1255,12 @@ class ServerFetcher(th.Thread):
 	def fetch_stats(self):
 		"""TODO"""
 		self.server.fetch_stats()
-		self.parent.stat_mayors.append(self.server.stat_mayors)
-		self.parent.stat_mayors_online.append(self.server.stat_mayors_online)
-		self.parent.stat_claimed.append(self.server.stat_claimed)
-		self.parent.stat_download.append(self.server.stat_download)
-		self.parent.stat_ping.append(self.server.stat_ping)
+		if (self.server.fetched and self.server.stat_ping != None):
+			self.parent.stat_mayors.append(self.server.stat_mayors)
+			self.parent.stat_mayors_online.append(self.server.stat_mayors_online)
+			self.parent.stat_claimed.append(self.server.stat_claimed)
+			self.parent.stat_download.append(self.server.stat_download)
+			self.parent.stat_ping.append(self.server.stat_ping)
 
 	
 	def server_list(self):
