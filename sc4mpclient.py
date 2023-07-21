@@ -1093,7 +1093,7 @@ class ServerList(th.Thread):
 
 		self.servers = dict()
 
-		self.unfetched_servers = SC4MP_SERVERS
+		self.unfetched_servers = SC4MP_SERVERS.copy()
 		
 		#TODO get lan
 		#for offset in range(64512):
@@ -1104,6 +1104,7 @@ class ServerList(th.Thread):
 			self.unfetched_servers.append((data[key]["host"], data[key]["port"]))
 
 		self.fetched_servers = []
+		self.tried_servers = []
 
 		self.most_mayors = 1
 		self.most_mayors_online = 1
@@ -1133,7 +1134,9 @@ class ServerList(th.Thread):
 				# Fetch the next unfetched server
 				if (len(self.unfetched_servers) > 0):
 					unfetched_server = self.unfetched_servers.pop(0)
-					ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
+					if (unfetched_server not in self.tried_servers):
+						self.tried_servers.append(unfetched_server)
+						ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
 
 				# Add all fetched servers to the server dictionary if not already present
 				while (len(self.fetched_servers) > 0):
@@ -1193,17 +1196,22 @@ class ServerFetcher(th.Thread):
 
 		try:
 
-			for key in self.parent.servers.keys():
-				server = self.parent.servers[key]
-				if (self.server.host == server.host and self.server.port == server.port):
-					return
-
 			print("Fetching " + self.server.host + ":" + str(self.server.port) + "...")
+
+			self.server.fetch()
+
+			if (self.parent.end or (not self.server.fetched)):
+				raise CustomException("")
+
+			self.server.fetch_stats()
+
+			if (self.parent.end or (not self.server.fetched)):
+				raise CustomException("")
 
 			self.server_list()
 
-			self.server.fetch()
-			self.fetch_stats()
+			if (self.parent.end or (not self.server.fetched)):
+				raise CustomException("")
 
 			print("Done.")
 
