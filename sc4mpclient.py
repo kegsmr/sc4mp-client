@@ -78,7 +78,7 @@ SC4MP_CONFIG_DEFAULTS = [
 	]),
 	("STORAGE", [
 		("storage_path", os.path.join(os.path.expanduser('~'),"Documents","SimCity 4","_SC4MP") + "\\"),
-		("cache_size", 4000)
+		("cache_size", 16000)
 	]),
 	("SC4", [
 		("game_path", ""),
@@ -671,7 +671,8 @@ class Server:
 		"""TODO"""
 
 		# Request server info
-		self.stat_mayors = (random.randint(0,5000),random.randint(0,5000)) #TODO
+		self.stat_mayors = (random.randint(0,1000)) #TODO
+		self.stat_mayors_online = int(self.stat_mayors * (float(random.randint(0, 100)) / 100)) #TODO
 		self.stat_claimed = (float(random.randint(0, 100)) / 100) #TODO
 		self.stat_download = (random.randint(0, 10 ** 11)) #TODO
 		self.stat_ping = self.ping()
@@ -1104,11 +1105,19 @@ class ServerList(th.Thread):
 
 		self.fetched_servers = []
 
+		self.most_mayors = 1
+		self.most_mayors_online = 1
+		self.most_claimed = .01
+		self.most_download = 1
+		self.most_ping = 1
+
 
 	def run(self):
 		"""TODO"""
 
 		try:
+
+			print("Fetching servers...")
 
 			while (self.end == False):
 
@@ -1133,9 +1142,17 @@ class ServerList(th.Thread):
 						self.servers[fetched_server.server_id] = fetched_server
 
 				# Update the treeview
+				new_rows = False
 				for key in self.servers.keys():
 					if (not self.ui.tree.exists(key)):
 						self.ui.tree.insert('', 'end', key, values=self.format_server(self.servers[key]))
+						new_rows = True
+
+				# Update and sort the tree
+				if (new_rows):
+					for key in self.servers.keys():
+						self.ui.tree.item(key, values=self.format_server(self.servers[key]))
+						#TODO sort
 
 				# Delay
 				time.sleep(SC4MP_DELAY)
@@ -1149,7 +1166,14 @@ class ServerList(th.Thread):
 
 	def format_server(self, server):
 		"""TODO"""
-		return ("", server.server_name, str(server.stat_mayors[0]) + " (" + str(server.stat_mayors[1]) + ")", str(int(server.stat_claimed * 100)) + "%", format_filesize(server.stat_download), str(server.stat_ping) + "ms", "X/5")
+		self.calculate_rating(server)
+		return ("", server.server_name, str(server.stat_mayors) + " (" + str(server.stat_mayors_online) + ")", str(int(server.stat_claimed * 100)) + "%", format_filesize(server.stat_download), str(server.stat_ping) + "ms", str(math.ceil(server.rating)) + "/5")
+
+	
+	def calculate_rating(self, server):
+		"""TODO"""
+		server.rating = (float(server.stat_mayors) / float(self.most_mayors)) + (float(server.stat_mayors_online) / float(self.most_mayors_online)) + ((float(self.most_claimed) - float(server.stat_claimed)) / float(self.most_claimed)) + ((float(self.most_download) - float(server.stat_download)) / float(self.most_download)) + ((float(self.most_ping) - float(server.stat_ping)) / float(self.most_ping))
+		print("RATING: " + str(server.rating))
 
 
 class ServerFetcher(th.Thread):
@@ -1176,10 +1200,10 @@ class ServerFetcher(th.Thread):
 
 			print("Fetching " + self.server.host + ":" + str(self.server.port) + "...")
 
-			self.server.fetch()
-			self.server.fetch_stats()
-
 			self.server_list()
+
+			self.server.fetch()
+			self.fetch_stats()
 
 			print("Done.")
 
@@ -1191,6 +1215,16 @@ class ServerFetcher(th.Thread):
 
 			#show_error(e, no_ui=True)
 			print("[WARNING] Failed!")
+
+
+	def fetch_stats(self):
+		"""TODO"""
+		self.server.fetch_stats()
+		self.parent.most_mayors = max(self.parent.most_mayors, self.server.stat_mayors)
+		self.parent.most_mayors_online = max(self.parent.most_mayors_online, self.server.stat_mayors_online)
+		self.parent.most_claimed = max(self.parent.most_claimed, self.server.stat_claimed)
+		self.parent.most_download = max(self.parent.most_download, self.server.stat_download)
+		self.parent.most_ping = max(self.parent.most_ping, self.server.stat_ping)
 
 	
 	def server_list(self):
@@ -3533,7 +3567,7 @@ class ServerListUI(tk.Frame):
 				"center"
     		),
 			(
-				"Rank",
+				"Rating",
 				NORMAL_COLUMN_WIDTH,
 				"center"
     		)
