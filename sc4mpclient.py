@@ -1106,6 +1106,8 @@ class ServerList(th.Thread):
 		self.fetched_servers = []
 		self.tried_servers = []
 
+		self.server_fetchers = 0
+
 		self.stat_mayors = []
 		self.stat_mayors_online = []
 		self.stat_claimed = []
@@ -1122,6 +1124,8 @@ class ServerList(th.Thread):
 		try:
 
 			print("Fetching servers...")
+
+			#self.ui.label["text"] = 'Select "Servers" then "Connect..." in the menu bar to connect to a server.'
 
 			#for i in range(200):
 			#	self.ui.tree.insert('', 'end', values=(""))
@@ -1142,6 +1146,7 @@ class ServerList(th.Thread):
 					unfetched_server = self.unfetched_servers.pop(0)
 					if (unfetched_server not in self.tried_servers):
 						self.tried_servers.append(unfetched_server)
+						self.server_fetchers += 1
 						ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
 
 				# Add all fetched servers to the server dictionary if not already present
@@ -1179,6 +1184,18 @@ class ServerList(th.Thread):
 						key = server.server_id
 						self.ui.tree.move(key, self.ui.tree.parent(key), 0)
 						self.ui.tree.item(key, values=self.format_server(server))
+
+				# Update primary label
+				if (len(self.servers) > 0):
+					self.ui.label["text"] = 'To get started, select a server below and click "Connect"'
+				else:
+					self.ui.address_label["text"] = ""
+					self.ui.description_label["text"] = ""
+					self.ui.url_label["text"] = ""
+					if (self.server_fetchers > 0):
+						self.ui.label["text"] = 'Getting server list...'
+					else:
+						self.ui.label["text"] = 'No servers found, select "Servers" then "Connect..." in the menu bar to connect to a server.'
 
 				# Delay
 				time.sleep(SC4MP_DELAY)
@@ -1239,33 +1256,40 @@ class ServerFetcher(th.Thread):
 
 
 	def run(self):
-
+		
 		try:
 
-			print("Fetching " + self.server.host + ":" + str(self.server.port) + "...")
+			try:
 
-			self.server_list()
+				print("Fetching " + self.server.host + ":" + str(self.server.port) + "...")
 
-			self.server.fetch()
+				self.server_list()
 
-			if (self.parent.end or (not self.server.fetched)):
-				raise CustomException("")
+				self.server.fetch()
 
-			self.fetch_stats()
+				if (self.parent.end or (not self.server.fetched)):
+					raise CustomException("")
 
-			if (self.server.stat_ping == None or (not self.server.fetched)):
-				raise CustomException("")
+				self.fetch_stats()
 
-			print("Done.")
+				if (self.server.stat_ping == None or (not self.server.fetched)):
+					raise CustomException("")
 
-			self.parent.fetched_servers.append(self.server)
+				print("Done.")
 
-			#TODO start server pinger
+				self.parent.fetched_servers.append(self.server)
+
+				#TODO start server pinger
+
+			except Exception as e:
+
+				print("[WARNING] Failed!")
+
+			self.parent.server_fetchers -= 1
 
 		except Exception as e:
 
-			#show_error(e, no_ui=True)
-			print("[WARNING] Failed!")
+			show_error(e, no_ui=True)
 
 
 	def fetch_stats(self):
@@ -2615,7 +2639,7 @@ class UI(tk.Tk):
 			self.server_list = ServerListUI(self)
 			self.server_list.grid(row=0, column=0, padx=0, pady=0, sticky="w")
 		else:
-			self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Connect..." in the menu bar and enter the IP address and port of the server you wish to connect to.')
+			self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Connect..." in the menu bar and enter the hostname and port of the server you wish to connect to.')
 			self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 	
 
@@ -3580,7 +3604,7 @@ class ServerListUI(tk.Frame):
 
 		self.label = ttk.Label(self)
 		self.label.grid(row=1, column=0, rowspan=1, columnspan=2, padx=10, pady=(15, 10))
-		self.label['text'] = 'To get started, select a server below and click "Connect."' #"Loading server list..."
+		#self.label['text'] = 'Loading...' #'To get started, select a server below and click "Connect."' #"Loading server list..."
 
 
 		# Frame
