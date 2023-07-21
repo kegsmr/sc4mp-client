@@ -1175,7 +1175,14 @@ class ServerFetcher(th.Thread):
 			print("Fetching " + self.server.host + ":" + str(self.server.port) + "...")
 
 			self.server.fetch()
+
+			if (self.parent.end or (not self.server.fetched)):
+				raise CustomException("")
+
 			self.server.fetch_stats()
+
+			if (self.parent.end or (not self.server.fetched)):
+				raise CustomException("")
 
 			self.server_list()
 
