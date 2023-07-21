@@ -1106,11 +1106,11 @@ class ServerList(th.Thread):
 		self.fetched_servers = []
 		self.tried_servers = []
 
-		self.most_mayors = 1
-		self.most_mayors_online = 1
-		self.most_claimed = .01
-		self.most_download = 1
-		self.most_ping = 1
+		self.stat_mayors = []
+		self.stat_mayors_online = []
+		self.stat_claimed = []
+		self.stat_download = []
+		self.stat_ping = []
 
 
 	def run(self):
@@ -1121,41 +1121,47 @@ class ServerList(th.Thread):
 			print("Fetching servers...")
 
 			while (self.end == False):
+				
+				try:
 
-				# Enable or disable connect button and update labels
-				if (self.ui.tree.focus() == ""):
-					self.ui.connect_button['state'] = tk.DISABLED
-				else:
-					self.ui.connect_button['state'] = tk.NORMAL
-					self.ui.address_label["text"] = self.servers[self.ui.tree.focus()].host + ":" + str(self.servers[self.ui.tree.focus()].port)
-					self.ui.description_label["text"] = self.servers[self.ui.tree.focus()].server_description
-					self.ui.url_label["text"] = self.servers[self.ui.tree.focus()].server_url
-					
-				# Fetch the next unfetched server
-				if (len(self.unfetched_servers) > 0):
-					unfetched_server = self.unfetched_servers.pop(0)
-					if (unfetched_server not in self.tried_servers):
-						self.tried_servers.append(unfetched_server)
-						ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
+					# Enable or disable connect button and update labels
+					if (self.ui.tree.focus() == ""):
+						self.ui.connect_button['state'] = tk.DISABLED
+					else:
+						self.ui.connect_button['state'] = tk.NORMAL
+						self.ui.address_label["text"] = self.servers[self.ui.tree.focus()].host + ":" + str(self.servers[self.ui.tree.focus()].port)
+						self.ui.description_label["text"] = self.servers[self.ui.tree.focus()].server_description
+						self.ui.url_label["text"] = self.servers[self.ui.tree.focus()].server_url
+						
+					# Fetch the next unfetched server
+					if (len(self.unfetched_servers) > 0):
+						unfetched_server = self.unfetched_servers.pop(0)
+						if (unfetched_server not in self.tried_servers):
+							self.tried_servers.append(unfetched_server)
+							ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
 
-				# Add all fetched servers to the server dictionary if not already present
-				while (len(self.fetched_servers) > 0):
-					fetched_server = self.fetched_servers.pop(0)
-					if (fetched_server.server_id not in self.servers.keys()):
-						self.servers[fetched_server.server_id] = fetched_server
+					# Add all fetched servers to the server dictionary if not already present
+					while (len(self.fetched_servers) > 0):
+						fetched_server = self.fetched_servers.pop(0)
+						if (fetched_server.server_id not in self.servers.keys()):
+							self.servers[fetched_server.server_id] = fetched_server
 
-				# Update the treeview
-				new_rows = False
-				for key in self.servers.keys():
-					if (not self.ui.tree.exists(key)):
-						self.ui.tree.insert('', 'end', key, values=self.format_server(self.servers[key]))
-						new_rows = True
-
-				# Update and sort the tree
-				if (new_rows):
+					# Update the treeview
+					new_rows = False
 					for key in self.servers.keys():
-						self.ui.tree.item(key, values=self.format_server(self.servers[key]))
-						#TODO sort
+						if (not self.ui.tree.exists(key)):
+							self.ui.tree.insert('', 'end', key, values=self.format_server(self.servers[key]))
+							new_rows = True
+
+					# Update and sort the tree
+					if (new_rows):
+						for key in self.servers.keys():
+							self.ui.tree.item(key, values=self.format_server(self.servers[key]))
+							#TODO sort
+
+				except Exception as e:
+
+					show_error(e)
 
 				# Delay
 				time.sleep(SC4MP_DELAY)
@@ -1170,13 +1176,37 @@ class ServerList(th.Thread):
 	def format_server(self, server):
 		"""TODO"""
 		self.calculate_rating(server)
-		return ("", server.server_name, str(server.stat_mayors) + " (" + str(server.stat_mayors_online) + ")", str(int(server.stat_claimed * 100)) + "%", format_filesize(server.stat_download), str(server.stat_ping) + "ms", str(math.ceil(server.rating)) + "/5")
+		return ("", server.server_name, str(server.stat_mayors) + " (" + str(server.stat_mayors_online) + ")", str(int(server.stat_claimed * 100)) + "%", format_filesize(server.stat_download), str(server.stat_ping) + "ms", str(round(server.rating)))
 
 	
 	def calculate_rating(self, server):
 		"""TODO"""
-		server.rating = (float(server.stat_mayors) / float(self.most_mayors)) + (float(server.stat_mayors_online) / float(self.most_mayors_online)) + ((float(self.most_claimed) - float(server.stat_claimed)) / float(self.most_claimed)) + ((float(self.most_download) - float(server.stat_download)) / float(self.most_download)) + ((float(self.most_ping) - float(server.stat_ping)) / float(self.most_ping))
-		print("RATING: " + str(server.rating))
+		categories = [
+			self.max_category(server.stat_mayors, self.stat_mayors),
+			self.max_category(server.stat_mayors_online, self.stat_mayors_online),
+			self.min_category(server.stat_claimed, self.stat_claimed),
+			self.min_category(server.stat_download, self.stat_download),
+			self.min_category(server.stat_ping, self.stat_ping),
+		]
+		server.rating = 1 + (4 * sum(categories) / len(categories))
+
+	
+	def max_category(self, item, array):
+		"""TODO"""
+		item = float(item)
+		try:
+			return ((item - min(array)) / (max(array) - min(array)))
+		except ZeroDivisionError:
+			return 1.0
+
+
+	def min_category(self, item, array):
+		"""TODO"""
+		item = float(item)
+		try:
+			return 1.0 - ((item - min(array)) / (max(array) - min(array)))
+		except ZeroDivisionError:
+			return 1.0
 
 
 class ServerFetcher(th.Thread):
@@ -1198,19 +1228,16 @@ class ServerFetcher(th.Thread):
 
 			print("Fetching " + self.server.host + ":" + str(self.server.port) + "...")
 
+			self.server_list()
+
 			self.server.fetch()
 
 			if (self.parent.end or (not self.server.fetched)):
 				raise CustomException("")
 
-			self.server.fetch_stats()
+			self.fetch_stats()
 
-			if (self.parent.end or (not self.server.fetched)):
-				raise CustomException("")
-
-			self.server_list()
-
-			if (self.parent.end or (not self.server.fetched)):
+			if (self.server.stat_ping == None or (not self.server.fetched)):
 				raise CustomException("")
 
 			print("Done.")
@@ -1228,11 +1255,11 @@ class ServerFetcher(th.Thread):
 	def fetch_stats(self):
 		"""TODO"""
 		self.server.fetch_stats()
-		self.parent.most_mayors = max(self.parent.most_mayors, self.server.stat_mayors)
-		self.parent.most_mayors_online = max(self.parent.most_mayors_online, self.server.stat_mayors_online)
-		self.parent.most_claimed = max(self.parent.most_claimed, self.server.stat_claimed)
-		self.parent.most_download = max(self.parent.most_download, self.server.stat_download)
-		self.parent.most_ping = max(self.parent.most_ping, self.server.stat_ping)
+		self.parent.stat_mayors.append(self.server.stat_mayors)
+		self.parent.stat_mayors_online.append(self.server.stat_mayors_online)
+		self.parent.stat_claimed.append(self.server.stat_claimed)
+		self.parent.stat_download.append(self.server.stat_download)
+		self.parent.stat_ping.append(self.server.stat_ping)
 
 	
 	def server_list(self):
