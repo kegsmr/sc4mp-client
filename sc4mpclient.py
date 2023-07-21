@@ -1186,6 +1186,9 @@ class ServerFetcher(th.Thread):
 
 			self.server_list()
 
+			if (self.parent.end or (not self.server.fetched)):
+				raise CustomException("")
+
 			print("Done.")
 
 			self.parent.fetched_servers.append(self.server)
