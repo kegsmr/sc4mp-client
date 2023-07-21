@@ -1249,7 +1249,7 @@ class ServerFetcher(th.Thread):
 	def fetch_stats(self):
 		"""TODO"""
 		self.server.fetch_stats()
-		if (self.server.fetched and self.server.stat_ping != None):
+		if (self.server.fetched and self.server.stat_ping != None): #TODO make sure none of these are null
 			self.parent.stat_mayors.append(self.server.stat_mayors)
 			self.parent.stat_mayors_online.append(self.server.stat_mayors_online)
 			self.parent.stat_claimed.append(self.server.stat_claimed)
