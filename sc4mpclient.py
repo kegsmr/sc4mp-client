@@ -38,9 +38,9 @@ SC4MP_SERVERS = [
 ]
 
 SC4MP_URL = "www.sc4mp.org"
-SC4MP_CONTRIBUTORS_URL = "https://github.com/keggre/sc4mp-client/contributors/"
-SC4MP_ISSUES_URL = "https://github.com/keggre/sc4mp-client/issues/"
-SC4MP_RELEASES_URL = "https://github.com/keggre/sc4mp-client/releases/"
+SC4MP_CONTRIBUTORS_URL = "https://github.com/kegsmr/sc4mp-client/contributors/"
+SC4MP_ISSUES_URL = "https://github.com/kegsmr/sc4mp-client/issues/"
+SC4MP_RELEASES_URL = "https://github.com/kegsmr/sc4mp-client/releases/"
 
 SC4MP_AUTHOR_NAME = "Simcity 4 Multiplayer Project"
 SC4MP_WEBSITE_NAME = "sc4mp.org"
@@ -2671,7 +2671,7 @@ class UI(tk.Tk):
 
 
 	#def update(self):
-	#	webbrowser.open_new_tab("https://github.com/keggre/sc4mp-client/releases/")
+	#	webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-client/releases/")
 
 
 	def host(self):
