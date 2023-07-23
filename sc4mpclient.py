@@ -1091,6 +1091,8 @@ class ServerList(th.Thread):
 		self.end = False
 		self.ended = False
 
+		self.sort = False
+
 		self.servers = dict()
 
 		self.unfetched_servers = SC4MP_SERVERS.copy()
@@ -1168,13 +1170,26 @@ class ServerList(th.Thread):
 						new_rows = True
 
 				# Update and sort the tree
-				if (new_rows):
+				if (self.sort or new_rows):
+					self.sort = False
 					unsorted_servers = self.servers.copy()
 					while(len(unsorted_servers) > 0):
 						min_key = None
 						min_value = None
 						for key in unsorted_servers.keys():
-							value = unsorted_servers[key].rating
+							unsorted_server = unsorted_servers[key]
+							sort_mode = self.ui.tree.sort
+							value = unsorted_server.rating
+							if sort_mode == "Name":
+								value = unsorted_server.server_name
+							if sort_mode == "Mayors":
+								value = unsorted_server.stat_mayors
+							if sort_mode == "Claimed":
+								value = unsorted_server.stat_claimed
+							if sort_mode == "Download":
+								value = unsorted_server.stat_download
+							if sort_mode == "Ping":
+								value = unsorted_server.stat_ping
 							if (min_key == None):
 								min_key = key
 							if (min_value == None or value < min_value):
@@ -1182,7 +1197,10 @@ class ServerList(th.Thread):
 								min_value = value
 						server = unsorted_servers.pop(min_key)
 						key = server.server_id
-						self.ui.tree.move(key, self.ui.tree.parent(key), 0)
+						index = 0
+						if self.ui.tree.reverse_sort:
+							index = "end"
+						self.ui.tree.move(key, self.ui.tree.parent(key), index)
 						self.ui.tree.item(key, values=self.format_server(server))
 
 				# Update primary label
@@ -1195,7 +1213,7 @@ class ServerList(th.Thread):
 					if (self.server_fetchers > 0):
 						self.ui.label["text"] = 'Getting server list...'
 					else:
-						self.ui.label["text"] = 'No servers found, select "Servers" then "Connect..." in the menu bar to connect to a server.'
+						self.ui.label["text"] = 'No servers found' #Select "Servers" then "Connect..." in the menu bar to connect to a server.'
 
 				# Delay
 				time.sleep(SC4MP_DELAY)
@@ -3670,11 +3688,15 @@ class ServerListUI(tk.Frame):
 			column_width = column[2]
 			column_anchor = column[3]
 			self.tree.column(column_id, width=column_width, anchor=column_anchor, stretch=False)
-			self.tree.heading(column_id, text=column_name)
+			self.tree.heading(column_id, text=column_name, command=lambda column_name=column_name: self.handle_header_click(column_name))
 		
 		#self.tree['show'] = 'headings'
 
-		self.tree.bind("<Double-1>", lambda event: self.connect())
+		self.tree.bind("<Double-1>", self.handle_double_click) #lambda event: self.connect())
+		self.tree.bind("<Button-1>", self.handle_single_click)
+
+		self.tree.sort = "Rating"
+		self.tree.reverse_sort = False
 
 		self.tree.focus_set()
 
@@ -3732,6 +3754,36 @@ class ServerListUI(tk.Frame):
 		# Worker
 		self.worker = ServerList(self)
 		self.worker.start()
+
+
+	def handle_double_click(self, event):
+		"""TODO"""
+		region = self.tree.identify_region(event.x, event.y)
+		if region == "separator":
+			return "break"
+		elif region == "tree":
+			self.connect()
+
+
+	def handle_single_click(self, event):
+		"""TODO"""
+		region = self.tree.identify_region(event.x, event.y)
+		if region == "separator":
+			return "break"
+		
+
+	def handle_header_click(self, name):
+		"""TODO"""
+		print("Sort by \"" + name + "\"")
+		DEFAULT_REVERSED = ("Claimed", "Download", "Ping")
+		if (self.tree.sort == name):
+			self.tree.reverse_sort = not self.tree.reverse_sort
+		else:
+			self.tree.sort = name
+			self.tree.reverse_sort = name in DEFAULT_REVERSED
+		if self.tree.reverse_sort:
+			print("- (reversed)")
+		self.worker.sort = True
 
 
 	def focus_tree(self):
