@@ -1174,30 +1174,36 @@ class ServerList(th.Thread):
 					self.sort = False
 					unsorted_servers = self.servers.copy()
 					while(len(unsorted_servers) > 0):
+						index = 0
+						keys = unsorted_servers.keys()
 						min_key = None
 						min_value = None
-						for key in unsorted_servers.keys():
-							unsorted_server = unsorted_servers[key]
-							sort_mode = self.ui.tree.sort
-							value = unsorted_server.rating
-							if sort_mode == "Name":
-								value = unsorted_server.server_name
-							if sort_mode == "Mayors":
-								value = unsorted_server.stat_mayors
-							if sort_mode == "Claimed":
-								value = unsorted_server.stat_claimed
-							if sort_mode == "Download":
-								value = unsorted_server.stat_download
-							if sort_mode == "Ping":
-								value = unsorted_server.stat_ping
-							if (min_key == None):
-								min_key = key
-							if (min_value == None or value < min_value):
-								min_key = key
-								min_value = value
+						try:
+							for key in keys:
+								unsorted_server = unsorted_servers[key]
+								sort_mode = self.ui.tree.sort
+								if (min_key == None):
+									min_key = key
+								value = None
+								if sort_mode == "Name":
+									value = unsorted_server.server_name
+								elif sort_mode == "Mayors":
+									value = unsorted_server.stat_mayors
+								elif sort_mode == "Claimed":
+									value = unsorted_server.stat_claimed
+								elif sort_mode == "Download":
+									value = unsorted_server.stat_download
+								elif sort_mode == "Ping":
+									value = unsorted_server.stat_ping
+								else:
+									value = unsorted_server.rating
+								if (min_value == None or value < min_value):
+									min_key = key
+									min_value = value
+						except:
+							index = "end"
 						server = unsorted_servers.pop(min_key)
 						key = server.server_id
-						index = 0
 						if self.ui.tree.reverse_sort:
 							index = "end"
 						self.ui.tree.move(key, self.ui.tree.parent(key), index)
@@ -1227,23 +1233,40 @@ class ServerList(th.Thread):
 
 	def format_server(self, server):
 		"""TODO"""
-		return (str(server.stat_mayors) + " (" + str(server.stat_mayors_online) + ")", str(int(server.stat_claimed * 100)) + "%", format_filesize(server.stat_download), str(server.stat_ping) + "ms", str(round(server.rating, 1)))
+		functions = [
+			lambda: str(server.stat_mayors) + " (" + str(server.stat_mayors_online) + ")",
+	    	lambda: str(int(server.stat_claimed * 100)) + "%",
+		    lambda: format_filesize(server.stat_download),
+		    lambda: str(server.stat_ping) + "ms",
+		    lambda: str(round(server.rating, 1)),
+		]
+		cells = []
+		for function in functions:
+			try:
+				cells.append(function())
+			except:
+				cells.append("")
+		return cells
 
 	
 	def calculate_rating(self, server):
 		"""TODO"""
-		categories = [
-			self.max_category(server.stat_mayors, self.stat_mayors),
-			self.max_category(server.stat_mayors_online, self.stat_mayors_online),
-			self.min_category(server.stat_claimed, self.stat_claimed),
-			self.min_category(server.stat_download, self.stat_download),
-			self.min_category(server.stat_ping, self.stat_ping),
-		]
-		server.rating = 1 + (4 * sum(categories) / len(categories))
-
+		try:
+			categories = [
+				self.max_category(server.stat_mayors, self.stat_mayors),
+				self.max_category(server.stat_mayors_online, self.stat_mayors_online),
+				self.min_category(server.stat_claimed, self.stat_claimed),
+				self.min_category(server.stat_download, self.stat_download),
+				self.min_category(server.stat_ping, self.stat_ping),
+			]
+			server.rating = 1 + (4 * sum(categories) / len(categories))
+		except:
+			pass
 	
 	def max_category(self, item, array):
 		"""TODO"""
+		if (item == None):
+			return 0.0
 		item = float(item)
 		try:
 			return ((item - min(array)) / (max(array) - min(array)))
@@ -1253,6 +1276,8 @@ class ServerList(th.Thread):
 
 	def min_category(self, item, array):
 		"""TODO"""
+		if (item == None):
+			return 0.0
 		item = float(item)
 		try:
 			return 1.0 - ((item - min(array)) / (max(array) - min(array)))
@@ -1281,39 +1306,64 @@ class ServerFetcher(th.Thread):
 
 				print("Fetching " + self.server.host + ":" + str(self.server.port) + "...")
 
-				self.server_list()
+				print("- fetching server list...")
 
-				self.server.fetch()
+				try:
+					self.server_list()
+				except:
+					raise CustomException("Unable to fetch server list.")
 
-				if (self.parent.end or (not self.server.fetched)):
-					raise CustomException("")
+				print("- fetching server info...")
 
-				self.fetch_stats()
+				try:
+					self.server.fetch()
+				except:
+					raise CustomException("Unable to fetch server info.")
 
-				if (self.server.stat_ping == None or (not self.server.fetched)):
-					raise CustomException("")
+				if (self.parent.end):
+					raise CustomException("The parent thread was signaled to end.")
+				elif not self.server.fetched:
+					raise CustomException("Server is not fetched.")
 
-				print("Done.")
+				print("- adding server to server list...")
 
-				self.parent.fetched_servers.append(self.server)
+				try:
+					self.parent.fetched_servers.append(self.server)
+				except:
+					raise CustomException("Unable to add server to server list.")
 
-				#TODO start server pinger
+				print("- fetching server stats...")
+
+				try:
+					self.fetch_stats()
+					self.parent.sort = True
+				except:
+					raise CustomException("Unable to fetch server stats.")
+
+				print("- starting server pinger...")
+
+				try:
+					ServerPinger(self.parent, self.server).start()
+				except:
+					raise CustomException("Unable to start server pinger.")
+
+				print("- done.")
 
 			except Exception as e:
 
-				print("[WARNING] Failed!")
+				print("[WARNING] Failed to fetch " + self.server.host + ":" + str(self.server.port) + "! " + str(e))
 
 			self.parent.server_fetchers -= 1
 
 		except Exception as e:
 
-			show_error(e, no_ui=True)
+			show_error(e)
 
 
 	def fetch_stats(self):
 		"""TODO"""
 		self.server.fetch_stats()
-		if (self.server.fetched and self.server.stat_ping != None): #TODO make sure none of these are null
+		if (self.server.fetched): #TODO make sure all stats are fetched
 			self.parent.stat_mayors.append(self.server.stat_mayors)
 			self.parent.stat_mayors_online.append(self.server.stat_mayors_online)
 			self.parent.stat_claimed.append(self.server.stat_claimed)
@@ -1365,7 +1415,12 @@ class ServerPinger(th.Thread):
 
 		try:
 
-			print("TODO")
+			while (not self.parent.end):
+				time.sleep(len(self.parent.servers))
+				print("Pinging " + self.server.host + ":" + str(self.server.port))
+				ping = self.server.ping()
+				if (ping != None):
+					self.server.stat_ping = ping
 
 		except Exception as e:
 
@@ -2400,7 +2455,7 @@ class RegionsRefresher(th.Thread):
 				prep_region_config(os.path.join(destination, region, "region.ini"))
 
 			# Report
-			self.report("", "Done.")
+			self.report("", "- done.")
 
 			# Wait
 			#time.sleep(1)
