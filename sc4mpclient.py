@@ -1144,12 +1144,13 @@ class ServerList(th.Thread):
 					self.ui.url_label["text"] = self.servers[self.ui.tree.focus()].server_url
 					
 				# Fetch the next unfetched server
-				if (len(self.unfetched_servers) > 0):
-					unfetched_server = self.unfetched_servers.pop(0)
-					if (unfetched_server not in self.tried_servers):
-						self.tried_servers.append(unfetched_server)
-						self.server_fetchers += 1
-						ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
+				if (self.server_fetchers < 100): #TODO make configurable?
+					if (len(self.unfetched_servers) > 0):
+						unfetched_server = self.unfetched_servers.pop(0)
+						if (unfetched_server not in self.tried_servers):
+							self.tried_servers.append(unfetched_server)
+							self.server_fetchers += 1
+							ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
 
 				# Add all fetched servers to the server dictionary if not already present
 				while (len(self.fetched_servers) > 0):
@@ -1253,20 +1254,20 @@ class ServerList(th.Thread):
 		"""TODO"""
 		try:
 			categories = [
-				self.max_category(server.stat_mayors, self.stat_mayors),
-				self.max_category(server.stat_mayors_online, self.stat_mayors_online),
+				.5 * self.max_category(server.stat_mayors, self.stat_mayors),
+				.5 * self.max_category(server.stat_mayors_online, self.stat_mayors_online),
 				self.min_category(server.stat_claimed, self.stat_claimed),
 				self.min_category(server.stat_download, self.stat_download),
 				self.min_category(server.stat_ping, self.stat_ping),
 			]
-			server.rating = 1 + (4 * sum(categories) / len(categories))
+			server.rating = 1 + sum(categories)
 		except:
 			pass
 	
 	def max_category(self, item, array):
 		"""TODO"""
-		if (item == None):
-			return 0.0
+		#if (item == None):
+		#	return 0.0
 		item = float(item)
 		try:
 			return ((item - min(array)) / (max(array) - min(array)))
@@ -1276,8 +1277,8 @@ class ServerList(th.Thread):
 
 	def min_category(self, item, array):
 		"""TODO"""
-		if (item == None):
-			return 0.0
+		#if (item == None):
+		#	return 0.0
 		item = float(item)
 		try:
 			return 1.0 - ((item - min(array)) / (max(array) - min(array)))
