@@ -1152,7 +1152,7 @@ class ServerList(th.Thread):
 						self.ui.url_label["text"] = self.servers[self.ui.tree.focus()].server_url
 						
 					# Fetch the next unfetched server
-					if (self.server_fetchers < 10): #TODO make configurable?
+					if (self.server_fetchers < 50): #TODO make configurable?
 						if (len(self.unfetched_servers) > 0):
 							unfetched_server = self.unfetched_servers.pop(0)
 							if (unfetched_server not in self.tried_servers):
