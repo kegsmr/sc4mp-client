@@ -638,6 +638,7 @@ class Server:
 		self.port = port
 
 		self.fetched = False
+		#self.stats = False
 		self.password = None
 		self.user_id = None
 
@@ -670,12 +671,14 @@ class Server:
 	def fetch_stats(self):
 		"""TODO"""
 
-		# Request server info
 		self.stat_mayors = (random.randint(0,1000)) #TODO
 		self.stat_mayors_online = int(self.stat_mayors * (float(random.randint(0, 100)) / 100)) #TODO
 		self.stat_claimed = (float(random.randint(0, 100)) / 100) #TODO
 		self.stat_download = (random.randint(0, 10 ** 11)) #TODO
-		self.stat_ping = self.ping()
+
+		ping = self.ping()
+		if (ping != None):
+			self.stat_ping = ping
 
 
 	def update_database(self):
@@ -1107,16 +1110,17 @@ class ServerList(th.Thread):
 
 		self.fetched_servers = []
 		self.tried_servers = []
+		self.update_servers = []
 
 		self.unsorted_servers = dict()
 
 		self.server_fetchers = 0
 
-		self.stat_mayors = []
-		self.stat_mayors_online = []
-		self.stat_claimed = []
-		self.stat_download = []
-		self.stat_ping = []
+		self.stat_mayors = dict()
+		self.stat_mayors_online = dict()
+		self.stat_claimed = dict()
+		self.stat_download = dict()
+		self.stat_ping = dict()
 
 		self.blank_icon = tk.PhotoImage(file=get_sc4mp_path("blank-icon.png"))
 		self.lock_icon = tk.PhotoImage(file=get_sc4mp_path("lock-icon.png"))
@@ -1160,15 +1164,26 @@ class ServerList(th.Thread):
 					if (fetched_server.server_id not in self.servers.keys()):
 						self.servers[fetched_server.server_id] = fetched_server
 
+				# Update stats
+				for update_server_id in self.servers.keys():
+					try:
+						update_server = self.servers[update_server_id]
+						self.stat_mayors[update_server_id] = update_server.stat_mayors
+						self.stat_mayors_online[update_server_id] = update_server.stat_mayors_online
+						self.stat_download[update_server_id] = update_server.stat_download
+						self.stat_claimed[update_server_id] = update_server.stat_claimed
+						self.stat_ping[update_server_id] = update_server.stat_ping
+						self.calculate_rating(update_server)
+					except:
+						pass
+
 				# Update the tree
 				for server_id in self.ui.tree.get_children():
 					server = self.servers[server_id]
-					self.calculate_rating(server)
 					self.ui.tree.item(server_id, values=self.format_server(server))
 
 				# Add new rows to the tree
 				for key in self.servers.keys():
-					self.calculate_rating(self.servers[key])
 					if (not self.ui.tree.exists(key)):
 						self.unsorted_servers[key] = self.servers[key]
 						if (not self.servers[key].password_enabled):
@@ -1177,85 +1192,16 @@ class ServerList(th.Thread):
 							image = self.lock_icon
 						self.ui.tree.insert('', 'end', key, text=self.servers[key].server_name, values=self.format_server(self.servers[key]), image=image)
 
-				# Completely resort the tree when requested
-				"""if (self.sort):
-					self.sort = False
-					self.unsorted_servers = self.servers.copy()"""
-
 				# Sort the tree
-				while not self.sorted():
+				if not self.sorted():
 					print("Sorting...")
 					server_ids = self.ui.tree.get_children()
-					index_a = 0
-					while index_a < len(server_ids):
-						server_a_id = server_ids[index_a]
-						server_a = self.servers[server_a_id]
-						index_b = 0
-						while index_b < index_a:
-							server_b_id = server_ids[index_b]
-							server_b = self.servers[server_b_id]
-							if not self.in_order(server_b, server_a):
-								break
-							index_b += 1
-						self.ui.tree.move(server_a_id, self.ui.tree.parent(server_a_id), index_b)
-						index_a += 1
-					"""for index in range(len(server_ids) - 1):
-						server_a_id = server_ids[index]
-						server_b_id = server_ids[index + 1]
-						server_a = self.servers[server_a_id]
-						server_b = self.servers[server_b_id]
-						if not self.in_order(server_a, server_b):
-							self.ui.tree.move(server_b_id, self.ui.tree.parent(server_b_id), index)"""
-					"""for unsorted_server_id in self.servers.keys():
-						unsorted_server = self.servers[unsorted_server_id]
-						unsorted_server_sort_value = self.get_sort_value(unsorted_server)
-						server_ids = self.ui.tree.get_children()
-						index = "end"
-						if (unsorted_server_sort_value != None):
-							for index in range(server_ids.index(unsorted_server_id)):
-								server_id = server_ids[index]
-								server = self.servers[server_id]
-								server_sort_value = self.get_sort_value(server)
-								if (server_sort_value == None or server_sort_value < unsorted_server_sort_value or (self.ui.tree.reverse_sort and server_sort_value > unsorted_server_sort_value)):
-									break
-						self.ui.tree.move(unsorted_server_id, self.ui.tree.parent(unsorted_server_id), index)
-						self.ui.tree.item(unsorted_server_id, values=self.format_server(unsorted_server))"""
-				"""if (new_rows or self.sort)
-					while(len(unsorted_servers) > 0):
-						index = 0
-						keys = unsorted_servers.keys()
-						min_key = None
-						min_value = None
-						try:
-							for key in keys:
-								unsorted_server = unsorted_servers[key]
-								sort_mode = self.ui.tree.sort
-								if (min_key == None):
-									min_key = key
-								value = None
-								if sort_mode == "Name":
-									value = unsorted_server.server_name
-								elif sort_mode == "Mayors":
-									value = unsorted_server.stat_mayors
-								elif sort_mode == "Claimed":
-									value = unsorted_server.stat_claimed
-								elif sort_mode == "Download":
-									value = unsorted_server.stat_download
-								elif sort_mode == "Ping":
-									value = unsorted_server.stat_ping
-								else:
-									value = unsorted_server.rating
-								if (min_value == None or value < min_value):
-									min_key = key
-									min_value = value
-						except:
-							index = "end"
-						server = unsorted_servers.pop(min_key)
-						key = server.server_id
-						if self.ui.tree.reverse_sort:
-							index = "end"
-						self.ui.tree.move(key, self.ui.tree.parent(key), index)
-						self.ui.tree.item(key, values=self.format_server(server))"""
+					server_indices = dict()
+					for server_id in server_ids:
+						server_indices[server_id] = server_ids.index(server_id)
+					self.sort(server_indices)
+					for server_id in server_ids:
+						self.ui.tree.move(server_id, self.ui.tree.parent(server_id), server_indices[server_id])
 
 				# Update primary label
 				if (len(self.servers) > 0):
@@ -1295,6 +1241,24 @@ class ServerList(th.Thread):
 			return True
 
 	
+	def sort(self, server_indices): #TODO doesnt work in one pass!
+		"""TODO"""
+		server_ids = list(server_indices.keys())
+		index_a = 0
+		while index_a < len(server_ids):
+			server_a_id = server_ids[index_a]
+			server_a = self.servers[server_a_id]
+			index_b = 0
+			while index_b < index_a:
+				server_b_id = server_ids[index_b]
+				server_b = self.servers[server_b_id]
+				if not self.in_order(server_b, server_a):
+					break
+				index_b += 1
+			server_indices[server_a_id] = index_b
+			index_a += 1
+
+
 	def in_order(self, server_a, server_b):
 		"""TODO"""
 		server_a_sort_value = self.get_sort_value(server_a)
@@ -1354,35 +1318,32 @@ class ServerList(th.Thread):
 		"""TODO"""
 		try:
 			categories = [
-				.5 * self.max_category(server.stat_mayors, self.stat_mayors),
-				.5 * self.max_category(server.stat_mayors_online, self.stat_mayors_online),
-				self.min_category(server.stat_claimed, self.stat_claimed),
-				self.min_category(server.stat_download, self.stat_download),
-				self.min_category(server.stat_ping, self.stat_ping),
+				.5 * self.max_category(server.stat_mayors, self.stat_mayors.values()),
+				.5 * self.max_category(server.stat_mayors_online, self.stat_mayors_online.values()),
+				self.min_category(server.stat_claimed, self.stat_claimed.values()),
+				self.min_category(server.stat_download, self.stat_download.values()),
+				self.min_category(server.stat_ping, self.stat_ping.values()),
 			]
 			server.rating = 1 + sum(categories)
 		except:
 			pass
 	
+
 	def max_category(self, item, array):
 		"""TODO"""
-		#if (item == None):
-		#	return 0.0
 		item = float(item)
 		try:
 			return ((item - min(array)) / (max(array) - min(array)))
-		except ZeroDivisionError:
+		except:
 			return 1.0
 
 
 	def min_category(self, item, array):
 		"""TODO"""
-		#if (item == None):
-		#	return 0.0
 		item = float(item)
 		try:
 			return 1.0 - ((item - min(array)) / (max(array) - min(array)))
-		except ZeroDivisionError:
+		except:
 			return 1.0
 
 
@@ -1463,12 +1424,7 @@ class ServerFetcher(th.Thread):
 	def fetch_stats(self):
 		"""TODO"""
 		self.server.fetch_stats()
-		if (self.server.fetched): #TODO make sure all stats are fetched
-			self.parent.stat_mayors.append(self.server.stat_mayors)
-			self.parent.stat_mayors_online.append(self.server.stat_mayors_online)
-			self.parent.stat_claimed.append(self.server.stat_claimed)
-			self.parent.stat_download.append(self.server.stat_download)
-			self.parent.stat_ping.append(self.server.stat_ping)
+		self.parent.update_servers.append(self.server)
 
 	
 	def server_list(self):
@@ -1521,6 +1477,7 @@ class ServerPinger(th.Thread):
 				ping = self.server.ping()
 				if (ping != None):
 					self.server.stat_ping = ping
+					self.parent.update_servers.append(self.server)
 
 		except Exception as e:
 
@@ -3916,7 +3873,7 @@ class ServerListUI(tk.Frame):
 		region = self.tree.identify_region(event.x, event.y)
 		if region == "separator":
 			return "break"
-		elif region == "tree":
+		elif region == "tree" or region == "cell":
 			self.connect()
 
 
