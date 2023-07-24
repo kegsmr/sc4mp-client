@@ -149,7 +149,7 @@ def create_subdirectories():
 			try:
 				os.makedirs(new_directory)
 			except Exception as e:
-				raise CustomException("Failed to create SC4MP subdirectories.\n\n" + str(e))
+				raise ClientException("Failed to create SC4MP subdirectories.\n\n" + str(e))
 		"""if directory == "Plugins":
 			noticepath = os.path.join(SC4MP_LAUNCHPATH, directory, "__PUT YOUR PLUGINS IN THIS FOLDER__.txt")
 			open(noticepath, 'a').close()"""
@@ -291,7 +291,7 @@ def purge_directory(directory):
 			elif os.path.isdir(file_path):
 				shutil.rmtree(file_path)
 		except PermissionError as e:
-			raise CustomException('Failed to delete "' + file_path + '" because the file is being used by another process.') #\n\n' + str(e)
+			raise ClientException('Failed to delete "' + file_path + '" because the file is being used by another process.') #\n\n' + str(e)
 
 
 def directory_size(directory):
@@ -524,7 +524,7 @@ def prep_region_config(path):
 		with open(path, 'wt') as config_file:
 			config.write(config_file)
 	except:
-		show_error("Failed to prep region config at " + path + ".")
+		raise ClientException("Failed to prep region config at " + path + ".")
 
 
 def format_filesize(size):
@@ -770,7 +770,7 @@ class Server:
 			if (s.recv(SC4MP_BUFFER_SIZE).decode() == hashlib.sha256(user_id.encode()).hexdigest()[:32]):
 				self.user_id = user_id
 			else:
-				raise CustomException("Invalid token.") #"Authentication error."
+				raise ClientException("Invalid token.") #"Authentication error."
 			s.close()
 		else:
 			self.user_id = user_id
@@ -784,7 +784,7 @@ class Server:
 
 		# Raise exception if no token is received
 		if (len(token) < 1):
-			raise CustomException("You are banned from this server.")
+			raise ClientException("You are banned from this server.")
 
 		# Set user_id and token in the database entry
 		entry["user_id"] = user_id
@@ -1093,6 +1093,7 @@ class ServerList(th.Thread):
 
 		self.end = False
 		self.ended = False
+		self.pause = False
 
 		#self.sort = False
 
@@ -1139,80 +1140,82 @@ class ServerList(th.Thread):
 
 			while (self.end == False):
 
-				# Enable or disable connect button and update labels
-				if (self.ui.tree.focus() == ""):
-					self.ui.connect_button['state'] = tk.DISABLED
-				else:
-					self.ui.connect_button['state'] = tk.NORMAL
-					self.ui.address_label["text"] = self.servers[self.ui.tree.focus()].host + ":" + str(self.servers[self.ui.tree.focus()].port)
-					self.ui.description_label["text"] = self.servers[self.ui.tree.focus()].server_description
-					self.ui.url_label["text"] = self.servers[self.ui.tree.focus()].server_url
-					
-				# Fetch the next unfetched server
-				if (self.server_fetchers < 100): #TODO make configurable?
-					if (len(self.unfetched_servers) > 0):
-						unfetched_server = self.unfetched_servers.pop(0)
-						if (unfetched_server not in self.tried_servers):
-							self.tried_servers.append(unfetched_server)
-							self.server_fetchers += 1
-							ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
+				if (self.pause == False):
 
-				# Add all fetched servers to the server dictionary if not already present
-				while (len(self.fetched_servers) > 0):
-					fetched_server = self.fetched_servers.pop(0)
-					if (fetched_server.server_id not in self.servers.keys()):
-						self.servers[fetched_server.server_id] = fetched_server
-
-				# Update stats
-				for update_server_id in self.servers.keys():
-					try:
-						update_server = self.servers[update_server_id]
-						self.stat_mayors[update_server_id] = update_server.stat_mayors
-						self.stat_mayors_online[update_server_id] = update_server.stat_mayors_online
-						self.stat_download[update_server_id] = update_server.stat_download
-						self.stat_claimed[update_server_id] = update_server.stat_claimed
-						self.stat_ping[update_server_id] = update_server.stat_ping
-						self.calculate_rating(update_server)
-					except:
-						pass
-
-				# Update the tree
-				for server_id in self.ui.tree.get_children():
-					server = self.servers[server_id]
-					self.ui.tree.item(server_id, values=self.format_server(server))
-
-				# Add new rows to the tree
-				for key in self.servers.keys():
-					if (not self.ui.tree.exists(key)):
-						self.unsorted_servers[key] = self.servers[key]
-						if (not self.servers[key].password_enabled):
-							image = self.blank_icon
-						else:
-							image = self.lock_icon
-						self.ui.tree.insert('', 'end', key, text=self.servers[key].server_name, values=self.format_server(self.servers[key]), image=image)
-
-				# Sort the tree
-				if not self.sorted():
-					print("Sorting...")
-					server_ids = self.ui.tree.get_children()
-					server_indices = dict()
-					for server_id in server_ids:
-						server_indices[server_id] = server_ids.index(server_id)
-					self.sort(server_indices)
-					for server_id in server_ids:
-						self.ui.tree.move(server_id, self.ui.tree.parent(server_id), server_indices[server_id])
-
-				# Update primary label
-				if (len(self.servers) > 0):
-					self.ui.label["text"] = 'To get started, select a server below and click "Connect"'
-				else:
-					self.ui.address_label["text"] = ""
-					self.ui.description_label["text"] = ""
-					self.ui.url_label["text"] = ""
-					if (self.server_fetchers > 0):
-						self.ui.label["text"] = 'Getting server list...'
+					# Enable or disable connect button and update labels
+					if (self.ui.tree.focus() == ""):
+						self.ui.connect_button['state'] = tk.DISABLED
 					else:
-						self.ui.label["text"] = 'No servers found' #Select "Servers" then "Connect..." in the menu bar to connect to a server.'
+						self.ui.connect_button['state'] = tk.NORMAL
+						self.ui.address_label["text"] = self.servers[self.ui.tree.focus()].host + ":" + str(self.servers[self.ui.tree.focus()].port)
+						self.ui.description_label["text"] = self.servers[self.ui.tree.focus()].server_description
+						self.ui.url_label["text"] = self.servers[self.ui.tree.focus()].server_url
+						
+					# Fetch the next unfetched server
+					if (self.server_fetchers < 10): #TODO make configurable?
+						if (len(self.unfetched_servers) > 0):
+							unfetched_server = self.unfetched_servers.pop(0)
+							if (unfetched_server not in self.tried_servers):
+								self.tried_servers.append(unfetched_server)
+								self.server_fetchers += 1
+								ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
+
+					# Add all fetched servers to the server dictionary if not already present
+					while (len(self.fetched_servers) > 0):
+						fetched_server = self.fetched_servers.pop(0)
+						if (fetched_server.server_id not in self.servers.keys()):
+							self.servers[fetched_server.server_id] = fetched_server
+
+					# Update stats
+					for update_server_id in self.servers.keys():
+						try:
+							update_server = self.servers[update_server_id]
+							self.stat_mayors[update_server_id] = update_server.stat_mayors
+							self.stat_mayors_online[update_server_id] = update_server.stat_mayors_online
+							self.stat_download[update_server_id] = update_server.stat_download
+							self.stat_claimed[update_server_id] = update_server.stat_claimed
+							self.stat_ping[update_server_id] = update_server.stat_ping
+							self.calculate_rating(update_server)
+						except:
+							pass
+
+					# Update the tree
+					for server_id in self.ui.tree.get_children():
+						server = self.servers[server_id]
+						self.ui.tree.item(server_id, values=self.format_server(server))
+
+					# Add new rows to the tree
+					for key in self.servers.keys():
+						if (not self.ui.tree.exists(key)):
+							self.unsorted_servers[key] = self.servers[key]
+							if (not self.servers[key].password_enabled):
+								image = self.blank_icon
+							else:
+								image = self.lock_icon
+							self.ui.tree.insert('', 'end', key, text=self.servers[key].server_name, values=self.format_server(self.servers[key]), image=image)
+
+					# Sort the tree
+					if not self.sorted():
+						print("Sorting...")
+						server_ids = self.ui.tree.get_children()
+						server_indices = dict()
+						for server_id in server_ids:
+							server_indices[server_id] = server_ids.index(server_id)
+						self.sort(server_indices)
+						for server_id in server_ids:
+							self.ui.tree.move(server_id, self.ui.tree.parent(server_id), server_indices[server_id])
+
+					# Update primary label
+					if (len(self.servers) > 0):
+						self.ui.label["text"] = 'To get started, select a server below and click "Connect"'
+					else:
+						self.ui.address_label["text"] = ""
+						self.ui.description_label["text"] = ""
+						self.ui.url_label["text"] = ""
+						if (self.server_fetchers > 0):
+							self.ui.label["text"] = 'Getting server list...'
+						else:
+							self.ui.label["text"] = 'No servers found' #Select "Servers" then "Connect..." in the menu bar to connect to a server.'
 
 				# Delay
 				time.sleep(SC4MP_DELAY)
@@ -1372,40 +1375,40 @@ class ServerFetcher(th.Thread):
 				try:
 					self.server_list()
 				except:
-					raise CustomException("Unable to fetch server list.")
+					raise ClientException("Unable to fetch server list.")
 
 				print("- fetching server info...")
 
 				try:
 					self.server.fetch()
 				except:
-					raise CustomException("Unable to fetch server info.")
+					raise ClientException("Unable to fetch server info.")
 
 				if (self.parent.end):
-					raise CustomException("The parent thread was signaled to end.")
+					raise ClientException("The parent thread was signaled to end.")
 				elif not self.server.fetched:
-					raise CustomException("Server is not fetched.")
+					raise ClientException("Server is not fetched.")
 
 				print("- adding server to server list...")
 
 				try:
 					self.parent.fetched_servers.append(self.server)
 				except:
-					raise CustomException("Unable to add server to server list.")
+					raise ClientException("Unable to add server to server list.")
 
 				print("- fetching server stats...")
 
 				try:
 					self.fetch_stats()
 				except:
-					raise CustomException("Unable to fetch server stats.")
+					raise ClientException("Unable to fetch server stats.")
 
 				print("- starting server pinger...")
 
 				try:
 					ServerPinger(self.parent, self.server).start()
 				except:
-					raise CustomException("Unable to start server pinger.")
+					raise ClientException("Unable to start server pinger.")
 
 				print("- done.")
 
@@ -1471,10 +1474,11 @@ class ServerPinger(th.Thread):
 
 			while (not self.parent.end):
 				time.sleep(len(self.parent.servers))
-				print("Pinging " + self.server.host + ":" + str(self.server.port))
-				ping = self.server.ping()
-				if (ping != None):
-					self.server.stat_ping = int((self.server.stat_ping + ping) / 2)
+				if (not self.parent.pause):
+					print("Pinging " + self.server.host + ":" + str(self.server.port))
+					ping = self.server.ping()
+					if (ping != None):
+						self.server.stat_ping = int((self.server.stat_ping + ping) / 2)
 
 		except Exception as e:
 
@@ -1601,11 +1605,11 @@ class ServerLoader(th.Thread):
 		if (self.server.fetched == False):
 			self.server.fetch()
 			if (self.server.fetched == False):
-				raise CustomException("Unable to find server. Check the IP address and port, then try again.")
+				raise ClientException("Unable to find server. Check the IP address and port, then try again.")
 		if (unformat_version(self.server.server_version) < unformat_version(SC4MP_VERSION)):
-			raise CustomException("The server requires an outdated version (v" + format_version(self.server.server_version) + ") of the SC4MP Launcher. Please contact the server administrators.")
+			raise ClientException("The server requires an outdated version (v" + format_version(self.server.server_version) + ") of the SC4MP Launcher. Please contact the server administrators.")
 		if (unformat_version(self.server.server_version) > unformat_version(SC4MP_VERSION)):
-			raise CustomException("The server requires a newer version (v" + format_version(self.server.server_version) + ") of the SC4MP Launcher. Please update the launcher to connect to this server.")
+			raise ClientException("The server requires a newer version (v" + format_version(self.server.server_version) + ") of the SC4MP Launcher. Please update the launcher to connect to this server.")
 		if (self.ui != None):
 			self.ui.title(self.server.server_name)
 
@@ -1616,14 +1620,14 @@ class ServerLoader(th.Thread):
 		while (not self.check_password()):
 			if (sc4mp_ui):
 				if (tries >= 5):
-					raise CustomException("Too many password attempts.")
+					raise ClientException("Too many password attempts.")
 				if (tries > 0):
 					print("[WARNING] Incorrect password.")
 					#time.sleep(3) #TODO uncomment?
 				PasswordDialogUI(self, tries)
 				tries += 1
 			else:
-				raise CustomException("Incorrect password.")
+				raise ClientException("Incorrect password.")
 		self.server.authenticate()
 		
 
@@ -1697,21 +1701,21 @@ class ServerLoader(th.Thread):
 					shutil.copy(s, d)
 				#shutil.copytree(sc4mp_config["GENERAL"]["custom_plugins_path"], client_plugins_destination, dirs_exist_ok=True) #zzz_SC4MP
 				#except:
-				#	raise CustomException("Unexpected error while loading custom plugins.")
+				#	raise ClientException("Unexpected error while loading custom plugins.")
 			else:
 				try:
 					self.report("", "Clearing custom plugins...")
 					purge_directory(client_plugins_destination)
-				except: #CustomException:
+				except: #ClientException:
 					pass
-					#raise CustomException("Simcity 4 is already running!")
+					#raise ClientException("Simcity 4 is already running!")
 
 		# Purge the destination directory
 		self.report("", 'Synchronizing ' + type + "...") #"", "Purging " + type + " directory...")
 		try:
 			purge_directory(destination)
-		except CustomException:
-			raise CustomException("Simcity 4 is already running!")
+		except ClientException:
+			raise ClientException("Simcity 4 is already running!")
 
 		# Create the socket
 		s = self.create_socket() 
@@ -1828,7 +1832,7 @@ class ServerLoader(th.Thread):
 
 				else:
 
-					raise CustomException("Maximum connection tries exceeded. Check your internet connection and firewall settings, then try again.\n\n" + str(e))
+					raise ClientException("Maximum connection tries exceeded. Check your internet connection and firewall settings, then try again.\n\n" + str(e))
 
 		return s
 
@@ -2584,7 +2588,7 @@ class RegionsRefresher(th.Thread):
 
 				else:
 
-					raise CustomException("Maximum connection tries exceeded. Check your internet connection and firewall settings, then try again.\n\n" + str(e))
+					raise ClientException("Maximum connection tries exceeded. Check your internet connection and firewall settings, then try again.\n\n" + str(e))
 
 		return s
 
@@ -2833,6 +2837,22 @@ class UI(tk.Tk):
 		webbrowser.open_new_tab(SC4MP_README_PATH)
 
 
+	def withdraw(self):
+		super().withdraw()
+		try:
+			self.server_list.worker.pause = True
+		except Exception as e:
+			show_error(e, no_ui = True)
+
+
+	def deiconify(self):
+		super().deiconify()
+		try:
+			self.server_list.worker.pause = False
+		except Exception as e:
+			show_error(e, no_ui = True)
+
+
 class GeneralSettingsUI(tk.Toplevel):
 
 
@@ -3060,7 +3080,7 @@ class StorageSettingsUI(tk.Toplevel):
 			if (key == "storage_path" and type(data) is str and not data == sc4mp_config["STORAGE"]["storage_path"]):
 				if (os.path.exists(os.path.join(data, "Plugins")) or os.path.exists(os.path.join(str(data), "Regions"))):
 					if (not messagebox.askokcancel(title=SC4MP_TITLE, message="The directory \"" + data + "\" already contains Simcity 4 plugins and regions. \n\nProceeding will result in the IRREVERSIBLE DELETION of these files! \n\nThis is your final warning, do you wish to proceed?", icon="warning")): #TODO make message box show yes/no and not ok/cancel
-						raise CustomException("Operation cancelled by user.")
+						raise ClientException("Operation cancelled by user.")
 			update_config_value("STORAGE", key, data)
 		create_subdirectories
 		
@@ -3071,7 +3091,7 @@ class StorageSettingsUI(tk.Toplevel):
 			self.update()
 			sc4mp_config.update()
 			self.destroy()
-		except CustomException:
+		except ClientException:
 			pass
 
 
@@ -3496,12 +3516,12 @@ class DirectConnectUI(tk.Toplevel):
 		try:
 			if (len(host) < 1):
 				host = SC4MP_HOST
-				#raise CustomException("Invalid host")
+				#raise ClientException("Invalid host")
 			try:
 				port = int(port)
 			except:
 				port = SC4MP_PORT
-				#raise CustomException("Invalid port")
+				#raise ClientException("Invalid port")
 			ServerLoaderUI(Server(host, port))
 			self.destroy()
 		except Exception as e:
@@ -4131,7 +4151,7 @@ class RegionsRefresherUI(tk.Toplevel):
 
 # Exceptions
 
-class CustomException(Exception):
+class ClientException(Exception):
 	"""TODO"""
 
 
@@ -4248,7 +4268,7 @@ def main():
 			try:
 				sc4mp_host = get_arg_value("--host", sc4mp_args)
 			except:
-				raise CustomException("Invalid arguments.")
+				raise ClientException("Invalid arguments.")
 
 		# "--port" argument
 		global sc4mp_port
@@ -4257,7 +4277,7 @@ def main():
 			try:
 				sc4mp_port = int(get_arg_value("--port", sc4mp_args))
 			except:
-				raise CustomException("Invalid arguments.")
+				raise ClientException("Invalid arguments.")
 			
 		# "--password" argument
 		global sc4mp_password
@@ -4266,7 +4286,7 @@ def main():
 			try:
 				sc4mp_password = int(get_arg_value("--password", sc4mp_args))
 			except:
-				raise CustomException("Invalid arguments.")
+				raise ClientException("Invalid arguments.")
 
 		# Prep
 		prep()
