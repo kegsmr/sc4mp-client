@@ -141,7 +141,7 @@ def create_subdirectories():
 
 	print("Creating subdirectories...")
 
-	directories = ["_Cache", "_Profiles", "_Salvage", "Plugins", os.path.join("Plugins", "server"), os.path.join("Plugins", "client"), "Regions"] #"SC4MPBackups", os.path.join("_Cache","Plugins"), os.path.join("_Cache","Regions")]
+	directories = ["_Cache", "_Profiles", "_Salvage", "_Temp", os.path.join("_Temp", "ServerList"), "Plugins", os.path.join("Plugins", "server"), os.path.join("Plugins", "client"), "Regions"] #"SC4MPBackups", os.path.join("_Cache","Plugins"), os.path.join("_Cache","Regions")]
 
 	for directory in directories:
 		new_directory = os.path.join(SC4MP_LAUNCHPATH, directory)
@@ -1110,7 +1110,6 @@ class ServerList(th.Thread):
 
 		self.fetched_servers = []
 		self.tried_servers = []
-		self.update_servers = []
 
 		self.unsorted_servers = dict()
 
@@ -1424,7 +1423,6 @@ class ServerFetcher(th.Thread):
 	def fetch_stats(self):
 		"""TODO"""
 		self.server.fetch_stats()
-		self.parent.update_servers.append(self.server)
 
 	
 	def server_list(self):
@@ -1476,8 +1474,7 @@ class ServerPinger(th.Thread):
 				print("Pinging " + self.server.host + ":" + str(self.server.port))
 				ping = self.server.ping()
 				if (ping != None):
-					self.server.stat_ping = ping
-					self.parent.update_servers.append(self.server)
+					self.server.stat_ping = int((self.server.stat_ping + ping) / 2)
 
 		except Exception as e:
 
