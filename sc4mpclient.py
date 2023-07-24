@@ -1091,7 +1091,7 @@ class ServerList(th.Thread):
 		self.end = False
 		self.ended = False
 
-		self.sort = False
+		#self.sort = False
 
 		self.servers = dict()
 
@@ -1107,6 +1107,8 @@ class ServerList(th.Thread):
 
 		self.fetched_servers = []
 		self.tried_servers = []
+
+		self.unsorted_servers = dict()
 
 		self.server_fetchers = 0
 
@@ -1158,22 +1160,67 @@ class ServerList(th.Thread):
 					if (fetched_server.server_id not in self.servers.keys()):
 						self.servers[fetched_server.server_id] = fetched_server
 
+				# Update the tree
+				for server_id in self.ui.tree.get_children():
+					server = self.servers[server_id]
+					self.calculate_rating(server)
+					self.ui.tree.item(server_id, values=self.format_server(server))
+
 				# Add new rows to the tree
-				new_rows = False
 				for key in self.servers.keys():
 					self.calculate_rating(self.servers[key])
 					if (not self.ui.tree.exists(key)):
+						self.unsorted_servers[key] = self.servers[key]
 						if (not self.servers[key].password_enabled):
 							image = self.blank_icon
 						else:
 							image = self.lock_icon
 						self.ui.tree.insert('', 'end', key, text=self.servers[key].server_name, values=self.format_server(self.servers[key]), image=image)
-						new_rows = True
 
-				# Update and sort the tree
-				if (self.sort or new_rows):
+				# Completely resort the tree when requested
+				"""if (self.sort):
 					self.sort = False
-					unsorted_servers = self.servers.copy()
+					self.unsorted_servers = self.servers.copy()"""
+
+				# Sort the tree
+				while not self.sorted():
+					print("Sorting...")
+					server_ids = self.ui.tree.get_children()
+					index_a = 0
+					while index_a < len(server_ids):
+						server_a_id = server_ids[index_a]
+						server_a = self.servers[server_a_id]
+						index_b = 0
+						while index_b < index_a:
+							server_b_id = server_ids[index_b]
+							server_b = self.servers[server_b_id]
+							if not self.in_order(server_b, server_a):
+								break
+							index_b += 1
+						self.ui.tree.move(server_a_id, self.ui.tree.parent(server_a_id), index_b)
+						index_a += 1
+					"""for index in range(len(server_ids) - 1):
+						server_a_id = server_ids[index]
+						server_b_id = server_ids[index + 1]
+						server_a = self.servers[server_a_id]
+						server_b = self.servers[server_b_id]
+						if not self.in_order(server_a, server_b):
+							self.ui.tree.move(server_b_id, self.ui.tree.parent(server_b_id), index)"""
+					"""for unsorted_server_id in self.servers.keys():
+						unsorted_server = self.servers[unsorted_server_id]
+						unsorted_server_sort_value = self.get_sort_value(unsorted_server)
+						server_ids = self.ui.tree.get_children()
+						index = "end"
+						if (unsorted_server_sort_value != None):
+							for index in range(server_ids.index(unsorted_server_id)):
+								server_id = server_ids[index]
+								server = self.servers[server_id]
+								server_sort_value = self.get_sort_value(server)
+								if (server_sort_value == None or server_sort_value < unsorted_server_sort_value or (self.ui.tree.reverse_sort and server_sort_value > unsorted_server_sort_value)):
+									break
+						self.ui.tree.move(unsorted_server_id, self.ui.tree.parent(unsorted_server_id), index)
+						self.ui.tree.item(unsorted_server_id, values=self.format_server(unsorted_server))"""
+				"""if (new_rows or self.sort)
 					while(len(unsorted_servers) > 0):
 						index = 0
 						keys = unsorted_servers.keys()
@@ -1208,7 +1255,7 @@ class ServerList(th.Thread):
 						if self.ui.tree.reverse_sort:
 							index = "end"
 						self.ui.tree.move(key, self.ui.tree.parent(key), index)
-						self.ui.tree.item(key, values=self.format_server(server))
+						self.ui.tree.item(key, values=self.format_server(server))"""
 
 				# Update primary label
 				if (len(self.servers) > 0):
@@ -1229,7 +1276,60 @@ class ServerList(th.Thread):
 
 		except Exception as e:
 
-			show_error("An error occurred while fetching servers.\n\n" + str(e))
+			show_error("An error occurred while fetching servers.\n\n" + str(e), no_ui=True)
+
+
+	def sorted(self):
+		"""TODO"""
+		server_ids = self.ui.tree.get_children()
+		if len(server_ids) < 2:
+			return True
+		else:
+			for index in range(len(server_ids) - 1):
+				server_a_id = server_ids[index]
+				server_b_id = server_ids[index + 1]
+				server_a = self.servers[server_a_id]
+				server_b = self.servers[server_b_id]
+				if not self.in_order(server_a, server_b):
+					return False
+			return True
+
+	
+	def in_order(self, server_a, server_b):
+		"""TODO"""
+		server_a_sort_value = self.get_sort_value(server_a)
+		server_b_sort_value = self.get_sort_value(server_b)
+		if (server_a_sort_value == None and server_b_sort_value == None):
+			return True
+		elif (server_a_sort_value == None):
+			return False
+		elif (server_b_sort_value == None):
+			return True
+		else:
+			if (self.ui.tree.reverse_sort):
+				return server_a_sort_value <= server_b_sort_value
+			else:
+				return server_a_sort_value >= server_b_sort_value
+		
+	
+	def get_sort_value(self, server):
+		"""TODO"""
+		sort_mode = self.ui.tree.sort
+		try:
+			if sort_mode == "Name":
+				return server.server_name
+			elif sort_mode == "Mayors":
+				return server.stat_mayors
+			elif sort_mode == "Claimed":
+				return server.stat_claimed
+			elif sort_mode == "Download":
+				return server.stat_download
+			elif sort_mode == "Ping":
+				return server.stat_ping
+			else:
+				return server.rating
+		except:
+			return None
 
 
 	def format_server(self, server):
@@ -1337,7 +1437,6 @@ class ServerFetcher(th.Thread):
 
 				try:
 					self.fetch_stats()
-					self.parent.sort = True
 				except:
 					raise CustomException("Unable to fetch server stats.")
 
@@ -3831,7 +3930,7 @@ class ServerListUI(tk.Frame):
 	def handle_header_click(self, name):
 		"""TODO"""
 		print("Sort by \"" + name + "\"")
-		DEFAULT_REVERSED = ("Claimed", "Download", "Ping")
+		DEFAULT_REVERSED = ("Name", "Claimed", "Download", "Ping")
 		if (self.tree.sort == name):
 			self.tree.reverse_sort = not self.tree.reverse_sort
 		else:
@@ -3839,7 +3938,7 @@ class ServerListUI(tk.Frame):
 			self.tree.reverse_sort = name in DEFAULT_REVERSED
 		if self.tree.reverse_sort:
 			print("- (reversed)")
-		self.worker.sort = True
+		#self.worker.sort = True
 
 
 	def focus_tree(self):
