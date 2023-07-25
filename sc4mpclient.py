@@ -54,8 +54,8 @@ SC4MP_RESOURCES_PATH = "resources"
 SC4MP_TITLE = "SC4MP Launcher v" + SC4MP_VERSION
 SC4MP_ICON = os.path.join(SC4MP_RESOURCES_PATH, "icon.ico")
 
-SC4MP_HOST = SC4MP_SERVERS[0][0] #socket.gethostname()
-SC4MP_PORT = SC4MP_SERVERS[0][1] #7240
+SC4MP_HOST = SC4MP_SERVERS[0][0]
+SC4MP_PORT = SC4MP_SERVERS[0][1]
 
 SC4MP_SEPARATOR = b"<SEPARATOR>"
 SC4MP_BUFFER_SIZE = 4096
@@ -550,6 +550,18 @@ def format_filesize(size):
 		return str(int(size)) + "B"
 
 
+def get_bitmap_dimensions(filename):
+	"""TODO"""
+
+	with open(filename, "rb") as file:
+		data = bytearray(file.read())
+
+	width = struct.unpack_from('<i', data, 18)
+	height = struct.unpack_from('<i', data, 22)
+
+	return (width[0], height[0])
+
+
 # Objects
 
 class Config:
@@ -671,15 +683,135 @@ class Server:
 	def fetch_stats(self):
 		"""TODO"""
 
-		self.stat_mayors = (random.randint(0,1000)) #TODO
+		download = self.fetch_temp()
+
+		regions_path = os.path.join(SC4MP_LAUNCHPATH, "_Temp", "ServerList", self.server_id, "Regions")
+
+		mayors = []
+		mayors_online = []
+		claimed_area = 0
+		total_area = 0
+		for region in os.listdir(regions_path):
+			try:
+				region_path = os.path.join(regions_path, region)
+				region_config_path = os.path.join(region_path, "config.bmp")
+				region_dimensions = get_bitmap_dimensions(region_config_path)
+				region_database_path = os.path.join(region_path, "_Database", "region.json")
+				region_database = load_json(region_database_path)
+				for coords in region_database.keys():
+					city_entry = region_database[coords]
+					if city_entry != None:
+						owner = city_entry["owner"]
+						if (owner != None):
+							claimed_area += city_entry["size"] ** 2
+							if (owner not in mayors):
+								mayors.append(owner)
+				total_area += region_dimensions[0] * region_dimensions[1]
+			except Exception as e:
+				show_error(e, no_ui=True)
+
+		self.stat_mayors = len(mayors) #(random.randint(0,1000))
+		
 		self.stat_mayors_online = int(self.stat_mayors * (float(random.randint(0, 100)) / 100)) #TODO
-		self.stat_claimed = (float(random.randint(0, 100)) / 100) #TODO
-		self.stat_download = (random.randint(0, 10 ** 11)) #TODO
+		
+		try:
+			self.stat_claimed = (float(claimed_area) / float(total_area)) #(float(random.randint(0, 100)) / 100)
+		except ZeroDivisionError:
+			self.stat_claimed = 1
+
+		self.stat_download = download #(random.randint(0, 10 ** 11))
 
 		ping = self.ping()
 		if (ping != None):
 			self.stat_ping = ping
 
+
+	def fetch_temp(self):
+		"""TODO"""
+
+		# Set destination
+		destination = os.path.join(SC4MP_LAUNCHPATH, "_Temp", "ServerList", self.server_id, "Regions")
+
+		# Create the socket
+		s = socket.socket()
+		s.settimeout(10)
+		s.connect((self.host, self.port))
+
+		# Request the type of data
+		s.send(b"regions")
+
+		# Request header
+		#request_header(s, self.server)
+
+		# Receive file count
+		file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+
+		# Separator
+		s.send(SC4MP_SEPARATOR)
+
+		# Receive file size
+		size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+
+		# Receive files
+		size_downloaded = 0
+		for files_received in range(file_count):
+			s.send(SC4MP_SEPARATOR)
+			size_downloaded += self.receive_or_cached(s, destination)
+
+		return size_downloaded
+
+
+	def receive_or_cached(self, s, rootpath):
+
+		# Receive hashcode and set cache filename
+		hash = s.recv(SC4MP_BUFFER_SIZE).decode()
+
+		# Separator
+		s.send(SC4MP_SEPARATOR)
+
+		# Receive filesize
+		filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+
+		# Separator
+		s.send(SC4MP_SEPARATOR)
+
+		# Receive relative path and set the destination
+		relpath = os.path.normpath(s.recv(SC4MP_BUFFER_SIZE).decode())
+		filename = os.path.split(relpath)[1]
+		destination = os.path.join(rootpath, relpath)
+
+		if not (filename == "region.json" or filename == "config.bmp"):
+
+			# Tell the server that the file is cached
+			s.send(b"cached")
+
+		else:
+
+			# Tell the server that the file is not cached
+			s.send(b"not cached")
+
+			# Create the destination directory if necessary
+			destination_directory = os.path.split(destination)[0]
+			if (not os.path.exists(destination_directory)):
+				os.makedirs(destination_directory)
+
+			# Delete the destination file if it exists
+			if (os.path.exists(destination)):
+				os.remove(destination)
+
+			# Receive the file
+			filesize_read = 0
+			destination_file = open(destination, "wb")
+			while (filesize_read < filesize):
+				bytes_read = s.recv(SC4MP_BUFFER_SIZE)
+				if not bytes_read:    
+					break
+				destination_file.write(bytes_read)
+				filesize_read += len(bytes_read)
+			
+		# Return the file size
+		return filesize
+	
 
 	def update_database(self):
 		"""Updates the json entry for the server."""
@@ -1106,7 +1238,7 @@ class ServerList(th.Thread):
 		#	pass
 
 		data = load_json(os.path.join(SC4MP_LAUNCHPATH, "_Profiles", "servers.json"))
-		for key in data.keys():
+		for key in reversed(data.keys()):
 			self.unfetched_servers.append((data[key]["host"], data[key]["port"]))
 
 		self.fetched_servers = []
@@ -1124,6 +1256,12 @@ class ServerList(th.Thread):
 
 		self.blank_icon = tk.PhotoImage(file=get_sc4mp_path("blank-icon.png"))
 		self.lock_icon = tk.PhotoImage(file=get_sc4mp_path("lock-icon.png"))
+
+		self.temp_path = os.path.join(SC4MP_LAUNCHPATH, "_Temp", "ServerList")
+		try:
+			purge_directory(self.temp_path)
+		except Exception as e:
+			show_error(e, no_ui=True)
 
 
 	def run(self):
@@ -1426,7 +1564,7 @@ class ServerFetcher(th.Thread):
 	def fetch_stats(self):
 		"""TODO"""
 		self.server.fetch_stats()
-
+		
 	
 	def server_list(self):
 		"""TODO"""
@@ -1724,7 +1862,8 @@ class ServerLoader(th.Thread):
 		s.send(type.encode())
 
 		# Request header
-		request_header(s, self.server)
+		if (type == "plugins"):
+			request_header(s, self.server)
 
 		# Receive file count
 		file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
@@ -1952,9 +2091,12 @@ class ServerLoader(th.Thread):
 		# Loop through the server regions, add them to the server regions instance variable and add prefixes to the region names in the region config files
 		for directory in os.listdir(path):
 			if os.path.isdir(os.path.join(path, directory)):
-				self.server.regions.append(directory)
-				config_path = os.path.join(path, directory, "region.ini")
-				prep_region_config(config_path)
+				if (directory == "_Database"):
+					shutil.rmtree(os.path.join(path, directory))
+				else:
+					self.server.regions.append(directory)
+					config_path = os.path.join(path, directory, "region.ini")
+					prep_region_config(config_path)
 
 		# Copy the latest failed save push into the region downloads subdirectory
 		downloads_path = os.path.join(path, "downloads")
@@ -2485,7 +2627,7 @@ class RegionsRefresher(th.Thread):
 			s.send(b"regions")
 
 			# Request header
-			request_header(s, self.server)
+			#request_header(s, self.server)
 
 			# Receive file count
 			file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
