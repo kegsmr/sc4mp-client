@@ -19,7 +19,7 @@ import time
 import tkinter as tk
 import traceback
 import webbrowser
-from datetime import datetime
+from datetime import datetime, timedelta
 from tkinter import Menu, filedialog, font, messagebox, ttk
 
 SC4MP_VERSION = "0.3.0"
@@ -706,13 +706,18 @@ class Server:
 							claimed_area += city_entry["size"] ** 2
 							if (owner not in mayors):
 								mayors.append(owner)
+							modified = city_entry["modified"]
+							if (modified != None):
+								modified = datetime.strptime(modified, "%Y-%m-%d %H:%M:%S")
+								if (modified > datetime.now() - timedelta(hours=26) and owner not in mayors_online):
+									mayors_online.append(owner)
 				total_area += region_dimensions[0] * region_dimensions[1]
 			except Exception as e:
 				show_error(e, no_ui=True)
 
 		self.stat_mayors = len(mayors) #(random.randint(0,1000))
 		
-		self.stat_mayors_online = int(self.stat_mayors * (float(random.randint(0, 100)) / 100)) #TODO
+		self.stat_mayors_online = len(mayors_online) #int(self.stat_mayors * (float(random.randint(0, 100)) / 100))
 		
 		try:
 			self.stat_claimed = (float(claimed_area) / float(total_area)) #(float(random.randint(0, 100)) / 100)
@@ -729,34 +734,40 @@ class Server:
 	def fetch_temp(self):
 		"""TODO"""
 
-		# Set destination
-		destination = os.path.join(SC4MP_LAUNCHPATH, "_Temp", "ServerList", self.server_id, "Regions")
+		REQUESTS = [b"plugins", b"regions"]
+		DIRECTORIES = ["Plugins", "Regions"]
 
-		# Create the socket
-		s = socket.socket()
-		s.settimeout(10)
-		s.connect((self.host, self.port))
-
-		# Request the type of data
-		s.send(b"regions")
-
-		# Request header
-		#request_header(s, self.server)
-
-		# Receive file count
-		file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
-
-		# Separator
-		s.send(SC4MP_SEPARATOR)
-
-		# Receive file size
-		size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
-
-		# Receive files
 		size_downloaded = 0
-		for files_received in range(file_count):
+
+		for request, directory in zip(REQUESTS, DIRECTORIES):
+
+			# Set destination
+			destination = os.path.join(SC4MP_LAUNCHPATH, "_Temp", "ServerList", self.server_id, directory)
+
+			# Create the socket
+			s = socket.socket()
+			s.settimeout(10)
+			s.connect((self.host, self.port))
+
+			# Request the type of data
+			s.send(request)
+
+			# Request header
+			#request_header(s, self.server)
+
+			# Receive file count
+			file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+
+			# Separator
 			s.send(SC4MP_SEPARATOR)
-			size_downloaded += self.receive_or_cached(s, destination)
+
+			# Receive file size
+			size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+
+			# Receive files
+			for files_received in range(file_count):
+				s.send(SC4MP_SEPARATOR)
+				size_downloaded += self.receive_or_cached(s, destination)
 
 		return size_downloaded
 
@@ -1616,7 +1627,7 @@ class ServerPinger(th.Thread):
 					print("Pinging " + self.server.host + ":" + str(self.server.port))
 					ping = self.server.ping()
 					if (ping != None):
-						self.server.stat_ping = int((self.server.stat_ping + ping) / 2)
+						self.server.stat_ping = ping #int((self.server.stat_ping + ping) / 2)
 
 		except Exception as e:
 
@@ -1862,8 +1873,7 @@ class ServerLoader(th.Thread):
 		s.send(type.encode())
 
 		# Request header
-		if (type == "plugins"):
-			request_header(s, self.server)
+		#request_header(s, self.server)
 
 		# Receive file count
 		file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
@@ -2091,12 +2101,9 @@ class ServerLoader(th.Thread):
 		# Loop through the server regions, add them to the server regions instance variable and add prefixes to the region names in the region config files
 		for directory in os.listdir(path):
 			if os.path.isdir(os.path.join(path, directory)):
-				if (directory == "_Database"):
-					shutil.rmtree(os.path.join(path, directory))
-				else:
-					self.server.regions.append(directory)
-					config_path = os.path.join(path, directory, "region.ini")
-					prep_region_config(config_path)
+				self.server.regions.append(directory)
+				config_path = os.path.join(path, directory, "region.ini")
+				prep_region_config(config_path)
 
 		# Copy the latest failed save push into the region downloads subdirectory
 		downloads_path = os.path.join(path, "downloads")
@@ -3879,7 +3886,7 @@ class ServerListUI(tk.Frame):
 		self.root.bind("<Down>", lambda event:self.focus_tree())
 
 
-		# Image
+		# Banner
 
 		self.canvas = tk.Canvas(self, width=800, height=100)
 		self.canvas.image = tk.PhotoImage(file=get_sc4mp_path("banner.png"))
@@ -3981,26 +3988,40 @@ class ServerListUI(tk.Frame):
 		self.tree.configure(yscrollcommand=self.scrollbar.set)
 
 
+		# Server info frame
+
+		self.server_info = tk.Frame(self, width=540, height=120)
+		self.server_info.grid(row=3, column=0, padx=20, pady=0, sticky="nw")
+		self.server_info.grid_propagate(0)
+
+
 		# Description label
 
-		self.description_label = ttk.Label(self)
-		self.description_label.grid(row=3, column=0, rowspan=1, columnspan=1, padx=20, pady=10, sticky="nw")
+		self.description_label = ttk.Label(self.server_info)
+		self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="nw")
 		self.description_label['text'] = ""
-
-
-		# Address label
-
-		self.address_label = ttk.Label(self)
-		self.address_label.grid(row=3, column=1, columnspan=1, padx=15, pady=(10, 90), sticky="ne")
-		self.address_label['text'] = ""
 
 
 		# URL label
 
-		self.url_label = tk.Label(self, fg="blue", cursor="hand2")
-		self.url_label.grid(row=4, column=0, columnspan=1, padx=15, pady=(10, 10), sticky="sw")
+		self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2")
+		self.url_label.grid(row=1, column=0, columnspan=1, padx=0, pady=5, sticky="nw")
 		self.url_label['text'] = ""
 		self.url_label.bind("<Button-1>", lambda e:webbrowser.open_new_tab(self.url_label["text"]))
+
+
+		# Combo box
+
+		self.combo_box = ttk.Combobox(self, width=20)
+		self.combo_box["values"] = ("Category: Official", "Category: History") #"Category: Favorites"
+		self.combo_box.grid(row=3, column=1, rowspan=1, columnspan=1, padx=(0,20), pady=(10,10), sticky="ne")
+		
+
+		# Address label
+
+		self.address_label = ttk.Label(self)
+		self.address_label.grid(row=4, column=0, columnspan=1, padx=20, pady=(0,15), sticky="sw")
+		self.address_label['text'] = ""
 
 
 		# Refresh / connect frame
