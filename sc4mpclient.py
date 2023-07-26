@@ -654,6 +654,8 @@ class Server:
 		self.password = None
 		self.user_id = None
 
+		self.categories = ["All"]
+
 
 	def fetch(self):
 		"""Retreives basic information from a server and saves them as instance variables. Updates the json entry for the server if possible."""
@@ -1257,6 +1259,8 @@ class ServerList(th.Thread):
 
 		self.unsorted_servers = dict()
 
+		self.hidden_servers = []
+
 		self.server_fetchers = 0
 
 		self.stat_mayors = dict()
@@ -1342,6 +1346,47 @@ class ServerList(th.Thread):
 							else:
 								image = self.lock_icon
 							self.ui.tree.insert('', 'end', key, text=self.servers[key].server_name, values=self.format_server(self.servers[key]), image=image)
+							self.ui.tree.detach(key)
+							self.hidden_servers.append(key)
+
+					# Filter the tree
+					filter = self.ui.combo_box.get()
+					if (len(filter) > 0):
+						try:
+							search_terms = filter.split(" ")
+							category = "All"
+							if search_terms[0] == "category:":
+								category = search_terms[1]
+								for count in range(2):
+									search_terms.pop(0)
+							print("Filtering by \"" + category + "\" and " + str(search_terms) + "...")
+							server_ids = self.servers.keys()
+							for server_id in server_ids:
+								server = self.servers[server_id]
+								search_fields = [server.server_name, server.server_description, server.server_url]
+								hide = True
+								if len(search_terms) > 0:
+									for search_field in search_fields:
+										search_field.lower()
+										for search_term in search_terms:
+											search_term.lower()
+											if search_term in search_field and category in server.categories:
+												hide = False
+								elif category in server.categories:
+									hide = False
+								if hide and server_id not in self.hidden_servers:
+									self.hidden_servers.append(server_id)
+									self.ui.tree.detach(server_id)
+								elif server_id in self.hidden_servers:
+									self.hidden_servers.remove(server_id)
+									self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.ui.tree.index(server_id))
+						except Exception as e:
+							show_error(e, no_ui=True)
+					elif (len(self.hidden_servers) > 0):
+						server_ids = self.hidden_servers
+						for server_id in server_ids:
+							self.hidden_servers.remove(server_id)
+							self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.ui.tree.index(server_id))
 
 					# Sort the tree
 					if not self.sorted():
@@ -3958,8 +4003,6 @@ class ServerListUI(tk.Frame):
 
 		self.tree = ttk.Treeview(self.frame, columns=column_ids, selectmode="browse", height=12)
 
-		#self.tree.column("#0", width=45, anchor="center", stretch=False)
-
 		for column in COLUMNS:
 			column_id = column[0]
 			column_name = column[1]
@@ -4013,14 +4056,14 @@ class ServerListUI(tk.Frame):
 		# Combo box
 
 		self.combo_box = ttk.Combobox(self, width=20)
-		self.combo_box["values"] = ("Category: Official", "Category: History") #"Category: Favorites"
-		self.combo_box.grid(row=3, column=1, rowspan=1, columnspan=1, padx=(0,20), pady=(10,10), sticky="ne")
+		self.combo_box["values"] = ("category: All", "category: Official", "category: Favorites", "category: History")
+		self.combo_box.grid(row=3, column=1, rowspan=1, columnspan=1, padx=(0,15), pady=(10,10), sticky="ne")
 		
 
 		# Address label
 
 		self.address_label = ttk.Label(self)
-		self.address_label.grid(row=4, column=0, columnspan=1, padx=20, pady=(0,15), sticky="sw")
+		self.address_label.grid(row=4, column=0, columnspan=1, padx=20, pady=10, sticky="sw")
 		self.address_label['text'] = ""
 
 
