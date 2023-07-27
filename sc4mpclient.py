@@ -1572,7 +1572,7 @@ class ServerList(th.Thread):
 
 	
 	def sort(self, server_indices): #TODO doesnt work in one pass!
-		"""TODO"""
+		"""deprecated"""
 		server_ids = list(server_indices.keys())
 		index_a = 0
 		while index_a < len(server_ids):
