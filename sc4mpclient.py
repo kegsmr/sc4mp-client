@@ -655,6 +655,8 @@ class Server:
 		self.user_id = None
 
 		self.categories = ["All"]
+		if ((host, port) in SC4MP_SERVERS):
+			self.categories.append("Official")
 
 
 	def fetch(self):
@@ -671,6 +673,11 @@ class Server:
 		self.server_version = self.request("server_version")
 		self.password_enabled = self.request("password_enabled") == "yes"
 		self.user_plugins_enabled = self.request("user_plugins_enabled") == "yes"
+
+		if (self.password_enabled):
+			self.categories.append("Private")
+		else:
+			self.categories.append("Public")
 
 		#if (self.server_version != None):
 		#	self.server_version = unformat_version(self.server_version)
@@ -843,6 +850,12 @@ class Server:
 		if (entry == None):
 			entry = dict()
 		data[key] = entry
+
+		# Set server categories
+		if "user_id" in entry.keys():
+			self.categories.append("History")
+		if entry.get("favorite", False):
+			self.categories.append("Favorites")
 
 		# Set values in database entry
 		set_server_data(entry, self)
@@ -1240,26 +1253,22 @@ class ServerList(th.Thread):
 		self.ended = False
 		self.pause = False
 
-		#self.sort = False
-
 		self.servers = dict()
 
 		self.unfetched_servers = SC4MP_SERVERS.copy()
 		
 		#TODO get lan
-		#for offset in range(64512):
-		#	pass
 
 		data = load_json(os.path.join(SC4MP_LAUNCHPATH, "_Profiles", "servers.json"))
 		for key in reversed(data.keys()):
 			self.unfetched_servers.append((data[key]["host"], data[key]["port"]))
 
+
 		self.fetched_servers = []
 		self.tried_servers = []
+		self.hidden_servers = []
 
 		self.unsorted_servers = dict()
-
-		self.hidden_servers = []
 
 		self.server_fetchers = 0
 
@@ -1286,23 +1295,22 @@ class ServerList(th.Thread):
 
 			print("Fetching servers...")
 
-			#self.ui.label["text"] = 'Select "Servers" then "Connect..." in the menu bar to connect to a server.'
-
-			#for i in range(200):
-			#	self.ui.tree.insert('', 'end', values=(""))
-
 			while (self.end == False):
 
 				if (self.pause == False):
 
 					# Enable or disable connect button and update labels
-					if (self.ui.tree.focus() == ""):
+					server_id = self.ui.tree.focus()
+					if (server_id == "" or server_id not in self.servers.keys()):
 						self.ui.connect_button['state'] = tk.DISABLED
+						self.ui.address_label["text"] = ""
+						self.ui.description_label["text"] = ""
+						self.ui.url_label["text"] = ""
 					else:
 						self.ui.connect_button['state'] = tk.NORMAL
-						self.ui.address_label["text"] = self.servers[self.ui.tree.focus()].host + ":" + str(self.servers[self.ui.tree.focus()].port)
-						self.ui.description_label["text"] = self.servers[self.ui.tree.focus()].server_description
-						self.ui.url_label["text"] = self.servers[self.ui.tree.focus()].server_url
+						self.ui.address_label["text"] = self.servers[server_id].host + ":" + str(self.servers[server_id].port)
+						self.ui.description_label["text"] = self.servers[server_id].server_description
+						self.ui.url_label["text"] = self.servers[server_id].server_url
 						
 					# Fetch the next unfetched server
 					if (self.server_fetchers < 50): #TODO make configurable?
@@ -1314,70 +1322,57 @@ class ServerList(th.Thread):
 								ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
 
 					# Add all fetched servers to the server dictionary if not already present
-					while (len(self.fetched_servers) > 0):
+					while len(self.fetched_servers) > 0:
 						fetched_server = self.fetched_servers.pop(0)
 						if (fetched_server.server_id not in self.servers.keys()):
 							self.servers[fetched_server.server_id] = fetched_server
 
 					# Update stats
-					for update_server_id in self.servers.keys():
+					server_ids = self.servers.keys()
+					for server_id in server_ids:
 						try:
-							update_server = self.servers[update_server_id]
-							self.stat_mayors[update_server_id] = update_server.stat_mayors
-							self.stat_mayors_online[update_server_id] = update_server.stat_mayors_online
-							self.stat_download[update_server_id] = update_server.stat_download
-							self.stat_claimed[update_server_id] = update_server.stat_claimed
-							self.stat_ping[update_server_id] = update_server.stat_ping
+							update_server = self.servers[server_id]
+							self.stat_mayors[server_id] = update_server.stat_mayors
+							self.stat_mayors_online[server_id] = update_server.stat_mayors_online
+							self.stat_download[server_id] = update_server.stat_download
+							self.stat_claimed[server_id] = update_server.stat_claimed
+							self.stat_ping[server_id] = update_server.stat_ping
 							self.calculate_rating(update_server)
 						except:
 							pass
 
 					# Update the tree
-					for server_id in self.ui.tree.get_children():
-						server = self.servers[server_id]
-						self.ui.tree.item(server_id, values=self.format_server(server))
+					server_ids = self.servers.keys()
+					for server_id in server_ids:
+						if server_id in self.ui.tree.get_children():
+							server = self.servers[server_id]
+							self.ui.tree.item(server_id, values=self.format_server(server))
 
 					# Add new rows to the tree
-					for key in self.servers.keys():
-						if (not self.ui.tree.exists(key)):
-							self.unsorted_servers[key] = self.servers[key]
-							if (not self.servers[key].password_enabled):
+					server_ids = self.servers.keys()
+					filter = self.ui.combo_box.get()
+					for server_id in server_ids:
+						if (not self.ui.tree.exists(server_id)) and (len(filter) < 1 or (not self.filter(self.servers[server_id], self.filters(filter)))):
+							self.unsorted_servers[server_id] = self.servers[server_id]
+							if (not self.servers[server_id].password_enabled):
 								image = self.blank_icon
 							else:
 								image = self.lock_icon
-							self.ui.tree.insert('', 'end', key, text=self.servers[key].server_name, values=self.format_server(self.servers[key]), image=image)
-							self.ui.tree.detach(key)
-							self.hidden_servers.append(key)
+							self.ui.tree.insert('', 'end', server_id, text=self.servers[server_id].server_name, values=self.format_server(self.servers[server_id]), image=image)
 
 					# Filter the tree
 					filter = self.ui.combo_box.get()
 					if (len(filter) > 0):
 						try:
-							search_terms = filter.split(" ")
-							category = "All"
-							if search_terms[0] == "category:":
-								category = search_terms[1]
-								for count in range(2):
-									search_terms.pop(0)
+							category, search_terms = self.filters(filter)
 							print("Filtering by \"" + category + "\" and " + str(search_terms) + "...")
 							server_ids = self.servers.keys()
 							for server_id in server_ids:
-								server = self.servers[server_id]
-								search_fields = [server.server_name, server.server_description, server.server_url]
-								hide = True
-								if len(search_terms) > 0:
-									for search_field in search_fields:
-										search_field.lower()
-										for search_term in search_terms:
-											search_term.lower()
-											if search_term in search_field and category in server.categories:
-												hide = False
-								elif category in server.categories:
-									hide = False
-								if hide and server_id not in self.hidden_servers:
+								hide = self.filter(self.servers[server_id], (category, search_terms))
+								if (hide) and (server_id in self.ui.tree.get_children()) and (server_id not in self.hidden_servers):
 									self.hidden_servers.append(server_id)
 									self.ui.tree.detach(server_id)
-								elif server_id in self.hidden_servers:
+								elif (not hide) and (server_id in self.hidden_servers):
 									self.hidden_servers.remove(server_id)
 									self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.ui.tree.index(server_id))
 						except Exception as e:
@@ -1397,7 +1392,8 @@ class ServerList(th.Thread):
 							server_indices[server_id] = server_ids.index(server_id)
 						self.sort(server_indices)
 						for server_id in server_ids:
-							self.ui.tree.move(server_id, self.ui.tree.parent(server_id), server_indices[server_id])
+							if (not server_id in self.hidden_servers):
+								self.ui.tree.move(server_id, self.ui.tree.parent(server_id), server_indices[server_id])
 
 					# Update primary label
 					if (len(self.servers) > 0):
@@ -1419,6 +1415,41 @@ class ServerList(th.Thread):
 		except Exception as e:
 
 			show_error("An error occurred while fetching servers.\n\n" + str(e), no_ui=True)
+
+
+	def filters(self, filter):
+		"""TODO"""
+		if (len(filter) > 0):
+			search_terms = filter.split(" ")
+			category = "All"
+			if len(search_terms) > 0:
+				if search_terms[0] == "category:":
+					if len(search_terms) > 1:
+						category = search_terms[1].lower().capitalize()
+						for count in range(2):
+							search_terms.pop(0)
+					else:
+						search_terms.pop(0)
+			return category, search_terms
+		else:
+			return None
+
+
+	def filter(self, server, filters):
+		"""TODO"""
+		category = filters[0]
+		search_terms = filters[1]
+		search_fields = [server.server_name, server.server_description, server.server_url]
+		if len(search_terms) > 0:
+			for search_field in search_fields:
+				search_field.lower()
+				for search_term in search_terms:
+					search_term.lower()
+					if search_term in search_field and category in server.categories:
+						return False
+		elif category in server.categories:
+			return False
+		return True
 
 
 	def sorted(self):
@@ -1667,7 +1698,7 @@ class ServerPinger(th.Thread):
 		try:
 
 			while (not self.parent.end):
-				time.sleep(len(self.parent.servers))
+				time.sleep(len(self.parent.servers) + 1)
 				if (not self.parent.pause):
 					print("Pinging " + self.server.host + ":" + str(self.server.port))
 					ping = self.server.ping()
@@ -1755,6 +1786,7 @@ class ServerLoader(th.Thread):
 				sc4mp_config["GENERAL"]["default_host"] = self.server.host
 				sc4mp_config["GENERAL"]["default_port"] = self.server.port
 				sc4mp_config.update()
+				self.server.categories.append("History")
 				game_monitor = GameMonitor(self.server)
 				game_monitor.start()
 			#elif (self.server == None):
@@ -3044,7 +3076,8 @@ class UI(tk.Tk):
 		try:
 			self.server_list.worker.pause = False
 		except Exception as e:
-			show_error(e, no_ui = True)
+			pass
+			#show_error(e, no_ui = True)
 
 
 class GeneralSettingsUI(tk.Toplevel):
@@ -4056,8 +4089,8 @@ class ServerListUI(tk.Frame):
 		# Combo box
 
 		self.combo_box = ttk.Combobox(self, width=20)
-		self.combo_box["values"] = ("category: All", "category: Official", "category: Favorites", "category: History")
-		self.combo_box.grid(row=3, column=1, rowspan=1, columnspan=1, padx=(0,15), pady=(10,10), sticky="ne")
+		self.combo_box["values"] = ("category: All", "category: Official", "category: Public", "category: Private", "category: History") #"category: Favorites"
+		self.combo_box.grid(row=3, column=1, rowspan=1, columnspan=1, padx=(0,15), pady=(5,10), sticky="ne")
 		
 
 		# Address label
