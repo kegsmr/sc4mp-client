@@ -1462,17 +1462,17 @@ class ServerList(th.Thread):
 								hide = self.filter(self.servers[server_id], (category, search_terms))
 								if (hide) and (server_id in self.ui.tree.get_children()) and (server_id not in self.hidden_servers):
 									self.hidden_servers.append(server_id)
-									self.ui.tree.detach(server_id)
+									self.ui.tree.delete(server_id)
 								elif (not hide) and (server_id in self.hidden_servers):
 									self.hidden_servers.remove(server_id)
-									self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
+									#self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
 						except Exception as e:
 							show_error(e, no_ui=True)
 					elif (len(self.hidden_servers) > 0):
 						server_ids = self.hidden_servers
 						for server_id in server_ids:
 							self.hidden_servers.remove(server_id)
-							self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
+							#self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
 
 					# Sort the tree
 					if not self.sorted():
