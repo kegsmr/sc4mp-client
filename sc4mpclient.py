@@ -105,11 +105,102 @@ sc4mp_current_server = None
 
 # Methods
 
+def main():
+	"""The main method.
+
+	Arguments:
+		None
+
+	Returns:
+		None
+	"""
+
+	try:
+
+		# Output
+		sys.stdout = Logger()
+		th.current_thread().name = "Main"
+
+		# Title
+		print(SC4MP_TITLE)
+
+		# "-no-ui" argument
+		global sc4mp_ui
+		sc4mp_ui = not "-no-ui" in sc4mp_args
+
+		# "--host" argument
+		global sc4mp_host
+		sc4mp_host = None
+		if ("--host" in sc4mp_args):
+			try:
+				sc4mp_host = get_arg_value("--host", sc4mp_args)
+			except:
+				raise ClientException("Invalid arguments.")
+
+		# "--port" argument
+		global sc4mp_port
+		sc4mp_port = None
+		if ("--port" in sc4mp_args):
+			try:
+				sc4mp_port = int(get_arg_value("--port", sc4mp_args))
+			except:
+				raise ClientException("Invalid arguments.")
+			
+		# "--password" argument
+		global sc4mp_password
+		sc4mp_password = None
+		if ("--password" in sc4mp_args):
+			try:
+				sc4mp_password = int(get_arg_value("--password", sc4mp_args))
+			except:
+				raise ClientException("Invalid arguments.")
+
+		# Prep
+		prep()
+
+		# Client
+		if (sc4mp_ui):
+			sc4mp_ui = UI()
+			if (sc4mp_host != None and sc4mp_port != None):
+				server = Server(sc4mp_host, sc4mp_port)
+				server.password = sc4mp_password
+				ServerLoaderUI(server)
+			sc4mp_ui.mainloop()
+		else:
+			sc4mp_ui = None
+			if (sc4mp_host == None or sc4mp_port == None):
+				print("[PROMPT] Connect to server:")
+			if (sc4mp_host == None):
+				sc4mp_host = input("[PROMPT] - Enter server address... ")
+			if (sc4mp_port == None):
+				sc4mp_port = int(input("[PROMPT] - Enter server port... "))
+			server = Server(sc4mp_host, sc4mp_port)
+			server.fetch()
+			if (sc4mp_password == None and server.password_enabled):
+				sc4mp_password = input("[PROMPT] - Enter server password... ")
+			server.password = sc4mp_password
+			ServerLoader(None, server).run()
+		
+		# Cleanup
+		cleanup()
+
+	except Exception as e:
+
+		# Fatal error 
+		fatal_error()
+
+
 def prep():
 	"""Prepares the client to launch."""
 	
 	load_config()
 	create_subdirectories()
+	load_database()
+
+
+def cleanup():
+	"""TODO"""
+	sc4mp_servers_database.end = True
 
 
 def load_config():
@@ -141,8 +232,13 @@ def create_subdirectories():
 
 	print("Creating subdirectories...")
 
-	directories = ["_Cache", "_Profiles", "_Salvage", "_Temp", os.path.join("_Temp", "ServerList"), "Plugins", os.path.join("Plugins", "server"), os.path.join("Plugins", "client"), "Regions"] #"SC4MPBackups", os.path.join("_Cache","Plugins"), os.path.join("_Cache","Regions")]
+	directories = ["_Cache", "_Database", "_Salvage", "_Temp", os.path.join("_Temp", "ServerList"), "Plugins", os.path.join("Plugins", "server"), os.path.join("Plugins", "client"), "Regions"] #"SC4MPBackups", os.path.join("_Cache","Plugins"), os.path.join("_Cache","Regions")]
 
+	# Update old directory names
+	if (os.path.exists(os.path.join(SC4MP_LAUNCHPATH, "_Database"))):
+		os.rename(os.path.join(SC4MP_LAUNCHPATH, "_Database"), os.path.join(SC4MP_LAUNCHPATH, "_Database"))
+
+	# Create new directories
 	for directory in directories:
 		new_directory = os.path.join(SC4MP_LAUNCHPATH, directory)
 		if not os.path.exists(new_directory):
@@ -150,9 +246,16 @@ def create_subdirectories():
 				os.makedirs(new_directory)
 			except Exception as e:
 				raise ClientException("Failed to create SC4MP subdirectories.\n\n" + str(e))
-		"""if directory == "Plugins":
-			noticepath = os.path.join(SC4MP_LAUNCHPATH, directory, "__PUT YOUR PLUGINS IN THIS FOLDER__.txt")
-			open(noticepath, 'a').close()"""
+
+
+def load_database():
+	"""TODO"""
+
+	print("Loading database...")
+
+	global sc4mp_servers_database
+	sc4mp_servers_database = DatabaseManager(os.path.join(SC4MP_LAUNCHPATH, "_Database", "servers.json"))
+	sc4mp_servers_database.start()
 
 
 '''def connect(server):
@@ -329,7 +432,7 @@ def load_json(filename):
 	try:
 		with open(filename, 'r') as file:
 			data = json.load(file)
-			if (data == None):
+			if data == None:
 				return dict()
 			else:
 				return data
@@ -836,20 +939,10 @@ class Server:
 	def update_database(self):
 		"""Updates the json entry for the server."""
 
-		# Get database
-		filename = os.path.join(SC4MP_LAUNCHPATH, "_Profiles", "servers.json")
-		data = None
-		try:
-			data = load_json(filename)
-		except:
-			data = dict()
-
 		# Get database entry for server
 		key = self.server_id
-		entry = data.get(key, dict())
-		if (entry == None):
-			entry = dict()
-		data[key] = entry
+		entry = sc4mp_servers_database.get(key, dict())
+		sc4mp_servers_database[key] = entry
 
 		# Set server categories
 		if "user_id" in entry.keys():
@@ -859,9 +952,6 @@ class Server:
 
 		# Set values in database entry
 		set_server_data(entry, self)
-
-		# Update database
-		update_json(filename, data)
 
 
 	def request(self, request):
@@ -888,20 +978,10 @@ class Server:
 	def authenticate(self):
 		"""TODO"""
 
-		# Get database
-		filename = os.path.join(SC4MP_LAUNCHPATH, "_Profiles", "servers.json")
-		data = None
-		try:
-			data = load_json(filename)
-		except:
-			data = dict()
-
 		# Get database entry for server
 		key = self.server_id
-		entry = data.get(key, dict())
-		if (entry == None):
-			entry = dict()
-		data[key] = entry
+		entry = sc4mp_servers_database.get(key, dict())
+		sc4mp_servers_database[key] = entry
 
 		# Get user_id
 		user_id = None
@@ -949,9 +1029,6 @@ class Server:
 		entry["token"] = token
 		entry.setdefault("first_logon", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 		entry["last_logon"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-		# Update database
-		update_json(filename, data)
 
 
 	def ping(self):
@@ -1259,10 +1336,8 @@ class ServerList(th.Thread):
 		
 		#TODO get lan
 
-		data = load_json(os.path.join(SC4MP_LAUNCHPATH, "_Profiles", "servers.json"))
-		for key in reversed(data.keys()):
-			self.unfetched_servers.append((data[key]["host"], data[key]["port"]))
-
+		for key in reversed(sc4mp_servers_database.keys()):
+			self.unfetched_servers.append((sc4mp_servers_database[key]["host"], sc4mp_servers_database[key]["port"]))
 
 		self.fetched_servers = []
 		self.tried_servers = []
@@ -2900,6 +2975,71 @@ class RegionsRefresher(th.Thread):
 		return filesize
 
 
+class DatabaseManager(th.Thread):
+	"""TODO"""
+
+	
+	def __init__(self, filename):
+		"""TODO"""
+
+		super().__init__()
+
+		self.end = False
+
+		self.filename = filename
+		self.data = self.load_json()
+
+
+	def run(self):
+		"""TODO"""
+	
+		try:
+			
+			old_data = str(self.data)
+			
+			while (not self.end): #TODO pretty dumb way of checking if a dictionary has been modified
+				try:
+					time.sleep(SC4MP_DELAY)
+					new_data = str(self.data)
+					if (old_data != new_data):
+						report('Updating "' + self.filename + '"...', self)
+						self.update_json()
+						report("- done.", self)
+					old_data = new_data
+				except Exception as e:
+					show_error(e)
+
+		except Exception as e:
+
+			fatal_error(e)
+
+
+	def load_json(self):
+		"""TODO"""
+		return load_json(self.filename)
+
+
+	def update_json(self):
+		"""TODO"""
+		return update_json(self.filename, self.data)
+
+
+	def keys(self):
+		return self.data.keys()
+
+
+	def get(self, key, default):
+		return self.data.get(key, default)
+
+
+	def __getitem__(self, key):
+		return self.data.__getitem__(key)
+
+
+	def __setitem__(self, key, value):
+		return self.data.__setitem__(key, value)
+
+
 # User Interfaces
 
 class UI(tk.Tk):
@@ -3309,7 +3449,8 @@ class StorageSettingsUI(tk.Toplevel):
 					if (not messagebox.askokcancel(title=SC4MP_TITLE, message="The directory \"" + data + "\" already contains Simcity 4 plugins and regions. \n\nProceeding will result in the IRREVERSIBLE DELETION of these files! \n\nThis is your final warning, do you wish to proceed?", icon="warning")): #TODO make message box show yes/no and not ok/cancel
 						raise ClientException("Operation cancelled by user.")
 			update_config_value("STORAGE", key, data)
-		create_subdirectories
+		create_subdirectories()
+		load_database()
 		
 
 	def ok(self):
@@ -4475,89 +4616,7 @@ class Logger():
 		self.terminal.flush()
 
 
-# Main Method
-
-def main():
-	"""The main method.
-
-	Arguments:
-		None
-
-	Returns:
-		None
-	"""
-
-	try:
-
-		# Output
-		sys.stdout = Logger()
-		th.current_thread().name = "Main"
-
-		# Title
-		print(SC4MP_TITLE)
-
-		# "-no-ui" argument
-		global sc4mp_ui
-		sc4mp_ui = not "-no-ui" in sc4mp_args
-
-		# "--host" argument
-		global sc4mp_host
-		sc4mp_host = None
-		if ("--host" in sc4mp_args):
-			try:
-				sc4mp_host = get_arg_value("--host", sc4mp_args)
-			except:
-				raise ClientException("Invalid arguments.")
-
-		# "--port" argument
-		global sc4mp_port
-		sc4mp_port = None
-		if ("--port" in sc4mp_args):
-			try:
-				sc4mp_port = int(get_arg_value("--port", sc4mp_args))
-			except:
-				raise ClientException("Invalid arguments.")
-			
-		# "--password" argument
-		global sc4mp_password
-		sc4mp_password = None
-		if ("--password" in sc4mp_args):
-			try:
-				sc4mp_password = int(get_arg_value("--password", sc4mp_args))
-			except:
-				raise ClientException("Invalid arguments.")
-
-		# Prep
-		prep()
-
-		# Client
-		if (sc4mp_ui):
-			sc4mp_ui = UI()
-			if (sc4mp_host != None and sc4mp_port != None):
-				server = Server(sc4mp_host, sc4mp_port)
-				server.password = sc4mp_password
-				ServerLoaderUI(server)
-			sc4mp_ui.mainloop()
-		else:
-			sc4mp_ui = None
-			if (sc4mp_host == None or sc4mp_port == None):
-				print("[PROMPT] Connect to server:")
-			if (sc4mp_host == None):
-				sc4mp_host = input("[PROMPT] - Enter server address... ")
-			if (sc4mp_port == None):
-				sc4mp_port = int(input("[PROMPT] - Enter server port... "))
-			server = Server(sc4mp_host, sc4mp_port)
-			server.fetch()
-			if (sc4mp_password == None and server.password_enabled):
-				sc4mp_password = input("[PROMPT] - Enter server password... ")
-			server.password = sc4mp_password
-			ServerLoader(None, server).run()
-
-	except Exception as e:
-
-		# Error 
-		fatal_error()
-		#show_error("A fatal error occurred.\n\n" + str(e)) #traceback.format_exc() #Please send the following information to the developers of the " + SC4MP_TITLE + " so this can be resolved:
+# Main
 
 if __name__ == '__main__':
 	main()
