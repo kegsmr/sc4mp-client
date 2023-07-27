@@ -354,7 +354,7 @@ def start_sc4():
 	print("Simcity 4 closed.")
 
 
-def process_exists(process_name): #TODO add macos and linux compatability
+def process_exists(process_name): #TODO add macos compatability
 	"""TODO"""
 	if (platform.system() == "Windows"):
 		call = 'TASKLIST', '/FI', 'imagename eq %s' % process_name
@@ -1336,8 +1336,15 @@ class ServerList(th.Thread):
 		
 		#TODO get lan
 
-		for key in reversed(sc4mp_servers_database.keys()):
-			self.unfetched_servers.append((sc4mp_servers_database[key]["host"], sc4mp_servers_database[key]["port"]))
+		delete_server_ids = []
+		for server_id in reversed(sc4mp_servers_database.keys()):
+			server_entry = sc4mp_servers_database[server_id]
+			if (server_entry.get("user_id", None) != None) or ("last_contact" not in server_entry.keys()) or (datetime.strptime(server_entry["last_contact"], "%Y-%m-%d %H:%M:%S") + timedelta(days=30) > datetime.now()):
+				self.unfetched_servers.append((sc4mp_servers_database[server_id]["host"], sc4mp_servers_database[server_id]["port"]))
+			else:
+				delete_server_ids.append(server_id)
+		for delete_server_id in delete_server_ids:
+			sc4mp_servers_database.data.pop(delete_server_id)
 
 		self.fetched_servers = []
 		self.tried_servers = []
@@ -1370,7 +1377,7 @@ class ServerList(th.Thread):
 				self.kill.end = True
 				while not self.kill.ended:
 					time.sleep(SC4MP_DELAY)
-				self.ui.tree.delete(*self.ui.tree.get_children())
+				self.clear_tree()
 
 			try:
 				purge_directory(self.temp_path)
@@ -1396,6 +1403,12 @@ class ServerList(th.Thread):
 						self.ui.description_label["text"] = self.servers[server_id].server_description
 						self.ui.url_label["text"] = self.servers[server_id].server_url
 						
+					# Add all fetched servers to the server dictionary if not already present
+					while len(self.fetched_servers) > 0:
+						fetched_server = self.fetched_servers.pop(0)
+						if (fetched_server.server_id not in self.servers.keys()):
+							self.servers[fetched_server.server_id] = fetched_server
+
 					# Fetch the next unfetched server
 					if (self.server_fetchers < 100): #TODO make configurable?
 						if (len(self.unfetched_servers) > 0):
@@ -1405,11 +1418,10 @@ class ServerList(th.Thread):
 								self.server_fetchers += 1
 								ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
 
-					# Add all fetched servers to the server dictionary if not already present
-					while len(self.fetched_servers) > 0:
-						fetched_server = self.fetched_servers.pop(0)
-						if (fetched_server.server_id not in self.servers.keys()):
-							self.servers[fetched_server.server_id] = fetched_server
+					# Clear the tree if sort mode changed
+					if self.sort_mode_changed:
+						self.sort_mode_changed = False
+						self.clear_tree()
 
 					# Update stats
 					server_ids = self.servers.keys()
@@ -1425,22 +1437,19 @@ class ServerList(th.Thread):
 						except:
 							pass
 
-					# Clear the tree if sort mode changed
-					if self.sort_mode_changed:
-						self.sort_mode_changed = False
-						self.ui.tree.delete(*self.ui.tree.get_children())
-
-					# Add new rows to the tree
+					# Add missing rows to the tree
 					server_ids = self.servers.keys()
 					filter = self.ui.combo_box.get()
 					for server_id in server_ids:
 						if (not self.ui.tree.exists(server_id)) and (len(filter) < 1 or (not self.filter(self.servers[server_id], self.filters(filter)))):
+							#while len(self.ui.tree.get_children()) >= 50:
+							#	self.ui.tree.delete(self.ui.tree.get_children()[-1])
 							server = self.servers[server_id]
 							if (not server.password_enabled):
 								image = self.blank_icon
 							else:
 								image = self.lock_icon
-							self.ui.tree.insert('', self.in_order_index(server), server_id, text=server.server_name, values=self.format_server(server), image=image)
+							self.ui.tree.insert("", self.in_order_index(server), server_id, text=server.server_name, values=self.format_server(server), image=image)
 
 					# Filter the tree
 					filter = self.ui.combo_box.get()
@@ -1448,7 +1457,7 @@ class ServerList(th.Thread):
 						try:
 							category, search_terms = self.filters(filter)
 							#print("Filtering by \"" + category + "\" and " + str(search_terms) + "...")
-							server_ids = self.servers.keys()
+							server_ids = self.ui.tree.get_children()
 							for server_id in server_ids:
 								hide = self.filter(self.servers[server_id], (category, search_terms))
 								if (hide) and (server_id in self.ui.tree.get_children()) and (server_id not in self.hidden_servers):
@@ -1515,6 +1524,11 @@ class ServerList(th.Thread):
 				pass
 
 			show_error("An error occurred while fetching servers.\n\n" + str(e)) #, no_ui=True)
+
+
+	def clear_tree(self):
+		"""TODO"""
+		self.ui.tree.delete(*self.ui.tree.get_children())
 
 
 	def filters(self, filter):
@@ -1603,22 +1617,21 @@ class ServerList(th.Thread):
 		elif (server_b_sort_value == None):
 			return True
 		else:
-			if (self.ui.tree.reverse_sort):
-				return server_a_sort_value <= server_b_sort_value
-			else:
+			if (not self.ui.tree.reverse_sort):
 				return server_a_sort_value >= server_b_sort_value
+			else:
+				return server_a_sort_value <= server_b_sort_value
 	
 
 	def in_order_index(self, server):
 		"""TODO"""
-		index = 0
 		existing_server_ids = self.ui.tree.get_children()
 		for index in range(len(existing_server_ids)):
 			existing_server_id = existing_server_ids[index]
 			existing_server = self.servers[existing_server_id]
 			if self.in_order(server, existing_server):
-				break
-		return index
+				return index
+		return "end"
 
 	
 	def get_sort_value(self, server):
