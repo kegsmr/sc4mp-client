@@ -1317,7 +1317,7 @@ class ServerList(th.Thread):
 	"""TODO"""
 
 
-	def __init__(self, ui):
+	def __init__(self, ui, kill=None):
 		"""TODO"""
 
 		th.Thread.__init__(self)
@@ -1343,8 +1343,6 @@ class ServerList(th.Thread):
 		self.tried_servers = []
 		self.hidden_servers = []
 
-		self.unsorted_servers = dict()
-
 		self.server_fetchers = 0
 
 		self.stat_mayors = dict()
@@ -1357,16 +1355,27 @@ class ServerList(th.Thread):
 		self.lock_icon = tk.PhotoImage(file=get_sc4mp_path("lock-icon.png"))
 
 		self.temp_path = os.path.join(SC4MP_LAUNCHPATH, "_Temp", "ServerList")
-		try:
-			purge_directory(self.temp_path)
-		except Exception as e:
-			show_error(e, no_ui=True)
+
+		self.kill = kill
+
+		self.sort_mode_changed = False
 
 
 	def run(self):
 		"""TODO"""
 
 		try:
+
+			if (self.kill != None):
+				self.kill.end = True
+				while not self.kill.ended:
+					time.sleep(SC4MP_DELAY)
+				self.ui.tree.delete(*self.ui.tree.get_children())
+
+			try:
+				purge_directory(self.temp_path)
+			except Exception as e:
+				show_error(e, no_ui=True)
 
 			print("Fetching servers...")
 
@@ -1416,31 +1425,29 @@ class ServerList(th.Thread):
 						except:
 							pass
 
-					# Update the tree
-					server_ids = self.servers.keys()
-					for server_id in server_ids:
-						if server_id in self.ui.tree.get_children():
-							server = self.servers[server_id]
-							self.ui.tree.item(server_id, values=self.format_server(server))
+					# Clear the tree if sort mode changed
+					if self.sort_mode_changed:
+						self.sort_mode_changed = False
+						self.ui.tree.delete(*self.ui.tree.get_children())
 
 					# Add new rows to the tree
 					server_ids = self.servers.keys()
 					filter = self.ui.combo_box.get()
 					for server_id in server_ids:
 						if (not self.ui.tree.exists(server_id)) and (len(filter) < 1 or (not self.filter(self.servers[server_id], self.filters(filter)))):
-							self.unsorted_servers[server_id] = self.servers[server_id]
-							if (not self.servers[server_id].password_enabled):
+							server = self.servers[server_id]
+							if (not server.password_enabled):
 								image = self.blank_icon
 							else:
 								image = self.lock_icon
-							self.ui.tree.insert('', 'end', server_id, text=self.servers[server_id].server_name, values=self.format_server(self.servers[server_id]), image=image)
+							self.ui.tree.insert('', self.in_order_index(server), server_id, text=server.server_name, values=self.format_server(server), image=image)
 
 					# Filter the tree
 					filter = self.ui.combo_box.get()
 					if (len(filter) > 0):
 						try:
 							category, search_terms = self.filters(filter)
-							print("Filtering by \"" + category + "\" and " + str(search_terms) + "...")
+							#print("Filtering by \"" + category + "\" and " + str(search_terms) + "...")
 							server_ids = self.servers.keys()
 							for server_id in server_ids:
 								hide = self.filter(self.servers[server_id], (category, search_terms))
@@ -1449,26 +1456,39 @@ class ServerList(th.Thread):
 									self.ui.tree.detach(server_id)
 								elif (not hide) and (server_id in self.hidden_servers):
 									self.hidden_servers.remove(server_id)
-									self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.ui.tree.index(server_id))
+									self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
 						except Exception as e:
 							show_error(e, no_ui=True)
 					elif (len(self.hidden_servers) > 0):
 						server_ids = self.hidden_servers
 						for server_id in server_ids:
 							self.hidden_servers.remove(server_id)
-							self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.ui.tree.index(server_id))
+							self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
 
 					# Sort the tree
 					if not self.sorted():
-						print("Sorting...")
+						#print("Sorting...")
 						server_ids = self.ui.tree.get_children()
-						server_indices = dict()
+						for index in range(len(server_ids) - 1):
+							server_a_id = server_ids[index]
+							server_b_id = server_ids[index + 1]
+							server_a = self.servers[server_a_id]
+							server_b = self.servers[server_b_id]
+							if not self.in_order(server_a, server_b):
+								self.ui.tree.move(server_b_id, self.ui.tree.parent(server_b_id), index)
+						"""server_indices = dict()
 						for server_id in server_ids:
 							server_indices[server_id] = server_ids.index(server_id)
 						self.sort(server_indices)
 						for server_id in server_ids:
 							if (not server_id in self.hidden_servers):
-								self.ui.tree.move(server_id, self.ui.tree.parent(server_id), server_indices[server_id])
+								self.ui.tree.move(server_id, self.ui.tree.parent(server_id), server_indices[server_id])"""
+
+					# Update the tree
+					server_ids = self.ui.tree.get_children()
+					for server_id in server_ids:
+						server = self.servers[server_id]
+						self.ui.tree.item(server_id, values=self.format_server(server))
 
 					# Update primary label
 					if (len(self.servers) > 0):
@@ -1489,7 +1509,12 @@ class ServerList(th.Thread):
 
 		except Exception as e:
 
-			show_error("An error occurred while fetching servers.\n\n" + str(e), no_ui=True)
+			try:
+				self.ended = True
+			except:
+				pass
+
+			show_error("An error occurred while fetching servers.\n\n" + str(e)) #, no_ui=True)
 
 
 	def filters(self, filter):
@@ -1505,6 +1530,9 @@ class ServerList(th.Thread):
 							search_terms.pop(0)
 					else:
 						search_terms.pop(0)
+			for index in range(len(search_terms)):
+				if search_terms[index] == "":
+					search_terms.pop(index)
 			return category, search_terms
 		else:
 			return None
@@ -1557,8 +1585,11 @@ class ServerList(th.Thread):
 				if not self.in_order(server_b, server_a):
 					break
 				index_b += 1
-			server_indices[server_a_id] = index_b
+			server_ids[index_a], server_ids[index_b] = server_ids[index_b], server_ids[index_a]
 			index_a += 1
+		for index in range(len(server_ids)):
+			server_id = server_ids[index]
+			server_indices[server_id] = index
 
 
 	def in_order(self, server_a, server_b):
@@ -1576,7 +1607,19 @@ class ServerList(th.Thread):
 				return server_a_sort_value <= server_b_sort_value
 			else:
 				return server_a_sort_value >= server_b_sort_value
-		
+	
+
+	def in_order_index(self, server):
+		"""TODO"""
+		index = 0
+		existing_server_ids = self.ui.tree.get_children()
+		for index in range(len(existing_server_ids)):
+			existing_server_id = existing_server_ids[index]
+			existing_server = self.servers[existing_server_id]
+			if self.in_order(server, existing_server):
+				break
+		return index
+
 	
 	def get_sort_value(self, server):
 		"""TODO"""
@@ -1626,7 +1669,11 @@ class ServerList(th.Thread):
 				self.min_category(server.stat_download, self.stat_download.values()),
 				self.min_category(server.stat_ping, self.stat_ping.values()),
 			]
-			server.rating = 1 + sum(categories)
+			rating = 1 + sum(categories)
+			try:
+				server.rating = ((99 * server.rating) + rating) / 100
+			except:
+				server.rating = rating
 		except:
 			pass
 	
@@ -1689,19 +1736,23 @@ class ServerFetcher(th.Thread):
 				elif not self.server.fetched:
 					raise ClientException("Server is not fetched.")
 
+				print("- fetching server stats...")
+
+				stats_fetched = False
+				while not stats_fetched:
+					try:
+						self.fetch_stats()
+						stats_fetched = True
+					except:
+						time.sleep(10)
+						#raise ClientException("Unable to fetch server stats.")
+
 				print("- adding server to server list...")
 
 				try:
 					self.parent.fetched_servers.append(self.server)
 				except:
 					raise ClientException("Unable to add server to server list.")
-
-				print("- fetching server stats...")
-
-				try:
-					self.fetch_stats()
-				except:
-					raise ClientException("Unable to fetch server stats.")
 
 				print("- starting server pinger...")
 
@@ -3185,11 +3236,7 @@ class UI(tk.Tk):
 
 	def refresh(self):
 		"""TODO"""
-		self.server_list.worker.end = True
-		#while (self.server_list.worker.ended == False):
-		#	time.sleep(SC4MP_DELAY)
-		self.server_list.tree.delete(*self.server_list.tree.get_children())
-		self.server_list.worker = ServerList(self.server_list)
+		self.server_list.worker = ServerList(self.server_list, kill=self.server_list.worker)
 		self.server_list.worker.start()
 
 
@@ -4292,6 +4339,7 @@ class ServerListUI(tk.Frame):
 			self.tree.reverse_sort = name in DEFAULT_REVERSED
 		if self.tree.reverse_sort:
 			print("- (reversed)")
+		self.worker.sort_mode_changed = True
 		#self.worker.sort = True
 
 
