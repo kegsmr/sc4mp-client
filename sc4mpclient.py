@@ -776,6 +776,7 @@ class Server:
 		self.server_version = self.request("server_version")
 		self.password_enabled = self.request("password_enabled") == "yes"
 		self.user_plugins_enabled = self.request("user_plugins_enabled") == "yes"
+		self.private = self.request("private") == "yes"
 
 		if (self.password_enabled):
 			self.categories.append("Private")
@@ -865,7 +866,8 @@ class Server:
 			s.send(request)
 
 			# Request header
-			#request_header(s, self.server)
+			if self.private:
+				request_header(s, self)
 
 			# Receive file count
 			file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
@@ -1749,16 +1751,18 @@ class ServerFetcher(th.Thread):
 				elif not self.server.fetched:
 					raise ClientException("Server is not fetched.")
 
-				print("- fetching server stats...")
+				if not self.server.private:
 
-				stats_fetched = False
-				while not stats_fetched:
-					try:
-						self.fetch_stats()
-						stats_fetched = True
-					except:
-						time.sleep(10)
-						#raise ClientException("Unable to fetch server stats.")
+					print("- fetching server stats...")
+
+					stats_fetched = False
+					while not stats_fetched:
+						try:
+							self.fetch_stats()
+							stats_fetched = True
+						except:
+							time.sleep(10)
+							#raise ClientException("Unable to fetch server stats.")
 
 				print("- adding server to server list...")
 
@@ -1767,12 +1771,14 @@ class ServerFetcher(th.Thread):
 				except:
 					raise ClientException("Unable to add server to server list.")
 
-				print("- starting server pinger...")
+				if not self.server.private:
 
-				try:
-					ServerPinger(self.parent, self.server).start()
-				except:
-					raise ClientException("Unable to start server pinger.")
+					print("- starting server pinger...")
+
+					try:
+						ServerPinger(self.parent, self.server).start()
+					except:
+						raise ClientException("Unable to start server pinger.")
 
 				print("- done.")
 
@@ -2089,7 +2095,8 @@ class ServerLoader(th.Thread):
 		s.send(type.encode())
 
 		# Request header
-		#request_header(s, self.server)
+		if self.server.private:
+			request_header(s, self.server)
 
 		# Receive file count
 		file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
@@ -2850,7 +2857,8 @@ class RegionsRefresher(th.Thread):
 			s.send(b"regions")
 
 			# Request header
-			#request_header(s, self.server)
+			if self.server.private:
+				request_header(s, self.server)
 
 			# Receive file count
 			file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
