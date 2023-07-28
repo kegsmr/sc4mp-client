@@ -22,13 +22,20 @@
 			</center>
 			<h2>Getting started</h2>
 				<h3>Run the launcher</h3>
-					<p>Open the "SC4MP Launcher" to start the launcher. The main window of the SC4MP Launcher will appear on-screen. The main window is incomplete in this version, but a server browser is planned for future versions.</p>
+					<p>Run the program titled "SC4MP Launcher" to start the launcher. The main window of the SC4MP Launcher will appear on-screen. </p>
+					<p>This window contains a server browser which displays the servers currently online. Each server has associated statistics. You can sort by any column by clicking on the column header. By default the servers are sorted by rating, which is calculated from the other server statistics.</p>
+					<p>Each server has a description, URL and address located in the lower-left corner of the server browser.</p>
+					<p>The servers can be filtered by a category or by search terms using the box on the lower-right corner.</p>
+					<p>You can refresh the listings by clicking the "Refresh" button.</p>
 					<img src="resources/readme-launcher.png">
-				<h3>Connect to a server</h3>
-					<p>In the menu bar under "Servers" click "Connect..." or press F1 to open the direct connect window.</p>
+				<h3>Connect to a server from the server browser</h3>
+					<p>Once you've selected the server you wish to connect to, click the "Connect" button or press enter.</p>
+				<h3>Connect to a server from the direct connect window</h3>
+					<p>If the desired server does not appear in the server browser, you can use the direct connect window. In the menu bar under "Servers" click "Connect..." or press F1 to open the direct connect window.</p>
 					<p>This window allows you to connect to a server by manually entering the hostname (ie. IP address) and port of a server. If you haven't connected to a server yet, the window will be configured to connect you to the official SC4MP server. Once you've entered in the hostname and port of the server you wish to connect to, click "Connect."</p>
 					<img src="resources/readme-direct-connect.png">
-					<p>Certain servers may also prompt you for a password. The loading sequence will be cancelled after five failed password attempts.</p>
+				<h3>The loading sequence</h3>
+					<p>Certain servers may prompt you for a password. The loading sequence will be cancelled after five failed password attempts.</p>
 					<img src="resources/readme-password-prompt.png">
 					<p>If the launcher successfully establishes a connection to the server, it will begin downloading the server's plugins and regions. This loading sequence can be cancelled at any time by x-ing out of the window or pressing escape.</p>
 					<img src="resources/readme-server-loader.png">
@@ -48,6 +55,12 @@
 				<!--<h3>Playing in others' cities</h3>
 					<p>You are welcome to open and play in other users' claimed cities. You can even edit them and save them locally, but keep in mind that any changes will not be saved to the server. The saves will also be lost the next time you connect to a server unless you manually move them from the launch directory.</p>
 					<p><b>NOTE:</b> since SC4MP in its current state uses the datetime subfile of savegames as a secondary data point in triangulating save pushes in unusual region configurations, sometimes playing on neighboring tiles can lead to problems. If you encounter issues saving after playing on a neighboring tile, delete all the neighboring tiles of the tile you've claimed to ensure only one savegame is sent to the server.</p>-->
+				<h3>Refreshing regions</h3>
+					<p>To refresh regions, simply load the region titled "Refresh..."</p>
+					<img src="resources/readme-regions.png">
+					<p>The launcher will then initiate the refresh sequence automatically. Wait for this to complete before loading another region.</p>
+					<p>Refreshing regions will also ovverwrite your own cities, so ensure that your work has been saved to the server before refreshing.</p>
+					<!--<img src="resources/readme-refresh.png">-->
 				<h3>Disconnecting</h3>
 					<p>To disconnect from a server, simply exit the game. The server monitor will remain open for a few more seconds, but then the main window will subsequently re-open. You are able to then connect to another server seamlessly, without restarting the launcher.</p>
 			<h2>Configuring the launcher</h2>
