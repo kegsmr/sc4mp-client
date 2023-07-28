@@ -1751,18 +1751,17 @@ class ServerFetcher(th.Thread):
 				elif not self.server.fetched:
 					raise ClientException("Server is not fetched.")
 
+				stats_fetched = False
+
 				if not self.server.private:
 
 					print("- fetching server stats...")
-
-					stats_fetched = False
-					while not stats_fetched:
-						try:
-							self.fetch_stats()
-							stats_fetched = True
-						except:
-							time.sleep(10)
-							#raise ClientException("Unable to fetch server stats.")
+					
+					try:
+						self.fetch_stats()
+						stats_fetched = True
+					except Exception as e:
+						print("[WARNING] Unable to fetch server stats for " + self.server.host + ":" + str(self.server.port) + "! " + str(e))
 
 				print("- adding server to server list...")
 
@@ -1771,7 +1770,7 @@ class ServerFetcher(th.Thread):
 				except:
 					raise ClientException("Unable to add server to server list.")
 
-				if not self.server.private:
+				if stats_fetched:
 
 					print("- starting server pinger...")
 
