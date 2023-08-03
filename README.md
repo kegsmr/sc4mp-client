@@ -9,4 +9,3 @@ Follow the instructions included in the Readme.html.
 
 # Compiling
 To compile the source code, run the setup.py script. Then run the setup.iss script in the [Inno Setup Compiler](https://jrsoftware.org/isdl.php) to build the installer.
- 
