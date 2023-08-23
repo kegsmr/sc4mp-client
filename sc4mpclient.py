@@ -22,7 +22,7 @@ import webbrowser
 from datetime import datetime, timedelta
 from tkinter import Menu, filedialog, font, messagebox, ttk
 
-SC4MP_VERSION = "0.3.0"
+SC4MP_VERSION = "0.3.1"
 
 SC4MP_SERVERS = [
 	("servers.sc4mp.org", 7240), 
@@ -235,8 +235,8 @@ def create_subdirectories():
 	directories = ["_Cache", "_Database", "_Salvage", "_Temp", os.path.join("_Temp", "ServerList"), "Plugins", os.path.join("Plugins", "server"), os.path.join("Plugins", "client"), "Regions"] #"SC4MPBackups", os.path.join("_Cache","Plugins"), os.path.join("_Cache","Regions")]
 
 	# Update old directory names
-	if (os.path.exists(os.path.join(SC4MP_LAUNCHPATH, "_Database"))):
-		os.rename(os.path.join(SC4MP_LAUNCHPATH, "_Database"), os.path.join(SC4MP_LAUNCHPATH, "_Database"))
+	#if (os.path.exists(os.path.join(SC4MP_LAUNCHPATH, "_Profiles"))):
+	#	os.rename(os.path.join(SC4MP_LAUNCHPATH, "_Database"), os.path.join(SC4MP_LAUNCHPATH, "_Database"))
 
 	# Create new directories
 	for directory in directories:
