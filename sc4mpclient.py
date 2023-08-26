@@ -1362,6 +1362,7 @@ class ServerList(th.Thread):
 
 		self.blank_icon = tk.PhotoImage(file=get_sc4mp_path("blank-icon.png"))
 		self.lock_icon = tk.PhotoImage(file=get_sc4mp_path("lock-icon.png"))
+		self.official_icon = tk.PhotoImage(file=get_sc4mp_path("official-icon.png"))
 
 		self.temp_path = os.path.join(SC4MP_LAUNCHPATH, "_Temp", "ServerList")
 
@@ -1447,10 +1448,12 @@ class ServerList(th.Thread):
 							#while len(self.ui.tree.get_children()) >= 50:
 							#	self.ui.tree.delete(self.ui.tree.get_children()[-1])
 							server = self.servers[server_id]
-							if (not server.password_enabled):
-								image = self.blank_icon
-							else:
+							if (server.password_enabled):
 								image = self.lock_icon
+							elif (server.host, server.port) in SC4MP_SERVERS:
+								image = self.official_icon
+							else:
+								image = self.blank_icon
 							self.ui.tree.insert("", self.in_order_index(server), server_id, text=server.server_name, values=self.format_server(server), image=image)
 
 					# Filter the tree
