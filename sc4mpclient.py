@@ -800,6 +800,8 @@ class Server:
 
 		regions_path = os.path.join(SC4MP_LAUNCHPATH, "_Temp", "ServerList", self.server_id, "Regions")
 
+		server_time = self.time()
+
 		mayors = []
 		mayors_online = []
 		claimed_area = 0
@@ -822,7 +824,7 @@ class Server:
 							modified = city_entry["modified"]
 							if (modified != None):
 								modified = datetime.strptime(modified, "%Y-%m-%d %H:%M:%S")
-								if (modified > datetime.now() - timedelta(hours=26) and owner not in mayors_online):
+								if (modified > server_time - timedelta(hours=1) and owner not in mayors_online):
 									mayors_online.append(owner)
 				total_area += region_dimensions[0] * region_dimensions[1]
 			except Exception as e:
@@ -1051,6 +1053,25 @@ class Server:
 			return self.server_ping
 		except socket.error as e:
 			return None
+
+
+	def time(self):
+		"""TODO"""
+
+		try:
+
+			s = socket.socket()
+			s.settimeout(10)
+			s.connect((self.host, self.port))
+			s.send(b"time")
+
+			return datetime.strptime(s.recv(SC4MP_BUFFER_SIZE).decode(), "%Y%m%d%H%M%S")
+		
+		except Exception as e:
+
+			show_error(e, no_ui=True)
+
+			return datetime.now()
 
 
 class DBPF:
