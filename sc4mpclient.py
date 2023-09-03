@@ -1694,7 +1694,7 @@ class ServerList(th.Thread):
 			try:
 				cells.append(function())
 			except:
-				cells.append("")
+				cells.append("...")
 		return cells
 
 	
@@ -1775,6 +1775,13 @@ class ServerFetcher(th.Thread):
 				elif not self.server.fetched:
 					raise ClientException("Server is not fetched.")
 
+				print("- adding server to server list...")
+
+				try:
+					self.parent.fetched_servers.append(self.server)
+				except:
+					raise ClientException("Unable to add server to server list.")
+
 				stats_fetched = False
 
 				if not self.server.private:
@@ -1786,13 +1793,6 @@ class ServerFetcher(th.Thread):
 						stats_fetched = True
 					except Exception as e:
 						print("[WARNING] Unable to fetch server stats for " + self.server.host + ":" + str(self.server.port) + "! " + str(e))
-
-				print("- adding server to server list...")
-
-				try:
-					self.parent.fetched_servers.append(self.server)
-				except:
-					raise ClientException("Unable to add server to server list.")
 
 				if stats_fetched:
 
