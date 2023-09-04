@@ -11,3 +11,4 @@ inno.bat
 testing.py
 *.log
 *.exe
+*.pdn
