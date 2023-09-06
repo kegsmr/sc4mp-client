@@ -477,6 +477,10 @@ def fatal_error():
 			tk.Tk().withdraw()
 		messagebox.showerror(SC4MP_TITLE, message)
 
+	os.startfile(SC4MP_LOG_PATH)
+
+	cleanup()
+
 	sys.exit()
 
 
@@ -3227,6 +3231,8 @@ class UI(tk.Tk):
 		help.add_command(label="About...", command=self.about)
 		help.add_command(label="Readme...", command=self.readme)
 		help.add_separator()
+		help.add_command(label="Logs...", command=lambda:os.startfile(SC4MP_LOG_PATH))
+		help.add_separator()
 		help.add_command(label="Feedback...", command=lambda:webbrowser.open_new_tab(SC4MP_ISSUES_URL))
 		#feedback_submenu = Menu(help, tearoff=0)
 		#feedback_submenu.add_command(label=SC4MP_FEEDBACK_LINKS[0][0], command=lambda:webbrowser.open_new_tab(SC4MP_FEEDBACK_LINKS[0][1]))
@@ -3305,6 +3311,7 @@ class UI(tk.Tk):
 
 	def readme(self):
 		"""TODO"""
+		asdfasd
 		webbrowser.open_new_tab(SC4MP_README_PATH)
 
 
