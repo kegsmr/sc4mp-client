@@ -3311,7 +3311,6 @@ class UI(tk.Tk):
 
 	def readme(self):
 		"""TODO"""
-		asdfasd
 		webbrowser.open_new_tab(SC4MP_README_PATH)
 
 
