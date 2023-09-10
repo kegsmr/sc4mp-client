@@ -86,7 +86,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("resw", 1280),
 		("resh", 800),
 		("cpu_count", 1),
-		("cpu_priority", "normal"),
+		("cpu_priority", "high"),
 		("additional_properties", "")
 	])
 ]
