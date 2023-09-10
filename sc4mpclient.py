@@ -1075,7 +1075,7 @@ class Server:
 			s.connect((self.host, self.port))
 			s.send(b"time")
 
-			return datetime.strptime(s.recv(SC4MP_BUFFER_SIZE).decode(), "%Y%m%d%H%M%S")
+			return datetime.strptime(s.recv(SC4MP_BUFFER_SIZE).decode(), "%Y-%m-%d %H:%M:%S")
 		
 		except Exception as e:
 
