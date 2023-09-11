@@ -1971,9 +1971,9 @@ class ServerLoader(th.Thread):
 			self.server.fetch()
 			if (self.server.fetched == False):
 				raise ClientException("Unable to find server. Check the IP address and port, then try again.")
-		if (unformat_version(self.server.server_version) < unformat_version(SC4MP_VERSION)):
+		if (unformat_version(self.server.server_version)[:2] < unformat_version(SC4MP_VERSION)[:2]):
 			raise ClientException("The server requires an outdated version (v" + format_version(self.server.server_version) + ") of the SC4MP Launcher. Please contact the server administrators.")
-		if (unformat_version(self.server.server_version) > unformat_version(SC4MP_VERSION)):
+		if (unformat_version(self.server.server_version)[:2] > unformat_version(SC4MP_VERSION)[:2]):
 			raise ClientException("The server requires a newer version (v" + format_version(self.server.server_version) + ") of the SC4MP Launcher. Please update the launcher to connect to this server.")
 		if (self.ui != None):
 			self.ui.title(self.server.server_name)
