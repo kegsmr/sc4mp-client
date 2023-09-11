@@ -66,7 +66,7 @@ SC4MP_SERVERLIST_ENABLED = True #TODO
 
 SC4MP_CONFIG_DEFAULTS = [
 	("GENERAL", [
-		("nickname", os.getlogin()), #TODO unused
+		#("nickname", os.getlogin()), #TODO unused
 		#(first_run, True) #TODO
 		#("use_custom_user_id", False), #TODO
 		#("custom_user_id", ""), #TODO
