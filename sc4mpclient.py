@@ -356,13 +356,17 @@ def start_sc4():
 
 def process_exists(process_name): #TODO add macos compatability
 	"""TODO"""
-	if (platform.system() == "Windows"):
-		call = 'TASKLIST', '/FI', 'imagename eq %s' % process_name
-		output = subprocess.check_output(call, shell=True).decode()
-		last_line = output.strip().split('\r\n')[-1]
-		return last_line.lower().startswith(process_name.lower())
-	else:
-	    return False
+	try:
+		if (platform.system() == "Windows"):
+			call = 'TASKLIST', '/FI', 'imagename eq %s' % process_name
+			output = subprocess.check_output(call, shell=True).decode()
+			last_line = output.strip().split('\r\n')[-1]
+			return last_line.lower().startswith(process_name.lower())
+		else:
+			return False
+	except Exception as e:	# Hacky solution. It keeps the game monitor running (possibly infinitely) instead of closing it. Because that's better than closing it. 
+		show_error(e, no_ui=True)
+		return True 
 
 
 def get_sc4mp_path(filename):
