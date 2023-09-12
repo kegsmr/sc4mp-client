@@ -4413,10 +4413,13 @@ class ServerListUI(tk.Frame):
 
 	def focus_tree(self):
 		"""TODO"""
-		self.tree.focus_set()
-		if (self.tree.focus() == ""):
-			children = self.tree.get_children()
-			self.tree.focus(children[0])
+		try:
+			self.tree.focus_set()
+			if (self.tree.focus() == ""):
+				children = self.tree.get_children()
+				self.tree.focus(children[0])
+		except Exception as e:
+			show_error(e, no_ui=True) # Method not all that important so we'll just toss an error in the console and call it a day 
 
 
 	def connect(self):
