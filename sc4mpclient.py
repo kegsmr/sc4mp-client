@@ -1757,16 +1757,20 @@ class ServerFetcher(th.Thread):
 				elif not self.server.fetched:
 					raise ClientException("Server is not fetched.")
 
-				if not self.server.private:
-
-					print("- populating server statistics")
+				print("- populating server statistics")
 					
+				if not self.server.private:
 					try:
-						self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
 						self.server.stat_mayors = sc4mp_servers_database[self.server.server_id]["stat_mayors"]
 						self.server.stat_mayors_online = sc4mp_servers_database[self.server.server_id]["stat_mayors_online"]
 						self.server.stat_claimed = sc4mp_servers_database[self.server.server_id]["stat_claimed"]
 						self.server.stat_download = sc4mp_servers_database[self.server.server_id]["stat_download"]
+						self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
+					except:
+						pass
+				else:
+					try:
+						self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
 					except:
 						pass
 
@@ -1862,7 +1866,7 @@ class ServerPinger(th.Thread):
 					ping = self.server.ping()
 					if (ping != None):
 						self.server.stat_ping = ping #int((self.server.stat_ping + ping) / 2)
-						sc4mp_servers_database[self.server_id]["stat_ping"] = ping
+						sc4mp_servers_database[self.server.server_id]["stat_ping"] = ping
 
 		except Exception as e:
 
