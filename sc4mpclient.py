@@ -843,6 +843,12 @@ class Server:
 		if (ping != None):
 			self.stat_ping = ping
 
+		sc4mp_servers_database[self.server_id]["stat_mayors"] = self.stat_mayors
+		sc4mp_servers_database[self.server_id]["stat_mayors_online"] = self.stat_mayors_online
+		sc4mp_servers_database[self.server_id]["stat_claimed"] = self.stat_claimed
+		sc4mp_servers_database[self.server_id]["stat_download"] = self.stat_download
+		sc4mp_servers_database[self.server_id]["stat_ping"] = self.stat_ping
+
 
 	def fetch_temp(self):
 		"""TODO"""
@@ -1750,6 +1756,19 @@ class ServerFetcher(th.Thread):
 					raise ClientException("The parent thread was signaled to end.")
 				elif not self.server.fetched:
 					raise ClientException("Server is not fetched.")
+
+				if not self.server.private:
+
+					print("- populating server statistics")
+					
+					try:
+						self.server.stat_mayors = sc4mp_servers_database[self.server.server_id]["stat_mayors"]
+						self.server.stat_mayors_online = sc4mp_servers_database[self.server.server_id]["stat_mayors_online"]
+						self.server.stat_claimed = sc4mp_servers_database[self.server.server_id]["stat_claimed"]
+						self.server.stat_download = sc4mp_servers_database[self.server.server_id]["stat_download"]
+						self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
+					except:
+						pass
 
 				print("- starting server pinger...")
 
