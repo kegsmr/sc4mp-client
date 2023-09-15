@@ -9,7 +9,6 @@ import platform
 import random
 import shutil
 import socket
-import ipaddress
 import string
 import struct
 import subprocess
@@ -20,7 +19,7 @@ import tkinter as tk
 import traceback
 import webbrowser
 from datetime import datetime, timedelta
-from tkinter import Menu, filedialog, font, messagebox, ttk
+from tkinter import Menu, filedialog, messagebox, ttk
 
 SC4MP_VERSION = "0.4.0"
 
