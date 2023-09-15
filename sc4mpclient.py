@@ -585,18 +585,15 @@ def request_header(s, server):
 	s.send(server.user_id.encode())
 
 
-def format_version(version):
+def format_version(version: tuple[int, int, int]) -> str:
 	"""Converts a version number from a tuple to a string."""
-	return f'{version[0]}.{version[1]}.{version[2]}'
+	major, minor, patch = version
+	return f'{major}.{minor}.{patch}'
 
 
-def unformat_version(version):
+def unformat_version(version: str) -> tuple[int, int, int]:
 	"""Converts a version number from a string to a tuple."""
-	strings = version.split(".")
-	ints = []
-	for string in strings:
-		ints.append(int(string))
-	return tuple(ints)
+	return tuple([int(v) for v in version.split('.')])
 
 
 def set_server_data(entry, server):
