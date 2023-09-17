@@ -251,10 +251,12 @@ def create_subdirectories() -> None:
 	#	os.rename(os.path.join(SC4MP_LAUNCHPATH, "_Database"), os.path.join(SC4MP_LAUNCHPATH, "_Database"))
 
 	# Create new directories
+	launchdir = Path(SC4MP_LAUNCHPATH)
+	launchdir.mkdir(exist_ok=True, parents=True)
 	for directory in directories:
-		new_directory = Path(SC4MP_LAUNCHPATH) / directory
+		new_directory = launchdir / directory
 		try:
-			new_directory.mkdir(exist_ok=True)
+			new_directory.mkdir(exist_ok=True, parents=True)
 		except Exception as e:
 			raise ClientException("Failed to create SC4MP subdirectories.\n\n" + str(e))
 
@@ -937,7 +939,7 @@ class Server:
 			s.send(b"not cached")
 
 			# Create the destination directory if necessary
-			destination.parent.mkdir(exist_ok=True)
+			destination.parent.mkdir(exist_ok=True, parents=True)
 
 			# Delete the destination file if it exists
 			destination.unlink(missing_ok=True)
