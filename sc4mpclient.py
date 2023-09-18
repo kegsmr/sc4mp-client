@@ -914,7 +914,7 @@ class Server:
 
 		# Receive relative path and set the destination
 		relpath = Path(s.recv(SC4MP_BUFFER_SIZE).decode())
-		filename = Path.name
+		filename = relpath.name
 		destination = Path(rootpath) / relpath
 
 		if not (filename == "region.json" or filename == "config.bmp"):
