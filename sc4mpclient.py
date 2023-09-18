@@ -26,18 +26,7 @@ from tkinter import Menu, filedialog, messagebox, ttk
 
 SC4MP_VERSION = "0.4.0"
 
-SC4MP_SERVERS = [
-	("servers.sc4mp.org", 7240), 
-	("servers.sc4mp.org", 7241), 
-	("servers.sc4mp.org", 7242), 
-	("servers.sc4mp.org", 7243),
-	("servers.sc4mp.org", 7244),
-	("servers.sc4mp.org", 7245),
-	("servers.sc4mp.org", 7246),
-	("servers.sc4mp.org", 7247),
-	("servers.sc4mp.org", 7248),
-	("servers.sc4mp.org", 7249),
-]
+SC4MP_SERVERS = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
 
 SC4MP_URL = "www.sc4mp.org"
 SC4MP_CONTRIBUTORS_URL = "https://github.com/kegsmr/sc4mp-client/contributors/"
