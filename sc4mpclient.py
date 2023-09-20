@@ -64,8 +64,8 @@ SC4MP_CONFIG_DEFAULTS = [
 		("default_host", SC4MP_HOST),
 		("default_port", SC4MP_PORT),
 		#("use_overlay", 1), #TODO
-		("custom_plugins", False), #TODO needs to be added in ui 
-		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser()) #TODO needs to be added in ui 
+		("custom_plugins", False),
+		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser())
 	]),
 	("STORAGE", [
 		("storage_path", f'{Path("~/Documents/SimCity 4/_SC4MP").expanduser()}{os.sep}'), # must have trailing slash
