@@ -9,6 +9,7 @@ import math
 import os
 import platform
 import random
+import re
 import shutil
 import socket
 import string
@@ -69,7 +70,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser())
 	]),
 	("STORAGE", [
-		("storage_path", f'{Path("~/Documents/SimCity 4/_SC4MP").expanduser()}{os.sep}'), # must have trailing slash
+		("storage_path", Path("~/Documents/SimCity 4/_SC4MP").expanduser()),
 		("cache_size", 8000)
 	]),
 	("SC4", [
@@ -332,7 +333,7 @@ def start_sc4():
 		return
 
 	arguments = [str(path),
-			  f'-UserDir:"{SC4MP_LAUNCHPATH}"',
+			  f'-UserDir:"{SC4MP_LAUNCHPATH}{os.sep}"', # add trailing slash here because SC4 expects it
 			  '-intro:off',
 			  '-CustomResolution:enabled',
 			  f'-r{sc4mp_config["SC4"]["resw"]}x{sc4mp_config["SC4"]["resh"]}x32',
@@ -668,6 +669,19 @@ def get_bitmap_dimensions(filename):
 	height = struct.unpack_from('<i', data, 22)
 
 	return (width[0], height[0])
+
+
+def arp():
+	try:
+		if (platform.system() == "Windows"):
+			call = 'arp', '-a'
+			output = subprocess.check_output(call, shell=True).decode()
+			return [line for line in re.findall('([-.0-9]+)\s+([-0-9a-f]{17})\s+(\w+)', output)]
+		else: #TODO make this work on other platforms besides Windows
+			return []
+	except Exception as e:
+		show_error(e, no_ui=True)
+		return []
 
 
 # Objects
@@ -1365,7 +1379,11 @@ class ServerList(th.Thread):
 
 		self.unfetched_servers = SC4MP_SERVERS.copy()
 		
-		#TODO get lan
+		self.lan_servers = []
+		lan_addresses = list(zip(*arp()))[0]
+		for lan_address in lan_addresses:
+			for port in range(7240, 7250):
+				self.lan_servers.append((lan_address, port))
 
 		delete_server_ids = []
 		for server_id in reversed(sc4mp_servers_database.keys()):
@@ -1441,7 +1459,7 @@ class ServerList(th.Thread):
 						if (fetched_server.server_id not in self.servers.keys()):
 							self.servers[fetched_server.server_id] = fetched_server
 
-					# Fetch the next unfetched server
+					# Fetch the next unfetched server #TODO fetch from LAN servers too
 					if (self.server_fetchers < 100): #TODO make configurable?
 						if (len(self.unfetched_servers) > 0):
 							unfetched_server = self.unfetched_servers.pop(0)
