@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import configparser
 import hashlib
 import inspect
@@ -6,9 +7,9 @@ import io
 import json
 import math
 import os
-from pathlib import Path
 import platform
 import random
+import re
 import shutil
 import socket
 import string
@@ -19,10 +20,11 @@ import threading as th
 import time
 import tkinter as tk
 import traceback
-from typing import Optional
 import webbrowser
 from datetime import datetime, timedelta
+from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
+from typing import Optional
 
 SC4MP_VERSION = "0.4.0"
 
@@ -667,6 +669,19 @@ def get_bitmap_dimensions(filename):
 	height = struct.unpack_from('<i', data, 22)
 
 	return (width[0], height[0])
+
+
+def arp():
+	try:
+		if (platform.system() == "Windows"):
+			call = 'arp', '-a'
+			output = subprocess.check_output(call, shell=True).decode()
+			return [line for line in re.findall('([-.0-9]+)\s+([-0-9a-f]{17})\s+(\w+)', output)]
+		else: #TODO make this work on other platforms besides Windows
+			return []
+	except Exception as e:
+		show_error(e, no_ui=True)
+		return []
 
 
 # Objects
@@ -1364,7 +1379,11 @@ class ServerList(th.Thread):
 
 		self.unfetched_servers = SC4MP_SERVERS.copy()
 		
-		#TODO get lan
+		self.lan_servers = []
+		lan_addresses = list(zip(*arp()))[0]
+		for lan_address in lan_addresses:
+			for port in range(7240, 7250):
+				self.lan_servers.append((lan_address, port))
 
 		delete_server_ids = []
 		for server_id in reversed(sc4mp_servers_database.keys()):
@@ -1440,7 +1459,7 @@ class ServerList(th.Thread):
 						if (fetched_server.server_id not in self.servers.keys()):
 							self.servers[fetched_server.server_id] = fetched_server
 
-					# Fetch the next unfetched server
+					# Fetch the next unfetched server #TODO fetch from LAN servers too
 					if (self.server_fetchers < 100): #TODO make configurable?
 						if (len(self.unfetched_servers) > 0):
 							unfetched_server = self.unfetched_servers.pop(0)
