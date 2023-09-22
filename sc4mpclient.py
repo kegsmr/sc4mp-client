@@ -935,8 +935,8 @@ class Server:
 			destination_file = open(destination, "wb")
 			while (filesize_read < filesize):
 				bytes_read = s.recv(SC4MP_BUFFER_SIZE)
-				if not bytes_read:    
-					break
+				#if not bytes_read:    
+				#	break
 				destination_file.write(bytes_read)
 				filesize_read += len(bytes_read)
 			
@@ -2298,8 +2298,8 @@ class ServerLoader(th.Thread):
 			cache_file = open(target, "wb")
 			while (filesize_read < filesize):
 				bytes_read = s.recv(SC4MP_BUFFER_SIZE)
-				if not bytes_read:    
-					break
+				#if not bytes_read:    
+				#	break
 				for file in [destination_file, cache_file]:
 					file.write(bytes_read)
 				filesize_read += len(bytes_read)
@@ -2323,8 +2323,8 @@ class ServerLoader(th.Thread):
 		with open(filename, "wb") as f:
 			while (filesize_read < filesize):
 				bytes_read = s.recv(SC4MP_BUFFER_SIZE)
-				if not bytes_read:    
-					break
+				#if not bytes_read:    
+				#	break
 				f.write(bytes_read)
 				filesize_read += len(bytes_read)
 				self.report_progress('Downloading "' + filename + '" (' + str(filesize_read) + " / " + str(filesize) + " bytes)...", int(filesize_read), int(filesize)) #os.path.basename(os.path.normpath(filename))
@@ -2643,8 +2643,8 @@ class GameMonitor(th.Thread):
 		with open(filename, "wb") as f:
 			while (filesize_read < filesize):
 				bytes_read = s.recv(SC4MP_BUFFER_SIZE)
-				if not bytes_read:    
-					break
+				#if not bytes_read:    
+				#	break
 				f.write(bytes_read)
 				filesize_read += len(bytes_read)
 				#print('Downloading "' + filename + '" (' + str(filesize_read) + " / " + str(filesize) + " bytes)...", int(filesize_read), int(filesize)) #os.path.basename(os.path.normpath(filename))
@@ -3055,8 +3055,8 @@ class RegionsRefresher(th.Thread):
 			cache_file = open(target, "wb")
 			while (filesize_read < filesize):
 				bytes_read = s.recv(SC4MP_BUFFER_SIZE)
-				if not bytes_read:    
-					break
+				#if not bytes_read:    
+				#	break
 				for file in [destination_file, cache_file]:
 					file.write(bytes_read)
 				filesize_read += len(bytes_read)
