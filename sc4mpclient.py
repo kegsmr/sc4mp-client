@@ -70,7 +70,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser())
 	]),
 	("STORAGE", [
-		("storage_path", f'{Path("~/Documents/SimCity 4/_SC4MP").expanduser()}{os.sep}'), # must have trailing slash
+		("storage_path", Path("~/Documents/SimCity 4/_SC4MP").expanduser()),
 		("cache_size", 8000)
 	]),
 	("SC4", [
@@ -333,7 +333,7 @@ def start_sc4():
 		return
 
 	arguments = [str(path),
-			  f'-UserDir:"{SC4MP_LAUNCHPATH}"',
+			  f'-UserDir:"{SC4MP_LAUNCHPATH}{os.sep}"', # add trailing slash here because SC4 expects it
 			  '-intro:off',
 			  '-CustomResolution:enabled',
 			  f'-r{sc4mp_config["SC4"]["resw"]}x{sc4mp_config["SC4"]["resh"]}x32',
