@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import configparser
 import hashlib
 import inspect
@@ -6,7 +7,6 @@ import io
 import json
 import math
 import os
-from pathlib import Path
 import platform
 import random
 import shutil
@@ -19,10 +19,11 @@ import threading as th
 import time
 import tkinter as tk
 import traceback
-from typing import Optional
 import webbrowser
 from datetime import datetime, timedelta
+from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
+from typing import Optional
 
 SC4MP_VERSION = "0.4.0"
 
