@@ -490,7 +490,8 @@ def fatal_error():
 			tk.Tk().withdraw()
 		messagebox.showerror(SC4MP_TITLE, message)
 
-	os.startfile(SC4MP_LOG_PATH)
+	with open(SC4MP_LOG_PATH, 'a') as file:
+		file.write(message)
 
 	cleanup()
 
@@ -1380,10 +1381,11 @@ class ServerList(th.Thread):
 		self.unfetched_servers = SC4MP_SERVERS.copy()
 		
 		self.lan_servers = []
-		lan_addresses = list(zip(*arp()))[0]
-		for lan_address in lan_addresses:
-			for port in range(7240, 7250):
-				self.lan_servers.append((lan_address, port))
+		lan_addresses = list(zip(*arp()))
+		if len(lan_addresses) > 0:
+			for lan_address in lan_addresses[0]:
+				for port in range(7240, 7250):
+					self.lan_servers.append((lan_address, port))
 
 		delete_server_ids = []
 		for server_id in reversed(sc4mp_servers_database.keys()):
@@ -3179,7 +3181,7 @@ class UI(tk.Tk):
 
 		# Icon
 
-		self.wm_iconbitmap(SC4MP_ICON) #TODO looks bad
+		#self.wm_iconbitmap(SC4MP_ICON) #TODO looks bad
 		#TODO taskbar icon
 
 
@@ -3342,7 +3344,7 @@ class GeneralSettingsUI(tk.Toplevel):
 		self.title("General settings")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		##self.iconbitmap(SC4MP_ICON)
 
 		# Geometry
 		self.geometry('400x400')
@@ -3461,7 +3463,7 @@ class StorageSettingsUI(tk.Toplevel):
 		self.title("Storage settings")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		#self.iconbitmap(SC4MP_ICON)
 
 		# Geometry
 		self.geometry('400x400')
@@ -3473,7 +3475,7 @@ class StorageSettingsUI(tk.Toplevel):
 		# Priority
 		self.grab_set()
 
-		# Key bindings
+		# Key bindingss
 		self.bind("<Return>", lambda event:self.ok())
 		self.bind("<Escape>", lambda event:self.destroy())
 
@@ -3595,7 +3597,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.title("SC4 settings")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON) #TODO looks bad
+		#self.iconbitmap(SC4MP_ICON) #TODO looks bad
 
 		# Geometry
 		self.geometry('400x400')
@@ -3818,7 +3820,7 @@ class HostUI(tk.Toplevel):
 		self.title("Host")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		#self.iconbitmap(SC4MP_ICON)
 
 		# Geometry
 		self.geometry('400x400')
@@ -3933,7 +3935,7 @@ class DirectConnectUI(tk.Toplevel):
 		self.title('Direct connect')
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		#self.iconbitmap(SC4MP_ICON)
 
 		# Geometry
 		self.geometry('350x110')
@@ -4024,7 +4026,7 @@ class PasswordDialogUI(tk.Toplevel):
 		self.title("" + self.server_loader.server.server_name + "")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		#self.iconbitmap(SC4MP_ICON)
 
 		# Geometry
 		self.geometry('350x110')
@@ -4105,7 +4107,7 @@ class AboutUI(tk.Toplevel):
 		self.title("About")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		#self.iconbitmap(SC4MP_ICON)
 
 		# Geometry
 		self.geometry('400x400')
@@ -4452,7 +4454,7 @@ class ServerLoaderUI(tk.Toplevel):
 		self.title(server.host + ":" + str(server.port))
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		#self.iconbitmap(SC4MP_ICON)
 
 		# Geometry
 		self.minsize(800, 100)
@@ -4503,7 +4505,7 @@ class GameMonitorUI(tk.Toplevel):
 		self.title(SC4MP_TITLE)
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		#self.iconbitmap(SC4MP_ICON)
 
 		# Geometry
 		self.geometry("400x400")
@@ -4597,7 +4599,7 @@ class RegionsRefresherUI(tk.Toplevel):
 		self.title(server.server_name)
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		#self.iconbitmap(SC4MP_ICON)
 
 		# Geometry
 		self.minsize(800, 100)
