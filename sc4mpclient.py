@@ -352,7 +352,10 @@ def start_sc4():
 	print(f"'{command}'")
 
 	try:
-		subprocess.run(arguments)  # on Linux, the first String passed as argument must be a file that exists
+		if (platform.system() == "Windows"):
+			subprocess.run(command) # `subprocess.run(arguments)` won't work on Windows for some unknowable reason
+		else:
+			subprocess.run(arguments)  # on Linux, the first String passed as argument must be a file that exists
 	except PermissionError as e:
 		show_error("Permission denied. Run the program as administrator.\n\n" + str(e))
 
