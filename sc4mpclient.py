@@ -1389,8 +1389,8 @@ class ServerList(th.Thread):
 		self.unfetched_servers = SC4MP_SERVERS.copy()
 		
 		self.lan_servers = []
-		lan_addresses = list(zip(*arp()))[0]
-		for lan_address in lan_addresses:
+		lan_addresses = list(zip(*arp()))
+		for lan_address in lan_addresses[0:1]:
 			for port in range(7240, 7250):
 				self.lan_servers.append((lan_address, port))
 
