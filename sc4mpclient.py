@@ -45,7 +45,7 @@ SC4MP_README_PATH = "readme.html"
 SC4MP_RESOURCES_PATH = "resources"
 
 SC4MP_TITLE = f"SC4MP Launcher v{SC4MP_VERSION}"
-SC4MP_ICON: Path() = Path(SC4MP_RESOURCES_PATH) / "icon.ico"
+SC4MP_ICON: Path() = Path(SC4MP_RESOURCES_PATH) / "icon.png"
 
 SC4MP_HOST = SC4MP_SERVERS[0][0]
 SC4MP_PORT = SC4MP_SERVERS[0][1]
@@ -346,13 +346,13 @@ def start_sc4():
 	else:
 		arguments.append('-w')
 
-	arguments.append(sc4mp_config["SC4"]["additional_properties"])
+	arguments.extend(sc4mp_config["SC4"]["additional_properties"].strip().split(' '))  # assumes that properties do not have spaces
 
 	command = ' '.join(arguments)
 	print(f"'{command}'")
 
 	try:
-		subprocess.run(command)
+		subprocess.run(arguments)  # on Linux, the first String passed as argument must be a file that exists
 	except PermissionError as e:
 		show_error("Permission denied. Run the program as administrator.\n\n" + str(e))
 
@@ -478,6 +478,15 @@ def show_error(e, no_ui=False):
 			messagebox.showerror(SC4MP_TITLE, message)
 
 
+def startfile(filename):
+	syst = platform.system()
+	if syst == "Windows":
+		os.startfile(filename)
+	else:
+		opener = "open" if syst == "Darwin" else "xdg-open"  # Linux
+		subprocess.call([opener, filename])
+
+
 def fatal_error():
 	"""Shows a fatal error message in the console and the UI. Exits the program."""
 
@@ -490,7 +499,7 @@ def fatal_error():
 			tk.Tk().withdraw()
 		messagebox.showerror(SC4MP_TITLE, message)
 
-	os.startfile(SC4MP_LOG_PATH)
+	startfile(SC4MP_LOG_PATH)
 
 	cleanup()
 
@@ -3176,10 +3185,9 @@ class UI(tk.Tk):
 
 		# Icon
 
-		self.wm_iconbitmap(SC4MP_ICON) 
-		#TODO taskbar icon
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
-
+  
 		# Geometry
 
 		self.geometry("800x600")
@@ -3224,7 +3232,7 @@ class UI(tk.Tk):
 		help.add_command(label="About...", command=self.about)
 		help.add_command(label="Readme...", command=self.readme)
 		help.add_separator()
-		help.add_command(label="Logs...", command=lambda:os.startfile(SC4MP_LOG_PATH))
+		help.add_command(label="Logs...", command=lambda:startfile(SC4MP_LOG_PATH))
 		help.add_separator()
 		help.add_command(label="Feedback...", command=lambda:webbrowser.open_new_tab(SC4MP_ISSUES_URL))
 		#feedback_submenu = Menu(help, tearoff=0)
@@ -3339,7 +3347,7 @@ class GeneralSettingsUI(tk.Toplevel):
 		self.title("General settings")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.geometry('400x400')
@@ -3458,7 +3466,7 @@ class StorageSettingsUI(tk.Toplevel):
 		self.title("Storage settings")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.geometry('400x400')
@@ -3592,7 +3600,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.title("SC4 settings")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON) 
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.geometry('400x400')
@@ -3771,8 +3779,8 @@ class SC4SettingsUI(tk.Toplevel):
 			if (get_sc4_path() != None):
 
 				# Purge plugins and regions
-				purge_directory(Path(SC4MP_LAUNCHPATH) / "plugins")
-				purge_directory(Path(SC4MP_LAUNCHPATH) / "regions")
+				purge_directory(Path(SC4MP_LAUNCHPATH) / "Plugins")
+				purge_directory(Path(SC4MP_LAUNCHPATH) / "Regions")
 				
 				# Run the game launcher (on the current thread)
 				game_launcher = GameLauncher()
@@ -3815,7 +3823,7 @@ class HostUI(tk.Toplevel):
 		self.title("Host")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.geometry('400x400')
@@ -3930,7 +3938,7 @@ class DirectConnectUI(tk.Toplevel):
 		self.title('Direct connect')
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.geometry('350x110')
@@ -4021,7 +4029,7 @@ class PasswordDialogUI(tk.Toplevel):
 		self.title("" + self.server_loader.server.server_name + "")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.geometry('350x110')
@@ -4102,7 +4110,7 @@ class AboutUI(tk.Toplevel):
 		self.title("About")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.geometry('400x400')
@@ -4157,7 +4165,7 @@ class AboutUI(tk.Toplevel):
 		# License label 2
 		self.license_label_2 = tk.Label(self, text=SC4MP_LICENSE_NAME, fg="blue", cursor="hand2")
 		self.license_label_2.grid(row=3, column=2, columnspan=1, padx=10, pady=(5,80), sticky="w")
-		self.license_label_2.bind("<Button-1>", lambda e:os.startfile("License.txt"))
+		self.license_label_2.bind("<Button-1>", lambda e:startfile("License.txt"))
 
 		# Ok button
 		self.ok_button = ttk.Button(self, text="Ok", command=self.ok, default="active")
@@ -4449,7 +4457,7 @@ class ServerLoaderUI(tk.Toplevel):
 		self.title(server.host + ":" + str(server.port))
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.minsize(800, 100)
@@ -4500,7 +4508,7 @@ class GameMonitorUI(tk.Toplevel):
 		self.title(SC4MP_TITLE)
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.geometry("400x400")
@@ -4594,7 +4602,7 @@ class RegionsRefresherUI(tk.Toplevel):
 		self.title(server.server_name)
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.minsize(800, 100)
