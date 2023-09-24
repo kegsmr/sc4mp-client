@@ -681,15 +681,11 @@ def get_bitmap_dimensions(filename):
 
 
 def arp():
-	try:
-		if (platform.system() == "Windows"):
-			call = 'arp', '-a'
-			output = subprocess.check_output(call, shell=True).decode()
-			return [line for line in re.findall('([-.0-9]+)\s+([-0-9a-f]{17})\s+(\w+)', output)]
-		else: #TODO make this work on other platforms besides Windows
-			return []
-	except Exception as e:
-		show_error(e, no_ui=True)
+	if (platform.system() == "Windows"):
+		call = 'arp', '-a'
+		output = subprocess.check_output(call, shell=True).decode()
+		return [line for line in re.findall('([-.0-9]+)\s+([-0-9a-f]{17})\s+(\w+)', output)]
+	else: #TODO make this work on other platforms besides Windows
 		return []
 
 
@@ -1388,11 +1384,11 @@ class ServerList(th.Thread):
 
 		self.unfetched_servers = SC4MP_SERVERS.copy()
 		
-		self.lan_servers = []
-		lan_addresses = list(zip(*arp()))
-		for lan_address in lan_addresses[0:1]:
-			for port in range(7240, 7250):
-				self.lan_servers.append((lan_address, port))
+		try:
+			self.lan_servers = [(row[0], port) for row in arp() for port in range(7240, 7250)]
+		except Exception as e:
+			show_error(e)
+			self.lan_servers = []
 
 		delete_server_ids = []
 		for server_id in reversed(sc4mp_servers_database.keys()):
@@ -1468,14 +1464,15 @@ class ServerList(th.Thread):
 						if (fetched_server.server_id not in self.servers.keys()):
 							self.servers[fetched_server.server_id] = fetched_server
 
-					# Fetch the next unfetched server #TODO fetch from LAN servers too
-					if (self.server_fetchers < 100): #TODO make configurable?
-						if (len(self.unfetched_servers) > 0):
-							unfetched_server = self.unfetched_servers.pop(0)
-							if (unfetched_server not in self.tried_servers):
-								self.tried_servers.append(unfetched_server)
-								self.server_fetchers += 1
-								ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
+					# Fetch the next unfetched server
+					for unfetched_servers in [self.unfetched_servers, self.lan_servers]:
+						if (self.server_fetchers < 100): #TODO make configurable?
+							if (len(unfetched_servers) > 0):
+								unfetched_server = unfetched_servers.pop(0)
+								if (unfetched_server not in self.tried_servers):
+									self.tried_servers.append(unfetched_server)
+									self.server_fetchers += 1
+									ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
 
 					# Clear the tree if sort mode changed
 					if self.sort_mode_changed:
@@ -3188,10 +3185,9 @@ class UI(tk.Tk):
 
 		# Icon
 
-		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON)) #TODO looks bad
-		#TODO taskbar icon
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
-
+  
 		# Geometry
 
 		self.geometry("800x600")
@@ -3604,7 +3600,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.title("SC4 settings")
 
 		# Icon
-		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON)) #TODO looks bad
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.geometry('400x400')
