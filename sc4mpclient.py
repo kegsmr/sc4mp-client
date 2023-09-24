@@ -1379,11 +1379,7 @@ class ServerList(th.Thread):
 
 		self.unfetched_servers = SC4MP_SERVERS.copy()
 		
-		self.lan_servers = []
-		lan_addresses = list(zip(*arp()))[0]
-		for lan_address in lan_addresses:
-			for port in range(7240, 7250):
-				self.lan_servers.append((lan_address, port))
+		self.lan_servers = [(row[0], port) for row in arp() for port in range(7240, 7250)]
 
 		delete_server_ids = []
 		for server_id in reversed(sc4mp_servers_database.keys()):
@@ -1459,14 +1455,15 @@ class ServerList(th.Thread):
 						if (fetched_server.server_id not in self.servers.keys()):
 							self.servers[fetched_server.server_id] = fetched_server
 
-					# Fetch the next unfetched server #TODO fetch from LAN servers too
-					if (self.server_fetchers < 100): #TODO make configurable?
-						if (len(self.unfetched_servers) > 0):
-							unfetched_server = self.unfetched_servers.pop(0)
-							if (unfetched_server not in self.tried_servers):
-								self.tried_servers.append(unfetched_server)
-								self.server_fetchers += 1
-								ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
+					# Fetch the next unfetched server
+					for unfetched_servers in [self.unfetched_servers, self.lan_servers]:
+						if (self.server_fetchers < 100): #TODO make configurable?
+							if (len(unfetched_servers) > 0):
+								unfetched_server = unfetched_servers.pop(0)
+								if (unfetched_server not in self.tried_servers):
+									self.tried_servers.append(unfetched_server)
+									self.server_fetchers += 1
+									ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
 
 					# Clear the tree if sort mode changed
 					if self.sort_mode_changed:
@@ -3179,7 +3176,7 @@ class UI(tk.Tk):
 
 		# Icon
 
-		self.wm_iconbitmap(SC4MP_ICON) #TODO looks bad
+		self.wm_iconbitmap(SC4MP_ICON) 
 		#TODO taskbar icon
 
 
@@ -3595,7 +3592,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.title("SC4 settings")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON) #TODO looks bad
+		self.iconbitmap(SC4MP_ICON) 
 
 		# Geometry
 		self.geometry('400x400')
