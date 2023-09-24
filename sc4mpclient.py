@@ -346,13 +346,13 @@ def start_sc4():
 	else:
 		arguments.append('-w')
 
-	arguments.append(sc4mp_config["SC4"]["additional_properties"])
+	arguments.extend(sc4mp_config["SC4"]["additional_properties"].strip().split(' '))  # assumes that properties do not have spaces
 
 	command = ' '.join(arguments)
 	print(f"'{command}'")
 
 	try:
-		subprocess.run(command)
+		subprocess.run(arguments)  # on Linux, the first String passed as argument must be a file that exists
 	except PermissionError as e:
 		show_error("Permission denied. Run the program as administrator.\n\n" + str(e))
 
