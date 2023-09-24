@@ -672,15 +672,11 @@ def get_bitmap_dimensions(filename):
 
 
 def arp():
-	try:
-		if (platform.system() == "Windows"):
-			call = 'arp', '-a'
-			output = subprocess.check_output(call, shell=True).decode()
-			return [line for line in re.findall('([-.0-9]+)\s+([-0-9a-f]{17})\s+(\w+)', output)]
-		else: #TODO make this work on other platforms besides Windows
-			return []
-	except Exception as e:
-		show_error(e, no_ui=True)
+	if (platform.system() == "Windows"):
+		call = 'arp', '-a'
+		output = subprocess.check_output(call, shell=True).decode()
+		return [line for line in re.findall('([-.0-9]+)\s+([-0-9a-f]{17})\s+(\w+)', output)]
+	else: #TODO make this work on other platforms besides Windows
 		return []
 
 
