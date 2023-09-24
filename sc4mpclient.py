@@ -1375,7 +1375,10 @@ class ServerList(th.Thread):
 
 		self.unfetched_servers = SC4MP_SERVERS.copy()
 		
-		self.lan_servers = [(row[0], port) for row in arp() for port in range(7240, 7250)]
+		try:
+			self.lan_servers = [(row[0], port) for row in arp() for port in range(7240, 7250)]
+		except:
+			self.lan_servers = []
 
 		delete_server_ids = []
 		for server_id in reversed(sc4mp_servers_database.keys()):
