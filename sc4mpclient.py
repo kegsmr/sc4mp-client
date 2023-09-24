@@ -478,6 +478,15 @@ def show_error(e, no_ui=False):
 			messagebox.showerror(SC4MP_TITLE, message)
 
 
+def startfile(filename):
+	syst = platform.system()
+	if syst == "Windows":
+		os.startfile(filename)
+	else:
+		opener = "open" if syst == "Darwin" else "xdg-open"  # Linux
+		subprocess.call([opener, filename])
+
+
 def fatal_error():
 	"""Shows a fatal error message in the console and the UI. Exits the program."""
 
@@ -490,7 +499,7 @@ def fatal_error():
 			tk.Tk().withdraw()
 		messagebox.showerror(SC4MP_TITLE, message)
 
-	os.startfile(SC4MP_LOG_PATH)
+	startfile(SC4MP_LOG_PATH)
 
 	cleanup()
 
@@ -3227,7 +3236,7 @@ class UI(tk.Tk):
 		help.add_command(label="About...", command=self.about)
 		help.add_command(label="Readme...", command=self.readme)
 		help.add_separator()
-		help.add_command(label="Logs...", command=lambda:os.startfile(SC4MP_LOG_PATH))
+		help.add_command(label="Logs...", command=lambda:startfile(SC4MP_LOG_PATH))
 		help.add_separator()
 		help.add_command(label="Feedback...", command=lambda:webbrowser.open_new_tab(SC4MP_ISSUES_URL))
 		#feedback_submenu = Menu(help, tearoff=0)
@@ -4160,7 +4169,7 @@ class AboutUI(tk.Toplevel):
 		# License label 2
 		self.license_label_2 = tk.Label(self, text=SC4MP_LICENSE_NAME, fg="blue", cursor="hand2")
 		self.license_label_2.grid(row=3, column=2, columnspan=1, padx=10, pady=(5,80), sticky="w")
-		self.license_label_2.bind("<Button-1>", lambda e:os.startfile("License.txt"))
+		self.license_label_2.bind("<Button-1>", lambda e:startfile("License.txt"))
 
 		# Ok button
 		self.ok_button = ttk.Button(self, text="Ok", command=self.ok, default="active")
