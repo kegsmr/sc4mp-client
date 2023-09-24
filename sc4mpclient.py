@@ -45,7 +45,7 @@ SC4MP_README_PATH = "readme.html"
 SC4MP_RESOURCES_PATH = "resources"
 
 SC4MP_TITLE = f"SC4MP Launcher v{SC4MP_VERSION}"
-SC4MP_ICON: Path() = Path(SC4MP_RESOURCES_PATH) / "icon.ico"
+SC4MP_ICON: Path() = Path(SC4MP_RESOURCES_PATH) / "icon.png"
 
 SC4MP_HOST = SC4MP_SERVERS[0][0]
 SC4MP_PORT = SC4MP_SERVERS[0][1]
@@ -3188,7 +3188,7 @@ class UI(tk.Tk):
 
 		# Icon
 
-		self.wm_iconbitmap(SC4MP_ICON) #TODO looks bad
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON)) #TODO looks bad
 		#TODO taskbar icon
 
 
@@ -3351,7 +3351,7 @@ class GeneralSettingsUI(tk.Toplevel):
 		self.title("General settings")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.geometry('400x400')
@@ -3470,7 +3470,7 @@ class StorageSettingsUI(tk.Toplevel):
 		self.title("Storage settings")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.geometry('400x400')
@@ -3604,7 +3604,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.title("SC4 settings")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON) #TODO looks bad
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON)) #TODO looks bad
 
 		# Geometry
 		self.geometry('400x400')
@@ -3827,7 +3827,7 @@ class HostUI(tk.Toplevel):
 		self.title("Host")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.geometry('400x400')
@@ -3942,7 +3942,7 @@ class DirectConnectUI(tk.Toplevel):
 		self.title('Direct connect')
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.geometry('350x110')
@@ -4033,7 +4033,7 @@ class PasswordDialogUI(tk.Toplevel):
 		self.title("" + self.server_loader.server.server_name + "")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.geometry('350x110')
@@ -4114,7 +4114,7 @@ class AboutUI(tk.Toplevel):
 		self.title("About")
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.geometry('400x400')
@@ -4461,7 +4461,7 @@ class ServerLoaderUI(tk.Toplevel):
 		self.title(server.host + ":" + str(server.port))
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.minsize(800, 100)
@@ -4512,7 +4512,7 @@ class GameMonitorUI(tk.Toplevel):
 		self.title(SC4MP_TITLE)
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.geometry("400x400")
@@ -4606,7 +4606,7 @@ class RegionsRefresherUI(tk.Toplevel):
 		self.title(server.server_name)
 
 		# Icon
-		self.iconbitmap(SC4MP_ICON)
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
 		self.minsize(800, 100)
