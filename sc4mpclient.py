@@ -3774,8 +3774,8 @@ class SC4SettingsUI(tk.Toplevel):
 			if (get_sc4_path() != None):
 
 				# Purge plugins and regions
-				purge_directory(Path(SC4MP_LAUNCHPATH) / "plugins")
-				purge_directory(Path(SC4MP_LAUNCHPATH) / "regions")
+				purge_directory(Path(SC4MP_LAUNCHPATH) / "Plugins")
+				purge_directory(Path(SC4MP_LAUNCHPATH) / "Regions")
 				
 				# Run the game launcher (on the current thread)
 				game_launcher = GameLauncher()
