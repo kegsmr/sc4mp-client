@@ -1377,7 +1377,8 @@ class ServerList(th.Thread):
 		
 		try:
 			self.lan_servers = [(row[0], port) for row in arp() for port in range(7240, 7250)]
-		except:
+		except Exception as e:
+			show_error(e)
 			self.lan_servers = []
 
 		delete_server_ids = []
