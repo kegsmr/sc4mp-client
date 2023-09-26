@@ -26,7 +26,8 @@ from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
 from typing import Optional
 
-SC4MP_VERSION = "0.4.0"
+SC4MP_VERSION = "0.3.2"  # RESTORE THIS BEFORE COMMITTING
+SC4_STEAMID = 24780
 
 SC4MP_SERVERS = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
 
@@ -74,6 +75,33 @@ SC4MP_CONFIG_DEFAULTS = [
 		("cache_size", 8000)
 	]),
 	("SC4", [
+		("run_from_steam_linux", False),
+		("game_path", ""),
+		("fullscreen", False),
+		("resw", 1280),
+		("resh", 800),
+		("cpu_count", 1),
+		("cpu_priority", "high"),
+		("additional_properties", "")
+	])
+] if platform.system() == "Windows" else [  # This is purely for testing on linux + steam, TODO: Integrate with existing default config when done
+	("GENERAL", [
+		# ("nickname", os.getlogin()), #TODO unused
+		# (first_run, True) #TODO
+		# ("use_custom_user_id", False), #TODO
+		# ("custom_user_id", ""), #TODO
+		("default_host", SC4MP_HOST),
+		("default_port", SC4MP_PORT),
+		# ("use_overlay", 1), #TODO
+		("custom_plugins", False),
+		("custom_plugins_path", Path("~/.steam/steam/steamapps/compatdata/24780/pfx/drive_c/users/steamuser/Documents/SimCity 4/_SC4MP").expanduser())  # Debating wether sc4mp's data should be saved in the wine prefix or .local, maybe symlinks?
+	]),
+	("STORAGE", [
+		("storage_path", Path("~/.steam/steam/steamapps/compatdata/24780/pfx/drive_c/users/steamuser/Documents/SimCity 4/_SC4MP").expanduser()),
+		("cache_size", 8000)
+	]),
+	("SC4", [
+		("run_from_steam_linux", True),
 		("game_path", ""),
 		("fullscreen", False),
 		("resw", 1280),
@@ -328,9 +356,11 @@ def start_sc4():
 
 	path = get_sc4_path()
 
-	if not path:
+	if not path and not sc4mp_config["SC4"]["run_from_steam_linux"]:
 		show_error("Path to Simcity 4 not found. Specify the correct path in settings.")
 		return
+	else:
+		print("Using Steam on linux to launch Simcity 4...")
 
 	arguments = [str(path),
 			  f'-UserDir:"{SC4MP_LAUNCHPATH}{os.sep}"', # add trailing slash here because SC4 expects it
@@ -340,6 +370,9 @@ def start_sc4():
 			  f'-CPUCount:{sc4mp_config["SC4"]["cpu_count"]}',
 			  f'-CPUPriority:{sc4mp_config["SC4"]["cpu_priority"]}'
 			  ]
+	if platform.system() != "Windows" and sc4mp_config["SC4"]["run_from_steam_linux"]:
+		# arguments = arguments[1:]  # Remove path since we will be using steam browser protocol to launch the game
+		arguments = arguments[2:]
 
 	if (sc4mp_config["SC4"]["fullscreen"] == True):
 		arguments.append('-f')
@@ -348,23 +381,62 @@ def start_sc4():
 
 	arguments.extend(sc4mp_config["SC4"]["additional_properties"].strip().split(' '))  # assumes that properties do not have spaces
 
-	command = ' '.join(arguments)
+	if not sc4mp_config["SC4"]["run_from_steam_linux"]:
+		command = ' '.join(arguments)
+	else:
+		command = ["steam", f"steam://run/24780//\"{' '.join(arguments)}\"/"]  # Only when running linux from steam, TODO: Something else for linux gog users
 	print(f"'{command}'")
 
 	try:
 		if (platform.system() == "Windows"):
 			subprocess.run(command) # `subprocess.run(arguments)` won't work on Windows for some unknowable reason
 		else:
-			subprocess.run(arguments)  # on Linux, the first String passed as argument must be a file that exists
+			subprocess.run(command)
 	except PermissionError as e:
 		show_error("Permission denied. Run the program as administrator.\n\n" + str(e))
 
 	# For compatability with the steam version of SC4
-	time.sleep(3)
-	while (process_exists("simcity 4.exe")):
-		time.sleep(1)
+	time.sleep(20)  # Roll back this change after testing
+	if (sc4mp_config["SC4"]["run_from_steam_linux"]):  # Used to detect process when running on linux
+		for is_running in process_exists_linux_steam():
+			time.sleep(1)
+			if not is_running:
+				break
+	else:
+		while (process_exists("simcity 4.exe")):
+			time.sleep(1)
 
 	print("Simcity 4 closed.")
+
+
+def process_exists_linux_steam():
+    cmdline_mtime: float
+    pid: int = -1
+
+    # Search for PID using the proc's cmdline (A bit slow). Searching backwards should be more efficient since this is run right after launching the game
+    print("Scanning for the Simcity 4 process...")
+    for proc in sorted(os.scandir("/proc/"), key=lambda e: e.name, reverse=True):
+        if proc.is_dir() and proc.name.isdigit():
+            with open(f"{proc.path}/cmdline", "r") as cmdline:
+                if "SimCity 4.exe" in cmdline.read():
+                    print(f"Found Simcity 4 with process ID {proc.name}")
+                    pid = int(proc.name)
+                    cmdline_mtime = os.path.getmtime(f"{proc.path}/cmdline")
+                    yield True
+                    break
+
+    if pid == -1:
+        return False
+
+    while True:
+        if os.path.exists(f"/proc/{pid}"):  # If pid path doesn't exist, we can be certain that the game has closed
+            if cmdline_mtime != os.path.getmtime(f"/proc/{pid}/cmdline"):  # Check done in case another program grabbed Simcity 4's pid, unlikely and hard to test
+                return False
+            else:
+                yield True
+        else:
+            return False
+
 
 
 def process_exists(process_name): #TODO add macos compatability
@@ -1381,7 +1453,7 @@ class ServerList(th.Thread):
 
 		self.end = False
 		self.ended = False
-		self.pause = False
+		self.pause = True  # Temp disable so I dont ddos the master server
 
 		self.servers = dict()
 
@@ -3769,6 +3841,8 @@ class SC4SettingsUI(tk.Toplevel):
 
 			# Check if a path to Simcity 4 can be found, prompt for a custom path if needed
 			while (get_sc4_path() == None):
+				if platform.system() != "Windows" and sc4mp_config["SC4"]["run_from_steam_linux"]:  # No need for path when using steam on linux
+					break
 				show_warning('No Simcity 4 installation found. \n\nPlease provide the correct installation path.')
 				path = filedialog.askdirectory(parent=sc4mp_ui)
 				if (len(path) > 0):
@@ -3777,14 +3851,14 @@ class SC4SettingsUI(tk.Toplevel):
 					self.path_frame.entry.insert(0, path)
 				else:
 					break
-			
+
 			# Load the game if a path to Simcity 4 can be found
-			if (get_sc4_path() != None):
+			if (get_sc4_path() != None or platform.system() != "Windows"):  # Temporary hack for linux steam testing
 
 				# Purge plugins and regions
 				purge_directory(Path(SC4MP_LAUNCHPATH) / "Plugins")
 				purge_directory(Path(SC4MP_LAUNCHPATH) / "Regions")
-				
+
 				# Run the game launcher (on the current thread)
 				game_launcher = GameLauncher()
 				game_launcher.run()
