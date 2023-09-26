@@ -40,7 +40,10 @@ SC4MP_AUTHOR_NAME = "Simcity 4 Multiplayer Project"
 SC4MP_WEBSITE_NAME = "www.sc4mp.org"
 SC4MP_LICENSE_NAME = "MIT-0"
 
-SC4MP_CONFIG_PATH = "config.ini"
+SC4MP_CONFIG_PATH = {
+	"Windows": "config.ini",
+	"Linux": "~/.config/sc4mp-client/config.ini"
+}[platform.system()]
 SC4MP_LOG_PATH = "sc4mpclient.log"
 SC4MP_README_PATH = "readme.html"
 SC4MP_RESOURCES_PATH = "resources"
@@ -68,40 +71,17 @@ SC4MP_CONFIG_DEFAULTS = [
 		("default_port", SC4MP_PORT),
 		#("use_overlay", 1), #TODO
 		("custom_plugins", False),
-		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser())
+		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins" if platform.system() == "Windows" else "").expanduser())
+	]),
+	("LINUX", [
+		("use_steam", False),
+		("wineprefix_sc4_path", Path("~/.wine").expanduser() if platform.system() == "Linux" else "")
 	]),
 	("STORAGE", [
-		("storage_path", Path("~/Documents/SimCity 4/_SC4MP").expanduser()),
+		("storage_path", Path("~/Documents/SimCity 4/_SC4MP" if platform.system() == "Windows" else "~/.local/share/sc4mp-client").expanduser()),  # For linux, attempt to store in the default $XDG_HOME_DATA dir according to freedesktop's spec https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html, TODO: Attempt to read XDG_DATA_HOME
 		("cache_size", 8000)
 	]),
 	("SC4", [
-		("run_from_steam_linux", False),
-		("game_path", ""),
-		("fullscreen", False),
-		("resw", 1280),
-		("resh", 800),
-		("cpu_count", 1),
-		("cpu_priority", "high"),
-		("additional_properties", "")
-	])
-] if platform.system() == "Windows" else [  # This is purely for testing on linux + steam, TODO: Integrate with existing default config when done
-	("GENERAL", [
-		# ("nickname", os.getlogin()), #TODO unused
-		# (first_run, True) #TODO
-		# ("use_custom_user_id", False), #TODO
-		# ("custom_user_id", ""), #TODO
-		("default_host", SC4MP_HOST),
-		("default_port", SC4MP_PORT),
-		# ("use_overlay", 1), #TODO
-		("custom_plugins", False),
-		("custom_plugins_path", Path("~/.steam/steam/steamapps/compatdata/24780/pfx/drive_c/users/steamuser/Documents/SimCity 4/_SC4MP").expanduser())  # Debating wether sc4mp's data should be saved in the wine prefix or .local, maybe symlinks?
-	]),
-	("STORAGE", [
-		("storage_path", Path("~/.steam/steam/steamapps/compatdata/24780/pfx/drive_c/users/steamuser/Documents/SimCity 4/_SC4MP").expanduser()),
-		("cache_size", 8000)
-	]),
-	("SC4", [
-		("run_from_steam_linux", True),
 		("game_path", ""),
 		("fullscreen", False),
 		("resw", 1280),
@@ -356,7 +336,7 @@ def start_sc4():
 
 	path = get_sc4_path()
 
-	if not path and not sc4mp_config["SC4"]["run_from_steam_linux"]:
+	if not path and not sc4mp_config["LINUX"]["use_steam"]:
 		show_error("Path to Simcity 4 not found. Specify the correct path in settings.")
 		return
 	else:
@@ -370,7 +350,7 @@ def start_sc4():
 			  f'-CPUCount:{sc4mp_config["SC4"]["cpu_count"]}',
 			  f'-CPUPriority:{sc4mp_config["SC4"]["cpu_priority"]}'
 			  ]
-	if platform.system() != "Windows" and sc4mp_config["SC4"]["run_from_steam_linux"]:
+	if platform.system() != "Windows" and sc4mp_config["LINUX"]["use_steam"]:
 		# arguments = arguments[1:]  # Remove path since we will be using steam browser protocol to launch the game
 		arguments = arguments[2:]
 
@@ -381,7 +361,7 @@ def start_sc4():
 
 	arguments.extend(sc4mp_config["SC4"]["additional_properties"].strip().split(' '))  # assumes that properties do not have spaces
 
-	if not sc4mp_config["SC4"]["run_from_steam_linux"]:
+	if not sc4mp_config["LINUX"]["use_steam"]:
 		command = ' '.join(arguments)
 	else:
 		command = ["steam", f"steam://run/24780//\"{' '.join(arguments)}\"/"]  # Only when running linux from steam, TODO: Something else for linux gog users
@@ -397,7 +377,7 @@ def start_sc4():
 
 	# For compatability with the steam version of SC4
 	time.sleep(20)  # Roll back this change after testing
-	if (sc4mp_config["SC4"]["run_from_steam_linux"]):  # Used to detect process when running on linux
+	if (sc4mp_config["LINUX"]["use_steam"]):  # Used to detect process when running on linux
 		for is_running in process_exists_linux_steam():
 			time.sleep(1)
 			if not is_running:
@@ -407,6 +387,13 @@ def start_sc4():
 			time.sleep(1)
 
 	print("Simcity 4 closed.")
+
+
+def start_sc4_linux():
+	"""Attempts to launch SC4 if a suitable game path is found. Launches game from steam if previously specified"""
+	print("Starting Simcity 4...")
+
+	pass
 
 
 def process_exists_linux_steam():
@@ -834,7 +821,12 @@ class Config:
 			for item_name in section.keys():
 				item_value = section[item_name]
 				parser.set(section_name, item_name, item_value)
-		with open(self.PATH, 'wt') as file:
+
+		# Use pathlib to create the entire folder hierarchy in case the path is not valid
+		expanded_path = Path(self.PATH).expanduser()
+		expanded_path.parent.mkdir(parents=True, exist_ok=True)  # TODO: catch FileExistsError and maybe log + quit?
+
+		with open(expanded_path, 'wt') as file:
 			parser.write(file)
 		try:
 			update_config_constants(self)
@@ -1453,7 +1445,7 @@ class ServerList(th.Thread):
 
 		self.end = False
 		self.ended = False
-		self.pause = True  # Temp disable so I dont ddos the master server
+		self.pause = False
 
 		self.servers = dict()
 
@@ -2934,8 +2926,10 @@ class GameLauncher(th.Thread):
 		"""TODO"""
 		
 		try:
-
-			start_sc4()
+			if platform.system() == "Windows":
+				start_sc4()
+			else:
+				start_sc4_linux()  # Place simcity 4 startup function specific to linux here
 			
 			self.game_running = False
 
@@ -3841,7 +3835,7 @@ class SC4SettingsUI(tk.Toplevel):
 
 			# Check if a path to Simcity 4 can be found, prompt for a custom path if needed
 			while (get_sc4_path() == None):
-				if platform.system() != "Windows" and sc4mp_config["SC4"]["run_from_steam_linux"]:  # No need for path when using steam on linux
+				if platform.system() != "Windows" and sc4mp_config["LINUX"]["use_steam"]:  # No need for path when using steam on linux
 					break
 				show_warning('No Simcity 4 installation found. \n\nPlease provide the correct installation path.')
 				path = filedialog.askdirectory(parent=sc4mp_ui)
