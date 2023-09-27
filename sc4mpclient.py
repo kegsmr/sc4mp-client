@@ -124,7 +124,7 @@ def main():
 		# "--host" argument
 		global sc4mp_host
 		sc4mp_host = None
-		if ("--host" in sc4mp_args):
+		if "--host" in sc4mp_args:
 			try:
 				sc4mp_host = get_arg_value("--host", sc4mp_args)
 			except:
@@ -133,7 +133,7 @@ def main():
 		# "--port" argument
 		global sc4mp_port
 		sc4mp_port = None
-		if ("--port" in sc4mp_args):
+		if "--port" in sc4mp_args:
 			try:
 				sc4mp_port = int(get_arg_value("--port", sc4mp_args))
 			except:
@@ -142,7 +142,7 @@ def main():
 		# "--password" argument
 		global sc4mp_password
 		sc4mp_password = None
-		if ("--password" in sc4mp_args):
+		if "--password" in sc4mp_args:
 			try:
 				sc4mp_password = int(get_arg_value("--password", sc4mp_args))
 			except:
@@ -152,24 +152,24 @@ def main():
 		prep()
 
 		# Client
-		if (sc4mp_ui):
+		if sc4mp_ui:
 			sc4mp_ui = UI()
-			if (sc4mp_host != None and sc4mp_port != None):
+			if sc4mp_host != None and sc4mp_port != None:
 				server = Server(sc4mp_host, sc4mp_port)
 				server.password = sc4mp_password
 				ServerLoaderUI(server)
 			sc4mp_ui.mainloop()
 		else:
 			sc4mp_ui = None
-			if (sc4mp_host == None or sc4mp_port == None):
+			if sc4mp_host == None or sc4mp_port == None:
 				print("[PROMPT] Connect to server:")
-			if (sc4mp_host == None):
+			if sc4mp_host == None:
 				sc4mp_host = input("[PROMPT] - Enter server address... ")
-			if (sc4mp_port == None):
+			if sc4mp_port == None:
 				sc4mp_port = int(input("[PROMPT] - Enter server port... "))
 			server = Server(sc4mp_host, sc4mp_port)
 			server.fetch()
-			if (sc4mp_password == None and server.password_enabled):
+			if sc4mp_password == None and server.password_enabled:
 				sc4mp_password = input("[PROMPT] - Enter server password... ")
 			server.password = sc4mp_password
 			ServerLoader(None, server).run()
@@ -341,7 +341,7 @@ def start_sc4():
 			  f'-CPUPriority:{sc4mp_config["SC4"]["cpu_priority"]}'
 			  ]
 
-	if (sc4mp_config["SC4"]["fullscreen"] == True):
+	if sc4mp_config["SC4"]["fullscreen"] == True:
 		arguments.append('-f')
 	else:
 		arguments.append('-w')
@@ -352,7 +352,7 @@ def start_sc4():
 	print(f"'{command}'")
 
 	try:
-		if (platform.system() == "Windows"):
+		if platform.system() == "Windows":
 			subprocess.run(command) # `subprocess.run(arguments)` won't work on Windows for some unknowable reason
 		else:
 			subprocess.run(arguments)  # on Linux, the first String passed as argument must be a file that exists
@@ -361,7 +361,7 @@ def start_sc4():
 
 	# For compatability with the steam version of SC4
 	time.sleep(3)
-	while (process_exists("simcity 4.exe")):
+	while process_exists("simcity 4.exe"):
 		time.sleep(1)
 
 	print("Simcity 4 closed.")
@@ -370,7 +370,7 @@ def start_sc4():
 def process_exists(process_name): #TODO add macos compatability
 	"""TODO"""
 	try:
-		if (platform.system() == "Windows"):
+		if platform.system() == "Windows":
 			call = 'TASKLIST', '/FI', 'imagename eq %s' % process_name
 			output = subprocess.check_output(call, shell=True).decode()
 			last_line = output.strip().split('\r\n')[-1]
@@ -430,7 +430,7 @@ def directory_size(directory: Path) -> int:
 
 def event_generate(ui, event, when):
 	"""Deprecated."""
-	if (ui != None):
+	if ui != None:
 		ui.event_generate(event, when=when)
 
 
@@ -467,16 +467,16 @@ def update_json(filename, data):
 def show_error(e, no_ui=False):
 	"""Shows an error message in the console and optionally in the UI."""
 	message = None
-	if (isinstance(e, str)):
+	if isinstance(e, str):
 		message = e
 	else: 
 		message = str(e)
 
 	print(f"[ERROR] {message}\n\n{traceback.format_exc()}")
 
-	if (not no_ui):
-		if (sc4mp_ui != None):
-			if (sc4mp_ui == True):
+	if not no_ui:
+		if sc4mp_ui != None:
+			if sc4mp_ui == True:
 				tk.Tk().withdraw()
 			messagebox.showerror(SC4MP_TITLE, message)
 
@@ -497,8 +497,8 @@ def fatal_error():
 
 	print(f"[FATAL] {message}")
 
-	if (sc4mp_ui != None):
-		if (sc4mp_ui == True):
+	if sc4mp_ui != None:
+		if sc4mp_ui == True:
 			tk.Tk().withdraw()
 		messagebox.showerror(SC4MP_TITLE, message)
 
@@ -512,15 +512,15 @@ def fatal_error():
 def show_warning(e):
 	"""Shows a warning in the console and the UI."""
 	message = None
-	if (isinstance(e, str)):
+	if isinstance(e, str):
 		message = e
 	else: 
 		message = str(e)
 
 	print(f"[WARNING] {message}")
 
-	if (sc4mp_ui != None):
-		if (sc4mp_ui == True):
+	if sc4mp_ui != None:
+		if sc4mp_ui == True:
 			tk.Tk().withdraw()
 		messagebox.showwarning(SC4MP_TITLE, message)
 
@@ -583,7 +583,7 @@ def request_header(s, server):
 	s.recv(SC4MP_BUFFER_SIZE)
 	s.send(SC4MP_VERSION.encode())
 
-	if (server.password_enabled):
+	if server.password_enabled:
 		s.recv(SC4MP_BUFFER_SIZE)
 		s.send(server.password.encode())
 
@@ -649,23 +649,23 @@ def prep_region_config(path):
 
 
 def format_filesize(size):
-	if (size >= 10 ** 11):
+	if size >= 10 ** 11:
 		return ">99GB"
-	elif (size >= 10 ** 10):
+	elif size >= 10 ** 10:
 		return str(int(size / (10 ** 9))) + "GB"
-	elif (size >= 10 ** 9):
+	elif size >= 10 ** 9:
 		return str(float(int(size / (10 ** 8)) / 10)) + "GB"
-	elif (size >= 10 ** 8):
+	elif size >= 10 ** 8:
 		return str(int(size / (10 ** 6))) + "MB"
-	elif (size >= 10 ** 7):
+	elif size >= 10 ** 7:
 		return str(int(size / (10 ** 6))) + "MB"
-	elif (size >= 10 ** 6):
+	elif size >= 10 ** 6:
 		return str(float(int(size / (10 ** 5)) / 10)) + "MB"
-	elif (size >= 10 ** 5):
+	elif size >= 10 ** 5:
 		return str(int(size / (10 ** 3))) + "KB"
-	elif (size >= 10 ** 4):
+	elif size >= 10 ** 4:
 		return str(int(size / (10 ** 3))) + "KB"
-	elif (size >= 10 ** 3):
+	elif size >= 10 ** 3:
 		return str(float(int(size / (10 ** 2)) / 10)) + "KB"
 	else:
 		return str(int(size)) + "B"
@@ -680,11 +680,11 @@ def get_bitmap_dimensions(filename):
 	width = struct.unpack_from('<i', data, 18)
 	height = struct.unpack_from('<i', data, 22)
 
-	return (width[0], height[0])
+	return width[0], height[0]
 
 
 def arp():
-	if (platform.system() == "Windows"):
+	if platform.system() == "Windows":
 		call = 'arp', '-a'
 		output = subprocess.check_output(call, shell=True).decode()
 		return [line for line in re.findall('([-.0-9]+)\s+([-0-9a-f]{17})\s+(\w+)', output)]
@@ -725,11 +725,11 @@ class Config:
 					for item_name in section.keys():
 						try:
 							from_file = parser.get(section_name, item_name)
-							if (from_file == "True"):
+							if from_file == "True":
 								self.data[section_name][item_name] = True
-							elif (from_file == "False"):
+							elif from_file == "False":
 								self.data[section_name][item_name] = False
-							elif (from_file == "None"):
+							elif from_file == "None":
 								self.data[section_name][item_name] = None
 							else:
 								t = type(self.data[section_name][item_name])
@@ -785,7 +785,7 @@ class Server:
 		self.user_id = None
 
 		self.categories = ["All"]
-		if ((host, port) in SC4MP_SERVERS):
+		if (host, port) in SC4MP_SERVERS:
 			self.categories.append("Official")
 
 
@@ -805,7 +805,7 @@ class Server:
 		self.user_plugins_enabled = self.request("user_plugins_enabled") == "yes"
 		self.private = self.request("private") == "yes"
 
-		if (self.password_enabled):
+		if self.password_enabled:
 			self.categories.append("Private")
 		else:
 			self.categories.append("Public")
@@ -813,7 +813,7 @@ class Server:
 		#if (self.server_version != None):
 		#	self.server_version = unformat_version(self.server_version)
 
-		if (self.fetched == True):
+		if self.fetched == True:
 			try:
 				self.update_database()
 			except Exception as e:
@@ -844,14 +844,14 @@ class Server:
 					city_entry = region_database[coords]
 					if city_entry != None:
 						owner = city_entry["owner"]
-						if (owner != None):
+						if owner != None:
 							claimed_area += city_entry["size"] ** 2
-							if (owner not in mayors):
+							if owner not in mayors:
 								mayors.append(owner)
 							modified = city_entry["modified"]
-							if (modified != None):
+							if modified != None:
 								modified = datetime.strptime(modified, "%Y-%m-%d %H:%M:%S")
-								if (modified > server_time - timedelta(hours=1) and owner not in mayors_online):
+								if modified > server_time - timedelta(hours=1) and owner not in mayors_online:
 									mayors_online.append(owner)
 				total_area += region_dimensions[0] * region_dimensions[1]
 			except Exception as e:
@@ -869,7 +869,7 @@ class Server:
 		self.stat_download = download #(random.randint(0, 10 ** 11))
 
 		ping = self.ping()
-		if (ping != None):
+		if ping != None:
 			self.stat_ping = ping
 
 		sc4mp_servers_database[self.server_id]["stat_mayors"] = self.stat_mayors
@@ -959,7 +959,7 @@ class Server:
 			# Receive the file
 			filesize_read = 0
 			with destination.open("wb") as f:
-				while (filesize_read < filesize):
+				while filesize_read < filesize:
 					bytes_read = s.recv(SC4MP_BUFFER_SIZE)
 					if not bytes_read:
 						break
@@ -991,7 +991,7 @@ class Server:
 	def request(self, request):
 		"""Requests a given value from the server."""
 
-		if (self.fetched == False):
+		if self.fetched == False:
 			return
 
 		host = self.host
@@ -1032,14 +1032,14 @@ class Server:
 			pass
 
 		# Verify server can produce the user_id from the hash of the user_id and token combined
-		if (token != None):
+		if token != None:
 			hash = hashlib.sha256(((hashlib.sha256(user_id.encode()).hexdigest()[:32]) + token).encode()).hexdigest()
 			s = socket.socket()
 			s.connect((self.host, self.port))
 			s.send(b"user_id")
 			s.recv(SC4MP_BUFFER_SIZE)
 			s.send(hash.encode())
-			if (s.recv(SC4MP_BUFFER_SIZE).decode() == hashlib.sha256(user_id.encode()).hexdigest()[:32]):
+			if s.recv(SC4MP_BUFFER_SIZE).decode() == hashlib.sha256(user_id.encode()).hexdigest()[:32]:
 				self.user_id = user_id
 			else:
 				raise ClientException("Invalid token.") #"Authentication error."
@@ -1055,7 +1055,7 @@ class Server:
 		token = s.recv(SC4MP_BUFFER_SIZE).decode()
 
 		# Raise exception if no token is received
-		if (len(token) < 1):
+		if len(token) < 1:
 			raise ClientException("You are banned from this server.")
 
 		# Set user_id and token in the database entry
@@ -1126,12 +1126,12 @@ class DBPF:
 
 		# Advance to offset
 		start = self.offset
-		if (self.offset > 0):
+		if self.offset > 0:
 			self.file.seek(self.offset)
 
 		# Verify that the file is a DBPF
 		test = self.file.read(4)
-		if (test != b"DBPF"):
+		if test != b"DBPF":
 			return #TODO raise exception
 
 		# Read the header
@@ -1161,7 +1161,7 @@ class DBPF:
 			self.indexData[index]['typeID'] = self.read_ID()
 			self.indexData[index]['groupID'] = self.read_ID()
 			self.indexData[index]['instanceID'] = self.read_ID()
-			if ((self.indexMajorVersion == "7") and (self.indexMinorVersion == "1")):
+			if (self.indexMajorVersion == "7") and (self.indexMinorVersion == "1"):
 				self.indexData[index]['instanceID2'] = self.read_ID()
 			self.indexData[index]['offset'] = self.read_UL4()
 			self.indexData[index]['filesize'] = self.read_UL4()
@@ -1180,7 +1180,7 @@ class DBPF:
 		numcopy = ""
 		offset = ""
 
-		while (length > 0):
+		while length > 0:
 			try:
 				cc = self.read_UL1(self.file)
 			except Exception as e:
@@ -1188,17 +1188,17 @@ class DBPF:
 				break
 			length -= 1
 			#print("Control char is " + str(cc) + ", length remaining is " + str(length) + ".\n")
-			if (cc >= 252): #0xFC
+			if cc >= 252: #0xFC
 				numplain = cc & 3 #0x03
-				if (numplain > length):
+				if numplain > length:
 					numplain = length
 				numcopy = 0
 				offset = 0
-			elif (cc >= 224): #0xE0
+			elif cc >= 224: #0xE0
 				numplain = (cc - 223) << 2 #223 = 0xdf
 				numcopy = 0
 				offset = 0
-			elif (cc >= 192): #0xC0
+			elif cc >= 192: #0xC0
 				length -= 3
 				byte1 = self.read_UL1(self.file)
 				byte2 = self.read_UL1(self.file)
@@ -1206,7 +1206,7 @@ class DBPF:
 				numplain = cc & 3 #0x03
 				numcopy = ((cc & 12) << 6) + 5 + byte3 #12 = 0x0c
 				offset = ((cc & 16) << 12) + (byte1 << 8) + byte2 #16 = 0x10
-			elif (cc >= 128): #0x80
+			elif cc >= 128: #0x80
 				length -= 2
 				byte1 = self.read_UL1(self.file)
 				byte2 = self.read_UL1(self.file)
@@ -1222,7 +1222,7 @@ class DBPF:
 			length -= numplain
 
 			# This section basically copies the parts of the string to the end of the buffer:
-			if (numplain > 0):
+			if numplain > 0:
 				buf = self.file.read(numplain)
 				answer = answer + buf
 			fromoffset = len(answer) - (offset + 1)  # 0 == last char
@@ -1245,28 +1245,28 @@ class DBPF:
 
 	def read_UL1(self, file=None):
 		"""TODO"""
-		if (file == None):
+		if file == None:
 			file = self.file
 		return struct.unpack('<B', file.read(1))[0]
 
 
 	def read_UL2(self, file=None):
 		"""TODO"""
-		if (file == None):
+		if file == None:
 			file = self.file
 		return struct.unpack('<H', file.read(2))[0]
 	
 	
 	def read_UL4(self, file=None):
 		"""TODO"""
-		if (file == None):
+		if file == None:
 			file = self.file
 		return struct.unpack('<L', file.read(4))[0]
 
 
 	def read_ID(self, file=None):
 		"""TODO"""
-		if (file == None):
+		if file == None:
 			file = self.file
 		return file.read(4)[::-1].hex()
 
@@ -1274,7 +1274,7 @@ class DBPF:
 	def get_indexData_entry_by_type_ID(self, type_id):
 		"""TODO"""
 		for entry in self.indexData:
-			if (entry['typeID'] == type_id):
+			if entry['typeID'] == type_id:
 				return entry
 
 
@@ -1431,7 +1431,7 @@ class ServerList(th.Thread):
 
 		try:
 
-			if (self.kill != None):
+			if self.kill != None:
 				self.kill.end = True
 				while not self.kill.ended:
 					time.sleep(SC4MP_DELAY)
@@ -1444,13 +1444,13 @@ class ServerList(th.Thread):
 
 			print("Fetching servers...")
 
-			while (self.end == False):
+			while self.end == False:
 
-				if (self.pause == False):
+				if self.pause == False:
 
 					# Enable or disable connect button and update labels
 					server_id = self.ui.tree.focus()
-					if (server_id == "" or server_id not in self.servers.keys()):
+					if server_id == "" or server_id not in self.servers.keys():
 						self.ui.connect_button['state'] = tk.DISABLED
 						self.ui.address_label["text"] = ""
 						self.ui.description_label["text"] = ""
@@ -1464,15 +1464,15 @@ class ServerList(th.Thread):
 					# Add all fetched servers to the server dictionary if not already present
 					while len(self.fetched_servers) > 0:
 						fetched_server = self.fetched_servers.pop(0)
-						if (fetched_server.server_id not in self.servers.keys()):
+						if fetched_server.server_id not in self.servers.keys():
 							self.servers[fetched_server.server_id] = fetched_server
 
 					# Fetch the next unfetched server
 					for unfetched_servers in [self.unfetched_servers, self.lan_servers]:
-						if (self.server_fetchers < 100): #TODO make configurable?
-							if (len(unfetched_servers) > 0):
+						if self.server_fetchers < 100: #TODO make configurable?
+							if len(unfetched_servers) > 0:
 								unfetched_server = unfetched_servers.pop(0)
-								if (unfetched_server not in self.tried_servers):
+								if unfetched_server not in self.tried_servers:
 									self.tried_servers.append(unfetched_server)
 									self.server_fetchers += 1
 									ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
@@ -1504,7 +1504,7 @@ class ServerList(th.Thread):
 							#while len(self.ui.tree.get_children()) >= 50:
 							#	self.ui.tree.delete(self.ui.tree.get_children()[-1])
 							server = self.servers[server_id]
-							if (server.password_enabled):
+							if server.password_enabled:
 								image = self.lock_icon
 							elif (server.host, server.port) in SC4MP_SERVERS:
 								image = self.official_icon
@@ -1514,14 +1514,14 @@ class ServerList(th.Thread):
 
 					# Filter the tree
 					filter = self.ui.combo_box.get()
-					if (len(filter) > 0):
+					if len(filter) > 0:
 						try:
 							category, search_terms = self.filters(filter)
 							#print("Filtering by \"" + category + "\" and " + str(search_terms) + "...")
 							server_ids = self.ui.tree.get_children()
 							for server_id in server_ids:
 								hide = self.filter(self.servers[server_id], (category, search_terms))
-								if (hide) and (server_id in self.ui.tree.get_children()) and (server_id not in self.hidden_servers):
+								if hide and (server_id in self.ui.tree.get_children()) and (server_id not in self.hidden_servers):
 									self.hidden_servers.append(server_id)
 									self.ui.tree.delete(server_id)
 								elif (not hide) and (server_id in self.hidden_servers):
@@ -1529,7 +1529,7 @@ class ServerList(th.Thread):
 									#self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
 						except Exception as e:
 							show_error(e, no_ui=True)
-					elif (len(self.hidden_servers) > 0):
+					elif len(self.hidden_servers) > 0:
 						server_ids = self.hidden_servers
 						for server_id in server_ids:
 							self.hidden_servers.remove(server_id)
@@ -1561,13 +1561,13 @@ class ServerList(th.Thread):
 						self.ui.tree.item(server_id, values=self.format_server(server))
 
 					# Update primary label
-					if (len(self.servers) > 0):
+					if len(self.servers) > 0:
 						self.ui.label["text"] = 'To get started, select a server below and click "Connect"'
 					else:
 						self.ui.address_label["text"] = ""
 						self.ui.description_label["text"] = ""
 						self.ui.url_label["text"] = ""
-						if (self.server_fetchers > 0):
+						if self.server_fetchers > 0:
 							self.ui.label["text"] = 'Getting server list...'
 						else:
 							self.ui.label["text"] = 'No servers found' #Select "Servers" then "Connect..." in the menu bar to connect to a server.'
@@ -1594,7 +1594,7 @@ class ServerList(th.Thread):
 
 	def filters(self, filter):
 		"""TODO"""
-		if (len(filter) > 0):
+		if len(filter) > 0:
 			search_terms = filter.split(" ")
 			category = "All"
 			if len(search_terms) > 0:
@@ -1671,14 +1671,14 @@ class ServerList(th.Thread):
 		"""TODO"""
 		server_a_sort_value = self.get_sort_value(server_a)
 		server_b_sort_value = self.get_sort_value(server_b)
-		if (server_a_sort_value == None and server_b_sort_value == None):
+		if server_a_sort_value == None and server_b_sort_value == None:
 			return True
-		elif (server_a_sort_value == None):
+		elif server_a_sort_value == None:
 			return False
-		elif (server_b_sort_value == None):
+		elif server_b_sort_value == None:
 			return True
 		else:
-			if (not self.ui.tree.reverse_sort):
+			if not self.ui.tree.reverse_sort:
 				return server_a_sort_value >= server_b_sort_value
 			else:
 				return server_a_sort_value <= server_b_sort_value
@@ -1756,7 +1756,7 @@ class ServerList(th.Thread):
 		"""TODO"""
 		item = float(item)
 		try:
-			return ((item - min(array)) / (max(array) - min(array)))
+			return (item - min(array)) / (max(array) - min(array))
 		except:
 			return 1.0
 
@@ -1798,7 +1798,7 @@ class ServerFetcher(th.Thread):
 				except:
 					raise ClientException("Unable to fetch server info.")
 
-				if (self.parent.end):
+				if self.parent.end:
 					raise ClientException("The parent thread was signaled to end.")
 				elif not self.server.fetched:
 					raise ClientException("Server is not fetched.")
@@ -1912,12 +1912,12 @@ class ServerPinger(th.Thread):
 
 		try:
 
-			while (not self.parent.end):
+			while not self.parent.end:
 				time.sleep(len(self.parent.servers) + 1)
-				if (not self.parent.pause):
+				if not self.parent.pause:
 					print(f"Pinging {self.server.host}:{self.server.port}")
 					ping = self.server.ping()
-					if (ping != None):
+					if ping != None:
 						self.server.stat_ping = ping #int((self.server.stat_ping + ping) / 2)
 						sc4mp_servers_database[self.server.server_id]["stat_ping"] = ping
 
@@ -1940,7 +1940,7 @@ class ServerLoader(th.Thread):
 
 		self.setDaemon(True)
 
-		if (sc4mp_ui != None):
+		if sc4mp_ui != None:
 			sc4mp_ui.withdraw()
 
 	
@@ -1949,11 +1949,11 @@ class ServerLoader(th.Thread):
 
 		try:
 
-			if (self.ui != None):
-				while (get_sc4_path() == None):
+			if self.ui != None:
+				while get_sc4_path() == None:
 					show_warning('No Simcity 4 installation found. \n\nPlease provide the correct installation path.')
 					path = filedialog.askdirectory(parent=self.ui)
-					if (len(path) > 0):
+					if len(path) > 0:
 						sc4mp_config["SC4"]["game_path"] = path
 						sc4mp_config.update()
 					else:
@@ -1988,17 +1988,17 @@ class ServerLoader(th.Thread):
 
 			except Exception as e:
 
-				if (self.ui != None and self.ui.winfo_exists() == 1):
+				if self.ui != None and self.ui.winfo_exists() == 1:
 					show_error("An error occurred while connecting to the server.\n\n" + str(e))
 				else:
 					show_error(e, no_ui=True)
 
 			#time.sleep(1)
 
-			if (self.ui != None):
+			if self.ui != None:
 				self.ui.destroy()
 			
-			if (sc4mp_current_server != None):
+			if sc4mp_current_server != None:
 				sc4mp_config["GENERAL"]["default_host"] = self.server.host
 				sc4mp_config["GENERAL"]["default_port"] = self.server.port
 				sc4mp_config.update()
@@ -2011,7 +2011,7 @@ class ServerLoader(th.Thread):
 			#	if (sc4mp_ui != None):
 			#		sc4mp_ui.deiconify()
 			else:
-				if (sc4mp_ui != None):
+				if sc4mp_ui != None:
 					sc4mp_ui.deiconify()
 
 		except Exception as e:
@@ -2021,7 +2021,7 @@ class ServerLoader(th.Thread):
 
 	def report(self, prefix, text):
 		"""TODO"""
-		if (self.ui != None):
+		if self.ui != None:
 			self.ui.label['text'] = text
 			self.ui.progress_bar.start(2)
 			self.ui.progress_bar['mode'] = "indeterminate"
@@ -2032,7 +2032,7 @@ class ServerLoader(th.Thread):
 
 	def report_progress(self, text, value, maximum):
 		"""TODO"""
-		if (self.ui != None):
+		if self.ui != None:
 			self.ui.label['text'] = text
 			self.ui.progress_bar.stop()
 			self.ui.progress_bar['mode'] = "determinate"
@@ -2044,26 +2044,26 @@ class ServerLoader(th.Thread):
 
 	def fetch_server(self):
 		"""TODO"""
-		if (self.server.fetched == False):
+		if self.server.fetched == False:
 			self.server.fetch()
-			if (self.server.fetched == False):
+			if self.server.fetched == False:
 				raise ClientException("Unable to find server. Check the IP address and port, then try again.")
-		if (unformat_version(self.server.server_version)[:2] < unformat_version(SC4MP_VERSION)[:2]):
+		if unformat_version(self.server.server_version)[:2] < unformat_version(SC4MP_VERSION)[:2]:
 			raise ClientException(f"The server requires an outdated version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please contact the server administrators.")
-		if (unformat_version(self.server.server_version)[:2] > unformat_version(SC4MP_VERSION)[:2]):
+		if unformat_version(self.server.server_version)[:2] > unformat_version(SC4MP_VERSION)[:2]:
 			raise ClientException(f"The server requires a newer version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please update the launcher to connect to this server.")
-		if (self.ui != None):
+		if self.ui != None:
 			self.ui.title(self.server.server_name)
 
 
 	def authenticate(self):
 		"""TODO"""
 		tries = 0
-		while (not self.check_password()):
-			if (sc4mp_ui):
-				if (tries >= 5):
+		while not self.check_password():
+			if sc4mp_ui:
+				if tries >= 5:
 					raise ClientException("Too many password attempts.")
-				if (tries > 0):
+				if tries > 0:
 					print("[WARNING] Incorrect password.")
 					#time.sleep(3) #TODO uncomment?
 				PasswordDialogUI(self, tries)
@@ -2075,16 +2075,16 @@ class ServerLoader(th.Thread):
 
 	def check_password(self):
 		"""TODO"""
-		if (self.server.password_enabled):
-			if (self.server.password == None):
+		if self.server.password_enabled:
+			if self.server.password == None:
 				return False
 			s = self.create_socket()
-			if (self.ui != None):
+			if self.ui != None:
 				self.ui.label['text'] = "Authenticating..."
 			s.send(b'check_password')
 			s.recv(SC4MP_BUFFER_SIZE)
 			s.send(self.server.password.encode())
-			if (s.recv(SC4MP_BUFFER_SIZE) == b'yes'):
+			if s.recv(SC4MP_BUFFER_SIZE) == b'yes':
 				return True
 			else:
 				return False
@@ -2096,9 +2096,9 @@ class ServerLoader(th.Thread):
 		"""TODO"""
 
 		# Select the destination directory according to the parameter
-		if (target == "plugins"):
+		if target == "plugins":
 			destination = Path(SC4MP_LAUNCHPATH) / "Plugins" / "server"
-		elif (target == "regions"):
+		elif target == "regions":
 			destination = Path(SC4MP_LAUNCHPATH) / "Regions"
 
 		# Create destination if necessary
@@ -2106,10 +2106,10 @@ class ServerLoader(th.Thread):
 			destination.mkdir(parents=True, exist_ok=True)
 
 		# Synchronize or clear custom plugins
-		if (target == "plugins"):
+		if target == "plugins":
 			client_plugins_source = Path(sc4mp_config["GENERAL"]["custom_plugins_path"])
 			client_plugins_destination = Path(SC4MP_LAUNCHPATH) / "Plugins" / "client"
-			if (self.server.user_plugins_enabled and sc4mp_config["GENERAL"]["custom_plugins"]):
+			if self.server.user_plugins_enabled and sc4mp_config["GENERAL"]["custom_plugins"]:
 				#try:
 				self.report("", "Synchronizing custom plugins...")
 				destination_relpaths = get_fullpaths_recursively(client_plugins_destination)
@@ -2244,7 +2244,7 @@ class ServerLoader(th.Thread):
 
 		tries_left = 6
 
-		while(True):
+		while True:
 
 			try:
 
@@ -2257,12 +2257,12 @@ class ServerLoader(th.Thread):
 
 			except socket.error as e:
 				
-				if (tries_left > 0):
+				if tries_left > 0:
 				
 					show_error(e, no_ui=True)
 
 					count = 5
-					while(count > 0):
+					while count > 0:
 						self.report("[ERROR] ", f"Connection failed. Retrying in {count}...")
 						count = count - 1
 						time.sleep(1)
@@ -2297,7 +2297,7 @@ class ServerLoader(th.Thread):
 		destination = Path(rootpath) / relpath
 
 		# Use the cached file if it exists and has the same size
-		if (target.exists() and target.stat().st_size == filesize):
+		if target.exists() and target.stat().st_size == filesize:
 
 			print(f'- using cached "{hash}"')
 
@@ -2331,14 +2331,14 @@ class ServerLoader(th.Thread):
 
 			# Delete cache files if cache too large to accomadate the new cache file
 			cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
-			while (any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize):
+			while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
 				random_cache = random.choice(list(cache_directory.iterdir()))
 				random_cache.unlink()
 
 			# Receive the file. Write to both the destination and cache
 			filesize_read = 0
 			with destination.open("wb") as dest, target.open("wb") as cache:
-				while (filesize_read < filesize):
+				while filesize_read < filesize:
 					bytes_read = s.recv(SC4MP_BUFFER_SIZE)
 					if not bytes_read:
 						break
@@ -2362,7 +2362,7 @@ class ServerLoader(th.Thread):
 
 		filesize_read = 0
 		with filename.open("wb") as f:
-			while (filesize_read < filesize):
+			while filesize_read < filesize:
 				bytes_read = s.recv(SC4MP_BUFFER_SIZE)
 				if not bytes_read:
 					break
@@ -2423,7 +2423,7 @@ class GameMonitor(th.Thread):
 		self.PREFIX = ""
 
 		self.ui = None
-		if (sc4mp_ui != None):
+		if sc4mp_ui != None:
 			self.ui = GameMonitorUI()
 			self.ui.title(server.server_name)
 
@@ -2448,7 +2448,7 @@ class GameMonitor(th.Thread):
 			
 		
 			# Infinite loop that can be broken by the "end" variable
-			while (True):
+			while True:
 
 				# Catch all errors and show an error message in the console
 				try:
@@ -2457,15 +2457,15 @@ class GameMonitor(th.Thread):
 					ping = self.ping()
 
 					# If the server is responsive print the ping in the console and display the ping in the ui
-					if (ping != None):
+					if ping != None:
 						print(f"Ping: {ping}")
-						if (self.ui != None):
+						if self.ui != None:
 							self.ui.ping_frame.right['text'] = f"{ping}ms"
 					
 					# If the server is unresponsive print a warning in the console and update the ui accordingly
 					else:
 						print("[WARNING] Disconnected.")
-						if (self.ui != None):
+						if self.ui != None:
 							self.ui.ping_frame.right['text'] = "Server unresponsive."
 
 					#new_city_paths, new_city_hashcodes = self.get_cities()
@@ -2481,7 +2481,7 @@ class GameMonitor(th.Thread):
 					save_city_paths_length = -1
 
 					# Loop until no new/modified savegames were found in the last iteration of the loop (meant to prevent fragmented save pushes, not the best solution because it relies somewhat on the loop delay)
-					while (len(save_city_paths) != save_city_paths_length):
+					while len(save_city_paths) != save_city_paths_length:
 
 						# Update the new/modified savegame counter
 						save_city_paths_length = len(save_city_paths)
@@ -2493,21 +2493,21 @@ class GameMonitor(th.Thread):
 						for new_city_path in new_city_paths:
 							
 							# If it's a new savegame, add it to the list of savegames to be pushed to the server
-							if (not new_city_path in self.city_paths):
+							if not new_city_path in self.city_paths:
 								save_city_paths.append(new_city_path)
 							
 							# If it's not a new savegame, check if it's a modified savegame. If so, add it to the same list
 							else:
 								city_hashcode = self.city_hashcodes[self.city_paths.index(new_city_path)]
 								new_city_hashcode = new_city_hashcodes[new_city_paths.index(new_city_path)]
-								if (city_hashcode != new_city_hashcode):
+								if city_hashcode != new_city_hashcode:
 									save_city_paths.append(new_city_path)
 
 						# For future comparisons
 						self.city_paths = new_city_paths
 						self.city_hashcodes = new_city_hashcodes
 
-						if (len(save_city_paths) > 0):
+						if len(save_city_paths) > 0:
 							
 							# Report waiting to sync if new/modified savegames found
 							self.report("", "Saving...") #Scanning #Waiting to sync
@@ -2516,7 +2516,7 @@ class GameMonitor(th.Thread):
 							time.sleep(6) #5 #6 #10 #3 #TODO make configurable?
 					
 					# If there are any new/modified savegame files, push them to the server. If errors occur, log them in the console and display a warning
-					if (len(save_city_paths) > 0):
+					if len(save_city_paths) > 0:
 						try:
 							self.push_save(save_city_paths)
 						except Exception as e:
@@ -2525,11 +2525,11 @@ class GameMonitor(th.Thread):
 						time.sleep(6)
 
 					# Break the loop when signaled
-					if (end == True):
+					if end == True:
 						break
 
 					# Signal to break the loop when the game is no longer running
-					if (not self.game_launcher.game_running):
+					if not self.game_launcher.game_running:
 						end = True
 
 					# Wait
@@ -2539,17 +2539,17 @@ class GameMonitor(th.Thread):
 					cfg_path = get_sc4_cfg_path()
 					try:
 						new_cfg_hashcode = md5(cfg_path)
-						if (cfg_hashcode != None and new_cfg_hashcode != cfg_hashcode):
+						if cfg_hashcode != None and new_cfg_hashcode != cfg_hashcode:
 							#print("Region switched!")
 							new_refresh_region_open = refresh_region_open()
-							if (new_refresh_region_open and (not old_refresh_region_open)):
+							if new_refresh_region_open and (not old_refresh_region_open):
 								#print("Refresh regions!")
-								if (ping == None):
+								if ping == None:
 									self.report("[WARNING] ", "Unable to refresh regions at this time.")
 								else:
 									old_text = self.ui.label["text"]
 									self.report("", "Refreshing...")
-									if (sc4mp_ui):
+									if sc4mp_ui:
 										regions_refresher_ui = RegionsRefresherUI(self.server)
 										regions_refresher_ui.worker.run()
 										try:
@@ -2606,11 +2606,11 @@ class GameMonitor(th.Thread):
 					time.sleep(5) #3
 			
 			# Destroy the game monitor ui if running
-			if (self.ui != None):
+			if self.ui != None:
 				self.ui.destroy()
 
 			# Show the main ui once again
-			if (sc4mp_ui != None):
+			if sc4mp_ui != None:
 				sc4mp_ui.deiconify()
 				sc4mp_ui.lift()
 
@@ -2676,7 +2676,7 @@ class GameMonitor(th.Thread):
 
 		filesize_read = 0
 		with filename.open("wb") as f:
-			while (filesize_read < filesize):
+			while filesize_read < filesize:
 				bytes_read = s.recv(SC4MP_BUFFER_SIZE)
 				if not bytes_read:
 					break
@@ -2709,7 +2709,7 @@ class GameMonitor(th.Thread):
 
 		# Create socket
 		s = self.create_socket()
-		if (s == None):
+		if s == None:
 			self.report(self.PREFIX, 'Save push failed! Server unreachable.') #'Unable to save the city "' + new_city + '" because the server is unreachable.'
 			return
 
@@ -2746,7 +2746,7 @@ class GameMonitor(th.Thread):
 
 		# Handle response from server
 		response = s.recv(SC4MP_BUFFER_SIZE).decode()
-		if (response == "ok"):
+		if response == "ok":
 			self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.') #TODO keep track locally of the client's claims
 			shutil.rmtree(salvage_directory) #TODO make configurable
 		else:
@@ -2778,7 +2778,7 @@ class GameMonitor(th.Thread):
 
 		tries_left = 36
 
-		while(True):
+		while True:
 
 			try:
 
@@ -2791,12 +2791,12 @@ class GameMonitor(th.Thread):
 
 			except socket.error as e:
 				
-				if (tries_left > 0):
+				if tries_left > 0:
 				
 					show_error(e, no_ui=True)
 
 					count = 5
-					while(count > 0):
+					while count > 0:
 						self.report("[ERROR] ", f"Connection failed. Retrying in {count}...")
 						count = count - 1
 						time.sleep(1)
@@ -2836,14 +2836,14 @@ class GameMonitor(th.Thread):
 
 	def report(self, prefix, text):
 		"""TODO"""
-		if (self.ui != None):
+		if self.ui != None:
 			self.ui.label['text'] = text
 		print(prefix + text)
 
 
 	def report_quietly(self, text):
 		"""TODO"""
-		if (self.ui != None):
+		if self.ui != None:
 			self.ui.label['text'] = text
 
 
@@ -2946,7 +2946,7 @@ class RegionsRefresher(th.Thread):
 
 		except Exception as e:
 
-			if (self.ui != None):
+			if self.ui != None:
 				self.ui.withdraw()
 
 			show_error("An error occurred while refreshing regions.\n\n" + str(e))
@@ -2954,7 +2954,7 @@ class RegionsRefresher(th.Thread):
 
 	def report(self, prefix, text):
 		"""TODO"""
-		if (self.ui != None):
+		if self.ui != None:
 			self.ui.label['text'] = text
 			self.ui.progress_bar.start(2)
 			self.ui.progress_bar['mode'] = "indeterminate"
@@ -2965,7 +2965,7 @@ class RegionsRefresher(th.Thread):
 
 	def report_progress(self, text, value, maximum):
 		"""TODO"""
-		if (self.ui != None):
+		if self.ui != None:
 			self.ui.label['text'] = text
 			self.ui.progress_bar.stop()
 			self.ui.progress_bar['mode'] = "determinate"
@@ -2987,7 +2987,7 @@ class RegionsRefresher(th.Thread):
 
 		tries_left = 6
 
-		while(True):
+		while True:
 
 			try:
 
@@ -3000,12 +3000,12 @@ class RegionsRefresher(th.Thread):
 
 			except socket.error as e:
 				
-				if (tries_left > 0):
+				if tries_left > 0:
 				
 					show_error(e, no_ui=True)
 
 					count = 5
-					while(count > 0):
+					while count > 0:
 						self.report("[ERROR] ", f"Connection failed. Retrying in {count}...")
 						count = count - 1
 						time.sleep(1)
@@ -3040,7 +3040,7 @@ class RegionsRefresher(th.Thread):
 		destination = rootpath / relpath
 
 		# Use the cached file if it exists and has the same size
-		if (target.exists() and target.stat().st_size == filesize):
+		if target.exists() and target.stat().st_size == filesize:
 			
 			print(f'- using cached "{hash}"')
 
@@ -3074,14 +3074,14 @@ class RegionsRefresher(th.Thread):
 
 			# Delete cache files if cache too large to accomadate the new cache file
 			cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
-			while (any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize):
+			while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
 				random_cache = random.choice(list(cache_directory.iterdir()))
 				random_cache.unlink()
 
 			# Receive the file. Write to both the destination and cache
 			filesize_read = 0
 			with destination.open("wb") as dest, target.open("wb") as cache:
-				while (filesize_read < filesize):
+				while filesize_read < filesize:
 					bytes_read = s.recv(SC4MP_BUFFER_SIZE)
 					if not bytes_read:
 						break
@@ -3115,11 +3115,11 @@ class DatabaseManager(th.Thread):
 			
 			old_data = str(self.data)
 			
-			while (not self.end): #TODO pretty dumb way of checking if a dictionary has been modified
+			while not self.end: #TODO pretty dumb way of checking if a dictionary has been modified
 				try:
 					time.sleep(SC4MP_DELAY)
 					new_data = str(self.data)
-					if (old_data != new_data):
+					if old_data != new_data:
 						report(f'Updating "{self.filename}"...', self)
 						self.update_json()
 						report("- done.", self)
@@ -3251,7 +3251,7 @@ class UI(tk.Tk):
 
 		# Server List
 
-		if (SC4MP_SERVERLIST_ENABLED):
+		if SC4MP_SERVERLIST_ENABLED:
 			self.server_list = ServerListUI(self)
 			self.server_list.grid(row=0, column=0, padx=0, pady=0, sticky="w")
 		else:
@@ -3425,7 +3425,7 @@ class GeneralSettingsUI(tk.Toplevel):
 	def browse_path(self):
 		"""TODO"""
 		path = filedialog.askdirectory(parent=self)
-		if (len(path) > 0):
+		if len(path) > 0:
 			self.path_frame.entry.delete(0, 'end')
 			self.path_frame.entry.insert(0, path)
 
@@ -3446,7 +3446,7 @@ class GeneralSettingsUI(tk.Toplevel):
 
 	def reset(self):
 		"""TODO"""
-		if (messagebox.askokcancel(title=SC4MP_TITLE, message="Revert settings to the default configuration?", icon="warning")):
+		if messagebox.askokcancel(title=SC4MP_TITLE, message="Revert settings to the default configuration?", icon="warning"):
 			self.destroy()
 			sc4mp_config.data.pop("GENERAL")
 			sc4mp_config.update()
@@ -3550,7 +3550,7 @@ class StorageSettingsUI(tk.Toplevel):
 	def browse_path(self):
 		"""TODO"""
 		path = filedialog.askdirectory(parent=self)
-		if (len(path) > 0):
+		if len(path) > 0:
 			self.path_frame.entry.delete(0, 'end')
 			self.path_frame.entry.insert(0, path)
 
@@ -3559,9 +3559,9 @@ class StorageSettingsUI(tk.Toplevel):
 		for item in self.config_update:
 			data = item[0].get()
 			key = item[1]
-			if (key == "storage_path" and type(data) is str and not data == sc4mp_config["STORAGE"]["storage_path"]):
+			if key == "storage_path" and type(data) is str and not data == sc4mp_config["STORAGE"]["storage_path"]:
 				if (Path(data) / 'Plugins').exists() or (Path(data) / 'Regions').exists():
-					if (not messagebox.askokcancel(title=SC4MP_TITLE, message=f'The directory "{data}" already contains Simcity 4 plugins and regions. \n\nProceeding will result in the IRREVERSIBLE DELETION of these files! \n\nThis is your final warning, do you wish to proceed?', icon="warning")): #TODO make message box show yes/no and not ok/cancel
+					if not messagebox.askokcancel(title=SC4MP_TITLE, message=f'The directory "{data}" already contains Simcity 4 plugins and regions. \n\nProceeding will result in the IRREVERSIBLE DELETION of these files! \n\nThis is your final warning, do you wish to proceed?', icon="warning"): #TODO make message box show yes/no and not ok/cancel
 						raise ClientException("Operation cancelled by user.")
 			update_config_value("STORAGE", key, data)
 		create_subdirectories()
@@ -3580,7 +3580,7 @@ class StorageSettingsUI(tk.Toplevel):
 
 	def reset(self):
 		"""TODO"""
-		if (messagebox.askokcancel(title=SC4MP_TITLE, message="Revert settings to the default configuration?", icon="warning")): #TODO make yes/no
+		if messagebox.askokcancel(title=SC4MP_TITLE, message="Revert settings to the default configuration?", icon="warning"): #TODO make yes/no
 			self.destroy()
 			sc4mp_config.data.pop("STORAGE")
 			sc4mp_config.update()
@@ -3716,7 +3716,7 @@ class SC4SettingsUI(tk.Toplevel):
 	def browse_path(self):
 		"""TODO"""
 		path = filedialog.askdirectory(parent=self)
-		if (len(path) > 0):
+		if len(path) > 0:
 			self.path_frame.entry.delete(0, 'end')
 			self.path_frame.entry.insert(0, path)
 
@@ -3725,7 +3725,7 @@ class SC4SettingsUI(tk.Toplevel):
 		for item in self.config_update:
 			data = item[0].get()
 			key = item[1]
-			if (key == "res"):
+			if key == "res":
 				res = data.split(' ')[0]
 				resw, resh = res.split('x')
 				update_config_value("SC4", "resw", resw)
@@ -3743,7 +3743,7 @@ class SC4SettingsUI(tk.Toplevel):
 
 	def reset(self):
 		"""TODO"""
-		if (messagebox.askokcancel(title=SC4MP_TITLE, message="Revert settings to the default configuration?", icon="warning")):
+		if messagebox.askokcancel(title=SC4MP_TITLE, message="Revert settings to the default configuration?", icon="warning"):
 			self.destroy()
 			sc4mp_config.data.pop("SC4")
 			sc4mp_config.update()
@@ -3768,10 +3768,10 @@ class SC4SettingsUI(tk.Toplevel):
 		try:
 
 			# Check if a path to Simcity 4 can be found, prompt for a custom path if needed
-			while (get_sc4_path() == None):
+			while get_sc4_path() == None:
 				show_warning('No Simcity 4 installation found. \n\nPlease provide the correct installation path.')
 				path = filedialog.askdirectory(parent=sc4mp_ui)
-				if (len(path) > 0):
+				if len(path) > 0:
 					sc4mp_config["SC4"]["game_path"] = path
 					self.path_frame.entry.delete(0, 'end')
 					self.path_frame.entry.insert(0, path)
@@ -3779,7 +3779,7 @@ class SC4SettingsUI(tk.Toplevel):
 					break
 			
 			# Load the game if a path to Simcity 4 can be found
-			if (get_sc4_path() != None):
+			if get_sc4_path() != None:
 
 				# Purge plugins and regions
 				purge_directory(Path(SC4MP_LAUNCHPATH) / "Plugins")
@@ -3997,7 +3997,7 @@ class DirectConnectUI(tk.Toplevel):
 		host = self.host_entry.get()
 		port = self.port_entry.get()
 		try:
-			if (len(host) < 1):
+			if len(host) < 1:
 				host = SC4MP_HOST
 				#raise ClientException("Invalid host")
 			try:
@@ -4073,8 +4073,8 @@ class PasswordDialogUI(tk.Toplevel):
 
 		# Update loop
 		self.wait = True
-		while (self.wait):
-			if (len(self.password_entry.get()) < 1):
+		while self.wait:
+			if len(self.password_entry.get()) < 1:
 				self.ok_cancel.ok_button['state'] = tk.DISABLED
 			else:
 				self.ok_cancel.ok_button['state'] = tk.NORMAL
@@ -4084,7 +4084,7 @@ class PasswordDialogUI(tk.Toplevel):
 	def ok(self):
 		"""TODO"""
 		password = self.password_entry.get()
-		if (len(password) > 0):
+		if len(password) > 0:
 			self.server_loader.server.password = password
 			self.wait = False
 			self.destroy()
@@ -4400,7 +4400,7 @@ class ServerListUI(tk.Frame):
 		"""TODO"""
 		print("Sort by \"" + name + "\"")
 		DEFAULT_REVERSED = ("Name", "Claimed", "Download", "Ping")
-		if (self.tree.sort == name):
+		if self.tree.sort == name:
 			self.tree.reverse_sort = not self.tree.reverse_sort
 		else:
 			self.tree.sort = name
@@ -4415,7 +4415,7 @@ class ServerListUI(tk.Frame):
 		"""TODO"""
 		try:
 			self.tree.focus_set()
-			if (self.tree.focus() == ""):
+			if self.tree.focus() == "":
 				children = self.tree.get_children()
 				self.tree.focus(children[0])
 		except Exception as e:
@@ -4426,13 +4426,13 @@ class ServerListUI(tk.Frame):
 		"""TODO"""
 		print('"Connect"')
 		server_id = self.tree.focus()
-		if (server_id == ""):
+		if server_id == "":
 			return
 		server = self.worker.servers[server_id]
 		host = server.host
 		port = server.port
 		try:
-			if (len(host) < 1):
+			if len(host) < 1:
 				host = SC4MP_HOST
 			try:
 				port = int(port)
@@ -4667,7 +4667,7 @@ class ClientException(Exception):
 
 # Logger
 
-class Logger():
+class Logger:
 	"""TODO"""
 	
 
@@ -4682,7 +4682,7 @@ class Logger():
 
 		output = message
 
-		if (message != "\n"):
+		if message != "\n":
 
 			# Timestamp
 			timestamp = datetime.now().strftime("[%H:%M:%S] ")
@@ -4710,12 +4710,12 @@ class Logger():
 			for index in range(len(TYPES_COLORS)):
 				current_type = TYPES_COLORS[index][0]
 				current_color = TYPES_COLORS[index][1]
-				if (message[:len(current_type)] == current_type):
+				if message[:len(current_type)] == current_type:
 					message = message[len(current_type):]
 					type = current_type
 					color = current_color
 					break
-			if (th.current_thread().getName() == "Main" and type == "[INFO] "):
+			if th.current_thread().getName() == "Main" and type == "[INFO] ":
 				color = '\033[00m '
 			
 			# Assemble
