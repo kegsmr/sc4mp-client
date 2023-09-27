@@ -26,7 +26,7 @@ from pathlib import Path, PureWindowsPath
 from tkinter import Menu, filedialog, messagebox, ttk
 from typing import Optional
 
-SC4MP_VERSION = "0.4.0"  # RESTORE THIS BEFORE COMMITTING
+SC4MP_VERSION = "0.4.0"
 
 SC4MP_SERVERS = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
 
@@ -386,22 +386,30 @@ def start_sc4():
 def start_sc4_linux():
 	"""
 	Attempts to launch SC4 if a suitable game path is found. Launches game from steam if previously specified.
-
-	TODO: Move path checks to a different function for reuse
 	"""
 	print("Starting Simcity 4...")
 
+	# Create symlink inside the prefix to the .local/share folder to avoid having to deal with UserDir. TODO: Spawn a watchdog process whose only purpose is to restore the original Simcity 4 folder
+	if sc4mp_config["LINUX"]["use_steam"]:
+		symlink_path = Path("~/.steam/steam/steamapps/compatdata/24780/pfx/drive_c/users/steamuser/Documents/SimCity 4").expanduser()
+		os.rename(symlink_path, symlink_path.parent / ".SimCity 4")
+		if not symlink_path.exists():
+			os.symlink(SC4MP_LAUNCHPATH, symlink_path)
+	else:
+		pass
+
 	launch_args = [
-		f'-UserDir:"Z:{PureWindowsPath(SC4MP_LAUNCHPATH)}\\"',  # add trailing slash here because SC4 expects it (Use backslash since sc4 is guaranteed to be running in a windows-like environment on linux)
 		'-intro:off',
 		'-CustomResolution:enabled',
 		f'-r{sc4mp_config["SC4"]["resw"]}x{sc4mp_config["SC4"]["resh"]}x32',
 		f'-CPUCount:{sc4mp_config["SC4"]["cpu_count"]}',
-		f'-CPUPriority:{sc4mp_config["SC4"]["cpu_priority"]}'
+		f'-CPUPriority:{sc4mp_config["SC4"]["cpu_priority"]}',
+		'-f' if sc4mp_config["SC4"]["fullscreen"] else '-w'
 	]
 
 	if sc4mp_config["LINUX"]["use_steam"]:
-		subprocess.run(["steam", f"steam://run/24780//\"{' '.join(launch_args)}\""])  # TODO: Add error handling in case steam is not found
+		print(f"Launching with arguments: {' '.join(launch_args)}")
+		subprocess.run(["steam", f"steam://run/24780//{' '.join(launch_args)}"])  # TODO: Add error handling in case steam is not found
 	else:
 		pass  # Put here the subprocess run that launches a wine prefix
 
@@ -412,7 +420,11 @@ def start_sc4_linux():
 		if not is_running:
 			break
 
-	print("Simcity 4 closed.")
+	print("Simcity 4 closed. Restoring SimCity 4 folder inside prefix. If it fails, the folder should still be there but hidden")
+
+	# Remove symlink and restore original Simcity 4 folder
+	os.remove(symlink_path)  # WARNING VERY DANGEROUS
+	os.rename(symlink_path.parent / ".SimCity 4", symlink_path)
 
 
 def process_exists_linux_steam():
@@ -696,7 +708,13 @@ def set_server_data(entry, server):
 
 def get_sc4_cfg_path() -> Path: #TODO can this find the cfg for the origin version?
 	"""TODO"""
-	return Path(SC4MP_LAUNCHPATH) / "SimCity 4.cfg"
+	if platform.system() == "Linux":
+		if sc4mp_config["LINUX"]["use_steam"]:
+			return Path(SC4MP_LAUNCHPATH)
+		else:
+			pass  # TODO: implement for wine
+	else:
+		return Path(SC4MP_LAUNCHPATH) / "SimCity 4.cfg"
 
 
 def region_open(region):
