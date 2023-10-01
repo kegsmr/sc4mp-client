@@ -801,9 +801,9 @@ class Server:
 		self.server_description = self.request("server_description")
 		self.server_url = self.request("server_url")
 		self.server_version = self.request("server_version")
-		self.password_enabled = self.request("password_enabled") == "yes"
-		self.user_plugins_enabled = self.request("user_plugins_enabled") == "yes"
-		self.private = self.request("private") == "yes"
+		self.password_enabled = self.request("password_enabled") == "y"
+		self.user_plugins_enabled = self.request("user_plugins_enabled") == "y"
+		self.private = self.request("private") == "y"
 
 		if self.password_enabled:
 			self.categories.append("Private")
@@ -882,7 +882,7 @@ class Server:
 	def fetch_temp(self):
 		"""TODO"""
 
-		REQUESTS = [b"plugins", b"regions"]
+		REQUESTS = ["plugins", "regions"]
 		DIRECTORIES = ["Plugins", "Regions"]
 
 		size_downloaded = 0
@@ -898,11 +898,10 @@ class Server:
 			s.connect((self.host, self.port))
 
 			# Request the type of data
-			s.send(request)
-
-			# Request header
-			if self.private:
-				request_header(s, self)
+			if not self.private:
+				s.send(request.encode())
+			else:
+				s.send(f"{request} {SC4MP_VERSION} {self.user_id} {self.password}".encode())
 
 			# Receive file count
 			file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
@@ -1036,9 +1035,7 @@ class Server:
 			hash = hashlib.sha256(((hashlib.sha256(user_id.encode()).hexdigest()[:32]) + token).encode()).hexdigest()
 			s = socket.socket()
 			s.connect((self.host, self.port))
-			s.send(b"user_id")
-			s.recv(SC4MP_BUFFER_SIZE)
-			s.send(hash.encode())
+			s.send(f"user_id {hash}".encode())
 			if s.recv(SC4MP_BUFFER_SIZE).decode() == hashlib.sha256(user_id.encode()).hexdigest()[:32]:
 				self.user_id = user_id
 			else:
@@ -1050,8 +1047,7 @@ class Server:
 		# Get the new token
 		s = socket.socket()
 		s.connect((self.host, self.port))
-		s.send(b"token")
-		request_header(s, self)
+		s.send(f"token {SC4MP_VERSION} {self.user_id} {self.password}".encode())
 		token = s.recv(SC4MP_BUFFER_SIZE).decode()
 
 		# Raise exception if no token is received
@@ -1388,10 +1384,10 @@ class ServerList(th.Thread):
 		self.unfetched_servers = SC4MP_SERVERS.copy()
 		
 		try:
-			self.lan_servers = [(row[0], port) for row in arp() for port in range(7240, 7250)]
+			self.lan_servers = [(row[0], port) for row in [("localhost", None, None)] + arp() for port in range(7240, 7250)]
 		except Exception as e:
-			show_error(e)
 			self.lan_servers = []
+			show_error(e, no_ui=True)
 
 		delete_server_ids = []
 		for server_id in reversed(sc4mp_servers_database.keys()):
@@ -2081,10 +2077,8 @@ class ServerLoader(th.Thread):
 			s = self.create_socket()
 			if self.ui != None:
 				self.ui.label['text'] = "Authenticating..."
-			s.send(b'check_password')
-			s.recv(SC4MP_BUFFER_SIZE)
-			s.send(self.server.password.encode())
-			if s.recv(SC4MP_BUFFER_SIZE) == b'yes':
+			s.send(f"check_password {self.server.password}".encode())
+			if s.recv(SC4MP_BUFFER_SIZE) == b'y':
 				return True
 			else:
 				return False
@@ -2159,11 +2153,10 @@ class ServerLoader(th.Thread):
 		s = self.create_socket() 
 
 		# Request the type of data
-		s.send(target.encode())
-
-		# Request header
-		if self.server.private:
-			request_header(s, self.server)
+		if not self.server.private:
+			s.send(target.encode())
+		else:
+			s.send(f"{target} {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
 
 		# Receive file count
 		file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
@@ -2714,8 +2707,7 @@ class GameMonitor(th.Thread):
 			return
 
 		# Send save request
-		s.send(b"save")
-		request_header(s, self.server)
+		s.send(f"save {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
 		s.recv(SC4MP_BUFFER_SIZE)
 
 		# Send file count
@@ -2907,11 +2899,10 @@ class RegionsRefresher(th.Thread):
 			s = self.create_socket()
 
 			# Request regions
-			s.send(b"regions")
-
-			# Request header
-			if self.server.private:
-				request_header(s, self.server)
+			if not self.server.private:
+				s.send(b"regions")
+			else:
+				s.send(f"regions {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
 
 			# Receive file count
 			file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
