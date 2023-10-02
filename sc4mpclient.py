@@ -147,7 +147,7 @@ def main():
 				sc4mp_port = int(get_arg_value("--port", sc4mp_args))
 			except:
 				raise ClientException("Invalid arguments.")
-			
+
 		# "--password" argument
 		global sc4mp_password
 		sc4mp_password = None
@@ -182,19 +182,19 @@ def main():
 				sc4mp_password = input("[PROMPT] - Enter server password... ")
 			server.password = sc4mp_password
 			ServerLoader(None, server).run()
-		
+
 		# Cleanup
 		cleanup()
 
 	except Exception as e:
 
-		# Fatal error 
+		# Fatal error
 		fatal_error()
 
 
 def prep():
 	"""Prepares the client to launch."""
-	
+
 	load_config()
 	create_subdirectories()
 	load_database()
@@ -214,7 +214,7 @@ def load_config():
 
 	sc4mp_config = Config(SC4MP_CONFIG_PATH, SC4MP_CONFIG_DEFAULTS)
 
-	
+
 def update_config_constants(config):
 	"""For backwards compatibility. Updates the global config constants that are sometimes used internally."""
 
@@ -389,72 +389,72 @@ def start_sc4_linux():
 	"""
 	print("Starting Simcity 4...")
 
-	# Create symlink inside the prefix to the .local/share folder to avoid having to deal with UserDir. TODO: Spawn a watchdog process whose only purpose is to restore the original Simcity 4 folder
-	if sc4mp_config["LINUX"]["use_steam"]:
-		symlink_path = Path("~/.steam/steam/steamapps/compatdata/24780/pfx/drive_c/users/steamuser/Documents/SimCity 4").expanduser()
-		os.rename(symlink_path, symlink_path.parent / ".SimCity 4")
-		if not symlink_path.exists():
-			os.symlink(SC4MP_LAUNCHPATH, symlink_path)
-	else:
-		pass
+	try:
+		# Create symlink inside the prefix to the .local/share folder to avoid having to deal with UserDir. TODO: Spawn a watchdog process whose only purpose is to restore the original Simcity 4 folder
+		if sc4mp_config["LINUX"]["use_steam"]:
+			symlink_path = Path("~/.steam/steam/steamapps/compatdata/24780/pfx/drive_c/users/steamuser/Documents/SimCity 4").expanduser()
+			os.rename(symlink_path, symlink_path.parent / ".SimCity 4")
+			if not symlink_path.exists():
+				os.symlink(SC4MP_LAUNCHPATH, symlink_path)
+		else:
+			pass
 
-	launch_args = [
-		'-intro:off',
-		'-CustomResolution:enabled',
-		f'-r{sc4mp_config["SC4"]["resw"]}x{sc4mp_config["SC4"]["resh"]}x32',
-		f'-CPUCount:{sc4mp_config["SC4"]["cpu_count"]}',
-		f'-CPUPriority:{sc4mp_config["SC4"]["cpu_priority"]}',
-		'-f' if sc4mp_config["SC4"]["fullscreen"] else '-w'
-	]
+		launch_args = [
+			'-intro:off',
+			'-CustomResolution:enabled',
+			f'-r{sc4mp_config["SC4"]["resw"]}x{sc4mp_config["SC4"]["resh"]}x32',
+			f'-CPUCount:{sc4mp_config["SC4"]["cpu_count"]}',
+			f'-CPUPriority:{sc4mp_config["SC4"]["cpu_priority"]}',
+			'-f' if sc4mp_config["SC4"]["fullscreen"] else '-w'
+		]
 
-	if sc4mp_config["LINUX"]["use_steam"]:
-		print(f"Launching with arguments: {' '.join(launch_args)}")
-		subprocess.run(["steam", f"steam://run/24780//{' '.join(launch_args)}"])  # TODO: Add error handling in case steam is not found
-	else:
-		pass  # Put here the subprocess run that launches a wine prefix
+		if sc4mp_config["LINUX"]["use_steam"]:
+			print(f"Launching with arguments: {' '.join(launch_args)}")
+			subprocess.Popen(["steam", f"steam://run/24780//{' '.join(launch_args)}"])  # TODO: Add error handling in case steam is not found
+		else:
+			pass  # Put here the subprocess run that launches a wine prefix
 
-	# Steam takes way too long to launch, maybe search the process and have a timeout?
-	time.sleep(15)
-	for is_running in process_exists_linux_steam():
-		time.sleep(1)
-		if not is_running:
-			break
+		for is_running in process_exists_linux_steam():
+			time.sleep(1)
+			if not is_running:
+				break
 
-	print("Simcity 4 closed. Restoring SimCity 4 folder inside prefix. If it fails, the folder should still be there but hidden")
-
-	# Remove symlink and restore original Simcity 4 folder
-	os.remove(symlink_path)  # WARNING VERY DANGEROUS
-	os.rename(symlink_path.parent / ".SimCity 4", symlink_path)
+		print("Simcity 4 closed. Restoring SimCity 4 folder inside prefix. If it fails, the folder should still be there but hidden")
+	finally:
+		# Remove symlink and restore original Simcity 4 folder
+		os.remove(symlink_path)  # WARNING VERY DANGEROUS
+		os.rename(symlink_path.parent / ".SimCity 4", symlink_path)
 
 
 def process_exists_linux_steam():
-    cmdline_mtime: float
-    pid: int = -1
+	timeout_time = time.time() + 60
+	cmdline_mtime: float
+	pid: int = -1
 
-    # Search for PID using the proc's cmdline (A bit slow). Searching backwards should be more efficient since this is run right after launching the game
-    print("Scanning for the Simcity 4 process...")
-    for proc in sorted(os.scandir("/proc/"), key=lambda e: e.name, reverse=True):
-        if proc.is_dir() and proc.name.isdigit():
-            with open(f"{proc.path}/cmdline", "r") as cmdline:
-                if "SimCity 4.exe" in cmdline.read():
-                    print(f"Found Simcity 4 with process ID {proc.name}")
-                    pid = int(proc.name)
-                    cmdline_mtime = os.path.getmtime(f"{proc.path}/cmdline")
-                    yield True
-                    break
+	# Search for PID using the proc's cmdline (A bit slow). Searching backwards should be more efficient since this is run right after launching the game
+	print("Scanning for the Simcity 4 process...")
+	while pid == -1:
+		if time.time() >= timeout_time:
+			raise OSError("Could not find Simcity 4 process.")
+		for proc in sorted(os.scandir("/proc/"), key=lambda e: e.name, reverse=True):
+			if proc.is_dir() and proc.name.isdigit():
+				if (Path(proc) / "cmdline").exists():
+					with open(f"{proc.path}/cmdline", "r") as cmdline:
+						if "SimCity 4.exe" in cmdline.read():
+							print(f"Found Simcity 4 with process ID {proc.name}")
+							pid = int(proc.name)
+							cmdline_mtime = os.path.getmtime(f"{proc.path}/cmdline")
+							yield True
+							break
 
-    if pid == -1:
-        return False
-
-    while True:
-        if os.path.exists(f"/proc/{pid}"):  # If pid path doesn't exist, we can be certain that the game has closed
-            if cmdline_mtime != os.path.getmtime(f"/proc/{pid}/cmdline"):  # Check done in case another program grabbed Simcity 4's pid, unlikely and hard to test
-                return False
-            else:
-                yield True
-        else:
-            return False
-
+	while True:
+		if os.path.exists(f"/proc/{pid}"):  # If pid path doesn't exist, we can be certain that the game has closed
+			if cmdline_mtime != os.path.getmtime(f"/proc/{pid}/cmdline"):  # Check done in case another program grabbed Simcity 4's pid, unlikely and hard to test
+				return False
+			else:
+				yield True
+		else:
+			return False
 
 
 def process_exists(process_name): #TODO add macos compatability
@@ -467,9 +467,9 @@ def process_exists(process_name): #TODO add macos compatability
 			return last_line.lower().startswith(process_name.lower())
 		else:
 			return False
-	except Exception as e:	# Hacky solution. It keeps the game monitor running (possibly infinitely) instead of closing it. Because that's better than closing it. 
+	except Exception as e:	# Hacky solution. It keeps the game monitor running (possibly infinitely) instead of closing it. Because that's better than closing it.
 		show_error(e, no_ui=True)
-		return True 
+		return True
 
 
 def get_sc4mp_path(filename: str) -> Path:
@@ -559,7 +559,7 @@ def show_error(e, no_ui=False):
 	message = None
 	if (isinstance(e, str)):
 		message = e
-	else: 
+	else:
 		message = str(e)
 
 	print(f"[ERROR] {message}\n\n{traceback.format_exc()}")
@@ -604,7 +604,7 @@ def show_warning(e):
 	message = None
 	if (isinstance(e, str)):
 		message = e
-	else: 
+	else:
 		message = str(e)
 
 	print(f"[WARNING] {message}")
@@ -810,7 +810,7 @@ class Config:
 				item_name = item[0]
 				item_value = item[1]
 				self.data[section_name].setdefault(item_name, item_value)
-		
+
 		# Try to read settings from the config file and update the dictionary accordingly
 		parser = configparser.RawConfigParser()
 		try:
@@ -959,9 +959,9 @@ class Server:
 				show_error(e, no_ui=True)
 
 		self.stat_mayors = len(mayors) #(random.randint(0,1000))
-		
+
 		self.stat_mayors_online = len(mayors_online) #int(self.stat_mayors * (float(random.randint(0, 100)) / 100))
-		
+
 		try:
 			self.stat_claimed = (float(claimed_area) / float(total_area)) #(float(random.randint(0, 100)) / 100)
 		except ZeroDivisionError:
@@ -1197,7 +1197,7 @@ class Server:
 			s.send(b"time")
 
 			return datetime.strptime(s.recv(SC4MP_BUFFER_SIZE).decode(), "%Y-%m-%d %H:%M:%S")
-		
+
 		except Exception as e:
 
 			show_error(e, no_ui=True)
@@ -1356,8 +1356,8 @@ class DBPF:
 		if (file == None):
 			file = self.file
 		return struct.unpack('<H', file.read(2))[0]
-	
-	
+
+
 	def read_UL4(self, file=None):
 		"""TODO"""
 		if (file == None):
@@ -1412,7 +1412,7 @@ class DBPF:
 		report(f'Parsing region view subfile of "{self.filename}"...', self)
 
 		data = self.decompress_subfile("ca027edb")
-	
+
 		#print(data.read())
 		#data.seek(0)
 
@@ -1420,13 +1420,13 @@ class DBPF:
 
 		self.SC4ReadRegionalCity['majorVersion'] = self.read_UL2(data)
 		self.SC4ReadRegionalCity['minorVersion'] = self.read_UL2(data)
-		
+
 		self.SC4ReadRegionalCity['tileXLocation'] = self.read_UL4(data)
 		self.SC4ReadRegionalCity['tileYLocation'] = self.read_UL4(data)
-		
+
 		self.SC4ReadRegionalCity['citySizeX'] = self.read_UL4(data)
 		self.SC4ReadRegionalCity['citySizeY'] = self.read_UL4(data)
-		
+
 		self.SC4ReadRegionalCity['residentialPopulation'] = self.read_UL4(data)
 		self.SC4ReadRegionalCity['commercialPopulation'] = self.read_UL4(data)
 		self.SC4ReadRegionalCity['industrialPopulation'] = self.read_UL4(data)
@@ -1451,7 +1451,7 @@ class DBPF:
 
 		return self.SC4ReadRegionalCity
 
-	
+
 	def get_cSC4Simulator(self):
 		"""TODO"""
 
@@ -1487,7 +1487,7 @@ class ServerList(th.Thread):
 		self.servers = dict()
 
 		self.unfetched_servers = SC4MP_SERVERS.copy()
-		
+
 		try:
 			self.lan_servers = [(row[0], port) for row in arp() for port in range(7240, 7250)]
 		except Exception as e:
@@ -1561,7 +1561,7 @@ class ServerList(th.Thread):
 						self.ui.address_label["text"] = self.servers[server_id].host + ":" + str(self.servers[server_id].port)
 						self.ui.description_label["text"] = self.servers[server_id].server_description
 						self.ui.url_label["text"] = self.servers[server_id].server_url
-						
+
 					# Add all fetched servers to the server dictionary if not already present
 					while len(self.fetched_servers) > 0:
 						fetched_server = self.fetched_servers.pop(0)
@@ -1746,7 +1746,7 @@ class ServerList(th.Thread):
 					return False
 			return True
 
-	
+
 	def sort(self, server_indices): #TODO doesnt work in one pass!
 		"""deprecated"""
 		server_ids = list(server_indices.keys())
@@ -1783,7 +1783,7 @@ class ServerList(th.Thread):
 				return server_a_sort_value >= server_b_sort_value
 			else:
 				return server_a_sort_value <= server_b_sort_value
-	
+
 
 	def in_order_index(self, server):
 		"""TODO"""
@@ -1795,7 +1795,7 @@ class ServerList(th.Thread):
 				return index
 		return "end"
 
-	
+
 	def get_sort_value(self, server):
 		"""TODO"""
 		sort_mode = self.ui.tree.sort
@@ -1820,10 +1820,10 @@ class ServerList(th.Thread):
 		"""TODO"""
 		functions = [
 			lambda: str(server.stat_mayors) + " (" + str(server.stat_mayors_online) + ")",
-	    	lambda: str(int(server.stat_claimed * 100)) + "%",
-		    lambda: format_filesize(server.stat_download),
-		    lambda: str(server.stat_ping) + "ms",
-		    lambda: str(round(server.rating, 1)),
+			lambda: str(int(server.stat_claimed * 100)) + "%",
+			lambda: format_filesize(server.stat_download),
+			lambda: str(server.stat_ping) + "ms",
+			lambda: str(round(server.rating, 1)),
 		]
 		cells = []
 		for function in functions:
@@ -1833,7 +1833,7 @@ class ServerList(th.Thread):
 				cells.append("...")
 		return cells
 
-	
+
 	def calculate_rating(self, server):
 		"""TODO"""
 		try:
@@ -1851,7 +1851,7 @@ class ServerList(th.Thread):
 				server.rating = rating
 		except:
 			pass
-	
+
 
 	def max_category(self, item, array):
 		"""TODO"""
@@ -1885,7 +1885,7 @@ class ServerFetcher(th.Thread):
 
 
 	def run(self):
-		
+
 		try:
 
 			try:
@@ -1945,7 +1945,7 @@ class ServerFetcher(th.Thread):
 				if not self.server.private:
 
 					print("- fetching server stats...")
-					
+
 					try:
 						self.fetch_stats()
 					except Exception as e:
@@ -1967,8 +1967,8 @@ class ServerFetcher(th.Thread):
 	def fetch_stats(self):
 		"""TODO"""
 		self.server.fetch_stats()
-		
-	
+
+
 	def server_list(self):
 		"""TODO"""
 		s = self.create_socket(self.server)
@@ -2030,7 +2030,7 @@ class ServerPinger(th.Thread):
 class ServerLoader(th.Thread):
 	"""TODO"""
 
-	
+
 	def __init__(self, ui, server):
 		"""TODO"""
 
@@ -2044,7 +2044,7 @@ class ServerLoader(th.Thread):
 		if (sc4mp_ui != None):
 			sc4mp_ui.withdraw()
 
-	
+
 	def run(self):
 		"""TODO"""
 
@@ -2061,7 +2061,7 @@ class ServerLoader(th.Thread):
 						self.ui.destroy()
 						sc4mp_ui.deiconify()
 						return
-		
+
 			host = self.server.host
 			port = self.server.port
 
@@ -2069,7 +2069,7 @@ class ServerLoader(th.Thread):
 
 				self.report("", f'Connecting to server at {host}:{port}...')
 				self.fetch_server()
-				
+
 				self.report("", 'Authenticating...')
 				self.authenticate()
 
@@ -2098,7 +2098,7 @@ class ServerLoader(th.Thread):
 
 			if (self.ui != None):
 				self.ui.destroy()
-			
+
 			if (sc4mp_current_server != None):
 				sc4mp_config["GENERAL"]["default_host"] = self.server.host
 				sc4mp_config["GENERAL"]["default_port"] = self.server.port
@@ -2172,7 +2172,7 @@ class ServerLoader(th.Thread):
 			else:
 				raise ClientException("Incorrect password.")
 		self.server.authenticate()
-		
+
 
 	def check_password(self):
 		"""TODO"""
@@ -2193,7 +2193,7 @@ class ServerLoader(th.Thread):
 			return True
 
 
-	def load(self, target: str) -> None:
+	def load(self, target: str) -> None:  # ADAPT THIS FOR THE NEW LINUX SETUP
 		"""TODO"""
 
 		# Select the destination directory according to the parameter
@@ -2257,7 +2257,7 @@ class ServerLoader(th.Thread):
 			raise ClientException("Simcity 4 is already running!")
 
 		# Create the socket
-		s = self.create_socket() 
+		s = self.create_socket()
 
 		# Request the type of data
 		s.send(target.encode())
@@ -2286,7 +2286,7 @@ class ServerLoader(th.Thread):
 
 		#print("done.")
 
-		
+
 	'''def old_load(self, type):
 		"""TODO"""
 
@@ -2357,9 +2357,9 @@ class ServerLoader(th.Thread):
 				break
 
 			except socket.error as e:
-				
+
 				if (tries_left > 0):
-				
+
 					show_error(e, no_ui=True)
 
 					count = 5
@@ -2446,7 +2446,7 @@ class ServerLoader(th.Thread):
 					for file in [dest, cache]:
 						file.write(bytes_read)
 					filesize_read += len(bytes_read)
-				
+
 		# Return the file size
 		return filesize
 
@@ -2546,8 +2546,8 @@ class GameMonitor(th.Thread):
 
 			# Set initial status in ui
 			self.report_quietly("Welcome, start a city and save to claim a tile.") #Ready. #"Monitoring for changes...")
-			
-		
+
+
 			# Infinite loop that can be broken by the "end" variable
 			while (True):
 
@@ -2562,7 +2562,7 @@ class GameMonitor(th.Thread):
 						print(f"Ping: {ping}")
 						if (self.ui != None):
 							self.ui.ping_frame.right['text'] = f"{ping}ms"
-					
+
 					# If the server is unresponsive print a warning in the console and update the ui accordingly
 					else:
 						print("[WARNING] Disconnected.")
@@ -2570,7 +2570,7 @@ class GameMonitor(th.Thread):
 							self.ui.ping_frame.right['text'] = "Server unresponsive."
 
 					#new_city_paths, new_city_hashcodes = self.get_cities()
-					
+
 					# Array of savegames to push to the server
 					save_city_paths = []
 
@@ -2589,14 +2589,14 @@ class GameMonitor(th.Thread):
 
 						# Store the paths and hashcodes of savegames in the "Regions" directory to two local arrays
 						new_city_paths, new_city_hashcodes = self.get_cities() #TODO I think this should be here...?
-						
+
 						# Loop through the paths of the savegames currently found in the "Regions" directory
 						for new_city_path in new_city_paths:
-							
+
 							# If it's a new savegame, add it to the list of savegames to be pushed to the server
 							if (not new_city_path in self.city_paths):
 								save_city_paths.append(new_city_path)
-							
+
 							# If it's not a new savegame, check if it's a modified savegame. If so, add it to the same list
 							else:
 								city_hashcode = self.city_hashcodes[self.city_paths.index(new_city_path)]
@@ -2609,13 +2609,13 @@ class GameMonitor(th.Thread):
 						self.city_hashcodes = new_city_hashcodes
 
 						if (len(save_city_paths) > 0):
-							
+
 							# Report waiting to sync if new/modified savegames found
 							self.report("", "Saving...") #Scanning #Waiting to sync
-							
+
 							# Wait
 							time.sleep(6) #5 #6 #10 #3 #TODO make configurable?
-					
+
 					# If there are any new/modified savegame files, push them to the server. If errors occur, log them in the console and display a warning
 					if (len(save_city_paths) > 0):
 						try:
@@ -2701,11 +2701,11 @@ class GameMonitor(th.Thread):
 							s.close()
 							print("- " + str(file_count) + " savegame(s) downloaded.")
 						self.ui.label["text"] = old_text'''
-					
+
 				except Exception as e:
 					show_error(e, no_ui=True)
 					time.sleep(5) #3
-			
+
 			# Destroy the game monitor ui if running
 			if (self.ui != None):
 				self.ui.destroy()
@@ -2764,7 +2764,7 @@ class GameMonitor(th.Thread):
 		else:
 			self.report(self.PREFIX, "Delete push not authorized") #TODO placeholder'''
 
-	
+
 	def receive_file(self, s: socket.socket, filename: Path):
 		"""TODO: unused function?"""
 
@@ -2791,7 +2791,7 @@ class GameMonitor(th.Thread):
 
 		# Report progress: backups
 		#self.report(self.PREFIX, 'Creating backups...')
-		
+
 		# Create backups #TODO salvage
 		#for save_city_path in save_city_paths:
 		#	self.backup_city(save_city_path)
@@ -2829,7 +2829,7 @@ class GameMonitor(th.Thread):
 			# Get region and city names
 			region = save_city_path.parent.name
 			city = save_city_path.name
-	
+
 			# Send region name
 			s.send(region.encode())
 			s.recv(SC4MP_BUFFER_SIZE)
@@ -2891,9 +2891,9 @@ class GameMonitor(th.Thread):
 				break
 
 			except socket.error as e:
-				
+
 				if (tries_left > 0):
-				
+
 					show_error(e, no_ui=True)
 
 					count = 5
@@ -2961,13 +2961,13 @@ class GameLauncher(th.Thread):
 
 	def run(self):
 		"""TODO"""
-		
+
 		try:
 			if platform.system() == "Windows":
 				start_sc4()
 			else:
 				start_sc4_linux()
-			
+
 			self.game_running = False
 
 			global sc4mp_current_server
@@ -2979,7 +2979,7 @@ class GameLauncher(th.Thread):
 
 
 class RegionsRefresher(th.Thread):
-	
+
 
 	def __init__(self, ui, server):
 
@@ -2993,12 +2993,12 @@ class RegionsRefresher(th.Thread):
 
 	def run(self):
 		"""TODO"""
-		
+
 		try:
 
 			# Report
 			self.report("", "Refreshing regions...")
-			
+
 			# Set destination
 			destination = Path(SC4MP_LAUNCHPATH) / "Regions"
 
@@ -3102,9 +3102,9 @@ class RegionsRefresher(th.Thread):
 				break
 
 			except socket.error as e:
-				
+
 				if (tries_left > 0):
-				
+
 					show_error(e, no_ui=True)
 
 					count = 5
@@ -3144,7 +3144,7 @@ class RegionsRefresher(th.Thread):
 
 		# Use the cached file if it exists and has the same size
 		if (target.exists() and target.stat().st_size == filesize):
-			
+
 			print(f'- using cached "{hash}"')
 
 			# Tell the server that the file is cached
@@ -3191,7 +3191,7 @@ class RegionsRefresher(th.Thread):
 					for file in [dest, cache]:
 						file.write(bytes_read)
 					filesize_read += len(bytes_read)
-			
+
 		# Return the file size
 		return filesize
 
@@ -3199,7 +3199,7 @@ class RegionsRefresher(th.Thread):
 class DatabaseManager(th.Thread):
 	"""TODO"""
 
-	
+
 	def __init__(self, filename: Path) -> None:
 		"""TODO"""
 
@@ -3213,11 +3213,11 @@ class DatabaseManager(th.Thread):
 
 	def run(self):
 		"""TODO"""
-	
+
 		try:
-			
+
 			old_data = str(self.data)
-			
+
 			while (not self.end): #TODO pretty dumb way of checking if a dictionary has been modified
 				try:
 					time.sleep(SC4MP_DELAY)
@@ -3312,29 +3312,29 @@ class UI(tk.Tk):
 
 		# Menu
 
-		menu = Menu(self)  
-		
-		launcher = Menu(menu, tearoff=0)  
+		menu = Menu(self)
+
+		launcher = Menu(menu, tearoff=0)
 		settings_submenu = Menu(menu, tearoff=0)
-		settings_submenu.add_command(label="General...", command=self.general_settings)     
-		settings_submenu.add_command(label="Storage...", command=self.storage_settings)    
+		settings_submenu.add_command(label="General...", command=self.general_settings)
+		settings_submenu.add_command(label="Storage...", command=self.storage_settings)
 		settings_submenu.add_command(label="SC4...", command=self.SC4_settings)
-		launcher.add_cascade(label="Settings", menu=settings_submenu) 
+		launcher.add_cascade(label="Settings", menu=settings_submenu)
 		launcher.add_separator()
-		launcher.add_command(label="Updates...", command=lambda:webbrowser.open_new_tab(SC4MP_RELEASES_URL)) 
+		launcher.add_command(label="Updates...", command=lambda:webbrowser.open_new_tab(SC4MP_RELEASES_URL))
 		launcher.add_separator()
-		launcher.add_command(label="Exit", command=self.quit)  
+		launcher.add_command(label="Exit", command=self.quit)
 		menu.add_cascade(label="Launcher", menu=launcher)  #TODO rename to "Launcher" and put settings in cascade?
 
-		servers = Menu(menu, tearoff=0)  
-		
+		servers = Menu(menu, tearoff=0)
+
 		#servers.add_command(label="Host...", command=self.host) #TODO
 		#servers.add_separator() #TODO
 		servers.add_command(label="Connect...", accelerator="F1", command=self.direct_connect)  #"Direct connect..."
 		servers.add_command(label="Refresh", command=self.refresh)
-		menu.add_cascade(label="Servers", menu=servers)  
+		menu.add_cascade(label="Servers", menu=servers)
 
-		help = Menu(menu, tearoff=0)  	
+		help = Menu(menu, tearoff=0)
 		help.add_command(label="About...", command=self.about)
 		help.add_command(label="Readme...", command=self.readme)
 		help.add_separator()
@@ -3348,8 +3348,8 @@ class UI(tk.Tk):
 		#	feedback_submenu.add_command(label=link[0], command=lambda:webbrowser.open_new_tab(link[1])) #TODO why does the github button open discord?
 		#help.add_cascade(label="Feedback", menu=feedback_submenu)
 		menu.add_cascade(label="Help", menu=help)
-		
-		self.config(menu=menu)  
+
+		self.config(menu=menu)
 
 
 		# Server List
@@ -3360,7 +3360,7 @@ class UI(tk.Tk):
 		else:
 			self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Connect..." in the menu bar and enter the hostname and port of the server you wish to connect to.')
 			self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
-	
+
 
 	def show_error(self, *args):
 		"""TODO"""
@@ -3377,7 +3377,7 @@ class UI(tk.Tk):
 		print('"General settings..."')
 		GeneralSettingsUI()
 
-	
+
 	def storage_settings(self):
 		print('"Storage settings..."')
 		StorageSettingsUI()
@@ -3461,7 +3461,7 @@ class GeneralSettingsUI(tk.Toplevel):
 		self.minsize(450, 230)
 		self.grid()
 		center_window(self)
-		
+
 		# Priority
 		self.grab_set()
 
@@ -3473,7 +3473,7 @@ class GeneralSettingsUI(tk.Toplevel):
 		self.config_update = []
 
 		# Path frame
-		self.path_frame = tk.LabelFrame(self, text="Custom plugins")		
+		self.path_frame = tk.LabelFrame(self, text="Custom plugins")
 		self.path_frame.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="w")
 
 		# Path checkbutton
@@ -3538,7 +3538,7 @@ class GeneralSettingsUI(tk.Toplevel):
 			data = item[0].get()
 			key = item[1]
 			update_config_value("GENERAL", key, data)
-		
+
 
 	def ok(self):
 		"""TODO"""
@@ -3580,7 +3580,7 @@ class StorageSettingsUI(tk.Toplevel):
 		self.minsize(450, 250)
 		self.grid()
 		center_window(self)
-		
+
 		# Priority
 		self.grab_set()
 
@@ -3592,7 +3592,7 @@ class StorageSettingsUI(tk.Toplevel):
 		self.config_update = []
 
 		# Path frame
-		self.path_frame = tk.LabelFrame(self, text="Launch path")		
+		self.path_frame = tk.LabelFrame(self, text="Launch path")
 		self.path_frame.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="w")
 
 		# Path entry
@@ -3669,7 +3669,7 @@ class StorageSettingsUI(tk.Toplevel):
 			update_config_value("STORAGE", key, data)
 		create_subdirectories()
 		load_database()
-		
+
 
 	def ok(self):
 		"""TODO"""
@@ -3714,7 +3714,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.minsize(385, 305)
 		self.grid()
 		center_window(self)
-		
+
 		# Priority
 		self.grab_set()
 
@@ -3726,7 +3726,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.config_update = []
 
 		# Path frame
-		self.path_frame = tk.LabelFrame(self, text="Custom installation path")		
+		self.path_frame = tk.LabelFrame(self, text="Custom installation path")
 		self.path_frame.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="w")
 
 		# Path entry
@@ -3744,7 +3744,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.path_frame.label.grid(row=1, column=0, columnspan=2, padx=10, pady=(0,10))
 
 		# Resolution frame
-		self.resolution_frame = tk.LabelFrame(self, text="Resolution")		
+		self.resolution_frame = tk.LabelFrame(self, text="Resolution")
 		self.resolution_frame.grid(row=1, column=0, columnspan=1, rowspan=2, padx=10, pady=5, sticky="w")
 
 		# Resolution combo box
@@ -3782,7 +3782,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.config_update.append((self.cpu_priority_frame.combo_box, "cpu_priority"))
 
 		# Additional properties frame
-		self.additional_properties_frame = tk.LabelFrame(self, text="Additional launch properties")		
+		self.additional_properties_frame = tk.LabelFrame(self, text="Additional launch properties")
 		self.additional_properties_frame.grid(row=2, column=1, columnspan=2, padx=10, pady=5, sticky="w")
 
 		# Additional properties entry
@@ -3835,7 +3835,7 @@ class SC4SettingsUI(tk.Toplevel):
 				update_config_value("SC4", "resh", resh)
 			else:
 				update_config_value("SC4", key, data)
-		
+
 
 	def ok(self):
 		"""TODO"""
@@ -3939,7 +3939,7 @@ class HostUI(tk.Toplevel):
 		self.minsize(305, 375)
 		self.grid()
 		center_window(self)
-		
+
 		# Priority
 		self.grab_set()
 
@@ -3996,7 +3996,7 @@ class HostUI(tk.Toplevel):
 		#TODO
 
 		return
-	
+
 
 	def config(self):
 		"""TODO"""
@@ -4004,7 +4004,7 @@ class HostUI(tk.Toplevel):
 		#TODO
 
 		return
-	
+
 
 	def files(self):
 		"""TODO"""
@@ -4012,7 +4012,7 @@ class HostUI(tk.Toplevel):
 		#TODO
 
 		return
-	
+
 
 	def new(self):
 		"""TODO"""
@@ -4036,7 +4036,7 @@ class DirectConnectUI(tk.Toplevel):
 
 
 	def __init__(self):
-		
+
 		#print("Initializing...")
 
 		# Init
@@ -4054,7 +4054,7 @@ class DirectConnectUI(tk.Toplevel):
 		self.minsize(350, 110)
 		self.grid()
 		center_window(self)
-		
+
 		# Priority
 		self.grab_set()
 
@@ -4118,9 +4118,9 @@ class DirectConnectUI(tk.Toplevel):
 
 class PasswordDialogUI(tk.Toplevel):
 
-	
+
 	def __init__(self, server_loader, tries):
-		
+
 		print("Initializing...")
 
 		# Parameters
@@ -4145,7 +4145,7 @@ class PasswordDialogUI(tk.Toplevel):
 		self.minsize(350, 110)
 		self.grid()
 		center_window(self)
-		
+
 		# Priority
 		self.grab_set()
 
@@ -4226,7 +4226,7 @@ class AboutUI(tk.Toplevel):
 		self.minsize(550, 286)
 		self.grid()
 		center_window(self)
-		
+
 		# Priority
 		self.grab_set()
 
@@ -4237,7 +4237,7 @@ class AboutUI(tk.Toplevel):
 		# Image
 		self.canvas = tk.Canvas(self, width=256, height=256)
 		self.canvas.image = tk.PhotoImage(file=get_sc4mp_path("icon.png"))
-		self.canvas.create_image(128, 128, anchor="center", image=self.canvas.image)    
+		self.canvas.create_image(128, 128, anchor="center", image=self.canvas.image)
 		self.canvas.grid(row=0, column=0, rowspan=5, columnspan=1, padx=10, pady=(10,0), sticky="n")
 
 		# Title label 1
@@ -4329,7 +4329,7 @@ class ServerListUI(tk.Frame):
 
 		self.canvas = tk.Canvas(self, width=800, height=100)
 		self.canvas.image = tk.PhotoImage(file=get_sc4mp_path("banner.png"))
-		self.canvas.create_image(400, 50, image=self.canvas.image)    
+		self.canvas.create_image(400, 50, image=self.canvas.image)
 		self.canvas["borderwidth"] = 0
 		self.canvas["highlightthickness"] = 0
 		self.canvas.grid(row=0, column=0, rowspan=1, columnspan=2, padx=0, pady=0)
@@ -4357,37 +4357,37 @@ class ServerListUI(tk.Frame):
 				"Name",
 				3 * NORMAL_COLUMN_WIDTH,
 				"w"
-    		),
-		    (
+			),
+			(
 				"#1",
 				"Mayors",
 				NORMAL_COLUMN_WIDTH,
 				"center"
-    		),
+			),
 			(
 				"#2",
 				"Claimed",
 				NORMAL_COLUMN_WIDTH,
 				"center"
-    		),
+			),
 			(
 				"#3",
 				"Download",
 				NORMAL_COLUMN_WIDTH,
 				"center"
-    		),
+			),
 			(
 				"#4",
 				"Ping",
 				NORMAL_COLUMN_WIDTH,
 				"center"
-    		),
+			),
 			(
 				"#5",
 				"Rating",
 				NORMAL_COLUMN_WIDTH,
 				"center"
-    		)
+			)
 		]
 
 		column_ids = []
@@ -4404,7 +4404,7 @@ class ServerListUI(tk.Frame):
 			column_anchor = column[3]
 			self.tree.column(column_id, width=column_width, anchor=column_anchor, stretch=False)
 			self.tree.heading(column_id, text=column_name, command=lambda column_name=column_name: self.handle_header_click(column_name))
-		
+
 		#self.tree['show'] = 'headings'
 
 		self.tree.bind("<Double-1>", self.handle_double_click) #lambda event: self.connect())
@@ -4452,7 +4452,7 @@ class ServerListUI(tk.Frame):
 		self.combo_box = ttk.Combobox(self, width=20)
 		self.combo_box["values"] = ("category: All", "category: Official", "category: Public", "category: Private", "category: History") #"category: Favorites"
 		self.combo_box.grid(row=3, column=1, rowspan=1, columnspan=1, padx=(0,15), pady=(5,10), sticky="ne")
-		
+
 
 		# Address label
 
@@ -4499,7 +4499,7 @@ class ServerListUI(tk.Frame):
 		region = self.tree.identify_region(event.x, event.y)
 		if region == "separator":
 			return "break"
-		
+
 
 	def handle_header_click(self, name):
 		"""TODO"""
@@ -4524,7 +4524,7 @@ class ServerListUI(tk.Frame):
 				children = self.tree.get_children()
 				self.tree.focus(children[0])
 		except Exception as e:
-			show_error(e, no_ui=True) # Method not all that important so we'll just toss an error in the console and call it a day 
+			show_error(e, no_ui=True) # Method not all that important so we'll just toss an error in the console and call it a day
 
 
 	def connect(self):
@@ -4660,7 +4660,7 @@ class GameMonitorUI(tk.Toplevel):
 
 class GameOverlayUI(tk.Toplevel):
 	"""TODO"""
-	
+
 
 	def __init__(self):
 		"""TODO"""
@@ -4673,14 +4673,14 @@ class GameOverlayUI(tk.Toplevel):
 		# Geometry
 		self.overlay()
 		self.grid()
-		
+
 		# Priority
 		self.wm_attributes("-topmost", True)
 
 		# Label
 		self.label = ttk.Label(self, anchor="center")
 		self.label.grid(column=0, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="we")
-	
+
 
 	def overlay(self):
 		"""TODO"""
@@ -4763,7 +4763,7 @@ class ClientException(Exception):
 		"""TODO"""
 		super().__init__(args)
 		self.message = message
-	
+
 
 	def __str__(self):
 		"""TODO"""
@@ -4774,7 +4774,7 @@ class ClientException(Exception):
 
 class Logger():
 	"""TODO"""
-	
+
 
 	def __init__(self):
 		"""TODO"""
@@ -4800,7 +4800,7 @@ class Logger():
 					break
 				except:
 					pass
-			
+
 
 			# Type and color
 			type = "[INFO] "
@@ -4822,7 +4822,7 @@ class Logger():
 					break
 			if (th.current_thread().getName() == "Main" and type == "[INFO] "):
 				color = '\033[00m '
-			
+
 			# Assemble
 			output = color + timestamp + label + type + message
 
@@ -4830,7 +4830,7 @@ class Logger():
 		self.terminal.write(output)
 		with open(self.log, "a") as log:
 			log.write(output)
-			log.close()  
+			log.close()
 
 
 	def flush(self):
