@@ -2231,7 +2231,12 @@ class ServerLoader(th.Thread):
 		"""TODO"""
 
 		# Receive hashcode and set cache filename
-		hash = s.recv(SC4MP_BUFFER_SIZE).decode()
+		data = s.recv(SC4MP_BUFFER_SIZE)
+		try:
+			hash = data.decode()
+		except:
+			raise ClientException(f"Cannot decode \"{data}\"")
+
 		target = os.path.join(SC4MP_LAUNCHPATH, "_Cache", hash)
 
 		# Separator
