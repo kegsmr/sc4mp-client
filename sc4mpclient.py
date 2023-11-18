@@ -1714,7 +1714,7 @@ class ServerList(th.Thread):
 	def format_server(self, server):
 		"""TODO"""
 		functions = [
-			lambda: str(server.stat_mayors) + " (" + str(server.stat_mayors_online) + ")",
+			lambda: str(server.stat_mayors) + " (" + str(server.stat_mayors_online) + ")" if server.stat_mayors_online > 0 else str(server.stat_mayors),
 	    	lambda: str(int(server.stat_claimed * 100)) + "%",
 		    lambda: format_filesize(server.stat_download),
 		    lambda: str(server.stat_ping) + "ms",
