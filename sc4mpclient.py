@@ -2095,9 +2095,9 @@ class ServerLoader(th.Thread):
 				try:
 					self.report("", "Clearing custom plugins...")
 					purge_directory(client_plugins_destination)
-				except: #ClientException:
-					pass
-					#raise ClientException("Simcity 4 is already running!")
+				except ClientException:
+					#pass
+					raise ClientException("Simcity 4 is already running!")
 
 		# Purge the destination directory
 		self.report("", 'Synchronizing ' + type + "...") #"", "Purging " + type + " directory...")
