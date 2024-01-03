@@ -4,6 +4,7 @@
 /_Servers*
 /dist
 /logs
+/resources/launcher-map-tile*
 /builds
 /setupbuilds
 config.ini
