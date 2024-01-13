@@ -692,6 +692,22 @@ def arp():
 		return []
 
 
+def send_json(s, data):
+	"""TODO"""
+	s.sendall(json.dumps(data).encode())
+
+
+def recv_json(s):
+	"""TODO"""
+	data = ""
+	while True:
+		data += s.recv(SC4MP_BUFFER_SIZE).decode()
+		try:
+			return json.loads(data)
+		except json.decoder.JSONDecodeError:
+			pass
+
+
 # Objects
 
 class Config:
@@ -796,14 +812,15 @@ class Server:
 		self.fetched = True
 
 		# Request server info
-		self.server_id = self.request("server_id")
-		self.server_name = self.request("server_name")
-		self.server_description = self.request("server_description")
-		self.server_url = self.request("server_url")
-		self.server_version = self.request("server_version")
-		self.password_enabled = self.request("password_enabled") == "y"
-		self.user_plugins_enabled = self.request("user_plugins_enabled") == "y"
-		self.private = self.request("private") == "y"
+		server_info = json.loads(self.request("info"))
+		self.server_id = server_info["server_id"] #self.request("server_id")
+		self.server_name = server_info["server_name"] #self.request("server_name")
+		self.server_description = server_info["server_description"] #self.request("server_description")
+		self.server_url = server_info["server_url"] #self.request("server_url")
+		self.server_version = server_info["server_version"] #self.request("server_version")
+		self.password_enabled = server_info["password_enabled"] #self.request("password_enabled") == "y"
+		self.user_plugins_enabled = server_info["user_plugins_enabled"] #self.request("user_plugins_enabled") == "y"
+		self.private = server_info["private"] #self.request("private") == "y"
 
 		if self.password_enabled:
 			self.categories.append("Private")
@@ -1962,6 +1979,8 @@ class ServerLoader(th.Thread):
 
 			try:
 
+				loading_start = time.time()
+
 				self.report("", f'Connecting to server at {host}:{port}...')
 				self.fetch_server()
 				
@@ -1978,6 +1997,10 @@ class ServerLoader(th.Thread):
 				self.prep_regions()
 
 				self.report("", "Done.")
+
+				loading_end = time.time()
+
+				print(f"- {round(loading_end - loading_start)} seconds")
 
 				global sc4mp_current_server
 				sc4mp_current_server = self.server
@@ -2151,6 +2174,10 @@ class ServerLoader(th.Thread):
 
 		# Create the socket
 		s = self.create_socket() 
+		s.settimeout(None) #TODO this is a problem!!!
+
+		# Report
+		self.report("", f"Synchronizing {target}...")
 
 		# Request the type of data
 		if not self.server.private:
@@ -2158,23 +2185,130 @@ class ServerLoader(th.Thread):
 		else:
 			s.send(f"{target} {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
 
-		# Receive file count
-		file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+		# Receive file table
+		file_table = recv_json(s)
 
-		# Separator
-		s.send(SC4MP_SEPARATOR)
+		# Prune file table as necessary
+		ft = []
+		for entry in file_table:
 
-		# Receive file size
-		size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+			# Get necessary values from entry
+			checksum = entry[0]
+			filesize = entry[1]
+			relpath = Path(entry[2])
+
+			# Get path of cached file
+			t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
+
+			# Use the cached file if it exists and has the same size, otherwise append the entry to the new file table
+			if t.exists() and t.stat().st_size == filesize:
+				
+				# Report
+				print(f'- using cached "{checksum}"')
+
+				# Set the destination
+				d = Path(destination) / relpath
+
+				# Create the destination directory if necessary
+				d.parent.mkdir(parents=True, exist_ok=True)
+
+				# Delete the destination file if it exists
+				d.unlink(missing_ok=True)
+
+				# Copy the cached file to the destination
+				shutil.copy(t, d)
+
+			else:
+
+				# Append to new file table
+				ft.append(entry)
+			
+		file_table = ft
+
+		# Send pruned file table
+		send_json(s, file_table)
+
+		# Get total download size
+		size = sum([entry[1] for entry in file_table])
+
+		# Set loading bar at 0%
+		self.report_progress(f"Synchronizing {target}... (0%)", 0, 100)
+
+		# Total size downloaded
+		size_downloaded = 0
+
+		# Download percent
+		percent = 0
 
 		# Receive files
-		size_downloaded = 0
-		for files_received in range(file_count):
-			percent = math.floor(100 * (size_downloaded / size))
-			self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
-			s.send(SC4MP_SEPARATOR)
-			size_downloaded += self.receive_or_cached(s, destination)
+		for entry in file_table:
+
+			# Get necessary values from entry
+			checksum = entry[0]
+			filesize = entry[1]
+			relpath = Path(entry[2])
+
+			# Report
+			print(f'- caching "{checksum}"...')
+
+			# Set the destination
+			d = Path(destination) / relpath
+
+			# Set path of cached file
+			t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
+
+			# Create the destination directory if necessary
+			d.parent.mkdir(parents=True, exist_ok=True)
+
+			# Delete the destination file if it exists
+			d.unlink(missing_ok=True)
+
+			# Delete the cache file if it exists
+			t.unlink(missing_ok=True)
+
+			# Delete cache files if cache too large to accomadate the new cache file
+			cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
+			while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
+				random_cache = random.choice(list(cache_directory.iterdir()))
+				random_cache.unlink()
+
+			# Receive the file. Write to both the destination and cache
+			filesize_read = 0
+			with d.open("wb") as dest, t.open("wb") as cache:
+				while filesize_read < filesize:
+					filesize_remaining = filesize - filesize_read
+					buffersize = SC4MP_BUFFER_SIZE if filesize_remaining > SC4MP_BUFFER_SIZE else filesize_remaining
+					bytes_read = s.recv(buffersize)
+					if not bytes_read:
+						break
+					for file in [dest, cache]:
+						file.write(bytes_read)
+					filesize_read += len(bytes_read)
+					size_downloaded += len(bytes_read)
+					old_percent = percent
+					percent = math.floor(100 * (size_downloaded / size))
+					if percent > old_percent:
+						self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
+
 		self.report_progress(f"Synchronizing {target}... (100%)", 100, 100)
+
+		# Receive file count
+		#file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+
+		# Separator
+		#s.send(SC4MP_SEPARATOR)
+
+		# Receive file size
+		#size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+
+		# Receive files
+		#size_downloaded = 0
+		#for files_received in range(file_count):
+		#	percent = math.floor(100 * (size_downloaded / size))
+		#	self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
+		#	s.send(SC4MP_SEPARATOR)
+		#	size_downloaded += self.receive_or_cached(s, destination)
+		#self.report_progress(f"Synchronizing {target}... (100%)", 100, 100)
 
 		#print("done.")
 
