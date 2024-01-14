@@ -2175,7 +2175,7 @@ class ServerLoader(th.Thread):
 
 		# Create the socket
 		s = self.create_socket() 
-		s.settimeout(None) #TODO this is a problem!!!
+		#s.settimeout(None)
 
 		# Report
 		self.report("", f"Synchronizing {target}...")
@@ -4606,7 +4606,7 @@ class ServerLoaderUI(tk.Toplevel):
 		super().__init__()
 
 		# Loading Background
-		self.loading_background = ServerLoaderBackgoundUI()
+		#self.loading_background = ServerLoaderBackgoundUI()
 
 		# Title
 		self.title(server.host + ":" + str(server.port))
@@ -4646,7 +4646,7 @@ class ServerLoaderUI(tk.Toplevel):
 		# Progress label
 		self.progress_label = tk.Label(self, fg="gray", font=("Arial", 8))
 		self.progress_label['text'] = ""
-		self.progress_label.grid(column=0, row=2, columnspan=2, padx=10, pady=0, sticky="w")
+		self.progress_label.grid(column=0, row=2, columnspan=99, padx=10, pady=0, sticky="w")
 
 		# Worker
 		self.worker = ServerLoader(self, server)
@@ -4681,22 +4681,47 @@ class ServerLoaderBackgoundUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.grid()
+		#self.grid()
 		self.attributes("-fullscreen", True)
 
 		# Image
-		self.canvas = tk.Canvas(self, bg="black")
-		#self.canvas.image = tk.PhotoImage(file=get_sc4mp_path("loading_background.png"))
-		#self.canvas.image_item = self.canvas.create_image(0, 0, anchor="nw", image=self.canvas.image)    
-		self.canvas.grid(row=0, column=0, padx=0, pady=0)
+		self.image = tk.PhotoImage(file=get_sc4mp_path("loading_background.png"))
+		self.image_resized = self.image
+
+		# Canvas
+		self.canvas = tk.Canvas(self, bg="black", highlightthickness=0)
+		self.canvas.image = self.canvas.create_image(0, 0, anchor="center", image=self.image_resized)
+		self.canvas.pack()
 
 		# Loop
 		self.loop()
 
 
 	def loop(self):
-		self.canvas.config(width=self.winfo_screenwidth() - 5, height=self.winfo_screenheight() - 5)
+		width = self.winfo_screenwidth()
+		height = self.winfo_screenheight()
+		self.image_resized = self.resize_image(self.image, int((height / self.image.height()) * width), int(height))
+		image_width = self.image_resized.width()
+		image_height = self.image_resized.height()
+		self.canvas.config(width=width, height=height)
+		self.canvas.moveto(self.canvas.image, (width / 2) - (image_width / 2), (height / 2) - (image_height / 2))
 		self.after(100, self.loop)
+
+
+	def resize_image(self, image, new_width, new_height):
+		img = image
+		newWidth = new_width
+		newHeight = new_height
+		oldWidth = img.width()
+		oldHeight = img.height()
+		newPhotoImage = tk.PhotoImage(width=newWidth, height=newHeight)
+		for x in range(newWidth):
+			for y in range(newHeight):
+				xOld = int(x*oldWidth/newWidth)
+				yOld = int(y*oldHeight/newHeight)
+				rgb = '#%02x%02x%02x' % img.get(xOld, yOld)
+				newPhotoImage.put(rgb, (x, y))
+		return newPhotoImage
 
 
 class GameMonitorUI(tk.Toplevel):
