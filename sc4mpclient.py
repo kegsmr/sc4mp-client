@@ -4654,8 +4654,13 @@ class ServerLoaderUI(tk.Toplevel):
 
 	
 	def destroy(self):
+
 		super().destroy()
-		self.loading_background.destroy()
+
+		try:
+			self.loading_background.destroy()
+		except:
+			pass
 
 
 class ServerLoaderBackgoundUI(tk.Toplevel):
