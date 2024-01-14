@@ -2045,6 +2045,7 @@ class ServerLoader(th.Thread):
 			self.ui.progress_bar.start(2)
 			self.ui.progress_bar['mode'] = "indeterminate"
 			self.ui.progress_bar['maximum'] = 100
+			self.ui.progress_label["text"] = ""
 		print(prefix + text)
 		#time.sleep(1) # for testing
 
@@ -2188,6 +2189,18 @@ class ServerLoader(th.Thread):
 		# Receive file table
 		file_table = recv_json(s)
 
+		# Get total download size
+		size = sum([entry[1] for entry in file_table])
+
+		# Total size downloaded
+		size_downloaded = 0
+
+		# Download percent
+		percent = 0
+
+		# Set loading bar at 0%
+		self.report_progress(f"Synchronizing {target}... (0%)", 0, 100)
+
 		# Prune file table as necessary
 		ft = []
 		for entry in file_table:
@@ -2209,6 +2222,12 @@ class ServerLoader(th.Thread):
 				# Set the destination
 				d = Path(destination) / relpath
 
+				# Display current file in UI
+				try:
+					self.ui.progress_label["text"] = d.name #.relative_to(destination)
+				except:
+					pass
+
 				# Create the destination directory if necessary
 				d.parent.mkdir(parents=True, exist_ok=True)
 
@@ -2217,6 +2236,14 @@ class ServerLoader(th.Thread):
 
 				# Copy the cached file to the destination
 				shutil.copy(t, d)
+
+				# Update progress bar
+				size_downloaded += filesize
+				old_percent = percent
+				percent = math.floor(100 * (size_downloaded / size))
+				if percent > old_percent:
+					self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
+
 
 			else:
 
@@ -2227,18 +2254,6 @@ class ServerLoader(th.Thread):
 
 		# Send pruned file table
 		send_json(s, file_table)
-
-		# Get total download size
-		size = sum([entry[1] for entry in file_table])
-
-		# Set loading bar at 0%
-		self.report_progress(f"Synchronizing {target}... (0%)", 0, 100)
-
-		# Total size downloaded
-		size_downloaded = 0
-
-		# Download percent
-		percent = 0
 
 		# Receive files
 		for entry in file_table:
@@ -2253,6 +2268,12 @@ class ServerLoader(th.Thread):
 
 			# Set the destination
 			d = Path(destination) / relpath
+
+			# Display current file in UI
+			try:
+				self.ui.progress_label["text"] = d.name #.relative_to(destination)
+			except:
+				pass
 
 			# Set path of cached file
 			t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
@@ -4588,8 +4609,8 @@ class ServerLoaderUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.minsize(800, 100)
-		self.maxsize(800, 100)
+		self.minsize(800, 110)
+		self.maxsize(800, 110)
 		self.grid()
 		center_window(self)
 
@@ -4614,6 +4635,11 @@ class ServerLoaderUI(tk.Toplevel):
 		)
 		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=10)
 		self.progress_bar.start(2)
+
+		# Progress label
+		self.progress_label = tk.Label(self, fg="gray", font=("Arial", 8))
+		self.progress_label['text'] = ""
+		self.progress_label.grid(column=0, row=2, columnspan=2, padx=10, pady=0, sticky="w")
 
 		# Worker
 		self.worker = ServerLoader(self, server)
