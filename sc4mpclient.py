@@ -4189,6 +4189,7 @@ class PasswordDialogUI(tk.Toplevel):
 		
 		# Priority
 		self.grab_set()
+		self.lift()
 
 		# Key bindings
 		self.bind("<Return>", lambda event:self.ok())
@@ -4235,6 +4236,8 @@ class PasswordDialogUI(tk.Toplevel):
 			self.wait = False
 			self.destroy()
 			self.server_loader.ui.deiconify()
+			self.server_loader.ui.lift()
+			self.server_loader.ui.grab_set()
 
 
 	def cancel(self):
@@ -4602,6 +4605,9 @@ class ServerLoaderUI(tk.Toplevel):
 		# Init
 		super().__init__()
 
+		# Loading Background
+		self.loading_background = ServerLoaderBackgoundUI()
+
 		# Title
 		self.title(server.host + ":" + str(server.port))
 
@@ -4616,6 +4622,7 @@ class ServerLoaderUI(tk.Toplevel):
 
 		# Priority
 		self.lift()
+		self.grab_set()
 
 		# Key bindings
 		self.bind("<Escape>", lambda event:self.destroy())
@@ -4644,6 +4651,47 @@ class ServerLoaderUI(tk.Toplevel):
 		# Worker
 		self.worker = ServerLoader(self, server)
 		self.worker.start()
+
+	
+	def destroy(self):
+		super().destroy()
+		self.loading_background.destroy()
+
+
+class ServerLoaderBackgoundUI(tk.Toplevel):
+
+
+	def __init__(self):
+		"""TODO"""
+
+		#print("Initializing...")
+
+		# Init
+		super().__init__()
+
+		# Title
+		self.title("Loading background")
+
+		# Icon
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+
+		# Geometry
+		self.grid()
+		self.attributes("-fullscreen", True)
+
+		# Image
+		self.canvas = tk.Canvas(self, bg="black")
+		#self.canvas.image = tk.PhotoImage(file=get_sc4mp_path("loading_background.png"))
+		#self.canvas.image_item = self.canvas.create_image(0, 0, anchor="nw", image=self.canvas.image)    
+		self.canvas.grid(row=0, column=0, padx=0, pady=0)
+
+		# Loop
+		self.loop()
+
+
+	def loop(self):
+		self.canvas.config(width=self.winfo_screenwidth() - 5, height=self.winfo_screenheight() - 5)
+		self.after(100, self.loop)
 
 
 class GameMonitorUI(tk.Toplevel):
