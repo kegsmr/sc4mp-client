@@ -81,6 +81,9 @@ SC4MP_CONFIG_DEFAULTS = [
 		("cpu_count", 1),
 		("cpu_priority", "high"),
 		("additional_properties", "")
+	]),
+	("DEBUG", [
+		("random_server_stats", False)
 	])
 ]
 
@@ -812,7 +815,11 @@ class Server:
 		self.fetched = True
 
 		# Request server info
-		server_info = json.loads(self.request("info"))
+		server_info = self.request("info")
+		if server_info is not None:
+			server_info = json.loads(self.request("info"))
+		else:
+			raise ClientException("Unable to find server. Check the IP address and port, then try again.")
 		self.server_id = server_info["server_id"] #self.request("server_id")
 		self.server_name = server_info["server_name"] #self.request("server_name")
 		self.server_description = server_info["server_description"] #self.request("server_description")
@@ -889,6 +896,12 @@ class Server:
 		if ping != None:
 			self.stat_ping = ping
 
+		if (sc4mp_config["DEBUG"]["random_server_stats"]):
+			self.stat_mayors = random.randint(0,1000)
+			self.stat_mayors_online = int(self.stat_mayors * (float(random.randint(0, 100)) / 100))
+			self.stat_claimed = float(random.randint(0, 100)) / 100
+			self.stat_download = random.randint(0, 10 ** 11)
+
 		sc4mp_servers_database[self.server_id]["stat_mayors"] = self.stat_mayors
 		sc4mp_servers_database[self.server_id]["stat_mayors_online"] = self.stat_mayors_online
 		sc4mp_servers_database[self.server_id]["stat_claimed"] = self.stat_claimed
@@ -902,6 +915,8 @@ class Server:
 		REQUESTS = ["plugins", "regions"]
 		DIRECTORIES = ["Plugins", "Regions"]
 
+		total_size = 0
+
 		for request, directory in zip(REQUESTS, DIRECTORIES):
 
 			# Set destination
@@ -913,7 +928,7 @@ class Server:
 			s.connect((self.host, self.port))
 
 			# Request the type of data
-			if not self.server.private:
+			if not self.private:
 				s.send(request.encode())
 			else:
 				s.send(f"{request} {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
@@ -963,6 +978,8 @@ class Server:
 						dest.write(bytes_read)
 						filesize_read += len(bytes_read)
 
+			total_size += size
+
 			# Request the type of data
 			#if not self.private:
 			#	s.send(request.encode())
@@ -983,7 +1000,7 @@ class Server:
 			#	s.send(SC4MP_SEPARATOR)
 			#	size_downloaded += self.receive_or_cached(s, destination)
 
-		return size
+		return total_size
 
 
 	"""def receive_or_cached(self, s:socket.socket, rootpath: Path) -> int:
