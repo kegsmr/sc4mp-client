@@ -35,7 +35,7 @@ SC4MP_CONTRIBUTORS_URL = "https://github.com/kegsmr/sc4mp-client/contributors/"
 SC4MP_ISSUES_URL = "https://github.com/kegsmr/sc4mp-client/issues/"
 SC4MP_RELEASES_URL = "https://github.com/kegsmr/sc4mp-client/releases/"
 
-SC4MP_AUTHOR_NAME = "Simcity 4 Multiplayer Project"
+SC4MP_AUTHOR_NAME = "SimCity 4 Multiplayer Project"
 SC4MP_WEBSITE_NAME = "www.sc4mp.org"
 SC4MP_LICENSE_NAME = "MIT-0"
 
@@ -300,7 +300,7 @@ def load_database():
 
 
 def get_sc4_path() -> Optional[Path]:
-	"""Returns the path to the Simcity 4 executable if found."""
+	"""Returns the path to the SimCity 4 executable if found."""
 	sc4_dirs = Path("SimCity 4 Deluxe") / "Apps" / "SimCity 4.exe"
 	steam_dirs = Path("Steam") / "steamapps" / "common"
 	config_path = Path(sc4mp_config['SC4']['game_path'])
@@ -325,14 +325,14 @@ def get_sc4_path() -> Optional[Path]:
 
 
 def start_sc4():
-	"""Attempts to find the install path of Simcity 4 and launches the game with custom launch parameters if found."""
+	"""Attempts to find the install path of SimCity 4 and launches the game with custom launch parameters if found."""
 
-	print("Starting Simcity 4...")
+	print("Starting SimCity 4...")
 
 	path = get_sc4_path()
 
 	if not path:
-		show_error("Path to Simcity 4 not found. Specify the correct path in settings.")
+		show_error("Path to SimCity 4 not found. Specify the correct path in settings.")
 		return
 
 	arguments = [str(path),
@@ -2044,7 +2044,7 @@ class ServerLoader(th.Thread):
 
 			if self.ui != None:
 				while get_sc4_path() == None:
-					show_warning('No Simcity 4 installation found. \n\nPlease provide the correct installation path.')
+					show_warning('No SimCity 4 installation found. \n\nPlease provide the correct installation path.')
 					path = filedialog.askdirectory(parent=self.ui)
 					if len(path) > 0:
 						sc4mp_config["SC4"]["game_path"] = path
@@ -2251,14 +2251,14 @@ class ServerLoader(th.Thread):
 					purge_directory(client_plugins_destination)
 				except: #ClientException:
 					pass
-					#raise ClientException("Simcity 4 is already running!")
+					#raise ClientException("SimCity 4 is already running!")
 
 		# Purge the destination directory
 		self.report("", f"Synchronizing {target}...") #"", "Purging " + type + " directory...")
 		try:
 			purge_directory(destination)
 		except ClientException:
-			raise ClientException("Simcity 4 is already running!")
+			raise ClientException("SimCity 4 is already running!")
 
 		# Create the socket
 		s = self.create_socket() 
@@ -2802,7 +2802,7 @@ class GameMonitor(th.Thread):
 						cfg_hashcode = new_cfg_hashcode
 					except Exception as e:
 						show_error(e, no_ui=True)
-					# Refresh by asking the server for the hashcodes of all its savegames (excluding ones already claimed by the user) and downloading the savegames missing locally, tossing them directly into the respective region (was supposed to work but Simcity 4 actually tries to keep files of the same checksum)
+					# Refresh by asking the server for the hashcodes of all its savegames (excluding ones already claimed by the user) and downloading the savegames missing locally, tossing them directly into the respective region (was supposed to work but SimCity 4 actually tries to keep files of the same checksum)
 					'''if (ping != None):
 						old_text = self.ui.label["text"]
 						self.report("", "Refreshing...")
@@ -3964,7 +3964,7 @@ class StorageSettingsUI(tk.Toplevel):
 			key = item[1]
 			if key == "storage_path" and type(data) is str and not data == sc4mp_config["STORAGE"]["storage_path"]:
 				if (Path(data) / 'Plugins').exists() or (Path(data) / 'Regions').exists():
-					if not messagebox.askokcancel(title=SC4MP_TITLE, message=f'The directory "{data}" already contains Simcity 4 plugins and regions. \n\nProceeding will result in the IRREVERSIBLE DELETION of these files! \n\nThis is your final warning, do you wish to proceed?', icon="warning"): #TODO make message box show yes/no and not ok/cancel
+					if not messagebox.askokcancel(title=SC4MP_TITLE, message=f'The directory "{data}" already contains SimCity 4 plugins and regions. \n\nProceeding will result in the IRREVERSIBLE DELETION of these files! \n\nThis is your final warning, do you wish to proceed?', icon="warning"): #TODO make message box show yes/no and not ok/cancel
 						raise ClientException("Operation cancelled by user.")
 			update_config_value("STORAGE", key, data)
 		create_subdirectories()
@@ -4040,7 +4040,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.path_frame.button.grid(row=0, column=1, columnspan=1, padx=10, pady=10)
 
 		# Path label
-		self.path_frame.label = ttk.Label(self.path_frame, text='If the launcher fails to find Simcity 4 installed on your computer, \nspecify the path to the game installation here.')
+		self.path_frame.label = ttk.Label(self.path_frame, text='If the launcher fails to find SimCity 4 installed on your computer, \nspecify the path to the game installation here.')
 		self.path_frame.label.grid(row=1, column=0, columnspan=2, padx=10, pady=(0,10))
 
 		# Resolution frame
@@ -4170,9 +4170,9 @@ class SC4SettingsUI(tk.Toplevel):
 		# Load the game
 		try:
 
-			# Check if a path to Simcity 4 can be found, prompt for a custom path if needed
+			# Check if a path to SimCity 4 can be found, prompt for a custom path if needed
 			while get_sc4_path() == None:
-				show_warning('No Simcity 4 installation found. \n\nPlease provide the correct installation path.')
+				show_warning('No SimCity 4 installation found. \n\nPlease provide the correct installation path.')
 				path = filedialog.askdirectory(parent=sc4mp_ui)
 				if len(path) > 0:
 					sc4mp_config["SC4"]["game_path"] = path
@@ -4181,7 +4181,7 @@ class SC4SettingsUI(tk.Toplevel):
 				else:
 					break
 			
-			# Load the game if a path to Simcity 4 can be found
+			# Load the game if a path to SimCity 4 can be found
 			if get_sc4_path() != None:
 
 				# Purge plugins and regions
