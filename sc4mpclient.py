@@ -2123,7 +2123,7 @@ class ServerLoader(th.Thread):
 		if not destination.exists():
 			destination.mkdir(parents=True, exist_ok=True)
 
-		# Synchronize or clear custom plugins
+		# Synchronize or clear custom plugins (the code is organized like hell here, but it works)
 		if target == "plugins":
 			client_plugins_source = Path(sc4mp_config["GENERAL"]["custom_plugins_path"])
 			client_plugins_destination = Path(SC4MP_LAUNCHPATH) / "Plugins" / "client"
@@ -2139,9 +2139,16 @@ class ServerLoader(th.Thread):
 				source_relpaths = get_relpaths_recursively(client_plugins_source)
 				source_size = directory_size(client_plugins_source)
 				destination_size = 0
+				percent = 0
 				for relpath in source_relpaths:
+					old_percent = percent
 					percent = math.floor(100 * (destination_size / source_size))
-					self.report_progress(f'Synchronizing custom plugins... ("{percent}%)', percent, 100)
+					if percent > old_percent:
+						self.report_progress(f'Synchronizing custom plugins... ({percent}%)', percent, 100)
+					try:
+						self.ui.progress_label["text"] = relpath.name
+					except:
+						pass
 					src = client_plugins_source / relpath
 					dest = client_plugins_destination / relpath
 					destination_size += src.stat().st_size
