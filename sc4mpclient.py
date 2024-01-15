@@ -50,7 +50,7 @@ SC4MP_ICON: Path() = Path(SC4MP_RESOURCES_PATH) / "icon.png"
 SC4MP_HOST = SC4MP_SERVERS[0][0]
 SC4MP_PORT = SC4MP_SERVERS[0][1]
 
-SC4MP_SEPARATOR = b"<SEPARATOR>"
+#SC4MP_SEPARATOR = b"<SEPARATOR>" #TODO
 SC4MP_BUFFER_SIZE = 4096
 
 SC4MP_DELAY = .1
@@ -364,7 +364,7 @@ def start_sc4():
 	while process_exists("simcity 4.exe"):
 		time.sleep(1)
 
-	print("Simcity 4 closed.")
+	print("SimCity 4 closed.")
 
 
 def process_exists(process_name): #TODO add macos compatability
@@ -902,8 +902,6 @@ class Server:
 		REQUESTS = ["plugins", "regions"]
 		DIRECTORIES = ["Plugins", "Regions"]
 
-		size_downloaded = 0
-
 		for request, directory in zip(REQUESTS, DIRECTORIES):
 
 			# Set destination
@@ -915,29 +913,80 @@ class Server:
 			s.connect((self.host, self.port))
 
 			# Request the type of data
-			if not self.private:
+			if not self.server.private:
 				s.send(request.encode())
 			else:
-				s.send(f"{request} {SC4MP_VERSION} {self.user_id} {self.password}".encode())
+				s.send(f"{request} {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
 
-			# Receive file count
-			file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+			# Receive file table
+			file_table = recv_json(s)
 
-			# Separator
-			s.send(SC4MP_SEPARATOR)
+			# Get total download size
+			size = sum([entry[1] for entry in file_table])
 
-			# Receive file size
-			size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+			# Prune file table as necessary
+			ft = []
+			for entry in file_table:
+				filename = Path(entry[2]).name
+				if filename in ["region.json", "config.bmp"]:
+					ft.append(entry)
+			file_table = ft
+
+			# Send pruned file table
+			send_json(s, file_table)
 
 			# Receive files
-			for files_received in range(file_count):
-				s.send(SC4MP_SEPARATOR)
-				size_downloaded += self.receive_or_cached(s, destination)
+			for entry in file_table:
 
-		return size_downloaded
+				# Get necessary values from entry
+				filesize = entry[1]
+				relpath = Path(entry[2])
+
+				# Set the destination
+				d = Path(destination) / relpath
+
+				# Create the destination directory if necessary
+				d.parent.mkdir(parents=True, exist_ok=True)
+
+				# Delete the destination file if it exists
+				d.unlink(missing_ok=True)
+
+				# Receive the file. Write to both the destination and cache
+				filesize_read = 0
+				with d.open("wb") as dest:
+					while filesize_read < filesize:
+						filesize_remaining = filesize - filesize_read
+						buffersize = SC4MP_BUFFER_SIZE if filesize_remaining > SC4MP_BUFFER_SIZE else filesize_remaining
+						bytes_read = s.recv(buffersize)
+						if not bytes_read:
+							break
+						dest.write(bytes_read)
+						filesize_read += len(bytes_read)
+
+			# Request the type of data
+			#if not self.private:
+			#	s.send(request.encode())
+			#else:
+			#	s.send(f"{request} {SC4MP_VERSION} {self.user_id} {self.password}".encode())
+
+			# Receive file count
+			#file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+
+			# Separator
+			#s.send(SC4MP_SEPARATOR)
+
+			# Receive file size
+			#size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+
+			# Receive files
+			#for files_received in range(file_count):
+			#	s.send(SC4MP_SEPARATOR)
+			#	size_downloaded += self.receive_or_cached(s, destination)
+
+		return size
 
 
-	def receive_or_cached(self, s:socket.socket, rootpath: Path) -> int:
+	"""def receive_or_cached(self, s:socket.socket, rootpath: Path) -> int:
 
 		# Receive hashcode and set cache filename
 		hash = s.recv(SC4MP_BUFFER_SIZE).decode()
@@ -983,7 +1032,7 @@ class Server:
 					filesize_read += len(bytes_read)
 
 		# Return the file size
-		return filesize
+		return filesize"""
 
 
 	def update_database(self):
@@ -1883,16 +1932,30 @@ class ServerFetcher(th.Thread):
 	
 	def server_list(self):
 		"""TODO"""
+		
+		# Create socket
 		s = self.create_socket(self.server)
+		
+		# Request server list
 		s.send(b"server_list")
-		size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
-		s.send(SC4MP_SEPARATOR)
-		for count in range(size):
-			host = s.recv(SC4MP_BUFFER_SIZE).decode()
-			s.send(SC4MP_SEPARATOR)
-			port = int(s.recv(SC4MP_BUFFER_SIZE).decode())
-			s.send(SC4MP_SEPARATOR)
+		
+		# Receive server list
+		servers = recv_json(s)
+
+		# Loop through server list and append them to the unfetched servers
+		for host, port in servers:
 			self.parent.unfetched_servers.append((host, port))
+
+		#s = self.create_socket(self.server)
+		#s.send(b"server_list")
+		#size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+		#s.send(SC4MP_SEPARATOR)
+		#for count in range(size):
+		#	host = s.recv(SC4MP_BUFFER_SIZE).decode()
+		#	s.send(SC4MP_SEPARATOR)
+		#	port = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+		#	s.send(SC4MP_SEPARATOR)
+		#	self.parent.unfetched_servers.append((host, port))
 
 
 	def create_socket(self, server):
@@ -2431,78 +2494,78 @@ class ServerLoader(th.Thread):
 		return s
 
 
-	def receive_or_cached(self, s, rootpath):
-		"""TODO"""
-
-		# Receive hashcode and set cache filename
-		hash = s.recv(SC4MP_BUFFER_SIZE).decode()
-		target = Path(SC4MP_LAUNCHPATH) / "_Cache" / hash
-
-		# Separator
-		s.send(SC4MP_SEPARATOR)
-
-		# Receive filesize
-		filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
-
-		# Separator
-		s.send(SC4MP_SEPARATOR)
-
-		# Receive relative path and set the destination
-		relpath = Path(s.recv(SC4MP_BUFFER_SIZE).decode())
-		destination = Path(rootpath) / relpath
-
-		# Use the cached file if it exists and has the same size
-		if target.exists() and target.stat().st_size == filesize:
-
-			print(f'- using cached "{hash}"')
-
-			# Tell the server that the file is cached
-			s.send(b"cached")
-
-			# Create the destination directory if necessary
-			destination.parent.mkdir(parents=True, exist_ok=True)
-
-			# Delete the destination file if it exists
-			destination.unlink(missing_ok=True)
-
-			# Copy the cached file to the destination
-			shutil.copy(target, destination)
-
-		else:
-
-			print(f'- caching "{hash}"...')
-
-			# Tell the server that the file is not cached
-			s.send(b"not cached")
-
-			# Create the destination directory if necessary
-			destination.parent.mkdir(parents=True, exist_ok=True)
-
-			# Delete the destination file if it exists
-			destination.unlink(missing_ok=True)
-
-			# Delete the cache file if it exists
-			target.unlink(missing_ok=True)
-
-			# Delete cache files if cache too large to accomadate the new cache file
-			cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
-			while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
-				random_cache = random.choice(list(cache_directory.iterdir()))
-				random_cache.unlink()
-
-			# Receive the file. Write to both the destination and cache
-			filesize_read = 0
-			with destination.open("wb") as dest, target.open("wb") as cache:
-				while filesize_read < filesize:
-					bytes_read = s.recv(SC4MP_BUFFER_SIZE)
-					if not bytes_read:
-						break
-					for file in [dest, cache]:
-						file.write(bytes_read)
-					filesize_read += len(bytes_read)
-				
-		# Return the file size
-		return filesize
+	#def receive_or_cached(self, s, rootpath):
+	#	"""TODO"""
+	#
+	#	# Receive hashcode and set cache filename
+	#	hash = s.recv(SC4MP_BUFFER_SIZE).decode()
+	#	target = Path(SC4MP_LAUNCHPATH) / "_Cache" / hash
+	#
+	#	# Separator
+	#	s.send(SC4MP_SEPARATOR)
+	#
+	#	# Receive filesize
+	#	filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+	#
+	#	# Separator
+	#	s.send(SC4MP_SEPARATOR)
+	#
+	#	# Receive relative path and set the destination
+	#	relpath = Path(s.recv(SC4MP_BUFFER_SIZE).decode())
+	#	destination = Path(rootpath) / relpath
+	#
+	#	# Use the cached file if it exists and has the same size
+	#	if target.exists() and target.stat().st_size == filesize:
+	#
+	#		print(f'- using cached "{hash}"')
+	#
+	#		# Tell the server that the file is cached
+	#		s.send(b"cached")
+	#
+	#		# Create the destination directory if necessary
+	#		destination.parent.mkdir(parents=True, exist_ok=True)
+	#
+	#		# Delete the destination file if it exists
+	#		destination.unlink(missing_ok=True)
+	#
+	#		# Copy the cached file to the destination
+	#		shutil.copy(target, destination)
+	#
+	#	else:
+	#
+	#		print(f'- caching "{hash}"...')
+	#
+	#		# Tell the server that the file is not cached
+	#		s.send(b"not cached")
+	#
+	#		# Create the destination directory if necessary
+	#		destination.parent.mkdir(parents=True, exist_ok=True)
+	#
+	#		# Delete the destination file if it exists
+	#		destination.unlink(missing_ok=True)
+	#
+	#		# Delete the cache file if it exists
+	#		target.unlink(missing_ok=True)
+	#
+	#		# Delete cache files if cache too large to accomadate the new cache file
+	#		cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
+	#		while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
+	#			random_cache = random.choice(list(cache_directory.iterdir()))
+	#			random_cache.unlink()
+	#
+	#		# Receive the file. Write to both the destination and cache
+	#		filesize_read = 0
+	#		with destination.open("wb") as dest, target.open("wb") as cache:
+	#			while filesize_read < filesize:
+	#				bytes_read = s.recv(SC4MP_BUFFER_SIZE)
+	#				if not bytes_read:
+	#					break
+	#				for file in [dest, cache]:
+	#					file.write(bytes_read)
+	#				filesize_read += len(bytes_read)
+	#			
+	#	# Return the file size
+	#	return filesize
 
 
 	def receive_file(self, s: socket.socket, filename: Path) -> None:
@@ -2715,7 +2778,8 @@ class GameMonitor(th.Thread):
 										regions_refresher = RegionsRefresher(None, self.server)
 										regions_refresher.run()
 									self.city_paths, self.city_hashcodes = self.get_cities()
-									self.report("", "Regions refreshed at " + datetime.now().strftime("%H:%M") + ".")
+									if sc4mp_game_launcher.game_running:
+										self.report("", "Regions refreshed at " + datetime.now().strftime("%H:%M") + ".")
 									#self.ui.label["text"] = old_text
 							old_refresh_region_open = new_refresh_region_open
 						cfg_hashcode = new_cfg_hashcode
@@ -2862,6 +2926,14 @@ class GameMonitor(th.Thread):
 			directory.mkdir(exist_ok=True, parents=True)
 			shutil.copy(path, filename)
 
+		# Verify that all saves come from the same region
+		regions = set([save_city_path.parent.name for save_city_path in save_city_paths])
+		if len(regions) > 1:
+			self.report(self.PREFIX, 'Save push failed! Too many regions.') 
+			return
+		else:
+			region = regions[0]
+
 		# Create socket
 		s = self.create_socket()
 		if s == None:
@@ -2870,33 +2942,53 @@ class GameMonitor(th.Thread):
 
 		# Send save request
 		s.send(f"save {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
+		
+		# Separator
 		s.recv(SC4MP_BUFFER_SIZE)
 
-		# Send file count
-		s.send(str(len(save_city_paths)).encode())
-		s.recv(SC4MP_BUFFER_SIZE)
-
-		# Send files
-		for save_city_path in save_city_paths:
-
-			# Get region and city names
-			region = save_city_path.parent.name
-			city = save_city_path.name
-	
-			# Send region name
-			s.send(region.encode())
-			s.recv(SC4MP_BUFFER_SIZE)
-
-			# Send city name
-			s.send(city.encode())
-			s.recv(SC4MP_BUFFER_SIZE)
-
-			# Send file
-			self.send_file(s, save_city_path)
-			s.recv(SC4MP_BUFFER_SIZE)
+		# Send region name and file sizes
+		send_json(s, [
+			region,
+			[os.path.getsize(save_city_path) for save_city_path in save_city_paths]
+		])
 
 		# Separator
-		s.send(SC4MP_SEPARATOR)
+		s.recv(SC4MP_BUFFER_SIZE)
+
+		# Send file contents
+		for save_city_path in save_city_paths:
+			with open(save_city_path, "rb") as file:
+				while True:
+					data = file.read(SC4MP_BUFFER_SIZE)
+					if not data:
+						break
+					s.send(data)
+
+		# Send file count
+		#s.send(str(len(save_city_paths)).encode())
+		#.recv(SC4MP_BUFFER_SIZE)
+		#
+		# Send files
+		#for save_city_path in save_city_paths:
+		#
+		#	# Get region and city names
+		#	region = save_city_path.parent.name
+		#	city = save_city_path.name
+		#
+		#	# Send region name
+		#	s.send(region.encode())
+		#	s.recv(SC4MP_BUFFER_SIZE)
+		#
+		#	# Send city name
+		#	s.send(city.encode())
+		#	s.recv(SC4MP_BUFFER_SIZE)
+		#
+		#	# Send file
+		#	self.send_file(s, save_city_path)
+		#	s.recv(SC4MP_BUFFER_SIZE)
+		#
+		# Separator
+		#s.send(SC4MP_SEPARATOR)
 
 		# Handle response from server
 		response = s.recv(SC4MP_BUFFER_SIZE).decode()
@@ -3008,6 +3100,10 @@ class GameLauncher(th.Thread):
 	def __init__(self):
 		"""TODO"""
 		super().__init__()
+		
+		global sc4mp_game_launcher
+		sc4mp_game_launcher = self
+
 		self.game_running = True
 		self.setDaemon(True)
 
@@ -3045,64 +3141,191 @@ class RegionsRefresher(th.Thread):
 	def run(self):
 		"""TODO"""
 		
-		try:
+		while sc4mp_game_launcher.game_running:
 
-			# Report
-			self.report("", "Refreshing regions...")
-			
-			# Set destination
-			destination = Path(SC4MP_LAUNCHPATH) / "Regions"
+			try:
 
-			# Purge the region directories
-			for region in self.server.regions:
-				purge_directory(destination / region)
+				# Report
+				self.report("", "Refreshing regions...")
+				
+				# Set destination
+				destination = Path(SC4MP_LAUNCHPATH) / "Regions"
 
-			# Create the socket
-			s = self.create_socket()
+				# Purge the region directories
+				for region in self.server.regions:
+					purge_directory(destination / region)
 
-			# Request regions
-			if not self.server.private:
-				s.send(b"regions")
-			else:
-				s.send(f"regions {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
+				# Create the socket
+				s = self.create_socket()
 
-			# Receive file count
-			file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+				# Request regions
+				if not self.server.private:
+					s.send(b"regions")
+				else:
+					s.send(f"regions {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
 
-			# Separator
-			s.send(SC4MP_SEPARATOR)
+				# Receive file table
+				file_table = recv_json(s)
 
-			# Receive file size
-			size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+				# Get total download size
+				size = sum([entry[1] for entry in file_table])
 
-			# Receive files
-			size_downloaded = 0
-			for files_received in range(file_count):
-				percent = math.floor(100 * (size_downloaded / size))
-				self.report_progress(f'Refreshing regions... ({percent}%)', percent, 100)
-				s.send(SC4MP_SEPARATOR)
-				size_downloaded += self.receive_or_cached(s, destination)
-			self.report_progress("Refreshing regions... (100%)", 100, 100)
+				# Total size downloaded
+				size_downloaded = 0
 
-			# Report
-			self.report("", "Refreshing regions...")
+				# Download percent
+				percent = 0
 
-			# Prep region configs
-			for region in self.server.regions:
-				prep_region_config(destination / region / "region.ini")
+				# Set loading bar at 0%
+				self.report_progress(f"Refreshing regions... (0%)", 0, 100)
 
-			# Report
-			self.report("", "- done.")
+				# Prune file table as necessary
+				ft = []
+				for entry in file_table:
 
-			# Wait
-			#time.sleep(1)
+					# Get necessary values from entry
+					checksum = entry[0]
+					filesize = entry[1]
+					relpath = Path(entry[2])
 
-		except Exception as e:
+					# Get path of cached file
+					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
 
-			if self.ui != None:
-				self.ui.withdraw()
+					# Use the cached file if it exists and has the same size, otherwise append the entry to the new file table
+					if t.exists() and t.stat().st_size == filesize:
+						
+						# Report
+						print(f'- using cached "{checksum}"')
 
-			show_error("An error occurred while refreshing regions.\n\n" + str(e))
+						# Set the destination
+						d = Path(destination) / relpath
+
+						# Display current file in UI
+						try:
+							self.ui.progress_label["text"] = d.name #.relative_to(destination)
+						except:
+							pass
+
+						# Create the destination directory if necessary
+						d.parent.mkdir(parents=True, exist_ok=True)
+
+						# Delete the destination file if it exists
+						d.unlink(missing_ok=True)
+
+						# Copy the cached file to the destination
+						shutil.copy(t, d)
+
+						# Update progress bar
+						size_downloaded += filesize
+						old_percent = percent
+						percent = math.floor(100 * (size_downloaded / size))
+						if percent > old_percent:
+							self.report_progress(f"Refreshing regions... ({percent}%)", percent, 100)
+
+					else:
+
+						# Append to new file table
+						ft.append(entry)
+					
+				file_table = ft
+
+				# Send pruned file table
+				send_json(s, file_table)
+
+				# Receive files
+				for entry in file_table:
+
+					# Get necessary values from entry
+					checksum = entry[0]
+					filesize = entry[1]
+					relpath = Path(entry[2])
+
+					# Report
+					print(f'- caching "{checksum}"...')
+
+					# Set the destination
+					d = Path(destination) / relpath
+
+					# Display current file in UI
+					try:
+						self.ui.progress_label["text"] = d.name #.relative_to(destination)
+					except:
+						pass
+
+					# Set path of cached file
+					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
+
+					# Create the destination directory if necessary
+					d.parent.mkdir(parents=True, exist_ok=True)
+
+					# Delete the destination file if it exists
+					d.unlink(missing_ok=True)
+
+					# Delete the cache file if it exists
+					t.unlink(missing_ok=True)
+
+					# Delete cache files if cache too large to accomadate the new cache file
+					cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
+					while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
+						random_cache = random.choice(list(cache_directory.iterdir()))
+						random_cache.unlink()
+
+					# Receive the file. Write to both the destination and cache
+					filesize_read = 0
+					with d.open("wb") as dest, t.open("wb") as cache:
+						while filesize_read < filesize:
+							filesize_remaining = filesize - filesize_read
+							buffersize = SC4MP_BUFFER_SIZE if filesize_remaining > SC4MP_BUFFER_SIZE else filesize_remaining
+							bytes_read = s.recv(buffersize)
+							if not bytes_read:
+								break
+							for file in [dest, cache]:
+								file.write(bytes_read)
+							filesize_read += len(bytes_read)
+							size_downloaded += len(bytes_read)
+							old_percent = percent
+							percent = math.floor(100 * (size_downloaded / size))
+							if percent > old_percent:
+								self.report_progress(f"Refreshing regions... ({percent}%)", percent, 100)
+
+				self.report_progress(f"Refreshing regions... (100%)", 100, 100)
+
+				# Receive file count
+				#file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+				#
+				# Separator
+				#s.send(SC4MP_SEPARATOR)
+				#
+				# Receive file size
+				#size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
+				#
+				# Receive files
+				#size_downloaded = 0
+				#for files_received in range(file_count):
+				#	percent = math.floor(100 * (size_downloaded / size))
+				#	self.report_progress(f'Refreshing regions... ({percent}%)', percent, 100)
+				#	s.send(SC4MP_SEPARATOR)
+				#	size_downloaded += self.receive_or_cached(s, destination)
+				#self.report_progress("Refreshing regions... (100%)", 100, 100)
+
+				# Report
+				self.report("", "Refreshing regions...")
+
+				# Prep region configs
+				for region in self.server.regions:
+					prep_region_config(destination / region / "region.ini")
+
+				# Report
+				self.report("", "Done.")
+
+				break
+
+			except Exception as e:
+
+				#if self.ui != None:
+				#	self.ui.withdraw()
+
+				show_error("An error occurred while refreshing regions.\n\n" + str(e), no_ui=True)
 
 
 	def report(self, prefix, text):
@@ -3138,42 +3361,52 @@ class RegionsRefresher(th.Thread):
 
 		s.settimeout(10)
 
-		tries_left = 6
+		try:
 
-		while True:
+			self.report("", "Connecting...")
+			s.connect((host, port))
 
-			try:
+			self.report("", "Connected.")
 
-				self.report("", "Connecting...")
-				s.connect((host, port))
+		except socket.error as e:
+			
+			raise ClientException("Connection failed.\n\n" + str(e))	
 
-				self.report("", "Connected.")
+		#tries_left = 6
+		
+		#while True:
+		
+		#	try:
+		
+		#		self.report("", "Connecting...")
+		#		s.connect((host, port))
 
-				break
+		#		self.report("", "Connected.")
 
-			except socket.error as e:
+		#		break
+
+		#	except socket.error as e:
 				
-				if tries_left > 0:
+		#		if tries_left > 0:
 				
-					show_error(e, no_ui=True)
+		#			show_error(e, no_ui=True)
 
-					count = 5
-					while count > 0:
-						self.report("[ERROR] ", f"Connection failed. Retrying in {count}...")
-						count = count - 1
-						time.sleep(1)
+		#			count = 5
+		#			while count > 0:
+		#				self.report("[ERROR] ", f"Connection failed. Retrying in {count}...")
+		#				count = count - 1
+		#				time.sleep(1)
 
-					tries_left = tries_left - 1
+		#			tries_left = tries_left - 1
 
-				else:
+		#		else:
 
-					raise ClientException("Maximum connection tries exceeded. Check your internet connection and firewall settings, then try again.\n\n" + str(e))
+		#			raise ClientException("Maximum connection tries exceeded. Check your internet connection and firewall settings, then try again.\n\n" + str(e))
 
 		return s
 
 
-	def receive_or_cached(self, s: socket.socket, rootpath: Path) -> int:
-		"""TODO"""
+	"""def receive_or_cached(self, s: socket.socket, rootpath: Path) -> int:
 
 		# Receive hashcode and set cache filename
 		hash = s.recv(SC4MP_BUFFER_SIZE).decode()
@@ -3243,7 +3476,7 @@ class RegionsRefresher(th.Thread):
 					filesize_read += len(bytes_read)
 			
 		# Return the file size
-		return filesize
+		return filesize"""
 
 
 class DatabaseManager(th.Thread):
