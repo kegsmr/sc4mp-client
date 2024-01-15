@@ -4428,7 +4428,7 @@ class ServerListUI(tk.Frame):
     		),
 			(
 				"#5",
-				"Rating",
+				"Rank",
 				NORMAL_COLUMN_WIDTH,
 				"center"
     		)
