@@ -2932,7 +2932,7 @@ class GameMonitor(th.Thread):
 			self.report(self.PREFIX, 'Save push failed! Too many regions.') 
 			return
 		else:
-			region = regions[0]
+			region = list(regions)[0]
 
 		# Create socket
 		s = self.create_socket()
