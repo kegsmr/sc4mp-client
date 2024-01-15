@@ -4871,8 +4871,8 @@ class ServerLoaderUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.minsize(800, 110)
-		self.maxsize(800, 110)
+		self.minsize(800, 100)
+		self.maxsize(800, 100)
 		self.grid()
 		center_window(self)
 
@@ -4896,7 +4896,7 @@ class ServerLoaderUI(tk.Toplevel):
 			length=780,
 			maximum=100
 		)
-		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=10)
+		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10,5))
 		self.progress_bar.start(2)
 
 		# Progress label
