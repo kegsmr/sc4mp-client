@@ -1874,7 +1874,7 @@ class ServerFetcher(th.Thread):
 				try:
 					self.server.fetch()
 				except:
-					raise ClientException("Unable to fetch server info.")
+					raise ClientException("Server not found")
 
 				if self.parent.end:
 					raise ClientException("The parent thread was signaled to end.")
