@@ -2218,7 +2218,7 @@ class ServerLoader(th.Thread):
 				source_relpaths = get_relpaths_recursively(client_plugins_source)
 				source_size = directory_size(client_plugins_source)
 				destination_size = 0
-				percent = 0
+				percent = -1
 				for relpath in source_relpaths:
 					old_percent = percent
 					percent = math.floor(100 * (destination_size / source_size))
