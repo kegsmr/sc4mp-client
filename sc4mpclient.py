@@ -67,7 +67,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		#("use_overlay", 1), #TODO
 		("custom_plugins", False),
 		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser()),
-		("stat_mayors_online_cutoff", 1)
+		("stat_mayors_online_cutoff", 60)
 	]),
 	("STORAGE", [
 		("storage_path", Path("~/Documents/SimCity 4/_SC4MP").expanduser()),
@@ -875,7 +875,7 @@ class Server:
 							modified = city_entry["modified"]
 							if modified != None:
 								modified = datetime.strptime(modified, "%Y-%m-%d %H:%M:%S")
-								if modified > server_time - timedelta(hours=sc4mp_config["GENERAL"]["stat_mayors_online_cutoff"]) and owner not in mayors_online:
+								if modified > server_time - timedelta(minutes=sc4mp_config["GENERAL"]["stat_mayors_online_cutoff"]) and owner not in mayors_online:
 									mayors_online.append(owner)
 				total_area += region_dimensions[0] * region_dimensions[1]
 			except Exception as e:
