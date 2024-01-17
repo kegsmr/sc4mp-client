@@ -26,7 +26,7 @@ from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
 from typing import Optional
 
-SC4MP_VERSION = "0.4.0"
+SC4MP_VERSION = "0.4.1"
 
 SC4MP_SERVERS = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
 
@@ -147,7 +147,7 @@ def main():
 		sc4mp_password = None
 		if "--password" in sc4mp_args:
 			try:
-				sc4mp_password = int(get_arg_value("--password", sc4mp_args))
+				sc4mp_password = get_arg_value("--password", sc4mp_args)
 			except:
 				raise ClientException("Invalid arguments.")
 
@@ -875,7 +875,7 @@ class Server:
 							modified = city_entry["modified"]
 							if modified != None:
 								modified = datetime.strptime(modified, "%Y-%m-%d %H:%M:%S")
-								if modified > server_time - timedelta(minutes=sc4mp_config["stat_mayors_online_cutoff"]) and owner not in mayors_online:
+								if modified > server_time - timedelta(minutes=sc4mp_config["GENERAL"]["stat_mayors_online_cutoff"]) and owner not in mayors_online:
 									mayors_online.append(owner)
 				total_area += region_dimensions[0] * region_dimensions[1]
 			except Exception as e:
@@ -2756,7 +2756,7 @@ class GameMonitor(th.Thread):
 							self.push_save(save_city_paths)
 						except Exception as e:
 							show_error(e, no_ui=True)
-							self.report("[WARNING] ", "Save push failed! Unexpected client-side error.")
+							self.report("[WARNING] ", "Save push failed! Unexpected client-side error.", color="red")
 						time.sleep(6)
 
 					# Break the loop when signaled
@@ -2780,7 +2780,7 @@ class GameMonitor(th.Thread):
 							if new_refresh_region_open and (not old_refresh_region_open):
 								#print("Refresh regions!")
 								if ping == None:
-									self.report("[WARNING] ", "Unable to refresh regions at this time.")
+									self.report("[WARNING] ", "Unable to refresh regions at this time.", color="red")
 								else:
 									old_text = self.ui.label["text"]
 									self.report("", "Refreshing...")
@@ -2796,7 +2796,7 @@ class GameMonitor(th.Thread):
 										regions_refresher.run()
 									self.city_paths, self.city_hashcodes = self.get_cities()
 									if sc4mp_game_launcher.game_running:
-										self.report("", "Regions refreshed at " + datetime.now().strftime("%H:%M") + ".")
+										self.report("", "Regions refreshed at " + datetime.now().strftime("%H:%M") + ".", color="green")
 									#self.ui.label["text"] = old_text
 							old_refresh_region_open = new_refresh_region_open
 						cfg_hashcode = new_cfg_hashcode
@@ -2946,7 +2946,7 @@ class GameMonitor(th.Thread):
 		# Verify that all saves come from the same region
 		regions = set([save_city_path.parent.name for save_city_path in save_city_paths])
 		if len(regions) > 1:
-			self.report(self.PREFIX, 'Save push failed! Too many regions.') 
+			self.report(self.PREFIX, 'Save push failed! Too many regions.', color="red") 
 			return
 		else:
 			region = list(regions)[0]
@@ -2954,8 +2954,11 @@ class GameMonitor(th.Thread):
 		# Create socket
 		s = self.create_socket()
 		if s == None:
-			self.report(self.PREFIX, 'Save push failed! Server unreachable.') #'Unable to save the city "' + new_city + '" because the server is unreachable.'
+			self.report(self.PREFIX, 'Save push failed! Server unreachable.', color="red") #'Unable to save the city "' + new_city + '" because the server is unreachable.'
 			return
+
+		# Report progress: save
+		self.report(self.PREFIX, 'Saving...')
 
 		# Send save request
 		s.send(f"save {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
@@ -3010,10 +3013,10 @@ class GameMonitor(th.Thread):
 		# Handle response from server
 		response = s.recv(SC4MP_BUFFER_SIZE).decode()
 		if response == "ok":
-			self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.') #TODO keep track locally of the client's claims
+			self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green") #TODO keep track locally of the client's claims
 			shutil.rmtree(salvage_directory) #TODO make configurable
 		else:
-			self.report(self.PREFIX + "[WARNING] ", f"Save push failed! {response}")
+			self.report(self.PREFIX + "[WARNING] ", f"Save push failed! {response}", color="red")
 
 		# Close socket
 		s.close()
@@ -3039,7 +3042,7 @@ class GameMonitor(th.Thread):
 
 		s.settimeout(10)
 
-		tries_left = 36
+		tries_left = 10
 
 		while True:
 
@@ -3097,10 +3100,11 @@ class GameMonitor(th.Thread):
 		return self.server.ping()
 
 
-	def report(self, prefix, text):
+	def report(self, prefix, text, color="black"):
 		"""TODO"""
 		if self.ui != None:
 			self.ui.label['text'] = text
+			self.ui.label.config(fg=color)
 		print(prefix + text)
 
 
@@ -5001,42 +5005,95 @@ class GameMonitorUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry("400x400")
-		self.minsize(420, 80)
-		self.maxsize(420, 80)
+		self.minsize(443, 600)
+		self.maxsize(443, 600)
 		self.grid()
 
 		# Protocol
 		self.protocol("WM_DELETE_WINDOW", self.disable)
 
+		# Status label
+		self.label = tk.Label(self)
+		self.label.grid(row=0, column=0, padx=10, pady=20, sticky="n")
+		#self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+
+		# Canvas
+		self.canvas_frame = tk.Frame(self)
+		self.canvas_frame.grid(row=1, column=0, padx=15, pady=0, sticky="nw") #, sticky="ewns")
+		self.canvas = tk.Canvas(self.canvas_frame, width=408, height=408, bg="white", highlightthickness=0)
+		self.canvas_horizontal_scrollbar = tk.Scrollbar(self.canvas_frame, orient="horizontal")
+		self.canvas_horizontal_scrollbar.pack(side="bottom", fill="x")
+		self.canvas_horizontal_scrollbar.config(command=self.canvas.xview)
+		self.canvas_vertical_scrollbar = tk.Scrollbar(self.canvas_frame)
+		self.canvas_vertical_scrollbar.pack(side="right", fill="y")
+		self.canvas_vertical_scrollbar.config(command=self.canvas.yview)
+		self.canvas.config(xscrollcommand=self.canvas_horizontal_scrollbar.set, yscrollcommand=self.canvas_vertical_scrollbar.set)
+		self.canvas.pack(side="left", expand=True, fill="both")
+
 		# Status frame
-		self.status_frame = tk.Frame(self)
-		self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+		#self.status_frame = tk.Frame(self)
+		#self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
 
 		# Status label left
-		self.status_frame.left = ttk.Label(self.status_frame, text="Status:")
-		self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
+		#self.status_frame.left = ttk.Label(self.status_frame, text="Status:")
+		#self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
 
 		# Status label right
-		self.status_frame.right = ttk.Label(self.status_frame, text="")
-		self.status_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=10, sticky="w")
-		self.label = self.status_frame.right
+		#self.status_frame.right = ttk.Label(self.status_frame, text="")
+		#self.status_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=10, sticky="w")
+		#self.label = self.status_frame.right
 
 		# Ping frame
-		self.ping_frame = tk.Frame(self)
-		self.ping_frame.grid(column=0, row=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+		#self.ping_frame = tk.Frame(self)
+		#self.ping_frame.grid(column=0, row=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
 
 		# Ping label left
-		self.ping_frame.left = ttk.Label(self.ping_frame, text="Ping:")
-		self.ping_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
+		#self.ping_frame.left = ttk.Label(self.ping_frame, text="Ping:")
+		#self.ping_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
 
 		# Ping label right
-		self.ping_frame.right = ttk.Label(self.ping_frame, text="")
-		self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+		#self.ping_frame.right = ttk.Label(self.ping_frame, text="")
+		#self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+
+		self.draw_reigon()
 
 
 	def disable(self):
 		"""TODO"""
 		pass
+
+
+	def draw_reigon(self):
+		
+		self.canvas.LAUNCHER_MAP_TILE_UNCLAIMED_LARGE = tk.PhotoImage(file=os.path.join("resources", "launcher-map-tile-unclaimed-large.png"))
+		
+		TILE_SIZE = 17
+
+		self.canvas.images = {}
+
+		REGION_WIDTH = 6 * 4
+		REGION_HEIGHT = 6 * 4
+
+		WIDTH = TILE_SIZE * REGION_WIDTH
+		HEIGHT = TILE_SIZE * REGION_HEIGHT
+
+		self.canvas.configure(scrollregion=(-.5 * WIDTH, -.5 * HEIGHT, .5 * WIDTH, .5 * HEIGHT))
+
+		#VIEWPORT_WIDTH = 408 / WIDTH
+		#VIEWPORT_HEIGHT = 408 / HEIGHT
+
+		#if VIEWPORT_WIDTH < 1:
+		#	self.canvas_horizontal_scrollbar.set((1 + VIEWPORT_WIDTH) / 2, (1 - VIEWPORT_WIDTH) / 2)
+		
+		#if VIEWPORT_HEIGHT < 1:
+		#	self.canvas_vertical_scrollbar.set((1 + VIEWPORT_HEIGHT) / 2, (1 - VIEWPORT_HEIGHT) / 2)
+
+		LARGE_TILE_COUNT_X = REGION_WIDTH / 4
+		LARGE_TILE_COUNT_Y = REGION_HEIGHT / 4
+
+		for y in range(int(-.5 * LARGE_TILE_COUNT_Y), int(.5 * LARGE_TILE_COUNT_Y)):
+			for x in range(int(-.5 * LARGE_TILE_COUNT_X), int(.5 * LARGE_TILE_COUNT_X)):
+				self.canvas.images[f"{x}_{y}"] = self.canvas.create_image(x*68, y*68, image=self.canvas.LAUNCHER_MAP_TILE_UNCLAIMED_LARGE, anchor="nw")
 
 
 class GameOverlayUI(tk.Toplevel):

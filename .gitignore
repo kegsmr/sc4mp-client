@@ -4,7 +4,6 @@
 /_Servers*
 /dist
 /logs
-/resources/launcher-map-tile*
 /builds
 /setupbuilds
 api_test.py
