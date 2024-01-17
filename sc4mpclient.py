@@ -925,7 +925,7 @@ class Server:
 
 			# Create the socket
 			s = socket.socket()
-			s.settimeout(10)
+			s.settimeout(30)
 			s.connect((self.host, self.port))
 
 			# Request the type of data
