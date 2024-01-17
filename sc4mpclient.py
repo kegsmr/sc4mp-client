@@ -67,7 +67,8 @@ SC4MP_CONFIG_DEFAULTS = [
 		#("use_overlay", 1), #TODO
 		("custom_plugins", False),
 		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser()),
-		("stat_mayors_online_cutoff", 60)
+		("stat_mayors_online_cutoff", 60),
+		("ignore_token_errors", False)
 	]),
 	("STORAGE", [
 		("storage_path", Path("~/Documents/SimCity 4/_SC4MP").expanduser()),
@@ -1122,7 +1123,8 @@ class Server:
 			if s.recv(SC4MP_BUFFER_SIZE).decode() == hashlib.sha256(user_id.encode()).hexdigest()[:32]:
 				self.user_id = user_id
 			else:
-				raise ClientException("Invalid token.") #"Authentication error."
+				if sc4mp_config["GENERAL"]["ignore_token_errors"]:
+					raise ClientException("Invalid token.") #"Authentication error."
 			s.close()
 		else:
 			self.user_id = user_id
