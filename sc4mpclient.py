@@ -1469,7 +1469,7 @@ class ServerList(th.Thread):
 		self.unfetched_servers = SC4MP_SERVERS.copy()
 		
 		try:
-			self.lan_servers = [(row[0], port) for row in [("localhost", None, None)] + arp() for port in range(7240, 7250)]
+			self.lan_servers = [(row[0], port) for port in range(7240, 7250) for row in [("localhost", None, None)] + arp()]
 		except Exception as e:
 			self.lan_servers = []
 			show_error(e, no_ui=True)
@@ -1550,7 +1550,7 @@ class ServerList(th.Thread):
 
 					# Fetch the next unfetched server
 					for unfetched_servers in [self.unfetched_servers, self.lan_servers]:
-						if self.server_fetchers < 100: #TODO make configurable?
+						if self.server_fetchers < 25: #100 #TODO make configurable?
 							if len(unfetched_servers) > 0:
 								unfetched_server = unfetched_servers.pop(0)
 								if unfetched_server not in self.tried_servers:
