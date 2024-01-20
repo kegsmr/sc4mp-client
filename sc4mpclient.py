@@ -2008,7 +2008,7 @@ class ServerPinger(th.Thread):
 		try:
 
 			while not self.parent.end:
-				time.sleep(len(self.parent.servers) + 1)
+				time.sleep(len(self.parent.servers) + 3)
 				if not self.parent.pause:
 					print(f"Pinging {self.server.host}:{self.server.port}")
 					ping = self.server.ping()
@@ -3526,7 +3526,7 @@ class DatabaseManager(th.Thread):
 			
 			while not self.end: #TODO pretty dumb way of checking if a dictionary has been modified
 				try:
-					time.sleep(SC4MP_DELAY)
+					time.sleep(SC4MP_DELAY * 5)
 					new_data = str(self.data)
 					if old_data != new_data:
 						report(f'Updating "{self.filename}"...', self)
