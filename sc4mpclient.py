@@ -1818,8 +1818,7 @@ class ServerList(th.Thread):
 		"""TODO"""
 		try:
 			categories = [
-				.5 * self.max_category(server.stat_mayors, self.stat_mayors.values()),
-				.5 * self.max_category(server.stat_mayors_online, self.stat_mayors_online.values()),
+				.5 * (self.max_category(server.stat_mayors, self.stat_mayors.values())) * (self.max_category(server.stat_mayors_online, self.stat_mayors_online.values()) + 1),
 				self.min_category(server.stat_claimed, self.stat_claimed.values()),
 				self.min_category(server.stat_download, self.stat_download.values()),
 				self.min_category(server.stat_ping, self.stat_ping.values()),
