@@ -5022,11 +5022,11 @@ class GameMonitorUI(tk.Toplevel):
 		self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
 
 		# Status label left
-		self.status_frame.left = ttk.Label(self.status_frame, text="Status:")
+		self.status_frame.left = tk.Label(self.status_frame, text="Status:")
 		self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
 
 		# Status label right
-		self.status_frame.right = ttk.Label(self.status_frame, text="")
+		self.status_frame.right = tk.Label(self.status_frame, text="")
 		self.status_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=10, sticky="w")
 		self.label = self.status_frame.right
 
@@ -5035,11 +5035,11 @@ class GameMonitorUI(tk.Toplevel):
 		self.ping_frame.grid(column=0, row=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
 
 		# Ping label left
-		self.ping_frame.left = ttk.Label(self.ping_frame, text="Ping:")
+		self.ping_frame.left = tk.Label(self.ping_frame, text="Ping:")
 		self.ping_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
 
 		# Ping label right
-		self.ping_frame.right = ttk.Label(self.ping_frame, text="")
+		self.ping_frame.right = tk.Label(self.ping_frame, text="")
 		self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
 
 
