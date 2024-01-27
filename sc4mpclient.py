@@ -267,56 +267,24 @@ def load_database():
 	sc4mp_servers_database.start()
 
 
-'''def connect(server):
-	"""Deprecated."""
-	
-	if (sc4mp_ui != None):
-
-		# Hide main window
-		sc4mp_ui.withdraw()
-
-		# Create the server loader ui
-		server_loader_ui = ServerLoaderUI(sc4mp_ui, server)
-
-		# Create and start the server loader
-		server_loader = ServerLoader(server_loader_ui, server)
-		server_loader.run()
-
-		# If the server loads correctly
-		if (sc4mp_current_server != None):
-
-			# Start the TODO
-			game_monitor_ui_thread = GameMonitorUIThread(sc4mp_ui, server)
-			game_monitor_ui_thread.start()
-			start_sc4()
-			game_monitor_ui_thread.ui.worker.game_running = False
-		sc4mp_ui.deiconify()
-	else:
-		server_loader = ServerLoader(None, server)
-		server_loader.run()
-		if (sc4mp_current_server != None):
-			game_monitor = GameMonitor(None, server)
-			game_monitor.start()
-			start_sc4()
-			game_monitor.game_running = False'''
-
-
 def get_sc4_path() -> Optional[Path]:
 	"""Returns the path to the SimCity 4 executable if found."""
+
 	sc4_dirs = Path("SimCity 4 Deluxe") / "Apps" / "SimCity 4.exe"
 	steam_dirs = Path("Steam") / "steamapps" / "common"
 	config_path = Path(sc4mp_config['SC4']['game_path'])
+	home_drive = Path(Path.home().drive)
 
 	possible_paths: list[Path] = [
-		Path("Program Files") / steam_dirs / sc4_dirs,
-		Path("Program Files") / "Origin Games" / sc4_dirs,
-		Path("Program Files") / "Maxis" / sc4_dirs,
-		Path("Program Files (x86)") / steam_dirs / sc4_dirs,
-		Path("Program Files (x86)") / "Origin Games" / sc4_dirs,
-		Path("Program Files (x86)") / "Maxis" / sc4_dirs,
 		config_path,
 		config_path / "SimCity 4.exe",
-		config_path / "Apps" / "SimCity 4.exe"
+		config_path / "Apps" / "SimCity 4.exe",
+		home_drive / "Program Files" / steam_dirs / sc4_dirs,
+		home_drive / "Program Files" / "Origin Games" / sc4_dirs,
+		home_drive / "Program Files" / "Maxis" / sc4_dirs,
+		home_drive / "Program Files (x86)" / steam_dirs / sc4_dirs,
+		home_drive / "Program Files (x86)" / "Origin Games" / sc4_dirs,
+		home_drive / "Program Files (x86)" / "Maxis" / sc4_dirs,
 	]
 
 	for possible_path in possible_paths:
