@@ -2759,6 +2759,9 @@ class GameMonitor(th.Thread):
 					if len(save_city_paths) > 0:
 						try:
 							self.push_save(save_city_paths)
+						except socket.timeout as e:
+							show_error(e, no_ui=True)
+							self.report("[WARNING] ", "Save push failed! Server timed out.", color="red")
 						except Exception as e:
 							show_error(e, no_ui=True)
 							self.report("[WARNING] ", "Save push failed! Unexpected client-side error.", color="red")
