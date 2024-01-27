@@ -55,6 +55,7 @@ SC4MP_BUFFER_SIZE = 4096
 SC4MP_DELAY = .1
 
 SC4MP_SERVERLIST_ENABLED = True
+SC4MP_LAUNCHERMAP_ENABLED = False
 
 SC4MP_CONFIG_DEFAULTS = [
 	("GENERAL", [
@@ -84,7 +85,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("additional_properties", "")
 	]),
 	("DEBUG", [
-		("random_server_stats", False)
+		("random_server_stats", False),
 	])
 ]
 
@@ -2660,7 +2661,10 @@ class GameMonitor(th.Thread):
 
 		self.ui = None
 		if sc4mp_ui != None:
-			self.ui = GameMonitorUI()
+			if SC4MP_LAUNCHERMAP_ENABLED:
+				self.ui = GameMonitorMapUI()
+			else:
+				self.ui = GameMonitorUI()
 			self.ui.title(server.server_name)
 
 		self.game_launcher = GameLauncher()
@@ -4987,6 +4991,64 @@ class ServerLoaderBackgoundUI(tk.Toplevel):
 
 
 class GameMonitorUI(tk.Toplevel):
+	"""TODO"""
+
+
+	def __init__(self):
+		"""TODO"""
+
+		print("Initializing...")
+
+		# Init
+		super().__init__()
+
+		# Title
+		self.title(SC4MP_TITLE)
+
+		# Icon
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+
+		# Geometry
+		self.geometry("400x400")
+		self.minsize(420, 80)
+		self.maxsize(420, 80)
+		self.grid()
+
+		# Protocol
+		self.protocol("WM_DELETE_WINDOW", self.disable)
+
+		# Status frame
+		self.status_frame = tk.Frame(self)
+		self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+
+		# Status label left
+		self.status_frame.left = ttk.Label(self.status_frame, text="Status:")
+		self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
+
+		# Status label right
+		self.status_frame.right = ttk.Label(self.status_frame, text="")
+		self.status_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=10, sticky="w")
+		self.label = self.status_frame.right
+
+		# Ping frame
+		self.ping_frame = tk.Frame(self)
+		self.ping_frame.grid(column=0, row=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+
+		# Ping label left
+		self.ping_frame.left = ttk.Label(self.ping_frame, text="Ping:")
+		self.ping_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
+
+		# Ping label right
+		self.ping_frame.right = ttk.Label(self.ping_frame, text="")
+		self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+
+
+	def disable(self):
+		"""TODO"""
+		pass
+
+
+class GameMonitorMapUI(tk.Toplevel):
 	"""TODO"""
 
 
