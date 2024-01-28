@@ -1976,7 +1976,7 @@ class ServerPinger(th.Thread):
 		try:
 
 			while not self.parent.end:
-				time.sleep(len(self.parent.servers) + 3)
+				time.sleep(len(self.parent.servers) + 1)
 				if not self.parent.pause:
 					print(f"Pinging {self.server.host}:{self.server.port}")
 					ping = self.server.ping()
