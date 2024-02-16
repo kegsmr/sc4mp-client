@@ -26,7 +26,7 @@ from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
 from typing import Optional
 
-SC4MP_VERSION = "0.4.1"
+SC4MP_VERSION = "0.4.2"
 
 SC4MP_SERVERS = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
 
