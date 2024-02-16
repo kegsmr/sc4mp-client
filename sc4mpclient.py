@@ -1501,7 +1501,7 @@ class ServerList(th.Thread):
 
 		try:
 
-			set_thread_name("SlThread", enumerate=False)
+			set_thread_name("SLThread", enumerate=False)
 
 			if self.kill != None:
 				self.kill.end = True
