@@ -117,7 +117,7 @@ def main():
 
 		# Output
 		sys.stdout = Logger()
-		th.current_thread().name = "Main"
+		set_thread_name("Main", enumerate=False)
 
 		# Title
 		print(SC4MP_TITLE)
@@ -679,6 +679,26 @@ def recv_json(s):
 			return json.loads(data)
 		except json.decoder.JSONDecodeError:
 			pass
+
+
+def set_thread_name(name, enumerate=True):
+
+	if enumerate:
+
+		thread_names = [thread.name for thread in th.enumerate()]
+
+		count = 1
+		while (True):
+			thread_name = f"{name}-{count}"
+			if not thread_name in thread_names:
+				th.current_thread().name = thread_name
+				return thread_name
+			count += 1
+
+	else:
+
+		th.current_thread().name = name
+		return name
 
 
 # Objects
@@ -1481,6 +1501,8 @@ class ServerList(th.Thread):
 
 		try:
 
+			set_thread_name("SlThread", enumerate=False)
+
 			if self.kill != None:
 				self.kill.end = True
 				while not self.kill.ended:
@@ -1838,6 +1860,8 @@ class ServerFetcher(th.Thread):
 
 			try:
 
+				set_thread_name("SfThread")
+
 				print(f"Fetching {self.server.host}:{self.server.port}...")
 
 				print("- fetching server info...")
@@ -1975,6 +1999,8 @@ class ServerPinger(th.Thread):
 
 		try:
 
+			set_thread_name("SpThread")
+
 			while not self.parent.end:
 				time.sleep(len(self.parent.servers) + 1)
 				if not self.parent.pause:
@@ -2011,6 +2037,8 @@ class ServerLoader(th.Thread):
 		"""TODO"""
 
 		try:
+
+			set_thread_name("SldThread", enumerate=False)
 
 			if self.ui != None:
 				while get_sc4_path() == None:
@@ -2645,6 +2673,8 @@ class GameMonitor(th.Thread):
 		# Catch all errors and show an error message
 		try:
 
+			set_thread_name("GmThread", enumerate=False)
+
 			# Declare variable to break loop after the game closes
 			end = False
 
@@ -3107,8 +3137,10 @@ class GameLauncher(th.Thread):
 
 	def run(self):
 		"""TODO"""
-		
+
 		try:
+
+			set_thread_name("GlThread", enumerate=False)
 
 			start_sc4()
 			
@@ -3141,6 +3173,8 @@ class RegionsRefresher(th.Thread):
 		while sc4mp_game_launcher.game_running:
 
 			try:
+
+				set_thread_name("RrThread", enumerate=False)
 
 				# Report
 				self.report("", "Refreshing regions...")
@@ -3496,6 +3530,8 @@ class DatabaseManager(th.Thread):
 	
 		try:
 			
+			set_thread_name("DbThread")
+
 			old_data = str(self.data)
 			
 			while not self.end: #TODO pretty dumb way of checking if a dictionary has been modified
