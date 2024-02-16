@@ -675,7 +675,7 @@ def recv_json(s):
 	data = ""
 	while True:
 		new_data = s.recv(SC4MP_BUFFER_SIZE).decode()
-		if len(new_data > 0):
+		if len(new_data) > 0:
 			data += new_data
 			try:
 				return json.loads(data)
