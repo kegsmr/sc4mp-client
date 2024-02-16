@@ -674,11 +674,14 @@ def recv_json(s):
 	"""TODO"""
 	data = ""
 	while True:
-		data += s.recv(SC4MP_BUFFER_SIZE).decode()
-		try:
-			return json.loads(data)
-		except json.decoder.JSONDecodeError:
-			pass
+		new_data = s.recv(SC4MP_BUFFER_SIZE).decode()
+		if len(new_data > 0):
+			data += new_data
+			try:
+				return json.loads(data)
+			except json.decoder.JSONDecodeError:
+				pass
+		time.sleep(SC4MP_DELAY)
 
 
 def set_thread_name(name, enumerate=True):
