@@ -717,41 +717,39 @@ class Config:
 		self.DEFAULTS = defaults
 
 		# Create dictionary with default config settings
-		self.data = dict()
-		for section in self.DEFAULTS:
-			section_name = section[0]
-			section_items = section[1]
-			self.data.setdefault(section_name, dict())
-			for item in section_items:
-				item_name = item[0]
-				item_value = item[1]
+		self.data = {}
+		for section_name, section_items in self.DEFAULTS:
+			self.data.setdefault(section_name, {})
+			for item_name, item_value in section_items:
 				self.data[section_name].setdefault(item_name, item_value)
 		
 		# Try to read settings from the config file and update the dictionary accordingly
 		parser = configparser.RawConfigParser()
 		try:
 			parser.read(self.PATH)
-			for section_name in self.data.keys():
-				section = self.data[section_name]
+			for section_name, section in self.data.items():
 				try:
-					for item_name in section.keys():
+					for item_name in section:
 						try:
 							from_file = parser.get(section_name, item_name)
-							if from_file == "True":
-								self.data[section_name][item_name] = True
-							elif from_file == "False":
-								self.data[section_name][item_name] = False
-							elif from_file == "None":
-								self.data[section_name][item_name] = None
+							if from_file is str:
+								if from_file.lower() == "true":
+									self.data[section_name][item_name] = True
+								elif from_file.lower() == "false":
+									self.data[section_name][item_name] = False
+								elif from_file.lower() == "None":
+									self.data[section_name][item_name] = None
 							else:
 								t = type(self.data[section_name][item_name])
 								self.data[section_name][item_name] = t(from_file)
-						except:
-							pass
-				except:
-					pass
-		except:
-			pass
+						except (configparser.NoSectionError, configparser.NoOptionError):
+							print(f"[WARNING] Option \"{item_name}\" missing from section \"{section_name}\" of the config file at \"{self.PATH}\". Using default value.")
+						except Exception as e:
+							show_error(e, no_ui=True)
+				except Exception as e:
+					show_error(e, no_ui=True)
+		except Exception as e:
+			show_error(e, no_ui=True)
 
 		# Update config file
 		self.update()
