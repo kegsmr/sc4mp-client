@@ -711,6 +711,7 @@ class Config:
 
 
 	def __init__(self, path, defaults):
+		"""TODO"""
 
 		# Parameters
 		self.PATH = path
@@ -732,13 +733,12 @@ class Config:
 					for item_name in section:
 						try:
 							from_file = parser.get(section_name, item_name)
-							if from_file is str:
-								if from_file.lower() == "true":
-									self.data[section_name][item_name] = True
-								elif from_file.lower() == "false":
-									self.data[section_name][item_name] = False
-								elif from_file.lower() == "None":
-									self.data[section_name][item_name] = None
+							if from_file in ("true", "True", "TRUE"):
+								self.data[section_name][item_name] = True
+							elif from_file in ("false", "False", "FALSE"):
+								self.data[section_name][item_name] = False
+							elif from_file in ("none", "None", "NONE"):
+								self.data[section_name][item_name] = None
 							else:
 								t = type(self.data[section_name][item_name])
 								self.data[section_name][item_name] = t(from_file)
