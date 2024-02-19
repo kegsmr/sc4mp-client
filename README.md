@@ -4,6 +4,8 @@ A launcher for the PC videogame [SimCity 4](https://en.wikipedia.org/wiki/SimCit
 # Installation
 Download and run the installer from the [latest release](https://github.com/kegsmr/sc4mp-client/releases/latest).
 
+Alternatively, download the standalone version and install the program to a directory of your choosing.
+
 # Usage
 Follow the instructions included in the `Readme.html` file.
 
