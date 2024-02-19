@@ -5,7 +5,7 @@ A launcher for the PC videogame [SimCity 4](https://en.wikipedia.org/wiki/SimCit
 Download and run the installer from the [latest release](https://github.com/kegsmr/sc4mp-client/releases/latest).
 
 # Usage
-Follow the instructions included in the `Readme.html`.
+Follow the instructions included in the `Readme.html` file.
 
 # Compiling
 To compile the source code, run the `setup.py` script. Then run the `setup.iss` script in the [Inno Setup Compiler](https://jrsoftware.org/isdl.php) to build the installer.
