@@ -4774,7 +4774,7 @@ class ServerListUI(tk.Frame):
 
 		# Address label
 
-		self.address_label = ttk.Label(self)
+		self.address_label = tk.Label(self, fg="gray")
 		self.address_label.grid(row=4, column=0, columnspan=1, padx=20, pady=10, sticky="sw")
 		self.address_label['text'] = ""
 
