@@ -4462,8 +4462,8 @@ class PasswordDialogUI(tk.Toplevel):
 		center_window(self)
 		
 		# Priority
-		self.grab_set()
 		self.lift()
+		self.grab_set()
 
 		# Key bindings
 		self.bind("<Return>", lambda event:self.ok())
