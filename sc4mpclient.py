@@ -474,8 +474,7 @@ def fatal_error():
 		if sc4mp_ui == True:
 			tk.Tk().withdraw()
 		messagebox.showerror(SC4MP_TITLE, message)
-
-	startfile(SC4MP_LOG_PATH)
+		startfile(SC4MP_LOG_PATH)
 
 	cleanup()
 
