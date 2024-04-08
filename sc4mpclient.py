@@ -1447,6 +1447,9 @@ class ServerList(th.Thread):
 
 		self.ui = ui
 
+		if self.ui is not None:
+			self.ui.label["text"] = 'Getting server list...'
+
 		self.setDaemon(True)
 
 		self.end = False
@@ -1456,22 +1459,6 @@ class ServerList(th.Thread):
 		self.servers = dict()
 
 		self.unfetched_servers = SC4MP_SERVERS.copy()
-		
-		try:
-			self.lan_servers = [(row[0], port) for port in range(7240, 7250) for row in [("localhost", None, None)] + arp()]
-		except Exception as e:
-			self.lan_servers = []
-			show_error(e, no_ui=True)
-
-		delete_server_ids = []
-		for server_id in reversed(sc4mp_servers_database.keys()):
-			server_entry = sc4mp_servers_database[server_id]
-			if (server_entry.get("user_id", None) != None) or ("last_contact" not in server_entry.keys()) or (datetime.strptime(server_entry["last_contact"], "%Y-%m-%d %H:%M:%S") + timedelta(days=30) > datetime.now()):
-				self.unfetched_servers.append((sc4mp_servers_database[server_id]["host"], sc4mp_servers_database[server_id]["port"]))
-			else:
-				delete_server_ids.append(server_id)
-		for delete_server_id in delete_server_ids:
-			sc4mp_servers_database.data.pop(delete_server_id)
 
 		self.fetched_servers = []
 		self.tried_servers = []
@@ -1502,6 +1489,22 @@ class ServerList(th.Thread):
 		try:
 
 			set_thread_name("SLThread", enumerate=False)
+
+			try:
+				self.lan_servers = [(row[0], port) for port in range(7240, 7250) for row in [("localhost", None, None)] + arp()]
+			except Exception as e:
+				self.lan_servers = []
+				show_error(e, no_ui=True)
+
+			delete_server_ids = []
+			for server_id in reversed(sc4mp_servers_database.keys()):
+				server_entry = sc4mp_servers_database[server_id]
+				if (server_entry.get("user_id", None) != None) or ("last_contact" not in server_entry.keys()) or (datetime.strptime(server_entry["last_contact"], "%Y-%m-%d %H:%M:%S") + timedelta(days=30) > datetime.now()):
+					self.unfetched_servers.append((sc4mp_servers_database[server_id]["host"], sc4mp_servers_database[server_id]["port"]))
+				else:
+					delete_server_ids.append(server_id)
+			for delete_server_id in delete_server_ids:
+				sc4mp_servers_database.data.pop(delete_server_id)
 
 			if self.kill != None:
 				self.kill.end = True
