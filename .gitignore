@@ -9,8 +9,8 @@
 /setupbuilds
 api_test.py
 config.ini
-inno.bat
 testing.py
-*.log
+*.bat
 *.exe
+*.log
 *.pdn
