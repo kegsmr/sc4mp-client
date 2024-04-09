@@ -1447,7 +1447,7 @@ class ServerList(th.Thread):
 
 		self.ui = ui
 
-		if self.ui is not None and self.kill is None:
+		if self.ui is not None and kill is None:
 			self.ui.label["text"] = 'Getting server list...'
 
 		self.setDaemon(True)
