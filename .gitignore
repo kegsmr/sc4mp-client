@@ -2,7 +2,8 @@
 /_SC4MP*
 /_Server*
 /_Servers*
-/dist
+/dist32
+/dist64
 /logs
 /builds
 /setupbuilds

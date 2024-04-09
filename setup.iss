@@ -15,14 +15,15 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 ;AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
+ArchitecturesInstallIn64BitMode=x64
 DefaultDirName={userdocs}\SimCity 4\{#MyAppName}
 DisableProgramGroupPage=yes
-LicenseFile=dist\License.txt
+LicenseFile=License.txt
 ; Remove the following line to run in administrative install mode (install for all users.)
 PrivilegesRequired=lowest
 OutputDir=setupbuilds
-OutputBaseFilename=sc4mp-client-installer-windows-32-v{#MyAppVersion}.{#TimeStamp}
-SetupIconFile=dist\resources\icon.ico
+OutputBaseFilename=sc4mp-client-installer-windows-v{#MyAppVersion}.{#TimeStamp}
+SetupIconFile=resources\icon.ico
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -34,9 +35,11 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "dist\Readme.html"; DestDir: "{app}"; Flags: isreadme
-Source: "dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist64\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion; Check: Is64BitInstallMode
+Source: "dist64\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: Is64BitInstallMode
+Source: "dist32\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion; Check: not Is64BitInstallMode
+Source: "dist32\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: not Is64BitInstallMode
+Source: "Readme.html"; DestDir: "{app}"; Flags: isreadme
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]

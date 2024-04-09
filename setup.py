@@ -11,16 +11,60 @@ import py2exe
 
 import sc4mpclient
 
+
 VERSION = sc4mpclient.SC4MP_VERSION
+DIST = "dist" + str(8 * struct.calcsize("P"))
 
-for item in os.listdir("dist"):
-    item = os.path.join("dist", item)
-    if (os.path.isfile(item)):
-        os.remove(item)
-    else:
-        shutil.rmtree(item)
 
-sys.argv.append('py2exe')
+def main():
+
+	# MAKE DISTRIBUTION DIRECTORY IF IT DOES NOT YET EXIST
+	if not os.path.exists(DIST):
+		os.makedirs(DIST)
+
+	# PURGE THE DISTRIBUTION DIRECTORY
+	for item in os.listdir(DIST):
+		item = os.path.join(DIST, item)
+		if (os.path.isfile(item)):
+			os.remove(item)
+		else:
+			shutil.rmtree(item)
+
+	# USE PY2EXE
+	sys.argv.append('py2exe')
+
+	# RUN SETUP
+	setup(
+		windows=[{
+			"script": "sc4mpclient.py",
+			"icon_resources": [(1, "resources/icon.ico")],
+		}],
+		options={
+			"py2exe": {
+				"packages": [],
+				"bundle_files": 1,
+                "dist_dir": DIST,
+				"optimize": 2,
+				"compressed": True,
+				"excludes":[],
+				"verbose": 4
+			}
+		},
+		zipfile=None,
+		data_files=find_data_files('resources','resources',['*'])
+	)
+
+	# COPY LICENSE AND README TO DISTRIBUTION DIRECTORY
+	print(f'Copying extra files to "{DIST}"...')
+	shutil.copy("License.txt", DIST)
+	shutil.copy("Readme.html", DIST)
+
+	# CREATE A ZIP ARCHIVE OF THE DISTRIBUTION IF REQUESTED
+	input("Press <Enter> to create a zip archive of the distribution...")
+	destination = os.path.join(os.path.join("builds", "sc4mp-client-" + platform.system().lower() + "-" + str(8 * struct.calcsize("P")) + "-v" + VERSION + "." + datetime.now().strftime("%Y%m%d%H%M%S")))
+	print('Creating zip archive of "' + DIST + '" at "' + destination + '"')
+	shutil.make_archive(destination, "zip", DIST)
+
 
 def find_data_files(source,target,patterns):
     """Locates the specified data-files and returns the matches
@@ -45,38 +89,6 @@ def find_data_files(source,target,patterns):
                 ret.setdefault(path,[]).append(filename)
     return sorted(ret.items())
 
-setup(
-	windows=[{
-		"script": "sc4mpclient.py",
-		"icon_resources": [(1, "resources/icon.ico")],
-	}],
-	options={
-		"py2exe": {
-			"packages": [],
-            "bundle_files": 1,
-			"optimize": 2,
-			"compressed": True,
-            "excludes":[],
-            "verbose": 4
-		}
-	},
-    zipfile=None,
-	data_files=find_data_files('resources','resources',['*'])
-)
 
-print('Copying extra files to "dist"...')
-shutil.copy("License.txt", "dist")
-shutil.copy("Readme.html", "dist")
-
-'''try: #TODO re-enable at some point
-    print('Copying server distribution to "dist"...')
-    shutil.copy("D:\\Users\\Kegan\\Desktop\\Projects\\mod\\sc4\\SC4MP\\sc4mp-server\\dist\\sc4mpserver.exe", "dist")
-    shutil.copytree("D:\\Users\\Kegan\\Desktop\\Projects\\mod\\sc4\\SC4MP\\sc4mp-server\\dist\\resources", "dist\\resources", dirs_exist_ok=True)
-except:
-    print('Failed!')'''
-
-input("Press <Enter> to create a zip archive of the distribution...")
-target = "dist"
-destination = os.path.join(os.path.join("builds", "sc4mp-client-" + platform.system().lower() + "-" + str(8 * struct.calcsize("P")) + "-v" + VERSION + "." + datetime.now().strftime("%Y%m%d%H%M%S")))
-print('Creating zip archive of "' + target + '" at "' + destination + '"')
-shutil.make_archive(destination, "zip", target)
+if __name__ == "__main__":
+    main()
