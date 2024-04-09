@@ -680,8 +680,7 @@ def recv_json(s):
 				return json.loads(data)
 			except json.decoder.JSONDecodeError:
 				pass
-		time.sleep(SC4MP_DELAY)
-
+			
 
 def set_thread_name(name, enumerate=True):
 
