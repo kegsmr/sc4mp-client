@@ -334,25 +334,26 @@ def start_sc4():
 
 	# For compatability with the steam version of SC4
 	time.sleep(3)
-	while process_exists("simcity 4.exe"):
-		time.sleep(1)
+	while True:
+		try:
+			while process_exists("simcity 4.exe") in [True, None]:
+				time.sleep(1)
+			print("SimCity 4 closed.")
+			break
+		except Exception as e:
+			show_error(e)
+			time.sleep(10)
 
-	print("SimCity 4 closed.")
 
-
-def process_exists(process_name): #TODO add macos compatability
+def process_exists(process_name): #TODO add MacOS compatability
 	"""TODO"""
-	try:
-		if platform.system() == "Windows":
-			call = 'TASKLIST', '/FI', 'imagename eq %s' % process_name
-			output = subprocess.check_output(call, shell=True).decode()
-			last_line = output.strip().split('\r\n')[-1]
-			return last_line.lower().startswith(process_name.lower())
-		else:
-			return False
-	except Exception as e:	# Hacky solution. It keeps the game monitor running (possibly infinitely) instead of closing it. Because that's better than closing it. 
-		show_error(e, no_ui=True)
-		return True 
+	if platform.system() == "Windows":
+		call = 'TASKLIST', '/FI', 'imagename eq %s' % process_name
+		output = subprocess.check_output(call, shell=True).decode()
+		last_line = output.strip().split('\r\n')[-1]
+		return last_line.lower().startswith(process_name.lower())
+	else:
+		return None
 
 
 def get_sc4mp_path(filename: str) -> Path:
