@@ -115,6 +115,13 @@ def main():
 
 	try:
 
+		# Exit if already running
+		try:
+			if process_exists("sc4mpclient.exe"):
+				return
+		except:
+			pass
+
 		# Output
 		sys.stdout = Logger()
 		set_thread_name("Main", enumerate=False)
