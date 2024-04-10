@@ -336,7 +336,7 @@ def start_sc4():
 	time.sleep(3)
 	while True:
 		try:
-			while process_exists("simcity 4.exe") in [True, None]:
+			while process_exists("simcity 4.exe"):
 				time.sleep(1)
 			print("SimCity 4 closed.")
 			break
