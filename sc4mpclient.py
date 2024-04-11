@@ -5197,7 +5197,7 @@ class GameMonitorMapUI(tk.Toplevel):
 		# Geometry
 		self.geometry("400x400")
 		self.minsize(443, 600)
-		self.maxsize(443, 600)
+		#self.maxsize(443, 600)
 		self.grid()
 
 		# Protocol
