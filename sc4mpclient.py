@@ -2748,13 +2748,13 @@ class GameMonitor(th.Thread):
 					# If the server is responsive print the ping in the console and display the ping in the ui
 					if ping != None:
 						print(f"Ping: {ping}")
-						if self.ui != None:
+						if self.ui != None and not SC4MP_LAUNCHERMAP_ENABLED:
 							self.ui.ping_frame.right['text'] = f"{ping}ms"
 					
 					# If the server is unresponsive print a warning in the console and update the ui accordingly
 					else:
 						print("[WARNING] Disconnected.")
-						if self.ui != None:
+						if self.ui != None and not SC4MP_LAUNCHERMAP_ENABLED:
 							self.ui.ping_frame.right['text'] = "Server unresponsive."
 
 					#new_city_paths, new_city_hashcodes = self.get_cities()
