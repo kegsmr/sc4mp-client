@@ -337,7 +337,7 @@ def start_sc4():
 		else:
 			subprocess.run(arguments)  # on Linux, the first String passed as argument must be a file that exists
 	except PermissionError as e:
-		show_error("Permission denied. Run the program as administrator.\n\n" + str(e))
+		show_error(f"Permission denied. Try running the SC4MP Launcher as administrator.\n\n{e}")
 
 	# For compatability with the steam version of SC4
 	time.sleep(3)
@@ -348,7 +348,7 @@ def start_sc4():
 			print("SimCity 4 closed.")
 			break
 		except Exception as e:
-			show_error(e)
+			show_error(f"An error occured while checking if SC4 had exited yet.", no_ui=True)
 			time.sleep(10)
 
 
@@ -752,11 +752,11 @@ class Config:
 						except (configparser.NoSectionError, configparser.NoOptionError):
 							print(f"[WARNING] Option \"{item_name}\" missing from section \"{section_name}\" of the config file at \"{self.PATH}\". Using default value.")
 						except Exception as e:
-							show_error(e, no_ui=True)
+							show_error("An error occured while reading a config item.", no_ui=True)
 				except Exception as e:
-					show_error(e, no_ui=True)
+					show_error("An error occured while reading a config section.", no_ui=True)
 		except Exception as e:
-			show_error(e, no_ui=True)
+			show_error("An error occured while reading the config.", no_ui=True)
 
 		# Update config file
 		self.update()
@@ -842,7 +842,7 @@ class Server:
 			try:
 				self.update_database()
 			except Exception as e:
-				show_error(e, no_ui = True)
+				show_error("An error occured while updating the server database.", no_ui = True)
 
 
 	def fetch_stats(self):
@@ -880,7 +880,7 @@ class Server:
 									mayors_online.append(owner)
 				total_area += region_dimensions[0] * region_dimensions[1]
 			except Exception as e:
-				show_error(e, no_ui=True)
+				show_error(f"An error occurred while calculating region statistics for \"{region}\".", no_ui=True)
 
 		self.stat_mayors = len(mayors) #(random.randint(0,1000))
 		
@@ -1180,7 +1180,7 @@ class Server:
 		
 		except Exception as e:
 
-			show_error(e, no_ui=True)
+			show_error("Unable to get server time, using local time instead.", no_ui=True)
 
 			return datetime.now()
 
@@ -1265,7 +1265,7 @@ class DBPF:
 			try:
 				cc = self.read_UL1(self.file)
 			except Exception as e:
-				show_error(e)
+				show_error("DBPF decompression error (only God knows how this code works).", no_ui=True)
 				break
 			length -= 1
 			#print("Control char is " + str(cc) + ", length remaining is " + str(length) + ".\n")
@@ -1505,7 +1505,7 @@ class ServerList(th.Thread):
 				self.lan_servers = [(row[0], port) for port in range(7240, 7250) for row in [("localhost", None, None)] + arp()]
 			except Exception as e:
 				self.lan_servers = []
-				show_error(e, no_ui=True)
+				show_error("An error occurred while scanning for LAN servers, only internet servers will be shown.", no_ui=True)
 
 			delete_server_ids = []
 			for server_id in reversed(sc4mp_servers_database.keys()):
@@ -1526,7 +1526,7 @@ class ServerList(th.Thread):
 			try:
 				purge_directory(self.temp_path)
 			except Exception as e:
-				show_error(e, no_ui=True)
+				show_error("Error deleting temporary server list files.", no_ui=True)
 
 			print("Fetching servers...")
 
@@ -1614,7 +1614,7 @@ class ServerList(th.Thread):
 									self.hidden_servers.remove(server_id)
 									#self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
 						except Exception as e:
-							show_error(e, no_ui=True)
+							show_error("An error occurred while filtering the server list.", no_ui=True)
 					elif len(self.hidden_servers) > 0:
 						server_ids = self.hidden_servers
 						for server_id in server_ids:
@@ -1670,7 +1670,7 @@ class ServerList(th.Thread):
 			except:
 				pass
 
-			show_error("An error occurred while fetching servers.\n\n" + str(e)) #, no_ui=True)
+			show_error(f"An error occurred while fetching servers.\n\n{e}") #, no_ui=True)
 
 
 	def clear_tree(self):
@@ -1947,7 +1947,7 @@ class ServerFetcher(th.Thread):
 
 		except Exception as e:
 
-			show_error(e)
+			show_error(f"A server fetcher thread encountered an unexpected error.\n\n{e}")
 
 
 	def fetch_stats(self):
@@ -2026,7 +2026,7 @@ class ServerPinger(th.Thread):
 
 		except Exception as e:
 
-			show_error(e, no_ui=True)
+			show_error(f"A server pinger thread encountered an unexpected error\n\n{e}", no_ui=True)
 
 
 class ServerLoader(th.Thread):
@@ -2100,7 +2100,7 @@ class ServerLoader(th.Thread):
 			except Exception as e:
 
 				if self.ui != None and self.ui.winfo_exists() == 1:
-					show_error("An error occurred while connecting to the server.\n\n" + str(e))
+					show_error(f"An error occurred while connecting to the server.\n\n{e}")
 				else:
 					show_error(e, no_ui=True)
 
@@ -2127,7 +2127,7 @@ class ServerLoader(th.Thread):
 
 		except Exception as e:
 
-			show_error(e)
+			show_error(f"An unexpected error occurred in the server loader thread\n\n{e}")
 
 
 	def report(self, prefix, text):
@@ -2821,7 +2821,7 @@ class GameMonitor(th.Thread):
 							old_refresh_region_open = new_refresh_region_open
 						cfg_hashcode = new_cfg_hashcode
 					except Exception as e:
-						show_error(e, no_ui=True)
+						show_error(f"An unexpected error occurred while refreshing regions.\n\n{e}", no_ui=True)
 					# Refresh by asking the server for the hashcodes of all its savegames (excluding ones already claimed by the user) and downloading the savegames missing locally, tossing them directly into the respective region (was supposed to work but SimCity 4 actually tries to keep files of the same checksum)
 					'''if (ping != None):
 						old_text = self.ui.label["text"]
@@ -2858,7 +2858,7 @@ class GameMonitor(th.Thread):
 						self.ui.label["text"] = old_text'''
 					
 				except Exception as e:
-					show_error(e, no_ui=True)
+					show_error("An unexpected error occurred in the game monitor loop.", no_ui=True)
 					time.sleep(5) #3
 			
 			# Destroy the game monitor ui if running
@@ -2871,7 +2871,7 @@ class GameMonitor(th.Thread):
 				sc4mp_ui.lift()
 
 		except Exception as e:
-			show_error(e)
+			show_error(f"An unexpected error occurred in the game monitor thread.\n\n{e}")
 
 
 	def get_cities(self) -> tuple[list[Path], list[str]]:
@@ -3165,7 +3165,7 @@ class GameLauncher(th.Thread):
 
 		except Exception as e:
 
-			show_error(e)
+			show_error(f"An unexpected error occurred in the game launcher thread.\n\n{e}")
 
 
 class RegionsRefresher(th.Thread):
@@ -3558,11 +3558,11 @@ class DatabaseManager(th.Thread):
 						report("- done.", self)
 					old_data = new_data
 				except Exception as e:
-					show_error(e)
+					show_error(f"An unexpected error occurred in the database thread.\n\n{e}")
 
 		except Exception as e:
 
-			fatal_error(e)
+			fatal_error()
 
 
 	def load_json(self):
@@ -3694,7 +3694,6 @@ class UI(tk.Tk):
 
 	def show_error(self, *args):
 		"""TODO"""
-		#show_error("An error occurred.\n\n" + traceback.format_exception(*args)[-1])
 		fatal_error()
 
 
@@ -3756,7 +3755,7 @@ class UI(tk.Tk):
 		try:
 			self.server_list.worker.pause = True
 		except Exception as e:
-			show_error(e, no_ui = True)
+			show_error("Unable to pause server list thread.", no_ui = True)
 
 
 	def deiconify(self):
@@ -4226,7 +4225,7 @@ class SC4SettingsUI(tk.Toplevel):
 		except Exception as e:
 
 			# Show an error popup
-			show_error("An error occurred.\n\n" + str(e))
+			show_error(f"An error occurred while launching the game in preview mode.\n\n{e}")
 
 		# Restore the old config data
 		sc4mp_config["SC4"] = config_data_backup
@@ -4441,7 +4440,7 @@ class DirectConnectUI(tk.Toplevel):
 			ServerLoaderUI(Server(host, port))
 			self.destroy()
 		except Exception as e:
-			show_error(e)
+			show_error(f"An unexpected error occured while starting the server loader thread.\n\n{e}")
 
 
 class PasswordDialogUI(tk.Toplevel):
@@ -4855,7 +4854,7 @@ class ServerListUI(tk.Frame):
 				children = self.tree.get_children()
 				self.tree.focus(children[0])
 		except Exception as e:
-			show_error(e, no_ui=True) # Method not all that important so we'll just toss an error in the console and call it a day 
+			show_error("Error setting focus on server list UI.", no_ui=True) # Method not all that important so we'll just toss an error in the console and call it a day 
 
 
 	def connect(self):
@@ -4877,7 +4876,7 @@ class ServerListUI(tk.Frame):
 			ServerLoaderUI(Server(host, port))
 			self.tree.focus_set()
 		except Exception as e:
-			show_error(e)
+			show_error(f"An error occurred before the server loader thread could start.\n\n{e}")
 
 
 class ServerLoaderUI(tk.Toplevel):
@@ -5272,7 +5271,7 @@ class RegionsRefresherUI(tk.Toplevel):
 			self.lift()
 			self.after(100, self.overlay)
 		except Exception as e:
-			show_error(e, no_ui=True)
+			show_error("Unable to overlay region refresher UI.", no_ui=True)
 
 
 # Exceptions
