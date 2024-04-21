@@ -2097,6 +2097,10 @@ class ServerLoader(th.Thread):
 				global sc4mp_current_server
 				sc4mp_current_server = self.server
 
+			except tk.TclError as e:
+				
+				pass
+
 			except Exception as e:
 
 				if self.ui != None and self.ui.winfo_exists() == 1:
@@ -2151,7 +2155,6 @@ class ServerLoader(th.Thread):
 			self.ui.progress_bar['value'] = value
 			self.ui.progress_bar['maximum'] = maximum
 		print(text)
-		#time.sleep(.1) # for testing
 
 
 	def fetch_server(self):
@@ -3393,7 +3396,6 @@ class RegionsRefresher(th.Thread):
 			self.ui.progress_bar['value'] = value
 			self.ui.progress_bar['maximum'] = maximum
 		print(text)
-		#time.sleep(.1) # for testing
 
 
 	def create_socket(self):
