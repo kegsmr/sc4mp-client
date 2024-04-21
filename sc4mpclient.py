@@ -815,7 +815,10 @@ class Server:
 		# Request server info
 		server_info = self.request("info")
 		if server_info is not None:
-			server_info = json.loads(self.request("info"))
+			try:
+				server_info = json.loads(server_info)
+			except:
+				raise ClientException("Unable to fetch server info.")
 		else:
 			raise ClientException("Unable to find server. Check the IP address and port, then try again.")
 		self.server_id = server_info["server_id"] #self.request("server_id")
