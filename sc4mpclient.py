@@ -69,7 +69,8 @@ SC4MP_CONFIG_DEFAULTS = [
 		("custom_plugins", False),
 		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser()),
 		("stat_mayors_online_cutoff", 60),
-		("ignore_token_errors", False)
+		("ignore_token_errors", False),
+		("allow_game_monitor_exit", False)
 	]),
 	("STORAGE", [
 		("storage_path", Path("~/Documents/SimCity 4/_SC4MP").expanduser()),
@@ -304,6 +305,10 @@ def get_sc4_path() -> Optional[Path]:
 def start_sc4():
 	"""Attempts to find the install path of SimCity 4 and launches the game with custom launch parameters if found."""
 
+	global sc4mp_allow_game_monitor_exit_if_error, sc4mp_game_exit_ovveride
+	sc4mp_allow_game_monitor_exit_if_error = False
+	sc4mp_game_exit_ovveride = False
+
 	print("Starting SimCity 4...")
 
 	path = get_sc4_path()
@@ -340,8 +345,12 @@ def start_sc4():
 		show_error(f"Permission denied. Try running the SC4MP Launcher as administrator.\n\n{e}")
 
 	# For compatability with the steam version of SC4
+	sc4mp_allow_game_monitor_exit_if_error = True
 	time.sleep(3)
 	while True:
+		if sc4mp_game_exit_ovveride:
+			print("Exiting without checking whether SC4 is still running...")
+			return
 		try:
 			while process_exists("simcity 4.exe"):
 				time.sleep(1)
@@ -2677,11 +2686,13 @@ class GameMonitor(th.Thread):
 			if SC4MP_LAUNCHERMAP_ENABLED:
 				self.ui = GameMonitorMapUI()
 			else:
-				self.ui = GameMonitorUI()
+				self.ui = GameMonitorUI(self)
 			self.ui.title(server.server_name)
 
 		self.game_launcher = GameLauncher()
 		self.game_launcher.start()
+
+		self.end = False
 
 
 	def run(self):
@@ -2861,8 +2872,11 @@ class GameMonitor(th.Thread):
 						self.ui.label["text"] = old_text'''
 					
 				except Exception as e:
-					show_error("An unexpected error occurred in the game monitor loop.", no_ui=True)
-					time.sleep(5) #3
+					if self.end:
+						break
+					else:
+						show_error("An unexpected error occurred in the game monitor loop.", no_ui=True)
+						time.sleep(5) #3
 			
 			# Destroy the game monitor ui if running
 			if self.ui != None:
@@ -2874,6 +2888,7 @@ class GameMonitor(th.Thread):
 				sc4mp_ui.lift()
 
 		except Exception as e:
+			
 			show_error(f"An unexpected error occurred in the game monitor thread.\n\n{e}")
 
 
@@ -5016,10 +5031,13 @@ class GameMonitorUI(tk.Toplevel):
 	"""TODO"""
 
 
-	def __init__(self):
+	def __init__(self, parent):
 		"""TODO"""
 
 		print("Initializing...")
+
+		# Parameters
+		self.parent = parent
 
 		# Init
 		super().__init__()
@@ -5037,7 +5055,7 @@ class GameMonitorUI(tk.Toplevel):
 		self.grid()
 
 		# Protocol
-		self.protocol("WM_DELETE_WINDOW", self.disable)
+		self.protocol("WM_DELETE_WINDOW", self.delete_window)
 
 		# Status frame
 		self.status_frame = tk.Frame(self)
@@ -5065,9 +5083,20 @@ class GameMonitorUI(tk.Toplevel):
 		self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
 
 
-	def disable(self):
+	def delete_window(self):
 		"""TODO"""
-		pass
+		if not sc4mp_config["GENERAL"]["allow_game_monitor_exit"]:	
+			if sc4mp_allow_game_monitor_exit_if_error:
+				try:
+					process_exists("simcity 4.exe")
+					return
+				except:
+					pass
+		if messagebox.askokcancel(title=SC4MP_TITLE, message="Disconnect from the server?\n\nAll unsaved changes will be lost.", icon="warning"):
+			global sc4mp_game_exit_ovveride
+			sc4mp_game_exit_ovveride = True
+			self.parent.end = True
+			self.destroy()
 
 
 class GameMonitorMapUI(tk.Toplevel):
