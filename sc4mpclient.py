@@ -118,7 +118,8 @@ def main():
 
 		# Exit if already running
 		try:
-			if process_exists("sc4mpclient.exe"):
+			count = process_count("sc4mpclient.exe")
+			if count is not None and count > 1:
 				return
 		except:
 			pass
@@ -361,13 +362,20 @@ def start_sc4():
 			time.sleep(10)
 
 
-def process_exists(process_name): #TODO add MacOS compatability
+def process_exists(process_name): #TODO add MacOS compatability / deprecate in favor of `process_count`?
 	"""TODO"""
 	if platform.system() == "Windows":
 		call = 'TASKLIST', '/FI', 'imagename eq %s' % process_name
 		output = subprocess.check_output(call, shell=True).decode()
 		last_line = output.strip().split('\r\n')[-1]
 		return last_line.lower().startswith(process_name.lower())
+	else:
+		return None
+
+
+def process_count(process_name): #TODO add MacOS compatability
+	if platform.system() == "Windows":
+		return int(subprocess.check_output(f"tasklist | find /I /C \"{process_name}\"", shell=True))
 	else:
 		return None
 
