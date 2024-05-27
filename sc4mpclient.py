@@ -1132,7 +1132,7 @@ class Server:
 			if s.recv(SC4MP_BUFFER_SIZE).decode() == hashlib.sha256(user_id.encode()).hexdigest()[:32]:
 				self.user_id = user_id
 			else:
-				if sc4mp_config["GENERAL"]["ignore_token_errors"]:
+				if not sc4mp_config["GENERAL"]["ignore_token_errors"]:
 					raise ClientException("Invalid token.") #"Authentication error."
 			s.close()
 		else:
