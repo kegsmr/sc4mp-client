@@ -5251,6 +5251,9 @@ class GameOverlayUI(tk.Toplevel):
 
 		#print("Initializing...")
 
+		# Parameters
+		self.game_monitor_ui = game_monitor_ui
+
 		# Init
 		super().__init__()
 
@@ -5268,19 +5271,33 @@ class GameOverlayUI(tk.Toplevel):
 
 		# Canvas
 		self.canvas = tk.Canvas(self, bg="black", highlightthickness=0, cursor="hand2")
-		#self.canvas.bind("<Button-1>", game_monitor_ui.lift) #TODO FIX THIS
+		self.canvas.bind("<Button-1>", self.click)
 		self.set_state("connected")
 
 
 	def overlay(self):
 		"""TODO"""
-		WIDTH = 115
-		HEIGHT = 20
-		screen_height = self.winfo_screenheight()
-		screen_width = self.winfo_screenwidth()
-		self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, screen_width - WIDTH, screen_height - HEIGHT))
-		self.overrideredirect(True)
-		self.lift()
+
+		if sc4mp_ui.focus_get() is self.game_monitor_ui:
+
+			self.withdraw()
+
+		else:
+			
+			WIDTH = 115
+			HEIGHT = 20
+
+			screen_height = self.winfo_screenheight()
+			screen_width = self.winfo_screenwidth()
+
+			self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, screen_width - WIDTH, screen_height - HEIGHT))
+
+			self.overrideredirect(True)
+
+			self.lift()
+
+			self.deiconify()
+
 		self.after(100, self.overlay)
 
 
@@ -5288,6 +5305,10 @@ class GameOverlayUI(tk.Toplevel):
 		"""TODO"""
 		self.canvas.image = self.canvas.create_image(0, 0, anchor="nw", image=self.images[state])
 		self.canvas.pack()
+
+
+	def click(self, event):
+		self.game_monitor_ui.focus_set()
 
 
 class RegionsRefresherUI(tk.Toplevel):
