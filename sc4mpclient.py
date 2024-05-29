@@ -56,7 +56,6 @@ SC4MP_DELAY = .1
 
 SC4MP_SERVERLIST_ENABLED = True
 SC4MP_LAUNCHERMAP_ENABLED = False
-SC4MP_GAME_OVERLAY_ENABLED = True
 
 SC4MP_CONFIG_DEFAULTS = [
 	("GENERAL", [
@@ -71,7 +70,8 @@ SC4MP_CONFIG_DEFAULTS = [
 		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser()),
 		("stat_mayors_online_cutoff", 60),
 		("ignore_token_errors", False),
-		("allow_game_monitor_exit", False)
+		("allow_game_monitor_exit", False),
+		("use_game_overlay", 1)
 	]),
 	("STORAGE", [
 		("storage_path", Path("~/Documents/SimCity 4/_SC4MP").expanduser()),
@@ -2731,8 +2731,10 @@ class GameMonitor(th.Thread):
 				self.ui = GameMonitorMapUI()
 			else:
 				self.ui = GameMonitorUI(self)
-			if SC4MP_GAME_OVERLAY_ENABLED:
+			if (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
 				self.overlay_ui = GameOverlayUI(self.ui)
+			else:
+				self.overlay_ui = None
 			self.ui.title(server.server_name)
 
 		self.game_launcher = GameLauncher()
