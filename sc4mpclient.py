@@ -56,6 +56,7 @@ SC4MP_DELAY = .1
 
 SC4MP_SERVERLIST_ENABLED = True
 SC4MP_LAUNCHERMAP_ENABLED = False
+SC4MP_GAME_OVERLAY_ENABLED = True
 
 SC4MP_CONFIG_DEFAULTS = [
 	("GENERAL", [
@@ -2695,6 +2696,8 @@ class GameMonitor(th.Thread):
 				self.ui = GameMonitorMapUI()
 			else:
 				self.ui = GameMonitorUI(self)
+			if SC4MP_GAME_OVERLAY_ENABLED:
+				self.overlay_ui = GameOverlayUI()
 			self.ui.title(server.server_name)
 
 		self.game_launcher = GameLauncher()
@@ -2785,6 +2788,7 @@ class GameMonitor(th.Thread):
 							
 							# Report waiting to sync if new/modified savegames found
 							self.report("", "Saving...") #Scanning #Waiting to sync
+							self.set_overlay_state("saving")
 							
 							# Wait
 							time.sleep(6) #5 #6 #10 #3 #TODO make configurable?
@@ -2796,9 +2800,11 @@ class GameMonitor(th.Thread):
 						except socket.timeout as e:
 							show_error(e, no_ui=True)
 							self.report("[WARNING] ", "Save push failed! Server timed out.", color="red")
+							self.set_overlay_state("not-saved")
 						except Exception as e:
 							show_error(e, no_ui=True)
 							self.report("[WARNING] ", "Save push failed! Unexpected client-side error.", color="red")
+							self.set_overlay_state("not-saved")
 						time.sleep(6)
 
 					# Break the loop when signaled
@@ -2826,6 +2832,7 @@ class GameMonitor(th.Thread):
 								else:
 									old_text = self.ui.label["text"]
 									self.report("", "Refreshing...")
+									self.set_overlay_state("refreshing")
 									if sc4mp_ui:
 										regions_refresher_ui = RegionsRefresherUI(self.server)
 										regions_refresher_ui.worker.run()
@@ -2839,6 +2846,7 @@ class GameMonitor(th.Thread):
 									self.city_paths, self.city_hashcodes = self.get_cities()
 									if sc4mp_game_launcher.game_running:
 										self.report("", "Regions refreshed at " + datetime.now().strftime("%H:%M") + ".", color="green")
+										self.set_overlay_state("refreshed")
 									#self.ui.label["text"] = old_text
 							old_refresh_region_open = new_refresh_region_open
 						cfg_hashcode = new_cfg_hashcode
@@ -2889,6 +2897,10 @@ class GameMonitor(th.Thread):
 			# Destroy the game monitor ui if running
 			if self.ui != None:
 				self.ui.destroy()
+
+			# Destroy the game overlay ui if running
+			if self.overlay_ui is not None:
+				self.overlay_ui.destroy()
 
 			# Show the main ui once again
 			if sc4mp_ui != None:
@@ -2979,6 +2991,7 @@ class GameMonitor(th.Thread):
 
 		# Report progress: save
 		self.report(self.PREFIX, 'Saving...') #Pushing save #for "' + new_city_path + '"')
+		self.set_overlay_state("saving")
 
 		# Salvage
 		salvage_directory = Path(SC4MP_LAUNCHPATH) / "_Salvage" / self.server.server_id / datetime.now().strftime("%Y%m%d%H%M%S")
@@ -2993,6 +3006,7 @@ class GameMonitor(th.Thread):
 		regions = set([save_city_path.parent.name for save_city_path in save_city_paths])
 		if len(regions) > 1:
 			self.report(self.PREFIX, 'Save push failed! Too many regions.', color="red") 
+			self.set_overlay_state("not-saved")
 			return
 		else:
 			region = list(regions)[0]
@@ -3001,10 +3015,12 @@ class GameMonitor(th.Thread):
 		s = self.create_socket()
 		if s == None:
 			self.report(self.PREFIX, 'Save push failed! Server unreachable.', color="red") #'Unable to save the city "' + new_city + '" because the server is unreachable.'
+			self.set_overlay_state("not-saved")
 			return
 
 		# Report progress: save
 		self.report(self.PREFIX, 'Saving...')
+		self.set_overlay_state("saving")
 
 		# Send save request
 		s.send(f"save {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
@@ -3060,9 +3076,11 @@ class GameMonitor(th.Thread):
 		response = s.recv(SC4MP_BUFFER_SIZE).decode()
 		if response == "ok":
 			self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green") #TODO keep track locally of the client's claims
+			self.set_overlay_state("saved")
 			shutil.rmtree(salvage_directory) #TODO make configurable
 		else:
 			self.report(self.PREFIX + "[WARNING] ", f"Save push failed! {response}", color="red")
+			self.set_overlay_state("not-saved")
 
 		# Close socket
 		s.close()
@@ -3126,6 +3144,7 @@ class GameMonitor(th.Thread):
 		"""TODO"""
 
 		self.report_quietly("Saving...")
+		self.set_overlay_state("saving")
 		print(f'Sending file "{filename}"...')
 
 		filesize = filename.stat().st_size
@@ -3158,6 +3177,11 @@ class GameMonitor(th.Thread):
 		"""TODO"""
 		if self.ui != None:
 			self.ui.label['text'] = text
+
+
+	def set_overlay_state(self, state):
+		if self.overlay_ui is not None:
+			self.overlay_ui.set_state(state)
 
 
 class GameLauncher(th.Thread):
@@ -5088,7 +5112,7 @@ class GameMonitorUI(tk.Toplevel):
 
 		# Ping label right
 		self.ping_frame.right = tk.Label(self.ping_frame, text="")
-		self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+		self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")		
 
 
 	def delete_window(self):
@@ -5237,21 +5261,32 @@ class GameOverlayUI(tk.Toplevel):
 		# Priority
 		self.wm_attributes("-topmost", True)
 
-		# Label
-		self.label = ttk.Label(self, anchor="center")
-		self.label.grid(column=0, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="we")
-	
+		# Images
+		self.images = {}
+		for state in ["connected", "not-saved", "refreshed", "refreshing", "saved", "saving"]:
+			self.images[state] = tk.PhotoImage(file=get_sc4mp_path(f"overlay-{state}.png"))
+
+		# Canvas
+		self.canvas = tk.Canvas(self, bg="black", highlightthickness=0, cursor="hand2")
+		self.set_state("connected")
+
 
 	def overlay(self):
 		"""TODO"""
-		WIDTH = 100
+		WIDTH = 115
 		HEIGHT = 20
-		#screen_height = self.winfo_screenheight()
+		screen_height = self.winfo_screenheight()
 		screen_width = self.winfo_screenwidth()
-		self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, screen_width - WIDTH, 0))
+		self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, screen_width - WIDTH, screen_height - HEIGHT))
 		self.overrideredirect(True)
 		self.lift()
 		self.after(100, self.overlay)
+
+
+	def set_state(self, state):
+		"""TODO"""
+		self.canvas.image = self.canvas.create_image(0, 0, anchor="nw", image=self.images[state])
+		self.canvas.pack()
 
 
 class RegionsRefresherUI(tk.Toplevel):
