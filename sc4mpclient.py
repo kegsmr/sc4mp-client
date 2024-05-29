@@ -2697,7 +2697,7 @@ class GameMonitor(th.Thread):
 			else:
 				self.ui = GameMonitorUI(self)
 			if SC4MP_GAME_OVERLAY_ENABLED:
-				self.overlay_ui = GameOverlayUI()
+				self.overlay_ui = GameOverlayUI(self.ui)
 			self.ui.title(server.server_name)
 
 		self.game_launcher = GameLauncher()
@@ -5246,7 +5246,7 @@ class GameOverlayUI(tk.Toplevel):
 	"""TODO"""
 	
 
-	def __init__(self):
+	def __init__(self, game_monitor_ui):
 		"""TODO"""
 
 		#print("Initializing...")
@@ -5268,6 +5268,7 @@ class GameOverlayUI(tk.Toplevel):
 
 		# Canvas
 		self.canvas = tk.Canvas(self, bg="black", highlightthickness=0, cursor="hand2")
+		#self.canvas.bind("<Button-1>", game_monitor_ui.lift) #TODO FIX THIS
 		self.set_state("connected")
 
 
