@@ -2410,12 +2410,15 @@ class ServerLoader(th.Thread):
 			
 		file_table = ft
 
+		self.ui.duration_label["text"] = "(download)"
+
+		download_start_time = time.time() + 2
+
 		total_size_to_download = sum([entry[1] for entry in file_table])
 		total_size_already_downloaded = 0.0
-		download_start_time = time.time()
-		self.ui.duration_label["text"] = "(download)"
+
 		old_eta = None
-		old_eta_display_time = time.time() + 4
+		old_eta_display_time = download_start_time + 2
 
 		# Send pruned file table
 		send_json(s, file_table)
@@ -2479,14 +2482,18 @@ class ServerLoader(th.Thread):
 					if sc4mp_ui is not None:
 						now = time.time()
 						eta = int((total_size_to_download - total_size_already_downloaded) / (total_size_already_downloaded / float(now - download_start_time)))
-						if eta >= 3600:
-							eta = 3599
 						if (old_eta is None or (old_eta > eta or int(now - old_eta_display_time) > 5)) and int(now - old_eta_display_time) >= 1:
 							old_eta = eta
 							old_eta_display_time = now
+							hours = math.floor(eta / 3600)
+							eta -= hours * 3600
 							minutes = math.floor(eta / 60)
-							seconds = eta % 60
-							self.ui.duration_label["text"] = f"{minutes:0>{2}}:{seconds:0>{2}}"
+							eta -= minutes * 60
+							seconds = eta
+							if hours > 0:
+								self.ui.duration_label["text"] = f"{hours}:{minutes:0>{2}}:{seconds:0>{2}}"
+							else:
+								self.ui.duration_label["text"] = f"{minutes}:{seconds:0>{2}}"
 
 		self.report_progress(f"Synchronizing {target}... (100%)", 100, 100)
 
