@@ -2195,6 +2195,7 @@ class ServerLoader(th.Thread):
 			self.ui.progress_bar['mode'] = "indeterminate"
 			self.ui.progress_bar['maximum'] = 100
 			self.ui.progress_label["text"] = ""
+			self.ui.duration_label["text"] = ""
 		print(prefix + text)
 		#time.sleep(1) # for testing
 
@@ -2295,6 +2296,7 @@ class ServerLoader(th.Thread):
 						self.report_progress(f'Synchronizing custom plugins... ({percent}%)', percent, 100)
 					try:
 						self.ui.progress_label["text"] = relpath.name
+						self.ui.duration_label["text"] = "(local)"
 					except:
 						pass
 					src = client_plugins_source / relpath
@@ -2380,6 +2382,7 @@ class ServerLoader(th.Thread):
 				# Display current file in UI
 				try:
 					self.ui.progress_label["text"] = d.name #.relative_to(destination)
+					self.ui.duration_label["text"] = "(cache)"
 				except:
 					pass
 
@@ -2406,6 +2409,13 @@ class ServerLoader(th.Thread):
 				ft.append(entry)
 			
 		file_table = ft
+
+		total_size_to_download = sum([entry[1] for entry in file_table])
+		total_size_already_downloaded = 0.0
+		download_start_time = time.time()
+		self.ui.duration_label["text"] = "(download)"
+		old_eta = None
+		old_eta_display_time = time.time() + 4
 
 		# Send pruned file table
 		send_json(s, file_table)
@@ -2460,11 +2470,23 @@ class ServerLoader(th.Thread):
 					for file in [dest, cache]:
 						file.write(bytes_read)
 					filesize_read += len(bytes_read)
+					total_size_already_downloaded += len(bytes_read)
 					size_downloaded += len(bytes_read)
 					old_percent = percent
 					percent = math.floor(100 * (size_downloaded / size))
 					if percent > old_percent:
 						self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
+					if sc4mp_ui is not None:
+						now = time.time()
+						eta = int((total_size_to_download - total_size_already_downloaded) / (total_size_already_downloaded / float(now - download_start_time)))
+						if eta >= 3600:
+							eta = 3599
+						if (old_eta is None or (old_eta > eta or int(now - old_eta_display_time) > 5)) and int(now - old_eta_display_time) >= 1:
+							old_eta = eta
+							old_eta_display_time = now
+							minutes = math.floor(eta / 60)
+							seconds = eta % 60
+							self.ui.duration_label["text"] = f"{minutes:0>{2}}:{seconds:0>{2}}"
 
 		self.report_progress(f"Synchronizing {target}... (100%)", 100, 100)
 
@@ -3335,6 +3357,7 @@ class RegionsRefresher(th.Thread):
 						# Display current file in UI
 						try:
 							self.ui.progress_label["text"] = d.name #.relative_to(destination)
+							self.ui.duration_label["text"] = "(cache)"
 						except:
 							pass
 
@@ -3381,6 +3404,7 @@ class RegionsRefresher(th.Thread):
 					# Display current file in UI
 					try:
 						self.ui.progress_label["text"] = d.name #.relative_to(destination)
+						self.ui.duration_label["text"] = "(download)"
 					except:
 						pass
 
@@ -5019,7 +5043,12 @@ class ServerLoaderUI(tk.Toplevel):
 		# Progress label
 		self.progress_label = tk.Label(self, fg="gray", font=("Arial", 8))
 		self.progress_label['text'] = ""
-		self.progress_label.grid(column=0, row=2, columnspan=99, padx=10, pady=0, sticky="w")
+		self.progress_label.grid(column=0, row=2, columnspan=1, padx=10, pady=0, sticky="w")
+
+		# Duration label
+		self.duration_label = tk.Label(self, fg="gray", font=("Arial", 8))
+		self.duration_label['text'] = ""
+		self.duration_label.grid(column=1, row=2, columnspan=1, padx=10, pady=0, sticky="e")
 
 		# Worker
 		self.worker = ServerLoader(self, server)
