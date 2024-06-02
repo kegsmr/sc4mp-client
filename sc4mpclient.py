@@ -5201,7 +5201,7 @@ class GameMonitorMapUI(tk.Toplevel):
 		self.grid()
 
 		# Protocol
-		self.protocol("WM_DELETE_WINDOW", self.disable)
+		self.protocol("WM_DELETE_WINDOW", self.delete_window)
 
 		# Status label
 		self.label = tk.Label(self)
@@ -5249,9 +5249,20 @@ class GameMonitorMapUI(tk.Toplevel):
 		self.draw_reigon()
 
 
-	def disable(self):
+	def delete_window(self):
 		"""TODO"""
-		pass
+		if not sc4mp_config["GENERAL"]["allow_game_monitor_exit"]:	
+			if sc4mp_allow_game_monitor_exit_if_error:
+				try:
+					process_exists("simcity 4.exe")
+					return
+				except:
+					pass
+		if messagebox.askokcancel(title=SC4MP_TITLE, message="Disconnect from the server?\n\nAll unsaved changes will be lost.", icon="warning"):
+			global sc4mp_game_exit_ovveride
+			sc4mp_game_exit_ovveride = True
+			self.parent.end = True
+			self.destroy()
 
 
 	def draw_reigon(self):
