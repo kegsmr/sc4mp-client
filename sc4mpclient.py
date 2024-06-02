@@ -3896,17 +3896,11 @@ class GeneralSettingsUI(tk.Toplevel):
 		self.path_frame.label = ttk.Label(self.path_frame, text='Some servers allow users to load their own plugins alongside the server \nplugins. Specify your plugins directory here so that they can be loaded \nwhen joining a server.')
 		self.path_frame.label.grid(row=2, column=0, columnspan=2, padx=10, pady=(0,10), sticky="w")
 
-		# Nickname frame
-		'''self.nickname_frame = ttk.LabelFrame(self, text="Nickname")
-		self.nickname_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10)'''
+		# UI frame
+		self.ui_frame = tk.LabelFrame(self, text="UI")		
+		self.ui_frame.grid(row=1, column=0, columnspan=3, padx=10, pady=10, sticky="w")
 
-		# Nickname entry
-		'''self.nickname_frame.entry = ttk.Entry(self.nickname_frame, width = 40)
-		self.nickname_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
-		self.nickname_frame.entry.insert(0, sc4mp_config["GENERAL"]["nickname"])
-		self.config_update.append((self.nickname_frame.entry, "nickname"))'''
-
-		#TODO explain what the nickname is used for?
+		#TODO
 
 		# Reset button
 		self.reset_button = ttk.Button(self, text="Reset", command=self.reset)
