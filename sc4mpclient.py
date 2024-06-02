@@ -2085,7 +2085,10 @@ class ServerLoader(th.Thread):
 						sc4mp_config.update()
 					else:
 						self.ui.destroy()
-						sc4mp_ui.deiconify()
+						if sc4mp_exit_after_disconnect:
+							sc4mp_ui.quit()
+						else:
+							sc4mp_ui.deiconify()
 						return
 		
 			host = self.server.host
@@ -2142,14 +2145,12 @@ class ServerLoader(th.Thread):
 				self.server.categories.append("History")
 				game_monitor = GameMonitor(self.server)
 				game_monitor.start()
-			#elif (self.server == None):
-			#	game_launcher = GameLauncher()
-			#	game_launcher.run()
-			#	if (sc4mp_ui != None):
-			#		sc4mp_ui.deiconify()
 			else:
 				if sc4mp_ui != None:
-					sc4mp_ui.deiconify()
+					if sc4mp_exit_after_disconnect:
+						sc4mp_ui.quit()
+					else:
+						sc4mp_ui.deiconify()
 
 		except Exception as e:
 
