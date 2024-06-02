@@ -2705,7 +2705,7 @@ class GameMonitor(th.Thread):
 		self.overlay_ui = None
 		if sc4mp_ui is not None:
 			if SC4MP_LAUNCHERMAP_ENABLED:
-				self.ui = GameMonitorMapUI()
+				self.ui = GameMonitorMapUI(self)
 			else:
 				self.ui = GameMonitorUI(self)
 			if (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
@@ -5169,6 +5169,8 @@ class GameMonitorUI(tk.Toplevel):
 					return
 				except:
 					pass
+			else:
+				return
 		if messagebox.askokcancel(title=SC4MP_TITLE, message="Disconnect from the server?\n\nAll unsaved changes will be lost.", icon="warning"):
 			global sc4mp_game_exit_ovveride
 			sc4mp_game_exit_ovveride = True
@@ -5180,10 +5182,13 @@ class GameMonitorMapUI(tk.Toplevel):
 	"""TODO"""
 
 
-	def __init__(self):
+	def __init__(self, parent):
 		"""TODO"""
 
 		print("Initializing...")
+
+		# Parameters
+		self.parent = parent
 
 		# Init
 		super().__init__()
@@ -5258,6 +5263,8 @@ class GameMonitorMapUI(tk.Toplevel):
 					return
 				except:
 					pass
+			else:
+				return
 		if messagebox.askokcancel(title=SC4MP_TITLE, message="Disconnect from the server?\n\nAll unsaved changes will be lost.", icon="warning"):
 			global sc4mp_game_exit_ovveride
 			sc4mp_game_exit_ovveride = True
