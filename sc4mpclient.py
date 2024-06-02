@@ -5252,6 +5252,7 @@ class GameMonitorMapUI(tk.Toplevel):
 		#self.ping_frame.right = ttk.Label(self.ping_frame, text="")
 		#self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
 
+		self.prep_canvas_tiles()
 		self.draw_reigon()
 
 
@@ -5273,13 +5274,31 @@ class GameMonitorMapUI(tk.Toplevel):
 			self.destroy()
 
 
-	def draw_reigon(self):
-		
-		self.canvas.LAUNCHER_MAP_TILE_UNCLAIMED_LARGE = tk.PhotoImage(file=os.path.join("resources", "launcher-map-tile-unclaimed-large.png"))
-		
-		TILE_SIZE = 17
+	def prep_canvas_tiles(self):
 
 		self.canvas.images = {}
+
+		LAUNCHER_MAP_TILE_STATES = ("abandoned", "claimed", "unclaimed", "you")
+		LAUNCHER_MAP_TILE_SIZES = ("small", "medium", "large")
+
+		for state in LAUNCHER_MAP_TILE_STATES:
+			self.canvas.images.setdefault(state, {})
+			for size in LAUNCHER_MAP_TILE_SIZES:
+				self.canvas.images[state][size] = tk.PhotoImage(file=get_sc4mp_path(f"launcher-map-tile-{state}-{size}.png"))
+
+
+	def get_region_data(self):
+
+		#TODO
+
+		return {}
+
+
+	def draw_reigon(self):
+		
+		region_data = self.get_region_data()
+
+		TILE_SIZE = 17
 
 		REGION_WIDTH = 6 * 4
 		REGION_HEIGHT = 6 * 4
@@ -5289,21 +5308,21 @@ class GameMonitorMapUI(tk.Toplevel):
 
 		self.canvas.configure(scrollregion=(-.5 * WIDTH, -.5 * HEIGHT, .5 * WIDTH, .5 * HEIGHT))
 
-		#VIEWPORT_WIDTH = 408 / WIDTH
-		#VIEWPORT_HEIGHT = 408 / HEIGHT
+		VIEWPORT_WIDTH = 408 / WIDTH
+		VIEWPORT_HEIGHT = 408 / HEIGHT
 
-		#if VIEWPORT_WIDTH < 1:
-		#	self.canvas_horizontal_scrollbar.set((1 + VIEWPORT_WIDTH) / 2, (1 - VIEWPORT_WIDTH) / 2)
+		if VIEWPORT_WIDTH < 1:
+			self.canvas_horizontal_scrollbar.set((1 + VIEWPORT_WIDTH) / 2, (1 - VIEWPORT_WIDTH) / 2)
 		
-		#if VIEWPORT_HEIGHT < 1:
-		#	self.canvas_vertical_scrollbar.set((1 + VIEWPORT_HEIGHT) / 2, (1 - VIEWPORT_HEIGHT) / 2)
+		if VIEWPORT_HEIGHT < 1:
+			self.canvas_vertical_scrollbar.set((1 + VIEWPORT_HEIGHT) / 2, (1 - VIEWPORT_HEIGHT) / 2)
 
 		LARGE_TILE_COUNT_X = REGION_WIDTH / 4
 		LARGE_TILE_COUNT_Y = REGION_HEIGHT / 4
 
 		for y in range(int(-.5 * LARGE_TILE_COUNT_Y), int(.5 * LARGE_TILE_COUNT_Y)):
 			for x in range(int(-.5 * LARGE_TILE_COUNT_X), int(.5 * LARGE_TILE_COUNT_X)):
-				self.canvas.images[f"{x}_{y}"] = self.canvas.create_image(x*68, y*68, image=self.canvas.LAUNCHER_MAP_TILE_UNCLAIMED_LARGE, anchor="nw")
+				self.canvas.images[f"{x}_{y}"] = self.canvas.create_image(x*68, y*68, image=self.canvas.images["unclaimed"]["large"], anchor="nw")
 
 
 class GameOverlayUI(tk.Toplevel):
