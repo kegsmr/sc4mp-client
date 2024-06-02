@@ -136,6 +136,10 @@ def main():
 		global sc4mp_ui
 		sc4mp_ui = not "-no-ui" in sc4mp_args
 
+		# "-no-loop" argument
+		global sc4mp_exit_after_disconnect
+		sc4mp_exit_after_disconnect = "-no-loop" in sc4mp_args
+
 		# "--host" argument
 		global sc4mp_host
 		sc4mp_host = None
@@ -2935,8 +2939,11 @@ class GameMonitor(th.Thread):
 
 			# Show the main ui once again
 			if sc4mp_ui != None:
-				sc4mp_ui.deiconify()
-				sc4mp_ui.lift()
+				if sc4mp_exit_after_disconnect:
+					sc4mp_ui.quit()
+				else:
+					sc4mp_ui.deiconify()
+					sc4mp_ui.lift()
 
 		except Exception as e:
 			
