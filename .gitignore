@@ -13,5 +13,6 @@ config.ini
 testing.py
 *.bat
 *.exe
+*.lnk
 *.log
 *.pdn
