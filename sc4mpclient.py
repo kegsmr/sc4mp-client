@@ -26,7 +26,7 @@ from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
 from typing import Optional
 
-SC4MP_VERSION = "0.4.3"
+SC4MP_VERSION = "0.5.0"
 
 SC4MP_SERVERS = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
 
@@ -2217,8 +2217,8 @@ class ServerLoader(th.Thread):
 			self.server.fetch()
 			if self.server.fetched == False:
 				raise ClientException("Unable to find server. Check the IP address and port, then try again.")
-		if unformat_version(self.server.server_version)[:2] < unformat_version(SC4MP_VERSION)[:2]:
-			raise ClientException(f"The server requires an outdated version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please contact the server administrators.")
+		#if unformat_version(self.server.server_version)[:2] < unformat_version(SC4MP_VERSION)[:2]:
+		#	raise ClientException(f"The server requires an outdated version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please contact the server administrators.")
 		if unformat_version(self.server.server_version)[:2] > unformat_version(SC4MP_VERSION)[:2]:
 			raise ClientException(f"The server requires a newer version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please update the launcher to connect to this server.")
 		if self.ui != None:

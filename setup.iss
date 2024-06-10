@@ -2,8 +2,8 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "SC4MP Launcher"
-#define MyAppVersion "0.4.3"
-#define MyAppPublisher "SimCity 4 Multiplayer Project"
+#define MyAppVersion "0.5.0"
+#define MyAppPublisher "Simcity 4 Multiplayer Project"
 #define MyAppExeName "sc4mpclient.exe"
 #define TimeStamp GetDateTimeString('yyyymmddhhnnss', '', '')
 
