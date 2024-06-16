@@ -42,7 +42,7 @@ SC4MP_LICENSE_NAME = "MIT-0"
 SC4MP_CONFIG_PATH = "config.ini"
 SC4MP_LOG_PATH = "sc4mpclient.log"
 SC4MP_README_PATH = "readme.html"
-SC4MP_RESOURCES_PATH = "res"
+SC4MP_RESOURCES_PATH = "resources"
 
 SC4MP_TITLE = f"SC4MP Launcher v{SC4MP_VERSION}" + (" (x86)" if 8 * struct.calcsize('P') == 32 else "")
 SC4MP_ICON: Path() = Path(SC4MP_RESOURCES_PATH) / "icon.png"
