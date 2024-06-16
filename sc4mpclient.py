@@ -2274,22 +2274,41 @@ class ServerLoader(th.Thread):
 
 		# Synchronize or clear custom plugins (the code is organized like hell here, but it works)
 		if target == "plugins":
+
+			# Set source and destination
 			client_plugins_source = Path(sc4mp_config["GENERAL"]["custom_plugins_path"])
 			client_plugins_destination = Path(SC4MP_LAUNCHPATH) / "Plugins" / "client"
+
+			# Synchronize custom plugins if the server permits custom plugins and the user wants to load them
 			if self.server.user_plugins_enabled and sc4mp_config["GENERAL"]["custom_plugins"]:
-				#try:
+				
+				# Report for the loading sequence
 				self.report("", "Synchronizing custom plugins...")
+
+				# Get the paths to all files in the destination directory
 				destination_relpaths = get_fullpaths_recursively(client_plugins_destination)
+
+				# Delete all files in the destination directory that are not present in the source directory
 				for relpath in destination_relpaths:
 					if not Path(client_plugins_source, relpath).exists():
 						filename = Path(client_plugins_destination) / relpath
 						print(f'- removing "{filename}"')
 						filename.unlink()
+
+				# Get the paths to all files in the source directory
 				source_relpaths = get_relpaths_recursively(client_plugins_source)
+
+				# Get the size of the source directory
 				source_size = directory_size(client_plugins_source)
+
+				# These variables will be used to calculate the percentage for the progress bar
 				destination_size = 0
 				percent = -1
+
+				# Loop through the file paths in the source directory, and copy them to the destination if necessary
 				for relpath in source_relpaths:
+
+					# Progress bar stuff
 					old_percent = percent
 					percent = math.floor(100 * (destination_size / source_size))
 					if percent > old_percent:
@@ -2299,29 +2318,44 @@ class ServerLoader(th.Thread):
 						self.ui.duration_label["text"] = "(local)"
 					except:
 						pass
+
+					# Set the source and destination paths for the file
 					src = client_plugins_source / relpath
 					dest = client_plugins_destination / relpath
+
+					# More progress bar stuff
 					destination_size += src.stat().st_size
+
+					# If the destination file exists, check the md5's to see if they match
 					if dest.exists():
-						if md5(src) == md5(dest):
-							print(f'- verified "{dest}"')
+
+						# If the destination file is a link, or the md5's match, continue to the next iteration of the loop
+						if os.path.islink(dest) or md5(src) == md5(dest):
+							#print(f'- verified "{dest}"')
 							continue
+						
+						# If the md5's don't match, delete the destination file
 						else:
 							print(f'- removing "{dest}"')
 							dest.unlink()
-					print(f'- copying "{src}"')
+
+					# Make the destination directory if necessary, then try to make a symbolic link (fast), and if the required priveleges are not held, copy the file (slower)
+					
 					dest.parent.mkdir(parents=True, exist_ok=True)
-					shutil.copy(src, dest)
-				#shutil.copytree(sc4mp_config["GENERAL"]["custom_plugins_path"], client_plugins_destination, dirs_exist_ok=True) #zzz_SC4MP
-				#except:
-				#	raise ClientException("Unexpected error while loading custom plugins.")
+					try:
+						os.symlink(src, dest)
+						print(f'- linked "{src}"')
+					except OSError:
+						print(f'- copying "{src}"')
+						shutil.copy(src, dest)
+			
+			# Clear custom plugins
 			else:
 				try:
 					self.report("", "Clearing custom plugins...")
 					purge_directory(client_plugins_destination)
-				except: #ClientException:
-					pass
-					#raise ClientException("SimCity 4 is already running!")
+				except Exception as e:
+					show_error(f"Unable to delete \"{e}\"!", no_ui=True)
 
 		# Purge the destination directory
 		self.report("", f"Synchronizing {target}...") #"", "Purging " + type + " directory...")
