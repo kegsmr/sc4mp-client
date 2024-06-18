@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import configparser
 import hashlib
 import inspect
@@ -24,7 +22,6 @@ import webbrowser
 from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
-from typing import Optional
 
 SC4MP_VERSION = "0.5.0"
 
@@ -44,8 +41,8 @@ SC4MP_LOG_PATH = "sc4mpclient.log"
 SC4MP_README_PATH = "readme.html"
 SC4MP_RESOURCES_PATH = "resources"
 
-SC4MP_TITLE = f"SC4MP Launcher v{SC4MP_VERSION}" + (" (x86)" if 8 * struct.calcsize('P') == 32 else "")
-SC4MP_ICON: Path() = Path(SC4MP_RESOURCES_PATH) / "icon.png"
+SC4MP_TITLE = "SC4MP Launcher v{}".format((SC4MP_VERSION)) + (" (x86)" if 8 * struct.calcsize('P') == 32 else "")
+SC4MP_ICON = Path(SC4MP_RESOURCES_PATH) / "icon.png"
 
 SC4MP_HOST = SC4MP_SERVERS[0][0]
 SC4MP_PORT = SC4MP_SERVERS[0][1]
@@ -67,14 +64,14 @@ SC4MP_CONFIG_DEFAULTS = [
 		("default_port", SC4MP_PORT),
 		#("use_overlay", 1), #TODO
 		("custom_plugins", False),
-		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser()),
+		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins")),
 		("stat_mayors_online_cutoff", 60),
 		("ignore_token_errors", False),
 		("allow_game_monitor_exit", False),
 		("use_game_overlay", 1)
 	]),
 	("STORAGE", [
-		("storage_path", Path("~/Documents/SimCity 4/_SC4MP").expanduser()),
+		("storage_path", Path("~/Documents/SimCity 4/_SC4MP")),
 		("cache_size", 8000)
 	]),
 	("SC4", [
@@ -258,11 +255,13 @@ def create_subdirectories() -> None:
 
 	# Create new directories
 	launchdir = Path(SC4MP_LAUNCHPATH)
-	launchdir.mkdir(exist_ok=True, parents=True)
+	if not launchdir.exists():
+		launchdir.mkdir(arents=True)
 	for directory in directories:
 		new_directory = launchdir / directory
 		try:
-			new_directory.mkdir(exist_ok=True, parents=True)
+			if not new_directory.exists():
+				new_directory.mkdir(parents=True)
 		except Exception as e:
 			raise ClientException("Failed to create SC4MP subdirectories.\n\n" + str(e))
 
@@ -277,7 +276,7 @@ def load_database():
 	sc4mp_servers_database.start()
 
 
-def get_sc4_path() -> Optional[Path]:
+def get_sc4_path():
 	"""Returns the path to the SimCity 4 executable if found."""
 
 	sc4_dirs = Path("SimCity 4 Deluxe") / "Apps" / "SimCity 4.exe"
@@ -285,7 +284,7 @@ def get_sc4_path() -> Optional[Path]:
 	config_path = Path(sc4mp_config['SC4']['game_path'])
 	home_drive = Path(Path.home().drive)
 
-	possible_paths: list[Path] = [
+	possible_paths = [
 		config_path,
 		config_path / "SimCity 4.exe",
 		config_path / "Apps" / "SimCity 4.exe",
@@ -320,12 +319,12 @@ def start_sc4():
 		return
 
 	arguments = [str(path),
-			  f'-UserDir:"{SC4MP_LAUNCHPATH}{os.sep}"', # add trailing slash here because SC4 expects it
+			  '-UserDir:"{}{}"'.format((SC4MP_LAUNCHPATH), (os.sep)), # add trailing slash here because SC4 expects it
 			  '-intro:off',
 			  '-CustomResolution:enabled',
-			  f'-r{sc4mp_config["SC4"]["resw"]}x{sc4mp_config["SC4"]["resh"]}x32',
-			  f'-CPUCount:{sc4mp_config["SC4"]["cpu_count"]}',
-			  f'-CPUPriority:{sc4mp_config["SC4"]["cpu_priority"]}'
+			  '-r{}x{}x32'.format((sc4mp_config["SC4"]["resw"]), (sc4mp_config["SC4"]["resh"])),
+			  '-CPUCount:{}'.format((sc4mp_config["SC4"]["cpu_count"])),
+			  '-CPUPriority:{}'.format((sc4mp_config["SC4"]["cpu_priority"]))
 			  ]
 
 	if sc4mp_config["SC4"]["fullscreen"] == True:
@@ -336,7 +335,7 @@ def start_sc4():
 	arguments.extend(sc4mp_config["SC4"]["additional_properties"].strip().split(' '))  # assumes that properties do not have spaces
 
 	command = ' '.join(arguments)
-	print(f"'{command}'")
+	print("'{}'".format((command)))
 
 	try:
 		if platform.system() == "Windows":
@@ -344,7 +343,7 @@ def start_sc4():
 		else:
 			subprocess.run(arguments)  # on Linux, the first String passed as argument must be a file that exists
 	except PermissionError as e:
-		show_error(f"Permission denied. Try running the SC4MP Launcher as administrator.\n\n{e}")
+		show_error("Permission denied. Try running the SC4MP Launcher as administrator.\n\n{}".format((e)))
 
 	# For compatability with the steam version of SC4
 	sc4mp_allow_game_monitor_exit_if_error = True
@@ -359,7 +358,7 @@ def start_sc4():
 			print("SimCity 4 closed.")
 			break
 		except Exception as e:
-			show_error(f"An error occured while checking if SC4 had exited yet.", no_ui=True)
+			show_error("An error occured while checking if SC4 had exited yet.".format(), no_ui=True)
 			time.sleep(10)
 
 
@@ -376,7 +375,7 @@ def process_exists(process_name): #TODO add MacOS compatability / deprecate in f
 
 def process_count(process_name): #TODO add MacOS compatability
 	if platform.system() == "Windows":
-		return int(subprocess.check_output(f"tasklist | find /I /C \"{process_name}\"", shell=True))
+		return int(subprocess.check_output("tasklist | find /I /C \"{}\"".format((process_name)), shell=True))
 	else:
 		return None
 
@@ -409,7 +408,7 @@ def purge_directory(directory: Path) -> None:
 			elif path.is_dir():
 				shutil.rmtree(path)
 		except PermissionError as e:
-			raise ClientException(f'Failed to delete "{path}" because the file is being used by another process.') #\n\n' + str(e)
+			raise ClientException('Failed to delete "{}" because the file is being used by another process.'.format((path))) #\n\n' + str(e)
 
 
 def directory_size(directory: Path) -> int:
@@ -471,7 +470,7 @@ def show_error(e, no_ui=False):
 	else: 
 		message = str(e)
 
-	print(f"[ERROR] {message}\n\n{traceback.format_exc()}")
+	print("[ERROR] {}\n\n{}".format((message), (traceback.format_exc())))
 
 	if not no_ui:
 		if sc4mp_ui != None:
@@ -492,9 +491,9 @@ def startfile(filename):
 def fatal_error():
 	"""Shows a fatal error message in the console and the UI. Exits the program."""
 
-	message = f"A fatal error occurred.\n\n{traceback.format_exc()}"
+	message = "A fatal error occurred.\n\n{}".format((traceback.format_exc()))
 
-	print(f"[FATAL] {message}")
+	print("[FATAL] {}".format((message)))
 
 	if sc4mp_ui != None:
 		if sc4mp_ui == True:
@@ -515,7 +514,7 @@ def show_warning(e):
 	else: 
 		message = str(e)
 
-	print(f"[WARNING] {message}")
+	print("[WARNING] {}".format((message)))
 
 	if sc4mp_ui != None:
 		if sc4mp_ui == True:
@@ -535,18 +534,18 @@ def center_window(window):
 	win_height = height + titlebar_height + frm_width
 	x = win.winfo_screenwidth() // 2 - win_width // 2
 	y = win.winfo_screenheight() // 2 - win_height // 2
-	win.geometry(f'{width}x{height}+{x}+{y}')
+	win.geometry('{}x{}+{}+{}'.format((width), (height), (x), (y)))
 	win.deiconify()
 
 
 def prep_server(path: Path) -> None:
 	"""Runs the server executable in prep mode. Takes the server path as an argument."""
-	subprocess.Popen(f"sc4mpserver.exe -prep --server-path {path}")
+	subprocess.Popen("sc4mpserver.exe -prep --server-path {}".format((path)))
 
 
 def start_server(path: Path) -> None:
 	"""Runs the server executable. Takes the server path as an argument."""
-	subprocess.Popen(f"sc4mpserver.exe --server-path {path}", creationflags=subprocess.CREATE_NEW_CONSOLE)
+	subprocess.Popen("sc4mpserver.exe --server-path {}".format((path)), creationflags=subprocess.CREATE_NEW_CONSOLE)
 
 	#th.Thread(target=lambda: subprocess.Popen("sc4mpserver.exe --server-path " + str(path))).start()
 
@@ -557,15 +556,15 @@ def update_config_value(section, item, value):
 		t = type(sc4mp_config[section][item])
 		sc4mp_config[section][item] = t(value)
 	except:
-		show_error(f'Invalid config value for "{item}" in section "{section}"', no_ui=True)
+		show_error('Invalid config value for "{}" in section "{}"'.format((item), (section)), no_ui=True)
 
 
-def get_fullpaths_recursively(dir: Path) -> list[Path]:
+def get_fullpaths_recursively(dir: Path):
 	"""Returns full paths of all files in a directory recursively."""
 	return [path for path in dir.rglob("*") if path.is_file()]
 
 
-def get_relpaths_recursively(dir: Path) -> list[Path]:
+def get_relpaths_recursively(dir: Path):
 	"""Returns relative paths of all files in a directory recursively."""
 	return [path.relative_to(dir) for path in dir.rglob("*") if path.is_file()]
 
@@ -589,13 +588,13 @@ def request_header(s, server):
 	s.send(server.user_id.encode())
 
 
-def format_version(version: tuple[int, int, int]) -> str:
+def format_version(version):
 	"""Converts a version number from a tuple to a string."""
 	major, minor, patch = version
-	return f'{major}.{minor}.{patch}'
+	return '{}.{}.{}'.format((major), (minor), (patch))
 
 
-def unformat_version(version: str) -> tuple[int, int, int]:
+def unformat_version(version):
 	"""Converts a version number from a string to a tuple."""
 	return tuple([int(v) for v in version.split('.')])
 
@@ -643,7 +642,7 @@ def prep_region_config(path):
 		with open(path, 'wt') as config_file:
 			config.write(config_file)
 	except:
-		raise ClientException(f"Failed to prep region config at {path}.")
+		raise ClientException("Failed to prep region config at {}.".format((path)))
 
 
 def format_filesize(size):
@@ -717,7 +716,7 @@ def set_thread_name(name, enumerate=True):
 
 		count = 1
 		while (True):
-			thread_name = f"{name}-{count}"
+			thread_name = "{}-{}".format((name), (count))
 			if not thread_name in thread_names:
 				th.current_thread().name = thread_name
 				return thread_name
@@ -768,7 +767,7 @@ class Config:
 								t = type(self.data[section_name][item_name])
 								self.data[section_name][item_name] = t(from_file)
 						except (configparser.NoSectionError, configparser.NoOptionError):
-							print(f"[WARNING] Option \"{item_name}\" missing from section \"{section_name}\" of the config file at \"{self.PATH}\". Using default value.")
+							print("[WARNING] Option \"{}\" missing from section \"{}\" of the config file at \"{}\". Using default value.".format((item_name), (section_name), (self.PATH)))
 						except Exception as e:
 							show_error("An error occured while reading a config item.", no_ui=True)
 				except Exception as e:
@@ -868,7 +867,7 @@ class Server:
 
 		download = self.fetch_temp()
 
-		regions_path: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server_id / "Regions"
+		regions_path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server_id / "Regions"
 
 		server_time = self.time()
 
@@ -898,7 +897,7 @@ class Server:
 									mayors_online.append(owner)
 				total_area += region_dimensions[0] * region_dimensions[1]
 			except Exception as e:
-				show_error(f"An error occurred while calculating region statistics for \"{region}\".", no_ui=True)
+				show_error("An error occurred while calculating region statistics for \"{}\".".format((region)), no_ui=True)
 
 		self.stat_mayors = len(mayors) #(random.randint(0,1000))
 		
@@ -950,7 +949,7 @@ class Server:
 			if not self.private:
 				s.send(request.encode())
 			else:
-				s.send(f"{request} {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
+				s.send("{} {} {} {}".format((request), (SC4MP_VERSION), (self.server.user_id), (self.server.password)).encode())
 
 			# Receive file table
 			file_table = recv_json(s)
@@ -983,7 +982,8 @@ class Server:
 				d.parent.mkdir(parents=True, exist_ok=True)
 
 				# Delete the destination file if it exists
-				d.unlink(missing_ok=True)
+				if os.path.exists(d):
+					d.unlink()
 
 				# Receive the file. Write to both the destination and cache
 				filesize_read = 0
@@ -1022,55 +1022,6 @@ class Server:
 		return total_size
 
 
-	"""def receive_or_cached(self, s:socket.socket, rootpath: Path) -> int:
-
-		# Receive hashcode and set cache filename
-		hash = s.recv(SC4MP_BUFFER_SIZE).decode()
-
-		# Separator
-		s.send(SC4MP_SEPARATOR)
-
-		# Receive filesize
-		filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
-
-		# Separator
-		s.send(SC4MP_SEPARATOR)
-
-		# Receive relative path and set the destination
-		relpath = Path(s.recv(SC4MP_BUFFER_SIZE).decode())
-		filename = relpath.name
-		destination = Path(rootpath) / relpath
-
-		if not (filename == "region.json" or filename == "config.bmp"):
-
-			# Tell the server that the file is cached
-			s.send(b"cached")
-
-		else:
-
-			# Tell the server that the file is not cached
-			s.send(b"not cached")
-
-			# Create the destination directory if necessary
-			destination.parent.mkdir(exist_ok=True, parents=True)
-
-			# Delete the destination file if it exists
-			destination.unlink(missing_ok=True)
-
-			# Receive the file
-			filesize_read = 0
-			with destination.open("wb") as f:
-				while filesize_read < filesize:
-					bytes_read = s.recv(SC4MP_BUFFER_SIZE)
-					if not bytes_read:
-						break
-					f.write(bytes_read)
-					filesize_read += len(bytes_read)
-
-		# Return the file size
-		return filesize"""
-
-
 	def update_database(self):
 		"""Updates the json entry for the server."""
 
@@ -1106,7 +1057,7 @@ class Server:
 			return s.recv(SC4MP_BUFFER_SIZE).decode()
 		except:
 			self.fetched = False
-			print(f'[WARNING] Unable to fetch "{request}" from {host}:{port}')
+			print('[WARNING] Unable to fetch "{}" from {}:{}'.format((request), (host), (port)))
 			return None
 
 
@@ -1137,7 +1088,7 @@ class Server:
 			hash = hashlib.sha256(((hashlib.sha256(user_id.encode()).hexdigest()[:32]) + token).encode()).hexdigest()
 			s = socket.socket()
 			s.connect((self.host, self.port))
-			s.send(f"user_id {hash}".encode())
+			s.send("user_id {}".format((hash)).encode())
 			if s.recv(SC4MP_BUFFER_SIZE).decode() == hashlib.sha256(user_id.encode()).hexdigest()[:32]:
 				self.user_id = user_id
 			else:
@@ -1150,7 +1101,7 @@ class Server:
 		# Get the new token
 		s = socket.socket()
 		s.connect((self.host, self.port))
-		s.send(f"token {SC4MP_VERSION} {self.user_id} {self.password}".encode())
+		s.send("token {} {} {}".format((SC4MP_VERSION), (self.user_id), (self.password)).encode())
 		token = s.recv(SC4MP_BUFFER_SIZE).decode()
 
 		# Raise exception if no token is received
@@ -1210,7 +1161,7 @@ class DBPF:
 	def __init__(self, filename, offset=0):
 		"""TODO"""
 
-		report(f'Parsing "{filename}"...', self)
+		report('Parsing "{}"...'.format((filename)), self)
 
 		self.filename = filename
 		self.offset = offset
@@ -1407,7 +1358,7 @@ class DBPF:
 	def get_SC4ReadRegionalCity(self):
 		"""TODO"""
 
-		report(f'Parsing region view subfile of "{self.filename}"...', self)
+		report('Parsing region view subfile of "{}"...'.format((self.filename)), self)
 
 		data = self.decompress_subfile("ca027edb")
 	
@@ -1688,7 +1639,7 @@ class ServerList(th.Thread):
 			except:
 				pass
 
-			show_error(f"An error occurred while fetching servers.\n\n{e}") #, no_ui=True)
+			show_error("An error occurred while fetching servers.\n\n{}".format((e))) #, no_ui=True)
 
 
 	def clear_tree(self):
@@ -1826,7 +1777,7 @@ class ServerList(th.Thread):
 	    	lambda: str(int(server.stat_claimed * 100)) + "%",
 		    lambda: format_filesize(server.stat_download),
 		    lambda: str(server.stat_ping) + "ms",
-		    lambda: str(round(server.rating, 1)), # + " ⭐️",
+		    lambda: str(round(server.rating, 1)), # + " Γ¡É∩╕Å",
 		]
 		cells = []
 		for function in functions:
@@ -1894,7 +1845,7 @@ class ServerFetcher(th.Thread):
 
 				set_thread_name("SfThread")
 
-				print(f"Fetching {self.server.host}:{self.server.port}...")
+				print("Fetching {}:{}...".format((self.server.host), (self.server.port)))
 
 				print("- fetching server info...")
 
@@ -1953,19 +1904,19 @@ class ServerFetcher(th.Thread):
 					try:
 						self.fetch_stats()
 					except Exception as e:
-						print(f"[WARNING] Unable to fetch server stats for {self.server.host}:{self.server.port}! " + str(e))
+						print("[WARNING] Unable to fetch server stats for {}:{}! ".format((self.server.host), (self.server.port)) + str(e))
 
 				print("- done.")
 
 			except Exception as e:
 
-				print(f"[WARNING] Failed to fetch {self.server.host}:{self.server.port}! " + str(e))
+				print("[WARNING] Failed to fetch {}:{}! ".format((self.server.host), (self.server.port)) + str(e))
 
 			self.parent.server_fetchers -= 1
 
 		except Exception as e:
 
-			show_error(f"A server fetcher thread encountered an unexpected error.\n\n{e}")
+			show_error("A server fetcher thread encountered an unexpected error.\n\n{}".format((e)))
 
 
 	def fetch_stats(self):
@@ -2036,7 +1987,7 @@ class ServerPinger(th.Thread):
 			while not self.parent.end:
 				time.sleep(len(self.parent.servers) + 1)
 				if not self.parent.pause:
-					print(f"Pinging {self.server.host}:{self.server.port}")
+					print("Pinging {}:{}".format((self.server.host), (self.server.port)))
 					ping = self.server.ping()
 					if ping != None:
 						self.server.stat_ping = ping #int((self.server.stat_ping + ping) / 2)
@@ -2044,7 +1995,7 @@ class ServerPinger(th.Thread):
 
 		except Exception as e:
 
-			show_error(f"A server pinger thread encountered an unexpected error\n\n{e}", no_ui=True)
+			show_error("A server pinger thread encountered an unexpected error\n\n{}".format((e)), no_ui=True)
 
 
 class ServerLoader(th.Thread):
@@ -2091,7 +2042,7 @@ class ServerLoader(th.Thread):
 
 				loading_start = time.time()
 
-				self.report("", f'Connecting to server at {host}:{port}...')
+				self.report("", 'Connecting to server at {}:{}...'.format((host), (port)))
 				self.fetch_server()
 				
 				self.report("", 'Authenticating...')
@@ -2110,7 +2061,7 @@ class ServerLoader(th.Thread):
 
 				loading_end = time.time()
 
-				print(f"- {round(loading_end - loading_start)} seconds")
+				print("- {} seconds".format((round(loading_end - loading_start))))
 
 				global sc4mp_current_server
 				sc4mp_current_server = self.server
@@ -2122,7 +2073,7 @@ class ServerLoader(th.Thread):
 			except Exception as e:
 
 				if self.ui != None and self.ui.winfo_exists() == 1:
-					show_error(f"An error occurred while connecting to the server.\n\n{e}")
+					show_error("An error occurred while connecting to the server.\n\n{}".format((e)))
 				else:
 					show_error(e, no_ui=True)
 
@@ -2149,7 +2100,7 @@ class ServerLoader(th.Thread):
 
 		except Exception as e:
 
-			show_error(f"An unexpected error occurred in the server loader thread\n\n{e}")
+			show_error("An unexpected error occurred in the server loader thread\n\n{}".format((e)))
 
 
 	def report(self, prefix, text):
@@ -2185,7 +2136,7 @@ class ServerLoader(th.Thread):
 		#if unformat_version(self.server.server_version)[:2] < unformat_version(SC4MP_VERSION)[:2]:
 		#	raise ClientException(f"The server requires an outdated version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please contact the server administrators.")
 		if unformat_version(self.server.server_version)[:2] > unformat_version(SC4MP_VERSION)[:2]:
-			raise ClientException(f"The server requires a newer version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please update the launcher to connect to this server.")
+			raise ClientException("The server requires a newer version (v{}) of the SC4MP Launcher. Please update the launcher to connect to this server.".format((self.server.server_version[:3])))
 		if self.ui != None:
 			self.ui.title(self.server.server_name)
 
@@ -2215,7 +2166,7 @@ class ServerLoader(th.Thread):
 			s = self.create_socket()
 			if self.ui != None:
 				self.ui.label['text'] = "Authenticating..."
-			s.send(f"check_password {self.server.password}".encode())
+			s.send("check_password {}".format((self.server.password)).encode())
 			if s.recv(SC4MP_BUFFER_SIZE) == b'y':
 				return True
 			else:
@@ -2257,7 +2208,7 @@ class ServerLoader(th.Thread):
 				for relpath in destination_relpaths:
 					if not Path(client_plugins_source, relpath).exists():
 						filename = Path(client_plugins_destination) / relpath
-						print(f'- removing "{filename}"')
+						print('- removing "{}"'.format((filename)))
 						filename.unlink()
 
 				# Get the paths to all files in the source directory
@@ -2277,7 +2228,7 @@ class ServerLoader(th.Thread):
 					old_percent = percent
 					percent = math.floor(100 * (destination_size / source_size))
 					if percent > old_percent:
-						self.report_progress(f'Synchronizing custom plugins... ({percent}%)', percent, 100)
+						self.report_progress('Synchronizing custom plugins... ({}%)'.format((percent)), percent, 100)
 					try:
 						self.ui.progress_label["text"] = relpath.name
 						self.ui.duration_label["text"] = "(local)"
@@ -2301,7 +2252,7 @@ class ServerLoader(th.Thread):
 						
 						# If the md5's don't match, delete the destination file
 						else:
-							print(f'- removing "{dest}"')
+							print('- removing "{}"'.format((dest)))
 							dest.unlink()
 
 					# Make the destination directory if necessary, then try to make a symbolic link (fast), and if the required priveleges are not held, copy the file (slower)
@@ -2309,9 +2260,9 @@ class ServerLoader(th.Thread):
 					dest.parent.mkdir(parents=True, exist_ok=True)
 					try:
 						os.symlink(src, dest)
-						print(f'- linked "{src}"')
+						print('- linked "{}"'.format((src)))
 					except OSError:
-						print(f'- copying "{src}"')
+						print('- copying "{}"'.format((src)))
 						shutil.copy(src, dest)
 			
 			# Clear custom plugins
@@ -2320,10 +2271,10 @@ class ServerLoader(th.Thread):
 					self.report("", "Clearing custom plugins...")
 					purge_directory(client_plugins_destination)
 				except Exception as e:
-					show_error(f"Unable to delete \"{e}\"!", no_ui=True)
+					show_error("Unable to delete \"{}\"!".format((e)), no_ui=True)
 
 		# Purge the destination directory
-		self.report("", f"Synchronizing {target}...") #"", "Purging " + type + " directory...")
+		self.report("", "Synchronizing {}...".format((target))) #"", "Purging " + type + " directory...")
 		try:
 			purge_directory(destination)
 		except ClientException:
@@ -2334,13 +2285,13 @@ class ServerLoader(th.Thread):
 		#s.settimeout(None)
 
 		# Report
-		self.report("", f"Synchronizing {target}...")
+		self.report("", "Synchronizing {}...".format((target)))
 
 		# Request the type of data
 		if not self.server.private:
 			s.send(target.encode())
 		else:
-			s.send(f"{target} {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
+			s.send("{} {} {} {}".format((target), (SC4MP_VERSION), (self.server.user_id), (self.server.password)).encode())
 
 		# Receive file table
 		file_table = recv_json(s)
@@ -2355,7 +2306,7 @@ class ServerLoader(th.Thread):
 		percent = 0
 
 		# Set loading bar at 0%
-		self.report_progress(f"Synchronizing {target}... (0%)", 0, 100)
+		self.report_progress("Synchronizing {}... (0%)".format((target)), 0, 100)
 
 		# Prune file table as necessary
 		ft = []
@@ -2373,7 +2324,7 @@ class ServerLoader(th.Thread):
 			if t.exists() and t.stat().st_size == filesize:
 				
 				# Report
-				print(f'- using cached "{checksum}"')
+				print('- using cached "{}"'.format((checksum)))
 
 				# Set the destination
 				d = Path(destination) / relpath
@@ -2389,7 +2340,8 @@ class ServerLoader(th.Thread):
 				d.parent.mkdir(parents=True, exist_ok=True)
 
 				# Delete the destination file if it exists
-				d.unlink(missing_ok=True)
+				if os.path.exists(d):
+					d.unlink()
 
 				# Copy the cached file to the destination
 				shutil.copy(t, d)
@@ -2399,7 +2351,7 @@ class ServerLoader(th.Thread):
 				old_percent = percent
 				percent = math.floor(100 * (size_downloaded / size))
 				if percent > old_percent:
-					self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
+					self.report_progress("Synchronizing {}... ({}%)".format((target), (percent)), percent, 100)
 
 
 			else:
@@ -2431,7 +2383,7 @@ class ServerLoader(th.Thread):
 			relpath = Path(entry[2])
 
 			# Report
-			print(f'- caching "{checksum}"...')
+			print('- caching "{}"...'.format((checksum)))
 
 			# Set the destination
 			d = Path(destination) / relpath
@@ -2449,10 +2401,12 @@ class ServerLoader(th.Thread):
 			d.parent.mkdir(parents=True, exist_ok=True)
 
 			# Delete the destination file if it exists
-			d.unlink(missing_ok=True)
+			if os.path.exists(d):
+				d.unlink()
 
 			# Delete the cache file if it exists
-			t.unlink(missing_ok=True)
+			if os.path.exists(d):
+				t.unlink()
 
 			# Delete cache files if cache too large to accomadate the new cache file
 			cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
@@ -2477,7 +2431,7 @@ class ServerLoader(th.Thread):
 					old_percent = percent
 					percent = math.floor(100 * (size_downloaded / size))
 					if percent > old_percent:
-						self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
+						self.report_progress("Synchronizing {}... ({}%)".format((target), (percent)), percent, 100)
 					if sc4mp_ui is not None:
 						now = time.time()
 						eta = int((total_size_to_download - total_size_already_downloaded) / (total_size_already_downloaded / float(now - download_start_time)))
@@ -2490,11 +2444,11 @@ class ServerLoader(th.Thread):
 							eta -= minutes * 60
 							seconds = eta
 							if hours > 0:
-								self.ui.duration_label["text"] = f"{hours}:{minutes:0>{2}}:{seconds:0>{2}}"
+								self.ui.duration_label["text"] = "{}:{:0>{}}:{:0>{}}".format((hours), (minutes), (2), (seconds), (2))
 							else:
-								self.ui.duration_label["text"] = f"{minutes}:{seconds:0>{2}}"
+								self.ui.duration_label["text"] = "{}:{:0>{}}".format((minutes), (seconds), (2))
 
-		self.report_progress(f"Synchronizing {target}... (100%)", 100, 100)
+		self.report_progress("Synchronizing {}... (100%)".format((target)), 100, 100)
 
 		# Receive file count
 		#file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
@@ -2594,7 +2548,7 @@ class ServerLoader(th.Thread):
 
 					count = 5
 					while count > 0:
-						self.report("[ERROR] ", f"Connection failed. Retrying in {count}...")
+						self.report("[ERROR] ", "Connection failed. Retrying in {}...".format((count)))
 						count = count - 1
 						time.sleep(1)
 
@@ -2607,80 +2561,6 @@ class ServerLoader(th.Thread):
 		return s
 
 
-	#def receive_or_cached(self, s, rootpath):
-	#	"""TODO"""
-	#
-	#	# Receive hashcode and set cache filename
-	#	hash = s.recv(SC4MP_BUFFER_SIZE).decode()
-	#	target = Path(SC4MP_LAUNCHPATH) / "_Cache" / hash
-	#
-	#	# Separator
-	#	s.send(SC4MP_SEPARATOR)
-	#
-	#	# Receive filesize
-	#	filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
-	#
-	#	# Separator
-	#	s.send(SC4MP_SEPARATOR)
-	#
-	#	# Receive relative path and set the destination
-	#	relpath = Path(s.recv(SC4MP_BUFFER_SIZE).decode())
-	#	destination = Path(rootpath) / relpath
-	#
-	#	# Use the cached file if it exists and has the same size
-	#	if target.exists() and target.stat().st_size == filesize:
-	#
-	#		print(f'- using cached "{hash}"')
-	#
-	#		# Tell the server that the file is cached
-	#		s.send(b"cached")
-	#
-	#		# Create the destination directory if necessary
-	#		destination.parent.mkdir(parents=True, exist_ok=True)
-	#
-	#		# Delete the destination file if it exists
-	#		destination.unlink(missing_ok=True)
-	#
-	#		# Copy the cached file to the destination
-	#		shutil.copy(target, destination)
-	#
-	#	else:
-	#
-	#		print(f'- caching "{hash}"...')
-	#
-	#		# Tell the server that the file is not cached
-	#		s.send(b"not cached")
-	#
-	#		# Create the destination directory if necessary
-	#		destination.parent.mkdir(parents=True, exist_ok=True)
-	#
-	#		# Delete the destination file if it exists
-	#		destination.unlink(missing_ok=True)
-	#
-	#		# Delete the cache file if it exists
-	#		target.unlink(missing_ok=True)
-	#
-	#		# Delete cache files if cache too large to accomadate the new cache file
-	#		cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
-	#		while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
-	#			random_cache = random.choice(list(cache_directory.iterdir()))
-	#			random_cache.unlink()
-	#
-	#		# Receive the file. Write to both the destination and cache
-	#		filesize_read = 0
-	#		with destination.open("wb") as dest, target.open("wb") as cache:
-	#			while filesize_read < filesize:
-	#				bytes_read = s.recv(SC4MP_BUFFER_SIZE)
-	#				if not bytes_read:
-	#					break
-	#				for file in [dest, cache]:
-	#					file.write(bytes_read)
-	#				filesize_read += len(bytes_read)
-	#			
-	#	# Return the file size
-	#	return filesize
-
-
 	def receive_file(self, s: socket.socket, filename: Path) -> None:
 		"""TODO: unused function?"""
 
@@ -2689,7 +2569,8 @@ class ServerLoader(th.Thread):
 		print("Receiving " + str(filesize) + " bytes...")
 		print('writing to "' + filename + '"')
 
-		filename.unlink(missing_ok=True)
+		if os.path.exists(filename):
+			filename.unlink()
 
 		filesize_read = 0
 		with filename.open("wb") as f:
@@ -2699,14 +2580,14 @@ class ServerLoader(th.Thread):
 					break
 				f.write(bytes_read)
 				filesize_read += len(bytes_read)
-				self.report_progress(f'Downloading "{filename}" ({filesize_read} / {filesize} bytes)...', int(filesize_read), int(filesize)) #os.path.basename(os.path.normpath(filename))
+				self.report_progress('Downloading "{}" ({} / {} bytes)...'.format((filename), (filesize_read), (filesize)), int(filesize_read), int(filesize)) #os.path.basename(os.path.normpath(filename))
 
 
 	def prep_regions(self):
 		"""TODO"""
 
 		# Declare instance variable to store the paths of the server region subdirectories
-		self.server.regions: list[Path] = []
+		self.server.regions = []
 
 		# Path to regions directory
 		region_dir = Path(SC4MP_LAUNCHPATH) / "Regions"
@@ -2800,9 +2681,9 @@ class GameMonitor(th.Thread):
 
 					# If the server is responsive print the ping in the console and display the ping in the ui
 					if ping != None:
-						print(f"Ping: {ping}")
+						print("Ping: {}".format((ping)))
 						if self.ui != None:
-							self.ui.ping_frame.right['text'] = f"{ping}ms"
+							self.ui.ping_frame.right['text'] = "{}ms".format((ping))
 					
 					# If the server is unresponsive print a warning in the console and update the ui accordingly
 					else:
@@ -2916,7 +2797,7 @@ class GameMonitor(th.Thread):
 							old_refresh_region_open = new_refresh_region_open
 						cfg_hashcode = new_cfg_hashcode
 					except Exception as e:
-						show_error(f"An unexpected error occurred while refreshing regions.\n\n{e}", no_ui=True)
+						show_error("An unexpected error occurred while refreshing regions.\n\n{}".format((e)), no_ui=True)
 					# Refresh by asking the server for the hashcodes of all its savegames (excluding ones already claimed by the user) and downloading the savegames missing locally, tossing them directly into the respective region (was supposed to work but SimCity 4 actually tries to keep files of the same checksum)
 					'''if (ping != None):
 						old_text = self.ui.label["text"]
@@ -2974,16 +2855,16 @@ class GameMonitor(th.Thread):
 
 		except Exception as e:
 			
-			show_error(f"An unexpected error occurred in the game monitor thread.\n\n{e}")
+			show_error("An unexpected error occurred in the game monitor thread.\n\n{}".format((e)))
 
 
-	def get_cities(self) -> tuple[list[Path], list[str]]:
+	def get_cities(self):
 		"""TODO"""
 		city_paths = []
 		city_hashcodes = []
 		regions_path = Path(SC4MP_LAUNCHPATH) / "Regions"
 		for region in self.server.regions:
-			region_path: Path = regions_path / region
+			region_path = regions_path / region
 			region_path.mkdir(parents=True, exist_ok=True)
 			if region_path.is_file(): # is this necessary?
 				continue
@@ -3028,10 +2909,11 @@ class GameMonitor(th.Thread):
 
 		filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
 
-		print(f"Receiving {filesize} bytes...")
-		print(f'writing to "{filename}"')
+		print("Receiving {} bytes...".format((filesize)))
+		print('writing to "{}"'.format((filename)))
 
-		filename.unlink(missing_ok=True)
+		if os.path.exists(filename):
+			filename.unlink()
 
 		filesize_read = 0
 		with filename.open("wb") as f:
@@ -3044,7 +2926,7 @@ class GameMonitor(th.Thread):
 				#print('Downloading "' + filename + '" (' + str(filesize_read) + " / " + str(filesize) + " bytes)...", int(filesize_read), int(filesize)) #os.path.basename(os.path.normpath(filename))
 
 
-	def push_save(self, save_city_paths: list[Path]) -> None:
+	def push_save(self, save_city_paths) -> None:
 		"""TODO"""
 
 		# Report progress: backups
@@ -3088,7 +2970,7 @@ class GameMonitor(th.Thread):
 		self.set_overlay_state("saving")
 
 		# Send save request
-		s.send(f"save {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
+		s.send("save {} {} {}".format((SC4MP_VERSION), (self.server.user_id), (self.server.password)).encode())
 		
 		# Separator
 		s.recv(SC4MP_BUFFER_SIZE)
@@ -3140,11 +3022,11 @@ class GameMonitor(th.Thread):
 		# Handle response from server
 		response = s.recv(SC4MP_BUFFER_SIZE).decode()
 		if response == "ok":
-			self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green") #TODO keep track locally of the client's claims
+			self.report(self.PREFIX, 'Saved successfully at {}.'.format((datetime.now().strftime("%H:%M"))), color="green") #TODO keep track locally of the client's claims
 			self.set_overlay_state("saved")
 			shutil.rmtree(salvage_directory) #TODO make configurable
 		else:
-			self.report(self.PREFIX + "[WARNING] ", f"Save push failed! {response}", color="red")
+			self.report(self.PREFIX + "[WARNING] ", "Save push failed! {}".format((response)), color="red")
 			self.set_overlay_state("not-saved")
 
 		# Close socket
@@ -3155,7 +3037,7 @@ class GameMonitor(th.Thread):
 		"""TODO"""
 		region = city_path.parent.name
 		city = city_path.name
-		backup_directory: Path = Path(SC4MP_LAUNCHPATH) / "SC4MPBackups" / self.server.server_id / region / city
+		backup_directory = Path(SC4MP_LAUNCHPATH) / "SC4MPBackups" / self.server.server_id / region / city
 		backup_directory.mkdir(exist_ok=True, parents=True)
 		destination = backup_directory / datetime.now().strftime("%Y%m%d%H%M%S")
 		shutil.copy(city_path, destination.with_suffix(".sc4"))
@@ -3192,7 +3074,7 @@ class GameMonitor(th.Thread):
 
 					count = 5
 					while count > 0:
-						self.report("[ERROR] ", f"Connection failed. Retrying in {count}...")
+						self.report("[ERROR] ", "Connection failed. Retrying in {}...".format((count)))
 						count = count - 1
 						time.sleep(1)
 
@@ -3210,7 +3092,7 @@ class GameMonitor(th.Thread):
 
 		self.report_quietly("Saving...")
 		self.set_overlay_state("saving")
-		print(f'Sending file "{filename}"...')
+		print('Sending file "{}"...'.format((filename)))
 
 		filesize = filename.stat().st_size
 
@@ -3280,7 +3162,7 @@ class GameLauncher(th.Thread):
 
 		except Exception as e:
 
-			show_error(f"An unexpected error occurred in the game launcher thread.\n\n{e}")
+			show_error("An unexpected error occurred in the game launcher thread.\n\n{}".format((e)))
 
 
 class RegionsRefresher(th.Thread):
@@ -3322,7 +3204,7 @@ class RegionsRefresher(th.Thread):
 				if not self.server.private:
 					s.send(b"regions")
 				else:
-					s.send(f"regions {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
+					s.send("regions {} {} {}".format((SC4MP_VERSION), (self.server.user_id), (self.server.password)).encode())
 
 				# Receive file table
 				file_table = recv_json(s)
@@ -3337,7 +3219,7 @@ class RegionsRefresher(th.Thread):
 				percent = 0
 
 				# Set loading bar at 0%
-				self.report_progress(f"Refreshing regions... (0%)", 0, 100)
+				self.report_progress("Refreshing regions... (0%)".format(), 0, 100)
 
 				# Prune file table as necessary
 				ft = []
@@ -3355,7 +3237,7 @@ class RegionsRefresher(th.Thread):
 					if t.exists() and t.stat().st_size == filesize:
 						
 						# Report
-						print(f'- using cached "{checksum}"')
+						print('- using cached "{}"'.format((checksum)))
 
 						# Set the destination
 						d = Path(destination) / relpath
@@ -3371,7 +3253,8 @@ class RegionsRefresher(th.Thread):
 						d.parent.mkdir(parents=True, exist_ok=True)
 
 						# Delete the destination file if it exists
-						d.unlink(missing_ok=True)
+						if os.path.exists(d):
+							d.unlink()
 
 						# Copy the cached file to the destination
 						shutil.copy(t, d)
@@ -3381,7 +3264,7 @@ class RegionsRefresher(th.Thread):
 						old_percent = percent
 						percent = math.floor(100 * (size_downloaded / size))
 						if percent > old_percent:
-							self.report_progress(f"Refreshing regions... ({percent}%)", percent, 100)
+							self.report_progress("Refreshing regions... ({}%)".format((percent)), percent, 100)
 
 					else:
 
@@ -3402,7 +3285,7 @@ class RegionsRefresher(th.Thread):
 					relpath = Path(entry[2])
 
 					# Report
-					print(f'- caching "{checksum}"...')
+					print('- caching "{}"...'.format((checksum)))
 
 					# Set the destination
 					d = Path(destination) / relpath
@@ -3421,10 +3304,12 @@ class RegionsRefresher(th.Thread):
 					d.parent.mkdir(parents=True, exist_ok=True)
 
 					# Delete the destination file if it exists
-					d.unlink(missing_ok=True)
+					if os.path.exists(d):
+						d.unlink()
 
 					# Delete the cache file if it exists
-					t.unlink(missing_ok=True)
+					if os.path.exists(t):
+						t.unlink()
 
 					# Delete cache files if cache too large to accomadate the new cache file
 					cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
@@ -3448,9 +3333,9 @@ class RegionsRefresher(th.Thread):
 							old_percent = percent
 							percent = math.floor(100 * (size_downloaded / size))
 							if percent > old_percent:
-								self.report_progress(f"Refreshing regions... ({percent}%)", percent, 100)
+								self.report_progress("Refreshing regions... ({}%)".format((percent)), percent, 100)
 
-				self.report_progress(f"Refreshing regions... (100%)", 100, 100)
+				self.report_progress("Refreshing regions... (100%)".format(), 100, 100)
 
 				# Receive file count
 				#file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
@@ -3567,79 +3452,6 @@ class RegionsRefresher(th.Thread):
 		return s
 
 
-	"""def receive_or_cached(self, s: socket.socket, rootpath: Path) -> int:
-
-		# Receive hashcode and set cache filename
-		hash = s.recv(SC4MP_BUFFER_SIZE).decode()
-		target = Path(SC4MP_LAUNCHPATH) / "_Cache" / hash
-
-		# Separator
-		s.send(SC4MP_SEPARATOR)
-
-		# Receive filesize
-		filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
-
-		# Separator
-		s.send(SC4MP_SEPARATOR)
-
-		# Receive relative path and set the destination
-		relpath = Path(s.recv(SC4MP_BUFFER_SIZE).decode())
-		destination = rootpath / relpath
-
-		# Use the cached file if it exists and has the same size
-		if target.exists() and target.stat().st_size == filesize:
-			
-			print(f'- using cached "{hash}"')
-
-			# Tell the server that the file is cached
-			s.send(b"cached")
-
-			# Create the destination directory if necessary
-			destination.parent.mkdir(parents=True, exist_ok=True)
-
-			# Delete the destination file if it exists
-			destination.unlink(missing_ok=True)
-
-			# Copy the cached file to the destination
-			shutil.copy(target, destination)
-
-		else:
-
-			print(f'- caching "{hash}"...')
-
-			# Tell the server that the file is not cached
-			s.send(b"not cached")
-
-			# Create the destination directory if necessary
-			destination.parent.mkdir(parents=True, exist_ok=True)
-
-			# Delete the destination file if it exists
-			destination.unlink(missing_ok=True)
-
-			# Delete the cache file if it exists
-			target.unlink(missing_ok=True)
-
-			# Delete cache files if cache too large to accomadate the new cache file
-			cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
-			while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
-				random_cache = random.choice(list(cache_directory.iterdir()))
-				random_cache.unlink()
-
-			# Receive the file. Write to both the destination and cache
-			filesize_read = 0
-			with destination.open("wb") as dest, target.open("wb") as cache:
-				while filesize_read < filesize:
-					bytes_read = s.recv(SC4MP_BUFFER_SIZE)
-					if not bytes_read:
-						break
-					for file in [dest, cache]:
-						file.write(bytes_read)
-					filesize_read += len(bytes_read)
-			
-		# Return the file size
-		return filesize"""
-
-
 class DatabaseManager(th.Thread):
 	"""TODO"""
 
@@ -3669,12 +3481,12 @@ class DatabaseManager(th.Thread):
 					time.sleep(SC4MP_DELAY * 5)
 					new_data = str(self.data)
 					if old_data != new_data:
-						report(f'Updating "{self.filename}"...', self)
+						report('Updating "{}"...'.format((self.filename)), self)
 						self.update_json()
 						report("- done.", self)
 					old_data = new_data
 				except Exception as e:
-					show_error(f"An unexpected error occurred in the database thread.\n\n{e}")
+					show_error("An unexpected error occurred in the database thread.\n\n{}".format((e)))
 
 		except Exception as e:
 
@@ -4109,7 +3921,7 @@ class StorageSettingsUI(tk.Toplevel):
 			key = item[1]
 			if key == "storage_path" and type(data) is str and not data == sc4mp_config["STORAGE"]["storage_path"]:
 				if (Path(data) / 'Plugins').exists() or (Path(data) / 'Regions').exists():
-					if not messagebox.askokcancel(title=SC4MP_TITLE, message=f'The directory "{data}" already contains SimCity 4 plugins and regions. \n\nProceeding will result in the IRREVERSIBLE DELETION of these files! \n\nThis is your final warning, do you wish to proceed?', icon="warning"): #TODO make message box show yes/no and not ok/cancel
+					if not messagebox.askokcancel(title=SC4MP_TITLE, message='The directory "{}" already contains SimCity 4 plugins and regions. \n\nProceeding will result in the IRREVERSIBLE DELETION of these files! \n\nThis is your final warning, do you wish to proceed?'.format((data)), icon="warning"): #TODO make message box show yes/no and not ok/cancel
 						raise ClientException("Operation cancelled by user.")
 			update_config_value("STORAGE", key, data)
 		create_subdirectories()
@@ -4341,7 +4153,7 @@ class SC4SettingsUI(tk.Toplevel):
 		except Exception as e:
 
 			# Show an error popup
-			show_error(f"An error occurred while launching the game in preview mode.\n\n{e}")
+			show_error("An error occurred while launching the game in preview mode.\n\n{}".format((e)))
 
 		# Restore the old config data
 		sc4mp_config["SC4"] = config_data_backup
@@ -4556,7 +4368,7 @@ class DirectConnectUI(tk.Toplevel):
 			ServerLoaderUI(Server(host, port))
 			self.destroy()
 		except Exception as e:
-			show_error(f"An unexpected error occured while starting the server loader thread.\n\n{e}")
+			show_error("An unexpected error occured while starting the server loader thread.\n\n{}".format((e)))
 
 
 class PasswordDialogUI(tk.Toplevel):
@@ -4992,7 +4804,7 @@ class ServerListUI(tk.Frame):
 			ServerLoaderUI(Server(host, port))
 			self.tree.focus_set()
 		except Exception as e:
-			show_error(f"An error occurred before the server loader thread could start.\n\n{e}")
+			show_error("An error occurred before the server loader thread could start.\n\n{}".format((e)))
 
 
 class ServerLoaderUI(tk.Toplevel):
@@ -5311,7 +5123,7 @@ class GameMonitorMapUI(tk.Toplevel):
 
 		for y in range(int(-.5 * LARGE_TILE_COUNT_Y), int(.5 * LARGE_TILE_COUNT_Y)):
 			for x in range(int(-.5 * LARGE_TILE_COUNT_X), int(.5 * LARGE_TILE_COUNT_X)):
-				self.canvas.images[f"{x}_{y}"] = self.canvas.create_image(x*68, y*68, image=self.canvas.LAUNCHER_MAP_TILE_UNCLAIMED_LARGE, anchor="nw")
+				self.canvas.images["{}_{}".format((x), (y))] = self.canvas.create_image(x*68, y*68, image=self.canvas.LAUNCHER_MAP_TILE_UNCLAIMED_LARGE, anchor="nw")
 
 
 class GameOverlayUI(tk.Toplevel):
@@ -5339,7 +5151,7 @@ class GameOverlayUI(tk.Toplevel):
 		# Images
 		self.images = {}
 		for state in ["connected", "not-saved", "refreshed", "refreshing", "saved", "saving"]:
-			self.images[state] = tk.PhotoImage(file=get_sc4mp_path(f"overlay-{state}.png"))
+			self.images[state] = tk.PhotoImage(file=get_sc4mp_path("overlay-{}.png".format((state))))
 
 		# Canvas
 		self.canvas = tk.Canvas(self, bg="black", highlightthickness=0, cursor="hand2")
@@ -5469,7 +5281,8 @@ class Logger:
 		"""TODO"""
 		self.terminal = sys.stdout
 		self.log = Path(SC4MP_LOG_PATH)
-		self.log.unlink(missing_ok=True)
+		if self.log.exists():
+			self.log.unlink()
 
 	def write(self, message):
 		"""TODO"""
@@ -5517,7 +5330,7 @@ class Logger:
 
 		# Print
 		self.terminal.write(output)
-		with open(self.log, "a") as log:
+		with open(str(self.log), "a") as log:
 			log.write(output)
 			log.close()  
 
