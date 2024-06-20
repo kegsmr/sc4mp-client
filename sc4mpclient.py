@@ -279,27 +279,62 @@ def load_database():
 def get_sc4_path() -> Optional[Path]:
 	"""Returns the path to the SimCity 4 executable if found."""
 
-	sc4_dirs = Path("SimCity 4 Deluxe") / "Apps" / "SimCity 4.exe"
-	steam_dirs = Path("Steam") / "steamapps" / "common"
+	# The path specified by the user
 	config_path = Path(sc4mp_config['SC4']['game_path'])
+
+	# Common SC4 dirs (alternate path used by GOG, and maybe others)
+	sc4_dirs = Path("SimCity 4 Deluxe") / "Apps" / "SimCity 4.exe"
+	sc4_dirs_alt = Path("SimCity 4 Deluxe Edition") / "Apps" / "SimCity 4.exe"
+
+	# Common Steam dirs
+	steam_dirs = Path("Steam") / "steamapps" / "common"
+
+	# On Windows, this is most likely the C:\ drive
 	home_drive = Path(Path.home().drive)
 
+	# List of common SC4 install dirs, highest priority at the top
 	possible_paths: list[Path] = [
+		
+		# Custom (specified by the user)
 		config_path,
 		config_path / "SimCity 4.exe",
 		config_path / "Apps" / "SimCity 4.exe",
+
+		# Generic (probably pirated copies lol)
+		home_drive / "Games" / sc4_dirs,
+		home_drive / "Games" / sc4_dirs_alt,
+		home_drive / "Program Files" / sc4_dirs,
+		home_drive / "Program Files" / sc4_dirs_alt,
+		home_drive / "Program Files (x86)" / sc4_dirs,
+		home_drive / "Program Files (x86)" / sc4_dirs_alt,
+
+		# GOG (patched, no DRM, launches without issue)
+		home_drive / "Program Files" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
+		home_drive / "Program Files (x86)" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
+		home_drive / "GOG Games" / sc4_dirs,
+		home_drive / "GOG Games" / sc4_dirs_alt,
+
+		# Steam (patched, but sometimes has launch issues)
 		home_drive / "Program Files" / steam_dirs / sc4_dirs,
-		home_drive / "Program Files" / "Origin Games" / sc4_dirs,
-		home_drive / "Program Files" / "Maxis" / sc4_dirs,
 		home_drive / "Program Files (x86)" / steam_dirs / sc4_dirs,
+		home_drive / "SteamLibrary" / steam_dirs / sc4_dirs,
+
+		# Origin (maybe patched? Origin is crap)
+		home_drive / "Program Files" / "Origin Games" / sc4_dirs,
 		home_drive / "Program Files (x86)" / "Origin Games" / sc4_dirs,
+
+		# Maxis (probably not patched, so this goes at the bottom)
+		home_drive / "Program Files" / "Maxis" / sc4_dirs,
 		home_drive / "Program Files (x86)" / "Maxis" / sc4_dirs,
+
 	]
 
+	# Return the FIRST path that exists in the list
 	for possible_path in possible_paths:
 		if possible_path.is_file():
 			return possible_path
 
+	# Return `None` if none of the paths exist
 	return None
 
 
