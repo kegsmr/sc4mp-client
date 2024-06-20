@@ -4364,6 +4364,10 @@ class SC4SettingsUI(tk.Toplevel):
 			# Load the game if a path to SimCity 4 can be found
 			if get_sc4_path() != None:
 
+				# Informational dialog
+				if not messagebox.askokcancel(title=SC4MP_TITLE, message=f'You are about to launch SimCity 4 in preview mode.\n\nThe purpose of preview mode is to test your SC4 launch configuration before joining a server. Any cities you build in preview mode will NOT be saved.\n\nOnce the game exits, the SC4 settings window will reappear. If the game does not launch, your SC4 settings are invalid.', icon="info"):
+					raise ClientException("Operation cancelled by user.")
+			
 				# Purge plugins and regions
 				purge_directory(Path(SC4MP_LAUNCHPATH) / "Plugins")
 				purge_directory(Path(SC4MP_LAUNCHPATH) / "Regions")
@@ -4371,6 +4375,12 @@ class SC4SettingsUI(tk.Toplevel):
 				# Run the game launcher (on the current thread)
 				game_launcher = GameLauncher()
 				game_launcher.run()
+
+		# Catch ClientExceptions silently
+		except ClientException as e:
+
+			# Show a silent error
+			show_error(e, no_ui=True)
 
 		# Catch any and all errors
 		except Exception as e:
