@@ -4913,6 +4913,7 @@ class ServerListUI(tk.Frame):
 			if self.tree.focus() == "":
 				children = self.tree.get_children()
 				self.tree.focus(children[0])
+				self.tree.selection_add([children[0]])
 		except Exception as e:
 			show_error("Error setting focus on server list UI.", no_ui=True) # Method not all that important so we'll just toss an error in the console and call it a day 
 
