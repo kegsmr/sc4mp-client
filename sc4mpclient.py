@@ -2480,7 +2480,7 @@ class ServerLoader(th.Thread):
 						self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
 					if sc4mp_ui is not None:
 						now = time.time()
-						eta = int((total_size_to_download - total_size_already_downloaded) / (total_size_already_downloaded / float(now - download_start_time)))
+						eta = int((total_size_to_download - total_size_already_downloaded) / (total_size_already_downloaded / float(now - download_start_time))) #TODO check for divide by zero errors
 						if (old_eta is None or (old_eta > eta or int(now - old_eta_display_time) > 5)) and float(now - old_eta_display_time) >= .8:
 							old_eta = eta
 							old_eta_display_time = now
