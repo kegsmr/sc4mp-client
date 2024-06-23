@@ -2479,20 +2479,23 @@ class ServerLoader(th.Thread):
 					if percent > old_percent:
 						self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
 					if sc4mp_ui is not None:
-						now = time.time()
-						eta = int((total_size_to_download - total_size_already_downloaded) / (total_size_already_downloaded / float(now - download_start_time))) #TODO check for divide by zero errors
-						if (old_eta is None or (old_eta > eta or int(now - old_eta_display_time) > 5)) and float(now - old_eta_display_time) >= .8:
-							old_eta = eta
-							old_eta_display_time = now
-							hours = math.floor(eta / 3600)
-							eta -= hours * 3600
-							minutes = math.floor(eta / 60)
-							eta -= minutes * 60
-							seconds = eta
-							if hours > 0:
-								self.ui.duration_label["text"] = f"{hours}:{minutes:0>{2}}:{seconds:0>{2}}"
-							else:
-								self.ui.duration_label["text"] = f"{minutes}:{seconds:0>{2}}"
+						try:
+							now = time.time()
+							eta = int((total_size_to_download - total_size_already_downloaded) / (total_size_already_downloaded / float(now - download_start_time)))
+							if (old_eta is None or (old_eta > eta or int(now - old_eta_display_time) > 5)) and float(now - old_eta_display_time) >= .8:
+								old_eta = eta
+								old_eta_display_time = now
+								hours = math.floor(eta / 3600)
+								eta -= hours * 3600
+								minutes = math.floor(eta / 60)
+								eta -= minutes * 60
+								seconds = eta
+								if hours > 0:
+									self.ui.duration_label["text"] = f"{hours}:{minutes:0>{2}}:{seconds:0>{2}}"
+								else:
+									self.ui.duration_label["text"] = f"{minutes}:{seconds:0>{2}}"
+						except ZeroDivisionError as e:
+							show_error(e, no_ui=True) # Lazy solution
 
 		self.report_progress(f"Synchronizing {target}... (100%)", 100, 100)
 
