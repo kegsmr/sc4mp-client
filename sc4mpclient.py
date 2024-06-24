@@ -26,6 +26,7 @@ from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
 from typing import Optional
 
+from core.dbpf import *
 from core.util import *
 
 
