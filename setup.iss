@@ -3,7 +3,7 @@
 
 #define MyAppName "SC4MP Launcher"
 #define MyAppVersion "0.5.0"
-#define MyAppPublisher "Simcity 4 Multiplayer Project"
+#define MyAppPublisher "SimCity 4 Multiplayer Project"
 #define MyAppExeName "sc4mpclient.exe"
 #define TimeStamp GetDateTimeString('yyyymmddhhnnss', '', '')
 
