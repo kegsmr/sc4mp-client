@@ -6,13 +6,14 @@ class DBPF:
 	"""TODO include credits to original php file"""
 
 
-	def __init__(self, filename, offset=0):
+	def __init__(self, filename, offset=0, error_callback=None):
 		"""TODO"""
 
 		print(f'Parsing "{filename}"...')
 
 		self.filename = filename
 		self.offset = offset
+		self.show_error = error_callback
 
 		self.NONSENSE_BYTE_OFFSET = 9
 
@@ -79,7 +80,11 @@ class DBPF:
 		offset = ""
 
 		while length > 0:
-			cc = self.read_UL1(self.file)
+			try:
+				cc = self.read_UL1(self.file)
+			except:
+				self.show_error("DBPF decompression error.", no_ui=True)
+				break
 			#print("Control char is " + str(cc) + ", length remaining is " + str(length) + ".\n")
 			if cc >= 252: #0xFC
 				numplain = cc & 3 #0x03

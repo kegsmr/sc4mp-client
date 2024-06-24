@@ -26,6 +26,7 @@ from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
 from typing import Optional
 
+from core.config import *
 from core.dbpf import *
 from core.util import *
 
@@ -224,7 +225,7 @@ def load_config():
 
 	print("Loading config...")
 
-	sc4mp_config = Config(SC4MP_CONFIG_PATH, SC4MP_CONFIG_DEFAULTS)
+	sc4mp_config = Config(SC4MP_CONFIG_PATH, SC4MP_CONFIG_DEFAULTS, error_callback=show_error, update_constants_callback=update_config_constants)
 
 	
 def update_config_constants(config):
@@ -628,7 +629,7 @@ def get_sc4_cfg_path() -> Path: #TODO can this find the cfg for the origin versi
 def region_open(region):
 	"""TODO"""
 	cfg_path = get_sc4_cfg_path()
-	return b"\x00" + region.encode() + b"\x00" in DBPF(cfg_path).decompress_subfile("a9dd6e06").read() #TODO maybe the surrounding zeroes are just from that decompression error?
+	return b"\x00" + region.encode() + b"\x00" in DBPF(cfg_path, error_callback=show_error).decompress_subfile("a9dd6e06").read() #TODO maybe the surrounding zeroes are just from that decompression error?
 
 
 def refresh_region_open():
@@ -736,80 +737,6 @@ def set_thread_name(name, enumerate=True):
 
 
 # Objects
-
-class Config:
-	"""Encapsules a dictionary that represents config values set by the user."""
-
-
-	def __init__(self, path, defaults):
-		"""TODO"""
-
-		# Parameters
-		self.PATH = path
-		self.DEFAULTS = defaults
-
-		# Create dictionary with default config settings
-		self.data = {}
-		for section_name, section_items in self.DEFAULTS:
-			self.data.setdefault(section_name, {})
-			for item_name, item_value in section_items:
-				self.data[section_name].setdefault(item_name, item_value)
-		
-		# Try to read settings from the config file and update the dictionary accordingly
-		parser = configparser.RawConfigParser()
-		try:
-			parser.read(self.PATH)
-			for section_name, section in self.data.items():
-				try:
-					for item_name in section:
-						try:
-							from_file = parser.get(section_name, item_name)
-							if from_file in ("true", "True", "TRUE"):
-								self.data[section_name][item_name] = True
-							elif from_file in ("false", "False", "FALSE"):
-								self.data[section_name][item_name] = False
-							elif from_file in ("none", "None", "NONE"):
-								self.data[section_name][item_name] = None
-							else:
-								t = type(self.data[section_name][item_name])
-								self.data[section_name][item_name] = t(from_file)
-						except (configparser.NoSectionError, configparser.NoOptionError):
-							print(f"[WARNING] Option \"{item_name}\" missing from section \"{section_name}\" of the config file at \"{self.PATH}\". Using default value.")
-						except Exception as e:
-							show_error("An error occured while reading a config item.", no_ui=True)
-				except Exception as e:
-					show_error("An error occured while reading a config section.", no_ui=True)
-		except Exception as e:
-			show_error("An error occured while reading the config.", no_ui=True)
-
-		# Update config file
-		self.update()
-
-
-	def __getitem__(self, key):
-		return self.data.__getitem__(key)
-
-
-	def __setitem__(self, key, value):
-		return self.data.__setitem__(key, value)
-
-
-	def update(self):
-		"""Writes config values set by the user to the config file."""
-		parser = configparser.RawConfigParser()
-		for section_name in self.data.keys():
-			parser.add_section(section_name)
-			section = self.data[section_name]
-			for item_name in section.keys():
-				item_value = section[item_name]
-				parser.set(section_name, item_name, item_value)
-		with open(self.PATH, 'wt') as file:
-			parser.write(file)
-		try:
-			update_config_constants(self)
-		except:
-			pass
-
 
 class Server:
 	"""An interface for interaction with a server."""
@@ -3747,7 +3674,7 @@ class GeneralSettingsUI(tk.Toplevel):
 			self.destroy()
 			sc4mp_config.data.pop("GENERAL")
 			sc4mp_config.update()
-			sc4mp_config.data = Config(sc4mp_config.PATH, sc4mp_config.DEFAULTS).data
+			sc4mp_config.data = Config(sc4mp_config.PATH, sc4mp_config.DEFAULTS, error_callback=show_error, update_constants_callback=update_config_constants).data
 			self.__init__()
 
 
@@ -3881,7 +3808,7 @@ class StorageSettingsUI(tk.Toplevel):
 			self.destroy()
 			sc4mp_config.data.pop("STORAGE")
 			sc4mp_config.update()
-			sc4mp_config.data = Config(sc4mp_config.PATH, sc4mp_config.DEFAULTS).data
+			sc4mp_config.data = Config(sc4mp_config.PATH, sc4mp_config.DEFAULTS, error_callback=show_error, update_constants_callback=update_config_constants).data
 			self.__init__()
 
 
@@ -4044,7 +3971,7 @@ class SC4SettingsUI(tk.Toplevel):
 			self.destroy()
 			sc4mp_config.data.pop("SC4")
 			sc4mp_config.update()
-			sc4mp_config.data = Config(sc4mp_config.PATH, sc4mp_config.DEFAULTS).data
+			sc4mp_config.data = Config(sc4mp_config.PATH, sc4mp_config.DEFAULTS, error_callback=show_error, update_constants_callback=update_config_constants).data
 			self.__init__()
 
 
