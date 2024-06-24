@@ -78,7 +78,9 @@ SC4MP_CONFIG_DEFAULTS = [
 		("stat_mayors_online_cutoff", 60),
 		("ignore_token_errors", False),
 		("allow_game_monitor_exit", False),
-		("use_game_overlay", 1)
+		("use_game_overlay", 1),
+		("ignore_risky_file_warnings", False),
+		("ignore_3rd_party_server_warnings", False)
 	]),
 	("STORAGE", [
 		("storage_path", Path("~/Documents/SimCity 4/_SC4MP").expanduser()),
@@ -102,6 +104,11 @@ SC4MP_LAUNCHPATH = None
 SC4MP_LAUNCHRESW = None
 SC4MP_LAUNCHRESH = None
 SC4MP_CUSTOMPATH = None
+
+SC4MP_RISKY_FILE_EXTENSIONS = [".bat", ".bin", ".cmd", ".com", ".cpl", ".dll", ".exe", ".gadget", ".inf1", ".ins",
+							    ".inx", ".isu", ".jar", ".job", ".jse", ".lnk", ".msc", ".msi", ".msp", ".mst",
+								".paf", ".pif", ".py", ".ps1", ".reg", ".rgs", ".scr", ".sct", ".sh", ".shb",
+								".shs", ".u3p", ".vb", ".vbe", ".vbs", ".vbscript", ".ws", ".wsf", ".wsh"]
 
 sc4mp_args = sys.argv
 
@@ -2117,6 +2124,18 @@ class ServerLoader(th.Thread):
 
 
 			else:
+
+				# Handle risky file types
+				if sc4mp_ui and not sc4mp_config["GENERAL"]["ignore_risky_file_warnings"]:
+					if relpath.suffix.lower() in SC4MP_RISKY_FILE_EXTENSIONS:
+						choice = messagebox.askyesnocancel(title=SC4MP_TITLE, message=f"You are about to download \"{relpath.name}\". This file could potentially harm your computer.\n\nWould you like to download it anyway?", icon="warning")
+						if choice is True:
+							pass
+						elif choice is False:
+							size_downloaded += filesize
+							continue
+						else:
+							raise ClientException("Connection cancelled.")
 
 				# Append to new file table
 				ft.append(entry)
@@ -4708,7 +4727,7 @@ class ServerListUI(tk.Frame):
 		if server_id == "":
 			return
 		server = self.worker.servers[server_id]
-		if not ("Official" in server.categories or "History" in server.categories):
+		if not ("Official" in server.categories or "History" in server.categories or sc4mp_config["GENERAL"]["ignore_3rd_party_server_warnings"]):
 			sc4mp_ui.withdraw()
 			if not messagebox.askyesno(title=SC4MP_TITLE, message="You are about to connect to a 3rd-party server.\n\nThe SimCity 4 Multiplayer Project is not responsible for gameplay in 3rd-party servers. Only connect to 3rd-party servers you trust.\n\nDo you wish to continue?", icon="warning"):
 				sc4mp_ui.deiconify()
