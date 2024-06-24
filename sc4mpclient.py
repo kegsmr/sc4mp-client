@@ -4729,7 +4729,7 @@ class ServerListUI(tk.Frame):
 		server = self.worker.servers[server_id]
 		if not ("Official" in server.categories or "History" in server.categories or sc4mp_config["GENERAL"]["ignore_third_party_server_warnings"]):
 			#sc4mp_ui.withdraw()
-			if not messagebox.askokcancel(title=SC4MP_TITLE, message="You are about to connect to a third-party server.\n\nThe SimCity 4 Multiplayer Project is not responsible for content downloaded from third-party servers. Only connect to third-party servers you trust.", icon="warning"):
+			if not messagebox.askokcancel(title=SC4MP_TITLE, message="You are about to join a third-party server.\n\nThe SimCity 4 Multiplayer Project is not responsible for content downloaded from third-party servers. Only connect to third-party servers you trust.", icon="warning"):
 				#sc4mp_ui.deiconify()
 				return
 		host = server.host
