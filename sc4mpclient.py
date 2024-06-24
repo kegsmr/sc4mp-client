@@ -1118,7 +1118,7 @@ class Server:
 			else:
 				if not sc4mp_config["GENERAL"]["ignore_token_errors"]:
 					if sc4mp_ui:
-						if messagebox.askokcancel(title=SC4MP_TITLE, message="The server failed to authenticate (invalid token).\n\nThe server you trying to connect to may have restored a recent backup, or is being impersonated by another server.\n\nDo you wish to continue?", icon="warning"):
+						if messagebox.askokcancel(title=SC4MP_TITLE, message="The server failed to authenticate.\n\nThe user ID corresponding to your last login could not be produced by the server. A recent rollback of the server, or a recent failed authentication attempt may be to blame.\n\nIf you proceed, your user ID may become compromised.", icon="warning"):
 							self.user_id = user_id
 						else:
 							raise ClientException("Connection cancelled.")
@@ -4729,7 +4729,7 @@ class ServerListUI(tk.Frame):
 		server = self.worker.servers[server_id]
 		if not ("Official" in server.categories or "History" in server.categories or sc4mp_config["GENERAL"]["ignore_third_party_server_warnings"]):
 			#sc4mp_ui.withdraw()
-			if not messagebox.askokcancel(title=SC4MP_TITLE, message="You are about to connect to a third-party server.\n\nThe SimCity 4 Multiplayer Project is not responsible for gameplay in third-party servers. Only connect to third-party servers you trust.", icon="warning"):
+			if not messagebox.askokcancel(title=SC4MP_TITLE, message="You are about to connect to a third-party server.\n\nThe SimCity 4 Multiplayer Project is not responsible for content downloaded from third-party servers. Only connect to third-party servers you trust.", icon="warning"):
 				#sc4mp_ui.deiconify()
 				return
 		host = server.host
