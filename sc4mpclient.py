@@ -1136,7 +1136,7 @@ class Server:
 
 		# Raise exception if no token is received
 		if len(token) < 1:
-			raise ClientException("You are banned from this server.")
+			raise ClientException("Authentication failed.\n\nThe reason could be any of the following:\n(1)   You are banned from this server.\n(2)   You have too many different user accounts on this server.\n(3)   There is a problem with your internet connection.")
 
 		# Set user_id and token in the database entry
 		entry["user_id"] = user_id
