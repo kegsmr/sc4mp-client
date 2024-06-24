@@ -1118,7 +1118,7 @@ class Server:
 			else:
 				if not sc4mp_config["GENERAL"]["ignore_token_errors"]:
 					if sc4mp_ui:
-						if messagebox.askyesno(title=SC4MP_TITLE, message="The server failed to authenticate (invalid token).\n\nThe server you trying to connect to may have restored a recent backup, or is being impersonated by another server.\n\nDo you wish to continue?", icon="warning"):
+						if messagebox.askokcancel(title=SC4MP_TITLE, message="The server failed to authenticate (invalid token).\n\nThe server you trying to connect to may have restored a recent backup, or is being impersonated by another server.\n\nDo you wish to continue?", icon="warning"):
 							self.user_id = user_id
 						else:
 							raise ClientException("Connection cancelled.")
