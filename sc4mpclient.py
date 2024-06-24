@@ -80,7 +80,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("allow_game_monitor_exit", False),
 		("use_game_overlay", 1),
 		("ignore_risky_file_warnings", False),
-		("ignore_3rd_party_server_warnings", False)
+		("ignore_third_party_server_warnings", False)
 	]),
 	("STORAGE", [
 		("storage_path", Path("~/Documents/SimCity 4/_SC4MP").expanduser()),
@@ -4727,9 +4727,9 @@ class ServerListUI(tk.Frame):
 		if server_id == "":
 			return
 		server = self.worker.servers[server_id]
-		if not ("Official" in server.categories or "History" in server.categories or sc4mp_config["GENERAL"]["ignore_3rd_party_server_warnings"]):
+		if not ("Official" in server.categories or "History" in server.categories or sc4mp_config["GENERAL"]["ignore_third_party_server_warnings"]):
 			#sc4mp_ui.withdraw()
-			if not messagebox.askyesno(title=SC4MP_TITLE, message="You are about to connect to a 3rd-party server.\n\nThe SimCity 4 Multiplayer Project is not responsible for gameplay in 3rd-party servers. Only connect to 3rd-party servers you trust.\n\nDo you wish to continue?", icon="warning"):
+			if not messagebox.askyesno(title=SC4MP_TITLE, message="You are about to connect to a third-party server.\n\nThe SimCity 4 Multiplayer Project is not responsible for gameplay in third-party servers. Only connect to third-party servers you trust.\n\nDo you wish to continue?", icon="warning"):
 				#sc4mp_ui.deiconify()
 				return
 		host = server.host
