@@ -1920,21 +1920,32 @@ class ServerLoader(th.Thread):
 					raise ClientException("Too many password attempts.")
 				if tries > 0:
 					print("[WARNING] Incorrect password.")
-					#time.sleep(3) #TODO uncomment?
+					try:
+						sc4mp_servers_database[self.server.server_id].pop("password")
+					except:
+						pass
 				PasswordDialogUI(self, tries)
 				tries += 1
 			else:
 				raise ClientException("Incorrect password.")
+		if sc4mp_ui:
+			try:
+				sc4mp_servers_database[self.server.server_id]["password"] = self.server.password
+			except:
+				pass
 		self.server.authenticate()
 		
 
 	def check_password(self):
 		"""TODO"""
 		if self.server.password_enabled:
-			if self.server.password == None:
-				return False
+			if self.server.password is None:
+				try:
+					self.server.password = sc4mp_servers_database[self.server.server_id]["password"]
+				except:
+					return False
 			s = self.create_socket()
-			if self.ui != None:
+			if self.ui is not None:
 				self.ui.label['text'] = "Authenticating..."
 			s.send(f"check_password {self.server.password}".encode())
 			if s.recv(SC4MP_BUFFER_SIZE) == b'y':
@@ -4353,6 +4364,10 @@ class PasswordDialogUI(tk.Toplevel):
 		self.password_entry.grid(row=0, column=1, columnspan=3, padx=10, pady=20, sticky="w")
 		self.password_entry.config(show="*")
 		self.password_entry.focus()
+		#try:
+		#	self.password_entry.insert(0, sc4mp_servers_database[self.server_loader.server.server_id]["password"])
+		#except:
+		#	pass
 
 		# OK/Cancel frame
 		self.ok_cancel = tk.Frame(self)
