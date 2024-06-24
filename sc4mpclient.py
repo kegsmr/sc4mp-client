@@ -1920,19 +1920,10 @@ class ServerLoader(th.Thread):
 					raise ClientException("Too many password attempts.")
 				if tries > 0:
 					print("[WARNING] Incorrect password.")
-					try:
-						sc4mp_servers_database[self.server.server_id].pop("password")
-					except:
-						pass
 				PasswordDialogUI(self, tries)
 				tries += 1
 			else:
 				raise ClientException("Incorrect password.")
-		if sc4mp_ui:
-			try:
-				sc4mp_servers_database[self.server.server_id]["password"] = self.server.password
-			except:
-				pass
 		self.server.authenticate()
 		
 
@@ -1949,8 +1940,16 @@ class ServerLoader(th.Thread):
 				self.ui.label['text'] = "Authenticating..."
 			s.send(f"check_password {self.server.password}".encode())
 			if s.recv(SC4MP_BUFFER_SIZE) == b'y':
+				try:
+					sc4mp_servers_database[self.server.server_id]["password"] = self.server.password
+				except:
+					pass
 				return True
 			else:
+				try:
+					sc4mp_servers_database[self.server.server_id].pop("password")
+				except:
+					pass
 				return False
 		else:
 			return True
