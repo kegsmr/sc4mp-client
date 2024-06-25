@@ -305,19 +305,38 @@ def check_updates():
 										os.unlink(destination)
 
 									# Download file
+									download_size = int(urllib.request.urlopen(download_url).headers["Content-Length"])
+									if ui is not None:
+										ui.progress_bar["mode"] = "determinate"
+										ui.progress_bar["maximum"] = download_size
+										ui.progress_bar["value"] = 0
 									with urllib.request.urlopen(download_url) as rfile:
 										with open(destination, "wb") as wfile:
-											wfile.write(rfile.read())
+											download_size_downloaded = 0
+											while download_size_downloaded < download_size:
+												if ui is not None:
+													ui.label["text"] = f"Downloading update... ({int(100 * (download_size_downloaded / download_size))}%)"
+													ui.progress_bar["value"] = download_size_downloaded
+												bytes_read = rfile.read(SC4MP_BUFFER_SIZE) 
+												download_size_downloaded += len(bytes_read)
+												wfile.write(bytes_read)
 
-									# Report installing update and wait 3 seconds (gives time for users to cancel)
+									# Report installing update and wait a few seconds (gives time for users to cancel)
 									if ui is not None:
-										ui.label["text"] = "Installing update..."
+										ui.label["text"] = "Starting installation..."
 										ui.progress_bar['mode'] = "indeterminate"
-										time.sleep(3)
+										ui.progress_bar['maximum'] = 100
+										ui.progress_bar.start(2)
+										time.sleep(.5)
+										for count in range(3):
+											ui.label["text"] = "(press escape to cancel)"
+											time.sleep(1)
+											ui.label["text"] = "Starting installation..."
+											time.sleep(1)
 
 									# Start installer in very silent mode and exit
 									subprocess.Popen([os.path.abspath(destination), f"/dir={os.getcwd()}", "/verysilent"])
-									exit()
+									ui.destroy()
 								
 								except Exception as e:
 
@@ -325,6 +344,7 @@ def check_updates():
 
 									if ui is not None:
 										ui.progress_bar['mode'] = "indeterminate"
+										ui.progress_bar.start(2)
 										for count in range(5):
 											ui.label["text"] = f"Update failed. Retrying in {5 - count}..."
 											time.sleep(1)
@@ -349,6 +369,9 @@ def check_updates():
 
 						# Run the UI main loop
 						sc4mp_ui.mainloop()
+
+						# Exit when complete
+						exit()
 
 					else:
 
