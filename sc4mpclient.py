@@ -134,14 +134,15 @@ def main():
 	try:
 
 		# Exit if already running
-		try:
-			count = process_count("sc4mpclient.exe")
-			if count is not None and count > 1:
-				tk.Tk().withdraw()
-				messagebox.showerror(title=SC4MP_TITLE, message="SC4MP Launcher is already running!")
-				return
-		except:
-			pass
+		if not "-allow-multiple" in sc4mp_args:
+			try:
+				count = process_count("sc4mpclient.exe")
+				if count is not None and count > 1:
+					tk.Tk().withdraw()
+					messagebox.showerror(title=SC4MP_TITLE, message="SC4MP Launcher is already running!")
+					return
+			except:
+				pass
 
 		# Output
 		sys.stdout = Logger()
@@ -150,9 +151,14 @@ def main():
 		# Title
 		print(SC4MP_TITLE)
 
+		# "-skip-update" argument
+		global sc4mp_skip_update
+		sc4mp_skip_update = "-skip-update" in sc4mp_args
+
 		# "-no-ui" argument
 		global sc4mp_ui
 		sc4mp_ui = not "-no-ui" in sc4mp_args
+		sc4mp_skip_update = not sc4mp_ui
 
 		# "--host" argument
 		global sc4mp_host
@@ -160,6 +166,7 @@ def main():
 		if "--host" in sc4mp_args:
 			try:
 				sc4mp_host = get_arg_value("--host", sc4mp_args)
+				sc4mp_skip_update = True
 			except:
 				raise ClientException("Invalid arguments.")
 
@@ -169,6 +176,7 @@ def main():
 		if "--port" in sc4mp_args:
 			try:
 				sc4mp_port = int(get_arg_value("--port", sc4mp_args))
+				sc4mp_skip_update = True
 			except:
 				raise ClientException("Invalid arguments.")
 			
@@ -178,6 +186,7 @@ def main():
 		if "--password" in sc4mp_args:
 			try:
 				sc4mp_password = get_arg_value("--password", sc4mp_args)
+				sc4mp_skip_update = True
 			except:
 				raise ClientException("Invalid arguments.")
 
@@ -242,7 +251,7 @@ def load_config():
 
 def check_updates():
 
-	if sc4mp_config["GENERAL"]["auto_update"]:
+	if sc4mp_config["GENERAL"]["auto_update"] and (not sc4mp_skip_update):
 
 		print("Checking for updates...")
 
@@ -258,59 +267,98 @@ def check_updates():
 			# Only update if running a Windows distribution
 			if True: #exec_file == "sc4mpclient.exe": #TODO
 				
-				# Local function for update thread
-				def update(ui=None):
-					
-					try:
+				# Get latest release info
+				with urllib.request.urlopen(f"https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest", timeout=5) as url:
+					latest_release_info = json.load(url)
 
-						# Get latest release info
-						if ui is not None:
-							ui.label["text"] = "Checking for updates..."
-						time.sleep(5)
-						with urllib.request.urlopen(f"https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest", timeout=5) as url:
-							
-							latest_release_info = json.load(url)
+				# Download the update if the version doesn't match
+				if True: #latest_release_info["tag_name"] != f"v{SC4MP_VERSION}": #TODO
 
-						# Download the update if the version doesn't match
-						if True: #latest_release_info["tag_name"] != f"v{SC4MP_VERSION}": #TODO
+					# Local function for update thread
+					def update(ui=None):
+						
+						try:
 
-							# Make sure we're in the directory which contains the executable
-							#os.chdir(exec_dir) #TODO
+							while True:
 
-							pass
-					
-					except Exception as e:
+								try:
 
-						show_error(f"Update check failed!\n\n{e}")
+									# Update UI
+									if ui is not None:
+										ui.label["text"] = "Downloading update..."
 
-				# Prepare the temporary UI if not running in command-line mode
-				if sc4mp_ui:
+									# Get download URL
+									download_url = None
+									for asset in latest_release_info["assets"]:
+										if asset["name"].startswith("sc4mp-client-installer-windows"):
+											download_url = asset["browser_download_url"]
+											destination = os.path.join("updates", asset["name"])
+											break
 
-					sc4mp_ui = tk.Tk()
-					sc4mp_ui.withdraw()
+									# Raise an exception if the download URL was not found
+									if download_url is None:
+										raise ClientException("The correct release asset was not found.")
 
-					updater_ui = UpdaterUI(sc4mp_ui)
+									# Prepare destination
+									os.makedirs("updates", exist_ok=True)
+									if os.path.exists(destination):
+										os.unlink(destination)
 
-					# Start update thread
-					th.Thread(target=update, kwargs={"ui": updater_ui}, daemon=True).start()
+									# Download file
+									with urllib.request.urlopen(download_url) as rfile:
+										with open(destination, "wb") as wfile:
+											wfile.write(rfile.read())
 
-					sc4mp_ui.mainloop()
+									# Report installing update and wait 3 seconds (gives time for users to cancel)
+									if ui is not None:
+										ui.label["text"] = "Installing update..."
+										ui.progress_bar['mode'] = "indeterminate"
+										time.sleep(3)
 
-				else:
+									# Start installer in very silent mode
+									subprocess.Popen([os.path.abspath(destination), f"/dir={os.getcwd()}", "/verysilent"])
 
-					# Run update thread directly
-					update()
+									break
+								
+								except Exception as e:
+
+									show_error(f"An error occurred in the update thread.\n\n{e}", no_ui=True)
+
+									if ui is not None:
+										ui.progress_bar['mode'] = "indeterminate"
+										for count in range(5):
+											ui.label["text"] = f"Update failed. Retrying in {5 - count}..."
+											time.sleep(1)
+						
+						except:
+
+							fatal_error()
+
+					# Prepare the UI if not running in command-line mode
+					if sc4mp_ui:
+
+						# Create hidden top-level window
+						sc4mp_ui = tk.Tk()
+						sc4mp_ui.iconphoto(True, tk.PhotoImage(file=SC4MP_ICON))
+						sc4mp_ui.withdraw()
+
+						# Create updater UI
+						updater_ui = UpdaterUI(sc4mp_ui)
+
+						# Start update thread
+						th.Thread(target=update, kwargs={"ui": updater_ui}, daemon=True).start()
+
+						# Run the UI main loop
+						sc4mp_ui.mainloop()
+
+					else:
+
+						# Run update thread directly
+						update()
 			
 		except Exception as e:
 
-			show_error(f"Update check failed!\n\n{e}", no_ui=True)
-
-		if sc4mp_ui is not False and sc4mp_ui is not True:
-			try:
-				sc4mp_ui.destroy()
-			except:
-				pass
-			sc4mp_ui = True
+			show_error(f"An error occurred while updating.\n\n{e}", no_ui=True)
 
 	
 def update_config_constants(config):
@@ -3557,7 +3605,7 @@ class UI(tk.Tk):
 
 		# Icon
 
-		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+		self.iconphoto(True, tk.PhotoImage(file=SC4MP_ICON))
 
   
 		# Geometry
@@ -5311,8 +5359,11 @@ class UpdaterUI(tk.Toplevel):
 		self.lift()
 		self.grab_set()
 
+		# Protocol
+		self.protocol("WM_DELETE_WINDOW", self.delete_window)
+
 		# Key bindings
-		#self.bind("<Escape>", lambda event:self.destroy())
+		self.bind("<Escape>", lambda event:self.delete_window())
 
 		# Label
 		self.label = ttk.Label(self)
@@ -5329,6 +5380,20 @@ class UpdaterUI(tk.Toplevel):
 		)
 		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10,5))
 		self.progress_bar.start(2)
+
+
+	def delete_window(self):
+
+		choice = messagebox.askyesnocancel(title=SC4MP_TITLE, icon="warning", message="Are you sure you want to cancel the update?")
+
+		if choice is None:
+			exit()
+		elif choice is True:
+			subprocess.Popen([sys.executable, "-skip-update", "-allow-multiple"])
+			exit()
+		elif choice is False:
+			pass
+
 
 	def destroy(self):
 
