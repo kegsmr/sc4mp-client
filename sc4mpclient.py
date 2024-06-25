@@ -351,7 +351,7 @@ def check_updates():
 
 									# Report installing update and wait a few seconds (gives time for users to cancel)
 									if ui is not None:
-										ui.label["text"] = "Starting installation..."
+										ui.label["text"] = "Installing update..."
 										ui.progress_bar['mode'] = "indeterminate"
 										ui.progress_bar['maximum'] = 100
 										ui.progress_bar.start(2)
