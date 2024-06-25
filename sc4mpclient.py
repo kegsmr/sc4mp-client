@@ -628,14 +628,14 @@ def request_header(s, server):
 	"""A "handshake" between the client and server which establishes that a request can be made."""
 
 	s.recv(SC4MP_BUFFER_SIZE)
-	s.send(SC4MP_VERSION.encode())
+	s.sendall(SC4MP_VERSION.encode())
 
 	if server.password_enabled:
 		s.recv(SC4MP_BUFFER_SIZE)
-		s.send(server.password.encode())
+		s.sendall(server.password.encode())
 
 	s.recv(SC4MP_BUFFER_SIZE)
-	s.send(server.user_id.encode())
+	s.sendall(server.user_id.encode())
 
 
 def format_version(version: tuple[int, int, int]) -> str:
@@ -923,9 +923,9 @@ class Server:
 
 			# Request the type of data
 			if not self.private:
-				s.send(request.encode())
+				s.sendall(request.encode())
 			else:
-				s.send(f"{request} {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
+				s.sendall(f"{request} {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
 
 			# Receive file table
 			file_table = recv_json(s)
@@ -976,22 +976,22 @@ class Server:
 
 			# Request the type of data
 			#if not self.private:
-			#	s.send(request.encode())
+			#	s.sendall(request.encode())
 			#else:
-			#	s.send(f"{request} {SC4MP_VERSION} {self.user_id} {self.password}".encode())
+			#	s.sendall(f"{request} {SC4MP_VERSION} {self.user_id} {self.password}".encode())
 
 			# Receive file count
 			#file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
 
 			# Separator
-			#s.send(SC4MP_SEPARATOR)
+			#s.sendall(SC4MP_SEPARATOR)
 
 			# Receive file size
 			#size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
 
 			# Receive files
 			#for files_received in range(file_count):
-			#	s.send(SC4MP_SEPARATOR)
+			#	s.sendall(SC4MP_SEPARATOR)
 			#	size_downloaded += self.receive_or_cached(s, destination)
 
 		return total_size
@@ -1003,13 +1003,13 @@ class Server:
 		hash = s.recv(SC4MP_BUFFER_SIZE).decode()
 
 		# Separator
-		s.send(SC4MP_SEPARATOR)
+		s.sendall(SC4MP_SEPARATOR)
 
 		# Receive filesize
 		filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
 
 		# Separator
-		s.send(SC4MP_SEPARATOR)
+		s.sendall(SC4MP_SEPARATOR)
 
 		# Receive relative path and set the destination
 		relpath = Path(s.recv(SC4MP_BUFFER_SIZE).decode())
@@ -1019,12 +1019,12 @@ class Server:
 		if not (filename == "region.json" or filename == "config.bmp"):
 
 			# Tell the server that the file is cached
-			s.send(b"cached")
+			s.sendall(b"cached")
 
 		else:
 
 			# Tell the server that the file is not cached
-			s.send(b"not cached")
+			s.sendall(b"not cached")
 
 			# Create the destination directory if necessary
 			destination.parent.mkdir(exist_ok=True, parents=True)
@@ -1077,7 +1077,7 @@ class Server:
 			s = socket.socket()
 			s.settimeout(10)
 			s.connect((host, port))
-			s.send(request.encode())
+			s.sendall(request.encode())
 			return s.recv(SC4MP_BUFFER_SIZE).decode()
 		except:
 			self.fetched = False
@@ -1112,7 +1112,7 @@ class Server:
 			hash = hashlib.sha256(((hashlib.sha256(user_id.encode()).hexdigest()[:32]) + token).encode()).hexdigest()
 			s = socket.socket()
 			s.connect((self.host, self.port))
-			s.send(f"user_id {hash}".encode())
+			s.sendall(f"user_id {hash}".encode())
 			if s.recv(SC4MP_BUFFER_SIZE).decode() == hashlib.sha256(user_id.encode()).hexdigest()[:32]:
 				self.user_id = user_id
 			else:
@@ -1131,7 +1131,7 @@ class Server:
 		# Get the new token
 		s = socket.socket()
 		s.connect((self.host, self.port))
-		s.send(f"token {SC4MP_VERSION} {self.user_id} {self.password}".encode())
+		s.sendall(f"token {SC4MP_VERSION} {self.user_id} {self.password}".encode())
 		token = s.recv(SC4MP_BUFFER_SIZE).decode()
 
 		# Raise exception if no token is received
@@ -1155,7 +1155,7 @@ class Server:
 		try:
 			s.connect((host, port))
 			start = time.time()
-			s.send(b"ping")
+			s.sendall(b"ping")
 			s.recv(SC4MP_BUFFER_SIZE)
 			end = time.time()
 			s.close()
@@ -1173,7 +1173,7 @@ class Server:
 			s = socket.socket()
 			s.settimeout(10)
 			s.connect((self.host, self.port))
-			s.send(b"time")
+			s.sendall(b"time")
 
 			return datetime.strptime(s.recv(SC4MP_BUFFER_SIZE).decode(), "%Y-%m-%d %H:%M:%S")
 		
@@ -1701,7 +1701,7 @@ class ServerFetcher(th.Thread):
 		s = self.create_socket(self.server)
 		
 		# Request server list
-		s.send(b"server_list")
+		s.sendall(b"server_list")
 		
 		# Receive server list
 		servers = recv_json(s)
@@ -1711,14 +1711,14 @@ class ServerFetcher(th.Thread):
 			self.parent.unfetched_servers.append((host, port))
 
 		#s = self.create_socket(self.server)
-		#s.send(b"server_list")
+		#s.sendall(b"server_list")
 		#size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
-		#s.send(SC4MP_SEPARATOR)
+		#s.sendall(SC4MP_SEPARATOR)
 		#for count in range(size):
 		#	host = s.recv(SC4MP_BUFFER_SIZE).decode()
-		#	s.send(SC4MP_SEPARATOR)
+		#	s.sendall(SC4MP_SEPARATOR)
 		#	port = int(s.recv(SC4MP_BUFFER_SIZE).decode())
-		#	s.send(SC4MP_SEPARATOR)
+		#	s.sendall(SC4MP_SEPARATOR)
 		#	self.parent.unfetched_servers.append((host, port))
 
 
@@ -1938,7 +1938,7 @@ class ServerLoader(th.Thread):
 			s = self.create_socket()
 			if self.ui is not None:
 				self.ui.label['text'] = "Authenticating..."
-			s.send(f"check_password {self.server.password}".encode())
+			s.sendall(f"check_password {self.server.password}".encode())
 			if s.recv(SC4MP_BUFFER_SIZE) == b'y':
 				try:
 					sc4mp_servers_database[self.server.server_id]["password"] = self.server.password
@@ -1946,10 +1946,6 @@ class ServerLoader(th.Thread):
 					pass
 				return True
 			else:
-				try:
-					sc4mp_servers_database[self.server.server_id].pop("password")
-				except:
-					pass
 				return False
 		else:
 			return True
@@ -2069,9 +2065,9 @@ class ServerLoader(th.Thread):
 
 		# Request the type of data
 		if not self.server.private:
-			s.send(target.encode())
+			s.sendall(target.encode())
 		else:
-			s.send(f"{target} {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
+			s.sendall(f"{target} {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
 
 		# Receive file table
 		file_table = recv_json(s)
@@ -2246,7 +2242,7 @@ class ServerLoader(th.Thread):
 		#file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
 
 		# Separator
-		#s.send(SC4MP_SEPARATOR)
+		#s.sendall(SC4MP_SEPARATOR)
 
 		# Receive file size
 		#size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
@@ -2256,7 +2252,7 @@ class ServerLoader(th.Thread):
 		#for files_received in range(file_count):
 		#	percent = math.floor(100 * (size_downloaded / size))
 		#	self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
-		#	s.send(SC4MP_SEPARATOR)
+		#	s.sendall(SC4MP_SEPARATOR)
 		#	size_downloaded += self.receive_or_cached(s, destination)
 		#self.report_progress(f"Synchronizing {target}... (100%)", 100, 100)
 
@@ -2281,7 +2277,7 @@ class ServerLoader(th.Thread):
 
 		s = self.create_socket() 
 
-		s.send(type.encode())
+		s.sendall(type.encode())
 
 		filename = os.path.join(SC4MP_LAUNCHPATH, os.path.join("_Cache", os.path.join(directory, server_id + ".zip")))
 
@@ -2296,10 +2292,10 @@ class ServerLoader(th.Thread):
 			self.report("", "Error reading server hashcode for " + type + ".")
 
 		if (client_hashcode == server_hashcode):
-			s.send(b"cached")
+			s.sendall(b"cached")
 			self.report("", "Using cached " + type + "...")
 		else:	
-			s.send(b"not cached")
+			s.sendall(b"not cached")
 			self.report("", "Fetching " + type + "...")
 			self.receive_file(s, filename) 
 
@@ -2361,13 +2357,13 @@ class ServerLoader(th.Thread):
 	#	target = Path(SC4MP_LAUNCHPATH) / "_Cache" / hash
 	#
 	#	# Separator
-	#	s.send(SC4MP_SEPARATOR)
+	#	s.sendall(SC4MP_SEPARATOR)
 	#
 	#	# Receive filesize
 	#	filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
 	#
 	#	# Separator
-	#	s.send(SC4MP_SEPARATOR)
+	#	s.sendall(SC4MP_SEPARATOR)
 	#
 	#	# Receive relative path and set the destination
 	#	relpath = Path(s.recv(SC4MP_BUFFER_SIZE).decode())
@@ -2379,7 +2375,7 @@ class ServerLoader(th.Thread):
 	#		print(f'- using cached "{hash}"')
 	#
 	#		# Tell the server that the file is cached
-	#		s.send(b"cached")
+	#		s.sendall(b"cached")
 	#
 	#		# Create the destination directory if necessary
 	#		destination.parent.mkdir(parents=True, exist_ok=True)
@@ -2395,7 +2391,7 @@ class ServerLoader(th.Thread):
 	#		print(f'- caching "{hash}"...')
 	#
 	#		# Tell the server that the file is not cached
-	#		s.send(b"not cached")
+	#		s.sendall(b"not cached")
 	#
 	#		# Create the destination directory if necessary
 	#		destination.parent.mkdir(parents=True, exist_ok=True)
@@ -2669,10 +2665,10 @@ class GameMonitor(th.Thread):
 						self.report("", "Refreshing...")
 						with self.create_socket() as s:
 							self.report("", "Refreshing...")
-							s.send(b'refresh')
+							s.sendall(b'refresh')
 							request_header(s, self.server)
 							s.recv(SC4MP_BUFFER_SIZE)
-							s.send(self.server.user_id.encode())
+							s.sendall(self.server.user_id.encode())
 							timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
 							file_count = 0
 							while (True):
@@ -2683,16 +2679,16 @@ class GameMonitor(th.Thread):
 									hashcode = message
 									#print(hashcode)
 									if (hashcode in self.city_hashcodes):
-										s.send(b'present')
+										s.sendall(b'present')
 									else:
-										s.send(b'missing')
+										s.sendall(b'missing')
 										region = s.recv(SC4MP_BUFFER_SIZE).decode()
-										s.send(SC4MP_SEPARATOR)
+										s.sendall(SC4MP_SEPARATOR)
 										destination = os.path.join(SC4MP_LAUNCHPATH, "Regions", region, "_refresh_" + timestamp + "_" + str(file_count) + ".sc4")
 										self.receive_file(s, destination)
 										self.city_paths.append(destination)
 										self.city_hashcodes.append(hashcode)
-										s.send(SC4MP_SEPARATOR)
+										s.sendall(SC4MP_SEPARATOR)
 										file_count += 1
 							s.close()
 							print("- " + str(file_count) + " savegame(s) downloaded.")
@@ -2754,14 +2750,14 @@ class GameMonitor(th.Thread):
 			self.report(self.PREFIX, 'Unable to delete the city "' + city + '" because the server is unreachable.')
 			return
 
-		s.send(b"push_delete")
+		s.sendall(b"push_delete")
 
 		s.recv(SC4MP_BUFFER_SIZE)
-		s.send(self.server.user_id.encode())
+		s.sendall(self.server.user_id.encode())
 		s.recv(SC4MP_BUFFER_SIZE)
-		s.send(region.encode())
+		s.sendall(region.encode())
 		s.recv(SC4MP_BUFFER_SIZE)
-		s.send(city.encode())
+		s.sendall(city.encode())
 
 		if (s.recv(SC4MP_BUFFER_SIZE).decode() == "ok"):
 			self.report(self.PREFIX, "Delete push authorized") #TODO placeholder
@@ -2834,7 +2830,7 @@ class GameMonitor(th.Thread):
 		self.set_overlay_state("saving")
 
 		# Send save request
-		s.send(f"save {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
+		s.sendall(f"save {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
 		
 		# Separator
 		s.recv(SC4MP_BUFFER_SIZE)
@@ -2855,10 +2851,10 @@ class GameMonitor(th.Thread):
 					data = file.read(SC4MP_BUFFER_SIZE)
 					if not data:
 						break
-					s.send(data)
+					s.sendall(data)
 
 		# Send file count
-		#s.send(str(len(save_city_paths)).encode())
+		#s.sendall(str(len(save_city_paths)).encode())
 		#.recv(SC4MP_BUFFER_SIZE)
 		#
 		# Send files
@@ -2869,11 +2865,11 @@ class GameMonitor(th.Thread):
 		#	city = save_city_path.name
 		#
 		#	# Send region name
-		#	s.send(region.encode())
+		#	s.sendall(region.encode())
 		#	s.recv(SC4MP_BUFFER_SIZE)
 		#
 		#	# Send city name
-		#	s.send(city.encode())
+		#	s.sendall(city.encode())
 		#	s.recv(SC4MP_BUFFER_SIZE)
 		#
 		#	# Send file
@@ -2881,7 +2877,7 @@ class GameMonitor(th.Thread):
 		#	s.recv(SC4MP_BUFFER_SIZE)
 		#
 		# Separator
-		#s.send(SC4MP_SEPARATOR)
+		#s.sendall(SC4MP_SEPARATOR)
 
 		# Handle response from server
 		response = s.recv(SC4MP_BUFFER_SIZE).decode()
@@ -2960,7 +2956,7 @@ class GameMonitor(th.Thread):
 
 		filesize = filename.stat().st_size
 
-		s.send(str(filesize).encode())
+		s.sendall(str(filesize).encode())
 		s.recv(SC4MP_BUFFER_SIZE)
 
 		with filename.open("rb") as f:
@@ -3066,9 +3062,9 @@ class RegionsRefresher(th.Thread):
 
 				# Request regions
 				if not self.server.private:
-					s.send(b"regions")
+					s.sendall(b"regions")
 				else:
-					s.send(f"regions {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
+					s.sendall(f"regions {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
 
 				# Receive file table
 				file_table = recv_json(s)
@@ -3202,7 +3198,7 @@ class RegionsRefresher(th.Thread):
 				#file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
 				#
 				# Separator
-				#s.send(SC4MP_SEPARATOR)
+				#s.sendall(SC4MP_SEPARATOR)
 				#
 				# Receive file size
 				#size = int(s.recv(SC4MP_BUFFER_SIZE).decode())
@@ -3212,7 +3208,7 @@ class RegionsRefresher(th.Thread):
 				#for files_received in range(file_count):
 				#	percent = math.floor(100 * (size_downloaded / size))
 				#	self.report_progress(f'Refreshing regions... ({percent}%)', percent, 100)
-				#	s.send(SC4MP_SEPARATOR)
+				#	s.sendall(SC4MP_SEPARATOR)
 				#	size_downloaded += self.receive_or_cached(s, destination)
 				#self.report_progress("Refreshing regions... (100%)", 100, 100)
 
@@ -3320,13 +3316,13 @@ class RegionsRefresher(th.Thread):
 		target = Path(SC4MP_LAUNCHPATH) / "_Cache" / hash
 
 		# Separator
-		s.send(SC4MP_SEPARATOR)
+		s.sendall(SC4MP_SEPARATOR)
 
 		# Receive filesize
 		filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
 
 		# Separator
-		s.send(SC4MP_SEPARATOR)
+		s.sendall(SC4MP_SEPARATOR)
 
 		# Receive relative path and set the destination
 		relpath = Path(s.recv(SC4MP_BUFFER_SIZE).decode())
@@ -3338,7 +3334,7 @@ class RegionsRefresher(th.Thread):
 			print(f'- using cached "{hash}"')
 
 			# Tell the server that the file is cached
-			s.send(b"cached")
+			s.sendall(b"cached")
 
 			# Create the destination directory if necessary
 			destination.parent.mkdir(parents=True, exist_ok=True)
@@ -3354,7 +3350,7 @@ class RegionsRefresher(th.Thread):
 			print(f'- caching "{hash}"...')
 
 			# Tell the server that the file is not cached
-			s.send(b"not cached")
+			s.sendall(b"not cached")
 
 			# Create the destination directory if necessary
 			destination.parent.mkdir(parents=True, exist_ok=True)
