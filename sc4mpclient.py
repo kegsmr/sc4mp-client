@@ -5398,8 +5398,8 @@ class UpdaterUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.minsize(800, 100)
-		self.maxsize(800, 100)
+		self.minsize(400, 100)
+		self.maxsize(400, 100)
 		self.grid()
 		center_window(self)
 
@@ -5423,7 +5423,7 @@ class UpdaterUI(tk.Toplevel):
 			self,
 			orient='horizontal',
 			mode='indeterminate',
-			length=780,
+			length=380,
 			maximum=100
 		)
 		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10,5))
