@@ -40,7 +40,7 @@ def main():
 		output_file="version.rc",
 		version=VERSION,
 		company_name=PUBLISHER,
-		file_description=DESCRIPTION,
+		file_description=TITLE,
 		internal_name=TITLE,
 		legal_copyright=LICENSE,
 		original_filename=NAME,
