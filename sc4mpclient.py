@@ -354,7 +354,7 @@ def check_updates():
 										ui.label["text"] = "Installing update..."
 										ui.progress_bar['mode'] = "indeterminate"
 										ui.progress_bar['maximum'] = 100
-										ui.progress_bar.start(2)
+										ui.progress_bar.start(4)
 										
 									# Pause if necessary
 									while ui.pause:
@@ -370,7 +370,7 @@ def check_updates():
 
 									if ui is not None:
 										ui.progress_bar['mode'] = "indeterminate"
-										ui.progress_bar.start(2)
+										ui.progress_bar.start(4)
 										for count in range(5):
 											ui.label["text"] = f"Update failed. Retrying in {5 - count}..."
 											time.sleep(1)
@@ -5427,7 +5427,7 @@ class UpdaterUI(tk.Toplevel):
 			maximum=100
 		)
 		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10,5))
-		self.progress_bar.start(2)
+		self.progress_bar.start(4)
 
 		# Pause underlying thread
 		self.pause = False
