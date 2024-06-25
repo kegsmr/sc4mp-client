@@ -158,7 +158,7 @@ def main():
 		# "-no-ui" argument
 		global sc4mp_ui
 		sc4mp_ui = not "-no-ui" in sc4mp_args
-		sc4mp_skip_update = not sc4mp_ui
+		sc4mp_skip_update = sc4mp_skip_update or (not sc4mp_ui)
 
 		# "--host" argument
 		global sc4mp_host
@@ -282,6 +282,13 @@ def check_updates():
 							# Change working directory to the one where the executable can be found
 							os.chdir(exec_dir)
 
+							if ui is not None:
+								for count in range(2):
+									ui.label["text"] = "Downloading update..."
+									time.sleep(1)
+									ui.label["text"] = "(press escape to cancel)"
+									time.sleep(1)
+
 							while True:
 
 								try:
@@ -289,6 +296,10 @@ def check_updates():
 									# Update UI
 									if ui is not None:
 										ui.label["text"] = "Downloading update..."
+
+									# Pause if necessary
+									while ui.pause:
+										time.sleep(.1)
 
 									# Get download URL
 									download_url = None
@@ -302,10 +313,18 @@ def check_updates():
 									if download_url is None:
 										raise ClientException("The correct release asset was not found.")
 
+									# Pause if necessary
+									while ui.pause:
+										time.sleep(.1)
+
 									# Prepare destination
 									os.makedirs("updates", exist_ok=True)
 									if os.path.exists(destination):
 										os.unlink(destination)
+
+									# Pause if necessary
+									while ui.pause:
+										time.sleep(.1)
 
 									# Download file
 									download_size = int(urllib.request.urlopen(download_url).headers["Content-Length"])
@@ -317,6 +336,8 @@ def check_updates():
 										with open(destination, "wb") as wfile:
 											download_size_downloaded = 0
 											while download_size_downloaded < download_size:
+												while ui.pause:
+													time.sleep(.1)
 												if ui is not None:
 													ui.label["text"] = f"Downloading update... ({int(100 * (download_size_downloaded / download_size))}%)"
 													ui.progress_bar["value"] = download_size_downloaded
@@ -324,18 +345,20 @@ def check_updates():
 												download_size_downloaded += len(bytes_read)
 												wfile.write(bytes_read)
 
+									# Pause if necessary
+									while ui.pause:
+										time.sleep(.1)
+
 									# Report installing update and wait a few seconds (gives time for users to cancel)
 									if ui is not None:
 										ui.label["text"] = "Starting installation..."
 										ui.progress_bar['mode'] = "indeterminate"
 										ui.progress_bar['maximum'] = 100
 										ui.progress_bar.start(2)
-										time.sleep(.5)
-										for count in range(3):
-											ui.label["text"] = "(press escape to cancel)"
-											time.sleep(1)
-											ui.label["text"] = "Starting installation..."
-											time.sleep(1)
+										
+									# Pause if necessary
+									while ui.pause:
+										time.sleep(.1)
 
 									# Start installer in very silent mode and exit
 									subprocess.Popen([os.path.abspath(destination), f"/dir={os.getcwd()}", "/verysilent"])
@@ -374,7 +397,7 @@ def check_updates():
 						sc4mp_ui.mainloop()
 
 						# Exit when complete
-						exit()
+						sys.exit()
 
 					else:
 
@@ -5406,18 +5429,23 @@ class UpdaterUI(tk.Toplevel):
 		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10,5))
 		self.progress_bar.start(2)
 
+		# Pause underlying thread
+		self.pause = False
+
 
 	def delete_window(self):
+
+		self.pause = True
 
 		choice = messagebox.askyesnocancel(title=SC4MP_TITLE, icon="warning", message="Are you sure you want to cancel the update?")
 
 		if choice is None:
-			exit()
+			sys.exit()
 		elif choice is True:
 			subprocess.Popen([sys.executable, "-skip-update", "-allow-multiple"])
-			exit()
+			sys.exit()
 		elif choice is False:
-			pass
+			self.pause = False
 
 
 	def destroy(self):
