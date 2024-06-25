@@ -134,7 +134,9 @@ def main():
 		# Exit if already running
 		try:
 			count = process_count("sc4mpclient.exe")
-			if count is not None and count > 1:
+			if count is not None and count > 2:
+				tk.Tk().withdraw()
+				messagebox.showerror(title=SC4MP_TITLE, message="SC4MP Launcher is already running!")
 				return
 		except:
 			pass
@@ -5233,6 +5235,7 @@ class Logger:
 		self.log = Path(SC4MP_LOG_PATH)
 		self.log.unlink(missing_ok=True)
 
+
 	def write(self, message):
 		"""TODO"""
 
@@ -5278,7 +5281,8 @@ class Logger:
 			output = color + timestamp + label + type + message
 
 		# Print
-		self.terminal.write(output)
+		if self.terminal is not None:
+			self.terminal.write(output)
 		with open(self.log, "a") as log:
 			log.write(output)
 			log.close()  

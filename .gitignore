@@ -8,6 +8,7 @@
 /logs
 /builds
 /setupbuilds
+/temp
 api_test.py
 config.ini
 testing.py
