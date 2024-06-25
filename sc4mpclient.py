@@ -283,13 +283,19 @@ def check_updates():
 							os.chdir(exec_dir)
 
 							# Purge update directory
-							if os.path.exists("update"):
-								purge_directory("update")
+							try:
+								if os.path.exists("update"):
+									purge_directory(Path("update"))
+							except:
+								pass
 
 							# Delete uninstaller if exists
-							for filename in ["unins000.dat", "unins000.exe"]:
-								if os.path.exists(filename):
-									os.unlink(filename)
+							try:
+								for filename in ["unins000.dat", "unins000.exe"]:
+									if os.path.exists(filename):
+										os.unlink(filename)
+							except:
+								pass
 
 							# Give the user a chance to cancel the update
 							if ui is not None:
@@ -5451,7 +5457,7 @@ class UpdaterUI(tk.Toplevel):
 
 		self.pause = True
 
-		choice = messagebox.askyesnocancel(title=SC4MP_TITLE, icon="warning", message="Are you sure you want to cancel the update?")
+		choice = messagebox.askyesnocancel(title=SC4MP_TITLE, icon="warning", message="Are you sure you want to continue without updating?")
 
 		if choice is None:
 			sys.exit()
