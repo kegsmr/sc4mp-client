@@ -315,10 +315,9 @@ def check_updates():
 										ui.progress_bar['mode'] = "indeterminate"
 										time.sleep(3)
 
-									# Start installer in very silent mode
+									# Start installer in very silent mode and exit
 									subprocess.Popen([os.path.abspath(destination), f"/dir={os.getcwd()}", "/verysilent"])
-
-									break
+									exit()
 								
 								except Exception as e:
 
