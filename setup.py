@@ -5,21 +5,24 @@ import struct
 from datetime import datetime
 
 import PyInstaller.__main__ as pyinstaller
+from pyinstaller_versionfile import create_versionfile
 
 import sc4mpclient
 
 
+TITLE = "SC4MP Launcher"
 VERSION = sc4mpclient.SC4MP_VERSION
 DIST = "dist" + str(8 * struct.calcsize("P"))
 
 
 def main():
 
-	# MAKE DISTRIBUTION DIRECTORY IF IT DOES NOT YET EXIST
+	# Make distribution directory if it does not yet exist
+	print(f"Preparing distribution directory at \"{DIST}\"")
 	if not os.path.exists(DIST):
 		os.makedirs(DIST)
 
-	# PURGE THE DISTRIBUTION DIRECTORY
+	# Purge the distribution directory
 	for item in os.listdir(DIST):
 		item = os.path.join(DIST, item)
 		if (os.path.isfile(item)):
@@ -27,7 +30,21 @@ def main():
 		else:
 			shutil.rmtree(item)
 
-	# RUN SETUP
+	# Create version file
+	print(f"Creating version file...")
+	create_versionfile(
+		output_file="version.rc",
+		version=VERSION,
+		company_name="SimCity 4 Multiplayer Project",
+		file_description="Multiplayer launcher for SimCity 4",
+		internal_name=TITLE,
+		legal_copyright="MIT-0",
+		original_filename="sc4mpclient.exe",
+		product_name=TITLE,
+	)
+
+	# Run setup
+	print("Running setup...")
 	pyinstaller.run([
 		f"sc4mpclient.py",
 		f"--specpath",
@@ -41,17 +58,17 @@ def main():
         f"--windowed",
         f"-i",
 		f"{os.path.abspath(os.path.join('resources', 'icon.ico'))}",
-		#f"--debug",
-		#f"all"
+		f"--version-file",
+		f"{os.path.abspath('version.rc')}"
 	])
 
-	# COPY LICENSE AND README TO DISTRIBUTION DIRECTORY
+	# Copy extra files to distribution directory
 	print(f'Copying extra files to "{DIST}"...')
 	shutil.copytree("resources", os.path.join(DIST, "resources"))
 	shutil.copy("License.txt", DIST)
 	shutil.copy("Readme.html", DIST)
 
-	# CREATE A ZIP ARCHIVE OF THE DISTRIBUTION IF REQUESTED
+	# Create a zip archive of the distribution if requested
 	input("Press <Enter> to create a zip archive of the distribution...")
 	destination = os.path.join(os.path.join("builds", "sc4mp-client-" + platform.system().lower() + "-" + str(8 * struct.calcsize("P")) + "-v" + VERSION + "." + datetime.now().strftime("%Y%m%d%H%M%S")))
 	print('Creating zip archive of "' + DIST + '" at "' + destination + '"')
