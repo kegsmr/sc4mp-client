@@ -54,10 +54,13 @@ def main():
 		f"--specpath",
 		f"{os.path.join('temp', 'spec')}",
         f"--distpath",
-		f"{DIST}",
+		f"dist",
         f"--workpath",
 		f"{os.path.join('temp', 'build')}",
-        f"--onefile",
+        f"--onedir",
+		f"--contents-directory",
+		f"resources",
+		f"--noconfirm",
 		f"--noupx",
         f"--windowed",
         f"-i",
@@ -66,9 +69,12 @@ def main():
 		f"{os.path.abspath('version.rc')}"
 	])
 
+	# Copy binary files to distribution directory
+	shutil.copytree(os.path.join("dist", "sc4mpclient"), DIST, dirs_exist_ok=True)
+
 	# Copy extra files to distribution directory
 	print(f'Copying extra files to "{DIST}"...')
-	shutil.copytree("resources", os.path.join(DIST, "resources"))
+	shutil.copytree("resources", os.path.join(DIST, "resources"), dirs_exist_ok=True)
 	shutil.copy("License.txt", DIST)
 	shutil.copy("Readme.html", DIST)
 

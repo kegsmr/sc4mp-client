@@ -3,6 +3,7 @@
 /_Server*
 /_Servers*
 /core/dummy
+/dist
 /dist32
 /dist64
 /logs
