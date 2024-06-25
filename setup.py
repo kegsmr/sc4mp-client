@@ -11,7 +11,11 @@ import sc4mpclient
 
 
 TITLE = "SC4MP Launcher"
+NAME = "sc4mpclient.exe"
 VERSION = sc4mpclient.SC4MP_VERSION
+PUBLISHER = "SimCity 4 Multiplayer Project"
+DESCRIPTION = "Multiplayer launcher for SimCity 4"
+LICENSE = "MIT-0"
 DIST = "dist" + str(8 * struct.calcsize("P"))
 
 
@@ -35,11 +39,11 @@ def main():
 	create_versionfile(
 		output_file="version.rc",
 		version=VERSION,
-		company_name="SimCity 4 Multiplayer Project",
-		file_description="Multiplayer launcher for SimCity 4",
+		company_name=PUBLISHER,
+		file_description=DESCRIPTION,
 		internal_name=TITLE,
-		legal_copyright="MIT-0",
-		original_filename="sc4mpclient.exe",
+		legal_copyright=LICENSE,
+		original_filename=NAME,
 		product_name=TITLE,
 	)
 
@@ -69,7 +73,6 @@ def main():
 	shutil.copy("Readme.html", DIST)
 
 	# Create a zip archive of the distribution
-	#input("Press <Enter> to create a zip archive of the distribution...")
 	destination = os.path.join(os.path.join("builds", "sc4mp-client-" + platform.system().lower() + "-" + str(8 * struct.calcsize("P")) + "-v" + VERSION + "." + datetime.now().strftime("%Y%m%d%H%M%S")))
 	print('Creating zip archive of "' + DIST + '" at "' + destination + '"')
 	shutil.make_archive(destination, "zip", DIST)
