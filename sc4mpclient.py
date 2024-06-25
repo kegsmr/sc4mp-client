@@ -25,6 +25,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
 from typing import Optional
+import urllib.request
 
 from core.config import *
 from core.dbpf import *
@@ -70,6 +71,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		#(first_run, True) #TODO
 		#("use_custom_user_id", False), #TODO
 		#("custom_user_id", ""), #TODO
+		("auto_update", True),
 		("default_host", SC4MP_HOST),
 		("default_port", SC4MP_PORT),
 		#("use_overlay", 1), #TODO
@@ -218,6 +220,7 @@ def prep():
 	"""Prepares the client to launch."""
 	
 	load_config()
+	check_updates()
 	create_subdirectories()
 	load_database()
 
@@ -235,6 +238,79 @@ def load_config():
 	print("Loading config...")
 
 	sc4mp_config = Config(SC4MP_CONFIG_PATH, SC4MP_CONFIG_DEFAULTS, error_callback=show_error, update_constants_callback=update_config_constants)
+
+
+def check_updates():
+
+	if sc4mp_config["GENERAL"]["auto_update"]:
+
+		print("Checking for updates...")
+
+		try:
+
+			global sc4mp_ui
+
+			# Get the path of the executable file which is currently running
+			exec_path = Path(sys.executable)
+			exec_file = exec_path.name
+			exec_dir = exec_path.parent
+
+			# Only update if running a Windows distribution
+			if True: #exec_file == "sc4mpclient.exe": #TODO
+				
+				# Local function for update thread
+				def update(ui=None):
+					
+					try:
+
+						# Get latest release info
+						if ui is not None:
+							ui.label["text"] = "Checking for updates..."
+						time.sleep(5)
+						with urllib.request.urlopen(f"https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest", timeout=5) as url:
+							
+							latest_release_info = json.load(url)
+
+						# Download the update if the version doesn't match
+						if True: #latest_release_info["tag_name"] != f"v{SC4MP_VERSION}": #TODO
+
+							# Make sure we're in the directory which contains the executable
+							#os.chdir(exec_dir) #TODO
+
+							pass
+					
+					except Exception as e:
+
+						show_error(f"Update check failed!\n\n{e}")
+
+				# Prepare the temporary UI if not running in command-line mode
+				if sc4mp_ui:
+
+					sc4mp_ui = tk.Tk()
+					sc4mp_ui.withdraw()
+
+					updater_ui = UpdaterUI(sc4mp_ui)
+
+					# Start update thread
+					th.Thread(target=update, kwargs={"ui": updater_ui}, daemon=True).start()
+
+					sc4mp_ui.mainloop()
+
+				else:
+
+					# Run update thread directly
+					update()
+			
+		except Exception as e:
+
+			show_error(f"Update check failed!\n\n{e}", no_ui=True)
+
+		if sc4mp_ui is not False and sc4mp_ui is not True:
+			try:
+				sc4mp_ui.destroy()
+			except:
+				pass
+			sc4mp_ui = True
 
 	
 def update_config_constants(config):
@@ -5204,6 +5280,61 @@ class RegionsRefresherUI(tk.Toplevel):
 			self.after(100, self.overlay)
 		except Exception as e:
 			show_error("Unable to overlay region refresher UI.", no_ui=True)
+
+
+class UpdaterUI(tk.Toplevel):
+	"""TODO"""
+
+
+	def __init__(self, parent):
+		"""TODO"""
+
+		# Init
+		super().__init__()
+
+		# Parameters
+		self.parent = parent
+
+		# Title
+		self.title(SC4MP_TITLE)
+
+		# Icon
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+
+		# Geometry
+		self.minsize(800, 100)
+		self.maxsize(800, 100)
+		self.grid()
+		center_window(self)
+
+		# Priority
+		self.lift()
+		self.grab_set()
+
+		# Key bindings
+		#self.bind("<Escape>", lambda event:self.destroy())
+
+		# Label
+		self.label = ttk.Label(self)
+		self.label['text'] = "Loading..."
+		self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=10)
+
+		# Progress bar
+		self.progress_bar = ttk.Progressbar(
+			self,
+			orient='horizontal',
+			mode='indeterminate',
+			length=780,
+			maximum=100
+		)
+		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10,5))
+		self.progress_bar.start(2)
+
+	def destroy(self):
+
+		super().destroy()
+
+		self.parent.destroy()
 
 
 # Exceptions
