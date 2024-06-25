@@ -265,19 +265,22 @@ def check_updates():
 			exec_dir = exec_path.parent
 
 			# Only update if running a Windows distribution
-			if True: #exec_file == "sc4mpclient.exe": #TODO
-				
+			if exec_file == "sc4mpclient.exe":
+
 				# Get latest release info
 				with urllib.request.urlopen(f"https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest", timeout=5) as url:
 					latest_release_info = json.load(url)
 
 				# Download the update if the version doesn't match
-				if True: #latest_release_info["tag_name"] != f"v{SC4MP_VERSION}": #TODO
+				if latest_release_info["tag_name"] != f"v{SC4MP_VERSION}":
 
 					# Local function for update thread
 					def update(ui=None):
 						
 						try:
+
+							# Change working directory to the one where the executable can be found
+							os.chdir(exec_dir)
 
 							while True:
 
