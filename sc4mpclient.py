@@ -134,7 +134,7 @@ def main():
 		# Exit if already running
 		try:
 			count = process_count("sc4mpclient.exe")
-			if count is not None and count > 2:
+			if count is not None and count > 1:
 				tk.Tk().withdraw()
 				messagebox.showerror(title=SC4MP_TITLE, message="SC4MP Launcher is already running!")
 				return
