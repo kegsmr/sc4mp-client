@@ -282,6 +282,16 @@ def check_updates():
 							# Change working directory to the one where the executable can be found
 							os.chdir(exec_dir)
 
+							# Purge update directory
+							if os.path.exists("update"):
+								purge_directory("update")
+
+							# Delete uninstaller if exists
+							for filename in ["unins000.dat", "unins000.exe"]:
+								if os.path.exists(filename):
+									os.unlink(filename)
+
+							# Give the user a chance to cancel the update
 							if ui is not None:
 								for count in range(2):
 									ui.label["text"] = "Downloading update..."
@@ -289,6 +299,7 @@ def check_updates():
 									ui.label["text"] = "(press escape to cancel)"
 									time.sleep(1)
 
+							# Loop until download is successful
 							while True:
 
 								try:
@@ -306,7 +317,7 @@ def check_updates():
 									for asset in latest_release_info["assets"]:
 										if asset["name"].startswith("sc4mp-client-installer-windows"):
 											download_url = asset["browser_download_url"]
-											destination = os.path.join("updates", asset["name"])
+											destination = os.path.join("update", asset["name"])
 											break
 
 									# Raise an exception if the download URL was not found
@@ -318,7 +329,7 @@ def check_updates():
 										time.sleep(.1)
 
 									# Prepare destination
-									os.makedirs("updates", exist_ok=True)
+									os.makedirs("update", exist_ok=True)
 									if os.path.exists(destination):
 										os.unlink(destination)
 
@@ -368,6 +379,7 @@ def check_updates():
 
 									show_error(f"An error occurred in the update thread.\n\n{e}", no_ui=True)
 
+									# Retry
 									if ui is not None:
 										ui.progress_bar['mode'] = "indeterminate"
 										ui.progress_bar.start(2)
@@ -377,6 +389,7 @@ def check_updates():
 						
 						except:
 
+							# All uncaught errors in thread trigger a fatal error
 							fatal_error()
 
 					# Prepare the UI if not running in command-line mode
@@ -406,6 +419,7 @@ def check_updates():
 			
 		except Exception as e:
 
+			# Show error silently and continue as usual
 			show_error(f"An error occurred while updating.\n\n{e}", no_ui=True)
 
 	
