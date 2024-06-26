@@ -77,7 +77,8 @@ SC4MP_CONFIG_DEFAULTS = [
 		("allow_game_monitor_exit", False),
 		("use_game_overlay", 1),
 		("ignore_risky_file_warnings", False),
-		("ignore_third_party_server_warnings", False)
+		("ignore_third_party_server_warnings", False),
+		("save_server_passwords", True)
 	]),
 	("STORAGE", [
 		("storage_path", Path("~/Documents/SimCity 4/_SC4MP").expanduser()),
@@ -2129,19 +2130,21 @@ class ServerLoader(th.Thread):
 		"""TODO"""
 		if self.server.password_enabled:
 			if self.server.password is None:
-				try:
-					self.server.password = sc4mp_servers_database[self.server.server_id]["password"]
-				except:
-					return False
+				if sc4mp_config["GENERAL"]["save_server_passwords"]:
+					try:
+						self.server.password = sc4mp_servers_database[self.server.server_id]["password"]
+					except:
+						return False
 			s = self.create_socket()
 			if self.ui is not None:
 				self.ui.label['text'] = "Authenticating..."
 			s.sendall(f"check_password {self.server.password}".encode())
 			if s.recv(SC4MP_BUFFER_SIZE) == b'y':
-				try:
-					sc4mp_servers_database[self.server.server_id]["password"] = self.server.password
-				except:
-					pass
+				if sc4mp_config["GENERAL"]["save_server_passwords"]:
+					try:
+						sc4mp_servers_database[self.server.server_id]["password"] = self.server.password
+					except:
+						pass
 				return True
 			else:
 				return False
