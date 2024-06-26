@@ -67,14 +67,9 @@ SC4MP_LAUNCHERMAP_ENABLED = False
 
 SC4MP_CONFIG_DEFAULTS = [
 	("GENERAL", [
-		#("nickname", os.getlogin()), #TODO unused
-		#(first_run, True) #TODO
-		#("use_custom_user_id", False), #TODO
-		#("custom_user_id", ""), #TODO
 		("auto_update", True),
 		("default_host", SC4MP_HOST),
 		("default_port", SC4MP_PORT),
-		#("use_overlay", 1), #TODO
 		("custom_plugins", False),
 		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser()),
 		("stat_mayors_online_cutoff", 60),
