@@ -160,6 +160,10 @@ def main():
 		global sc4mp_ui
 		sc4mp_ui = not "-no-ui" in sc4mp_args
 
+		# "-exit-after" flag
+		global sc4mp_exit_after
+		sc4mp_exit_after = "-exit-after" in sc4mp_args
+
 		# "--host" argument
 		global sc4mp_host
 		sc4mp_host = None
@@ -1994,7 +1998,10 @@ class ServerLoader(th.Thread):
 						sc4mp_config.update()
 					else:
 						self.ui.destroy()
-						sc4mp_ui.deiconify()
+						if sc4mp_exit_after:
+							sc4mp_ui.destroy()
+						else:
+							sc4mp_ui.deiconify()
 						return
 		
 			host = self.server.host
@@ -2051,14 +2058,12 @@ class ServerLoader(th.Thread):
 				self.server.categories.append("History")
 				game_monitor = GameMonitor(self.server)
 				game_monitor.start()
-			#elif (self.server == None):
-			#	game_launcher = GameLauncher()
-			#	game_launcher.run()
-			#	if (sc4mp_ui != None):
-			#		sc4mp_ui.deiconify()
 			else:
-				if sc4mp_ui != None:
-					sc4mp_ui.deiconify()
+				if sc4mp_ui is not None:
+					if sc4mp_exit_after:
+						sc4mp_ui.destroy()
+					else:
+						sc4mp_ui.deiconify()
 
 		except Exception as e:
 
@@ -2340,7 +2345,8 @@ class ServerLoader(th.Thread):
 			
 		file_table = ft
 
-		self.ui.duration_label["text"] = "(download)"
+		if sc4mp_ui:
+			self.ui.duration_label["text"] = "(download)"
 
 		download_start_time = time.time() + 2
 
@@ -2688,15 +2694,14 @@ class GameMonitor(th.Thread):
 		self.PREFIX = ""
 
 		self.ui = None
-		if sc4mp_ui != None:
+		self.overlay_ui = None
+		if sc4mp_ui is not None:
 			if SC4MP_LAUNCHERMAP_ENABLED:
 				self.ui = GameMonitorMapUI()
 			else:
 				self.ui = GameMonitorUI(self)
 			if (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
 				self.overlay_ui = GameOverlayUI(self.ui)
-			else:
-				self.overlay_ui = None
 			self.ui.title(server.server_name)
 
 		self.game_launcher = GameLauncher()
@@ -2901,10 +2906,18 @@ class GameMonitor(th.Thread):
 			if self.overlay_ui is not None:
 				self.overlay_ui.destroy()
 
-			# Show the main ui once again
-			if sc4mp_ui != None:
-				sc4mp_ui.deiconify()
-				sc4mp_ui.lift()
+			# Show the main ui once again	
+			
+			if sc4mp_exit_after:
+				if sc4mp_ui is not None:
+					sc4mp_ui.destroy()
+			else:
+				if sc4mp_ui is not None:
+					if sc4mp_exit_after:
+						sc4mp_ui.destroy()
+					else:
+						sc4mp_ui.deiconify()
+						sc4mp_ui.lift()
 
 		except Exception as e:
 			
@@ -4930,9 +4943,7 @@ class ServerListUI(tk.Frame):
 			return
 		server = self.worker.servers[server_id]
 		if not ("Official" in server.categories or "History" in server.categories or sc4mp_config["GENERAL"]["ignore_third_party_server_warnings"]):
-			#sc4mp_ui.withdraw()
 			if not messagebox.askokcancel(title=SC4MP_TITLE, message="You are about to join a third-party server.\n\nThe SimCity 4 Multiplayer Project is not responsible for content downloaded from third-party servers. Only join third-party servers you trust.", icon="warning"):
-				#sc4mp_ui.deiconify()
 				return
 		host = server.host
 		port = server.port
