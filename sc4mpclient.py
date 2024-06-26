@@ -2296,6 +2296,22 @@ class ServerLoader(th.Thread):
 			filesize = entry[1]
 			relpath = Path(entry[2])
 
+			# Handle risky file types
+			if not sc4mp_config["GENERAL"]["ignore_risky_file_warnings"]:
+				if sc4mp_ui:
+					if (relpath.suffix.lower() in SC4MP_RISKY_FILE_EXTENSIONS) and (sc4mp_servers_database[self.server.server_id].get("allowed_files", {}).get(checksum, "") != relpath.name.lower()):
+						choice = messagebox.askyesnocancel(title=SC4MP_TITLE, message=f"You are about to download \"{relpath.name}\". This file could potentially harm your computer.\n\nWould you like to download it anyway?", icon="warning")
+						if choice is True:
+							sc4mp_servers_database[self.server.server_id].setdefault("allowed_files", {})
+							sc4mp_servers_database[self.server.server_id]["allowed_files"][checksum] = relpath.name.lower()
+						elif choice is False:
+							size_downloaded += filesize
+							continue
+						else:
+							raise ClientException("Connection cancelled.")
+				else:
+					print(f"[WARNING] Downloading risky file: \"{relpath.name}\"")
+
 			# Get path of cached file
 			t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
 
@@ -2333,18 +2349,6 @@ class ServerLoader(th.Thread):
 
 
 			else:
-
-				# Handle risky file types
-				if sc4mp_ui and not sc4mp_config["GENERAL"]["ignore_risky_file_warnings"]:
-					if relpath.suffix.lower() in SC4MP_RISKY_FILE_EXTENSIONS:
-						choice = messagebox.askyesnocancel(title=SC4MP_TITLE, message=f"You are about to download \"{relpath.name}\". This file could potentially harm your computer.\n\nWould you like to download it anyway?", icon="warning")
-						if choice is True:
-							pass
-						elif choice is False:
-							size_downloaded += filesize
-							continue
-						else:
-							raise ClientException("Connection cancelled.")
 
 				# Append to new file table
 				ft.append(entry)
