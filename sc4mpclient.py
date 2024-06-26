@@ -196,11 +196,17 @@ def main():
 
 		# Client
 		if sc4mp_ui:
-			sc4mp_ui = UI()
-			if sc4mp_host != None and sc4mp_port != None:
+			if sc4mp_host is not None and sc4mp_port is not None:
+				if sc4mp_exit_after:
+					sc4mp_ui = tk.Tk()
+					sc4mp_ui.withdraw()
+				else:
+					sc4mp_ui = UI()
 				server = Server(sc4mp_host, sc4mp_port)
 				server.password = sc4mp_password
 				ServerLoaderUI(server)
+			else:
+				sc4mp_ui = UI()
 			sc4mp_ui.mainloop()
 		else:
 			sc4mp_ui = None
