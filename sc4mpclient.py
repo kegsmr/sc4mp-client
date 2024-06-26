@@ -151,14 +151,14 @@ def main():
 		# Title
 		print(SC4MP_TITLE)
 
-		# "-skip-update" argument
-		global sc4mp_skip_update
-		sc4mp_skip_update = "-skip-update" in sc4mp_args
+		# "-force-update"/"-skip-update" flags
+		global sc4mp_force_update, sc4mp_skip_update
+		sc4mp_force_update = "-force-update" in sc4mp_args
+		sc4mp_skip_update = "-skip-update" in sc4mp_args or (len(sc4mp_args) > 0 and not sc4mp_force_update)
 
-		# "-no-ui" argument
+		# "-no-ui" flag
 		global sc4mp_ui
 		sc4mp_ui = not "-no-ui" in sc4mp_args
-		sc4mp_skip_update = sc4mp_skip_update or (not sc4mp_ui)
 
 		# "--host" argument
 		global sc4mp_host
@@ -166,7 +166,6 @@ def main():
 		if "--host" in sc4mp_args:
 			try:
 				sc4mp_host = get_arg_value("--host", sc4mp_args)
-				sc4mp_skip_update = True
 			except:
 				raise ClientException("Invalid arguments.")
 
@@ -176,7 +175,6 @@ def main():
 		if "--port" in sc4mp_args:
 			try:
 				sc4mp_port = int(get_arg_value("--port", sc4mp_args))
-				sc4mp_skip_update = True
 			except:
 				raise ClientException("Invalid arguments.")
 			
@@ -186,7 +184,6 @@ def main():
 		if "--password" in sc4mp_args:
 			try:
 				sc4mp_password = get_arg_value("--password", sc4mp_args)
-				sc4mp_skip_update = True
 			except:
 				raise ClientException("Invalid arguments.")
 
@@ -265,14 +262,14 @@ def check_updates():
 			exec_dir = exec_path.parent
 
 			# Only update if running a Windows distribution
-			if exec_file == "sc4mpclient.exe":
+			if sc4mp_force_update or exec_file == "sc4mpclient.exe":
 
 				# Get latest release info
 				with urllib.request.urlopen(f"https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest", timeout=5) as url:
 					latest_release_info = json.load(url)
 
 				# Download the update if the version doesn't match
-				if latest_release_info["tag_name"] != f"v{SC4MP_VERSION}":
+				if sc4mp_force_update or latest_release_info["tag_name"] != f"v{SC4MP_VERSION}":
 
 					# Local function for update thread
 					def update(ui=None):
@@ -280,7 +277,8 @@ def check_updates():
 						try:
 
 							# Change working directory to the one where the executable can be found
-							os.chdir(exec_dir)
+							if exec_file == "sc4mpclient.exe":
+								os.chdir(exec_dir)
 
 							# Purge update directory
 							try:
