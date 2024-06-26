@@ -2047,7 +2047,7 @@ class ServerLoader(th.Thread):
 
 			except Exception as e:
 
-				if self.ui != None and self.ui.winfo_exists() == 1:
+				if (self.ui is not None) and (self.ui.winfo_exists() == 1) and not (type(e) is ClientException and e.message == "Connection cancelled."):
 					show_error(f"An error occurred while connecting to the server.\n\n{e}")
 				else:
 					show_error(e, no_ui=True)
