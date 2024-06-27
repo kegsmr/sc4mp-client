@@ -271,8 +271,11 @@ def check_updates():
 			if sc4mp_force_update or exec_file == "sc4mpclient.exe":
 
 				# Get latest release info
-				with urllib.request.urlopen(f"https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest", timeout=5) as url:
-					latest_release_info = json.load(url)
+				try:
+					with urllib.request.urlopen(f"https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest", timeout=5) as url:
+						latest_release_info = json.load(url)
+				except urllib.error.URLError:
+					raise ClientException("GitHub API call timed out.")
 
 				# Download the update if the version doesn't match
 				if sc4mp_force_update or latest_release_info["tag_name"] != f"v{SC4MP_VERSION}":
@@ -303,11 +306,12 @@ def check_updates():
 
 							# Give the user a chance to cancel the update
 							if ui is not None:
-								for count in range(2):
-									ui.label["text"] = "Downloading update..."
-									time.sleep(1)
-									ui.label["text"] = "(press escape to cancel)"
-									time.sleep(1)
+								time.sleep(3)
+								#for count in range(2):
+								#	ui.label["text"] = "Downloading update..."
+								#	time.sleep(1)
+								#	ui.label["text"] = "(press escape to cancel)"
+								#	time.sleep(1)
 
 							# Loop until download is successful
 							while True:
@@ -5435,8 +5439,8 @@ class UpdaterUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.minsize(400, 90)
-		self.maxsize(400, 90)
+		self.minsize(400, 100)
+		self.maxsize(400, 100)
 		self.grid()
 		center_window(self)
 
@@ -5453,7 +5457,7 @@ class UpdaterUI(tk.Toplevel):
 		# Label
 		self.label = ttk.Label(self)
 		self.label['text'] = "Loading..."
-		self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=10)
+		self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=(10,5))
 
 		# Progress bar
 		self.progress_bar = ttk.Progressbar(
@@ -5465,6 +5469,10 @@ class UpdaterUI(tk.Toplevel):
 		)
 		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10,5))
 		self.progress_bar.start(2)
+
+		# Small label
+		self.label_small = tk.Label(self, fg="gray", font=("Arial", 8), text="Press <ESC> to cancel")
+		self.label_small.grid(column=0, row=2, columnspan=2, padx=10, pady=(0,5))
 
 		# Pause underlying thread
 		self.pause = False
