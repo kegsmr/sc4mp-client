@@ -306,6 +306,7 @@ def check_updates():
 
 							# Give the user a chance to cancel the update
 							if ui is not None:
+								ui.label["text"] = "Preparing update..."
 								time.sleep(3)
 								#for count in range(2):
 								#	ui.label["text"] = "Downloading update..."
