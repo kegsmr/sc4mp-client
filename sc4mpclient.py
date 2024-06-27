@@ -5443,8 +5443,8 @@ class UpdaterUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.minsize(400, 100)
-		self.maxsize(400, 100)
+		self.minsize(400, 95)
+		self.maxsize(400, 95)
 		self.grid()
 		center_window(self)
 
