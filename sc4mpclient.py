@@ -360,6 +360,7 @@ def check_updates():
 									# Download file
 									download_size = int(urllib.request.urlopen(download_url).headers["Content-Length"])
 									if ui is not None:
+										ui.label["text"] = "Downloading update... (0%)"
 										ui.progress_bar["mode"] = "determinate"
 										ui.progress_bar["maximum"] = download_size
 										ui.progress_bar["value"] = 0
