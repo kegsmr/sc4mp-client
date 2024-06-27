@@ -150,7 +150,7 @@ def main():
 		# "-force-update"/"-skip-update" flags
 		global sc4mp_force_update, sc4mp_skip_update
 		sc4mp_force_update = "-force-update" in sc4mp_args
-		sc4mp_skip_update = "-skip-update" in sc4mp_args or (len(sc4mp_args) > 0 and not sc4mp_force_update)
+		sc4mp_skip_update = "-skip-update" in sc4mp_args or (len(sc4mp_args) > 1 and not sc4mp_force_update)
 
 		# "-no-ui" flag
 		global sc4mp_ui
