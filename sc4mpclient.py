@@ -319,6 +319,9 @@ def check_updates():
 								#	ui.label["text"] = "(press escape to cancel)"
 								#	time.sleep(1)
 
+							# Pause if necessary
+							pause()
+
 							# Loop until download is successful
 							while True:
 
