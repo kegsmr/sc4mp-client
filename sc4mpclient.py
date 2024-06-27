@@ -2706,6 +2706,7 @@ class GameMonitor(th.Thread):
 		if sc4mp_ui is not None:
 			if SC4MP_LAUNCHERMAP_ENABLED:
 				self.ui = GameMonitorMapUI(self)
+				self.ui = GameMonitorMapUI(self)
 			else:
 				self.ui = GameMonitorUI(self)
 			if (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
@@ -2749,11 +2750,13 @@ class GameMonitor(th.Thread):
 					if ping != None:
 						print(f"Ping: {ping}")
 						if self.ui != None and not SC4MP_LAUNCHERMAP_ENABLED:
+						if self.ui != None and not SC4MP_LAUNCHERMAP_ENABLED:
 							self.ui.ping_frame.right['text'] = f"{ping}ms"
 					
 					# If the server is unresponsive print a warning in the console and update the ui accordingly
 					else:
 						print("[WARNING] Disconnected.")
+						if self.ui != None and not SC4MP_LAUNCHERMAP_ENABLED:
 						if self.ui != None and not SC4MP_LAUNCHERMAP_ENABLED:
 							self.ui.ping_frame.right['text'] = "Server unresponsive."
 
@@ -5171,6 +5174,8 @@ class GameMonitorUI(tk.Toplevel):
 					pass
 			else:
 				return
+			else:
+				return
 		if messagebox.askokcancel(title=SC4MP_TITLE, message="Disconnect from the server?\n\nAll unsaved changes will be lost.", icon="warning"):
 			global sc4mp_game_exit_ovveride
 			sc4mp_game_exit_ovveride = True
@@ -5183,9 +5188,13 @@ class GameMonitorMapUI(tk.Toplevel):
 
 
 	def __init__(self, parent):
+	def __init__(self, parent):
 		"""TODO"""
 
 		print("Initializing...")
+
+		# Parameters
+		self.parent = parent
 
 		# Parameters
 		self.parent = parent
@@ -5203,9 +5212,11 @@ class GameMonitorMapUI(tk.Toplevel):
 		self.geometry("400x400")
 		self.minsize(443, 600)
 		#self.maxsize(443, 600)
+		#self.maxsize(443, 600)
 		self.grid()
 
 		# Protocol
+		self.protocol("WM_DELETE_WINDOW", self.delete_window)
 		self.protocol("WM_DELETE_WINDOW", self.delete_window)
 
 		# Status label
@@ -5252,11 +5263,47 @@ class GameMonitorMapUI(tk.Toplevel):
 		#self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
 
 		self.prep_canvas_tiles()
+		self.prep_canvas_tiles()
 		self.draw_reigon()
 
 
 	def delete_window(self):
+	def delete_window(self):
 		"""TODO"""
+		if not sc4mp_config["GENERAL"]["allow_game_monitor_exit"]:	
+			if sc4mp_allow_game_monitor_exit_if_error:
+				try:
+					process_exists("simcity 4.exe")
+					return
+				except:
+					pass
+			else:
+				return
+		if messagebox.askokcancel(title=SC4MP_TITLE, message="Disconnect from the server?\n\nAll unsaved changes will be lost.", icon="warning"):
+			global sc4mp_game_exit_ovveride
+			sc4mp_game_exit_ovveride = True
+			self.parent.end = True
+			self.destroy()
+
+
+	def prep_canvas_tiles(self):
+
+		self.canvas.images = {}
+
+		LAUNCHER_MAP_TILE_STATES = ("abandoned", "claimed", "unclaimed", "you")
+		LAUNCHER_MAP_TILE_SIZES = ("small", "medium", "large")
+
+		for state in LAUNCHER_MAP_TILE_STATES:
+			self.canvas.images.setdefault(state, {})
+			for size in LAUNCHER_MAP_TILE_SIZES:
+				self.canvas.images[state][size] = tk.PhotoImage(file=get_sc4mp_path(f"launcher-map-tile-{state}-{size}.png"))
+
+
+	def get_region_data(self):
+
+		#TODO
+
+		return {}
 		if not sc4mp_config["GENERAL"]["allow_game_monitor_exit"]:	
 			if sc4mp_allow_game_monitor_exit_if_error:
 				try:
@@ -5297,6 +5344,8 @@ class GameMonitorMapUI(tk.Toplevel):
 		
 		region_data = self.get_region_data()
 
+		region_data = self.get_region_data()
+
 		TILE_SIZE = 17
 
 		REGION_WIDTH = 6 * 4
@@ -5309,10 +5358,16 @@ class GameMonitorMapUI(tk.Toplevel):
 
 		VIEWPORT_WIDTH = 408 / WIDTH
 		VIEWPORT_HEIGHT = 408 / HEIGHT
+		VIEWPORT_WIDTH = 408 / WIDTH
+		VIEWPORT_HEIGHT = 408 / HEIGHT
 
 		if VIEWPORT_WIDTH < 1:
 			self.canvas_horizontal_scrollbar.set((1 + VIEWPORT_WIDTH) / 2, (1 - VIEWPORT_WIDTH) / 2)
+		if VIEWPORT_WIDTH < 1:
+			self.canvas_horizontal_scrollbar.set((1 + VIEWPORT_WIDTH) / 2, (1 - VIEWPORT_WIDTH) / 2)
 		
+		if VIEWPORT_HEIGHT < 1:
+			self.canvas_vertical_scrollbar.set((1 + VIEWPORT_HEIGHT) / 2, (1 - VIEWPORT_HEIGHT) / 2)
 		if VIEWPORT_HEIGHT < 1:
 			self.canvas_vertical_scrollbar.set((1 + VIEWPORT_HEIGHT) / 2, (1 - VIEWPORT_HEIGHT) / 2)
 
@@ -5321,6 +5376,7 @@ class GameMonitorMapUI(tk.Toplevel):
 
 		for y in range(int(-.5 * LARGE_TILE_COUNT_Y), int(.5 * LARGE_TILE_COUNT_Y)):
 			for x in range(int(-.5 * LARGE_TILE_COUNT_X), int(.5 * LARGE_TILE_COUNT_X)):
+				self.canvas.images[f"{x}_{y}"] = self.canvas.create_image(x*68, y*68, image=self.canvas.images["unclaimed"]["large"], anchor="nw")
 				self.canvas.images[f"{x}_{y}"] = self.canvas.create_image(x*68, y*68, image=self.canvas.images["unclaimed"]["large"], anchor="nw")
 
 
