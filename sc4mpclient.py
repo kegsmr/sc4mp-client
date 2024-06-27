@@ -285,6 +285,11 @@ def check_updates():
 						
 						try:
 
+							# Function to pause updates when user presses <ESC>
+							def pause():
+								while ui.pause:
+									time.sleep(.1)
+
 							# Change working directory to the one where the executable can be found
 							if exec_file == "sc4mpclient.exe":
 								os.chdir(exec_dir)
@@ -324,8 +329,7 @@ def check_updates():
 										ui.label["text"] = "Downloading update..."
 
 									# Pause if necessary
-									while ui.pause:
-										time.sleep(.1)
+									pause()
 
 									# Get download URL
 									download_url = None
@@ -340,8 +344,7 @@ def check_updates():
 										raise ClientException("The correct release asset was not found.")
 
 									# Pause if necessary
-									while ui.pause:
-										time.sleep(.1)
+									pause()
 
 									# Prepare destination
 									os.makedirs("update", exist_ok=True)
@@ -349,8 +352,7 @@ def check_updates():
 										os.unlink(destination)
 
 									# Pause if necessary
-									while ui.pause:
-										time.sleep(.1)
+									pause()
 
 									# Download file
 									download_size = int(urllib.request.urlopen(download_url).headers["Content-Length"])
@@ -372,8 +374,7 @@ def check_updates():
 												wfile.write(bytes_read)
 
 									# Pause if necessary
-									while ui.pause:
-										time.sleep(.1)
+									pause()
 
 									# Report installing update and wait a few seconds (gives time for users to cancel)
 									if ui is not None:
@@ -383,8 +384,7 @@ def check_updates():
 										ui.progress_bar.start(2)
 										
 									# Pause if necessary
-									while ui.pause:
-										time.sleep(.1)
+									pause()
 
 									# Start installer in very silent mode and exit
 									subprocess.Popen([os.path.abspath(destination), f"/dir={os.getcwd()}", "/verysilent"])
