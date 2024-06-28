@@ -362,7 +362,7 @@ def check_updates():
 									# Download file
 									download_size = int(urllib.request.urlopen(download_url).headers["Content-Length"])
 									if ui is not None:
-										report("Downloading update... (0%)")
+										ui.label["text"] = "Downloading update... (0%)"
 										ui.progress_bar["mode"] = "determinate"
 										ui.progress_bar["maximum"] = download_size
 										ui.progress_bar["value"] = 0
@@ -373,7 +373,7 @@ def check_updates():
 												while ui.pause:
 													time.sleep(.1)
 												if ui is not None:
-													report(f"Downloading update... ({int(100 * (download_size_downloaded / download_size))}%)")
+													ui.label["text"] = f"Downloading update... ({int(100 * (download_size_downloaded / download_size))}%)"
 													ui.progress_bar["value"] = download_size_downloaded
 												bytes_read = rfile.read(SC4MP_BUFFER_SIZE) 
 												download_size_downloaded += len(bytes_read)
