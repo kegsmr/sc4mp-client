@@ -285,10 +285,17 @@ def check_updates():
 						
 						try:
 
+							set_thread_name("UpdtThread", enumerate=False)
+
 							# Function to pause updates when user presses <ESC>
 							def pause():
 								while ui.pause:
 									time.sleep(.1)
+
+							# Function to write to console and update ui
+							def report(message):
+								print(message)
+								ui.label["text"] = message
 
 							# Change working directory to the one where the executable can be found
 							if exec_file == "sc4mpclient.exe":
@@ -311,13 +318,8 @@ def check_updates():
 
 							# Give the user a chance to cancel the update
 							if ui is not None:
-								ui.label["text"] = "Preparing update..."
+								report("Preparing update...")
 								time.sleep(3)
-								#for count in range(2):
-								#	ui.label["text"] = "Downloading update..."
-								#	time.sleep(1)
-								#	ui.label["text"] = "(press escape to cancel)"
-								#	time.sleep(1)
 
 							# Pause if necessary
 							pause()
@@ -329,7 +331,7 @@ def check_updates():
 
 									# Update UI
 									if ui is not None:
-										ui.label["text"] = "Downloading update..."
+										report("Downloading update...")
 
 									# Pause if necessary
 									pause()
@@ -360,7 +362,7 @@ def check_updates():
 									# Download file
 									download_size = int(urllib.request.urlopen(download_url).headers["Content-Length"])
 									if ui is not None:
-										ui.label["text"] = "Downloading update... (0%)"
+										report("Downloading update... (0%)")
 										ui.progress_bar["mode"] = "determinate"
 										ui.progress_bar["maximum"] = download_size
 										ui.progress_bar["value"] = 0
@@ -371,7 +373,7 @@ def check_updates():
 												while ui.pause:
 													time.sleep(.1)
 												if ui is not None:
-													ui.label["text"] = f"Downloading update... ({int(100 * (download_size_downloaded / download_size))}%)"
+													report(f"Downloading update... ({int(100 * (download_size_downloaded / download_size))}%)")
 													ui.progress_bar["value"] = download_size_downloaded
 												bytes_read = rfile.read(SC4MP_BUFFER_SIZE) 
 												download_size_downloaded += len(bytes_read)
@@ -382,7 +384,7 @@ def check_updates():
 
 									# Report installing update and wait a few seconds (gives time for users to cancel)
 									if ui is not None:
-										ui.label["text"] = "Installing update..."
+										report("Installing update...")
 										ui.progress_bar['mode'] = "indeterminate"
 										ui.progress_bar['maximum'] = 100
 										ui.progress_bar.start(2)
@@ -403,7 +405,7 @@ def check_updates():
 										ui.progress_bar['mode'] = "indeterminate"
 										ui.progress_bar.start(2)
 										for count in range(5):
-											ui.label["text"] = f"Update failed. Retrying in {5 - count}..."
+											report(f"Update failed. Retrying in {5 - count}...")
 											time.sleep(1)
 						
 						except:
