@@ -67,6 +67,10 @@ class DBPF:
 			self.indexData[index]['compressed'] = False #TODO
 			self.indexData[index]['truesize'] = 0 #TODO
 
+	
+	def close(self):
+		self.file.close()
+
 
 	def decompress(self, length):
 
