@@ -162,6 +162,13 @@ class DBPF:
 		return struct.unpack('<L', file.read(4))[0]
 
 
+	def read_string(self, file=None):
+		if file is None:
+			file = self.file
+		length = struct.unpack("<L", file.read(4))[0]
+		return file.read(length).decode()
+
+
 	def read_ID(self, file=None):
 		"""TODO"""
 		if file is None:
@@ -189,10 +196,11 @@ class DBPF:
 		return entry['filesize']
 
 
-	#def get_subfile_header(self, type_id):
-	#	"""TODO"""
-	#	self.goto_subfile(type_id)
-	#	return (self.read_UL4(), self.read_ID(), ) #TODO how to read these values?
+	def get_subfile_header(self, type_id):
+		"""TODO"""
+		#self.goto_subfile(type_id)
+		#return (self.read_UL4(), self.read_ID(), ) #TODO how to read these values?
+		pass
 
 
 	def decompress_subfile(self, type_id):
@@ -208,43 +216,65 @@ class DBPF:
 
 		print(f'Parsing region view subfile of "{self.filename}"...')
 
+		# Decompress the subfile and get the data as a bytes stream
 		data = self.decompress_subfile("ca027edb")
 	
+		# For development
 		#print(data.read())
 		#data.seek(0)
 
+		# Dictionary to return
 		self.SC4ReadRegionalCity = {}
 
+		# DBPF file version
 		self.SC4ReadRegionalCity['majorVersion'] = self.read_UL2(data)
 		self.SC4ReadRegionalCity['minorVersion'] = self.read_UL2(data)
 		
+		# City location
 		self.SC4ReadRegionalCity['tileXLocation'] = self.read_UL4(data)
 		self.SC4ReadRegionalCity['tileYLocation'] = self.read_UL4(data)
 		
+		# City size
 		self.SC4ReadRegionalCity['citySizeX'] = self.read_UL4(data)
 		self.SC4ReadRegionalCity['citySizeY'] = self.read_UL4(data)
 		
+		# City population 
 		self.SC4ReadRegionalCity['residentialPopulation'] = self.read_UL4(data)
 		self.SC4ReadRegionalCity['commercialPopulation'] = self.read_UL4(data)
 		self.SC4ReadRegionalCity['industrialPopulation'] = self.read_UL4(data)
 
-		self.SC4ReadRegionalCity['unknown1'] = data.read(4) #TODO read float
+		# Unknown
+		data.read(4) #self.SC4ReadRegionalCity['unknown1'] = data.read(4) #TODO read float
 
+		# Mayor rating, difficulty and tutorial mode flag
 		self.SC4ReadRegionalCity['mayorRating'] = self.read_UL1(data)
 		self.SC4ReadRegionalCity['starCount'] = self.read_UL1(data)
 		self.SC4ReadRegionalCity['tutorialFlag'] = self.read_UL1(data)
 
+		# Not sure what this is for
 		self.SC4ReadRegionalCity['cityGUID'] = self.read_UL4(data)
 
-		self.SC4ReadRegionalCity['unknown5'] = self.read_UL4(data)
-		self.SC4ReadRegionalCity['unknown6'] = self.read_UL4(data)
-		self.SC4ReadRegionalCity['unknown7'] = self.read_UL4(data)
-		self.SC4ReadRegionalCity['unknown8'] = self.read_UL4(data)
-		self.SC4ReadRegionalCity['unknown9'] = self.read_UL4(data)
+		# Unknown
+		data.read(20)
+		#self.SC4ReadRegionalCity['unknown5'] = self.read_UL4(data)
+		#self.SC4ReadRegionalCity['unknown6'] = self.read_UL4(data)
+		#self.SC4ReadRegionalCity['unknown7'] = self.read_UL4(data)
+		#self.SC4ReadRegionalCity['unknown8'] = self.read_UL4(data)
+		#self.SC4ReadRegionalCity['unknown9'] = self.read_UL4(data)
 
+		# Gamemode
 		self.SC4ReadRegionalCity['modeFlag'] = self.read_UL1(data)
 
-		#TODO keep reading file
+		# City name
+		self.SC4ReadRegionalCity['cityName'] = self.read_string(data)
+
+		# Unknown
+		data.read(4)
+
+		# Mayor name
+		self.SC4ReadRegionalCity['mayorName'] = self.read_string(data)
+
+		#TODO keep reading subfile
 
 		return self.SC4ReadRegionalCity
 
@@ -252,11 +282,31 @@ class DBPF:
 	def get_cSC4Simulator(self):
 		"""TODO"""
 
+		# Decompress the subfile and get the data as a bytes stream
 		data = self.decompress_subfile("2990c1e5")
 
-		print(data.read())
-		data.seek(0)
+		# For development
+		#print(data.read())
+		#data.seek(0)
 
+		# Dictionary to return
 		self.cSC4Simulator = {}
 
-		#TODO
+		#TODO read subfile
+
+		return self.cSC4Simulator
+
+
+if __name__ == "__main__":
+
+	import sys
+
+	def error(e):
+		print(f"{e}")
+
+	dbpf = DBPF(sys.argv[1], 0, error)
+
+	with open("SC4ReadRegionalCity.sc4", "wb") as file:
+		file.write(dbpf.decompress_subfile("ca027edb").read())
+
+	print(dbpf.get_SC4ReadRegionalCity())
