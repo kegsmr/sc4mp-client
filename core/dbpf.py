@@ -17,14 +17,10 @@ class DBPF:
 
 		self.NONSENSE_BYTE_OFFSET = 9
 
-		# Try opening the file to read bytes
-		try:
-			self.file = open(self.filename, 'rb')
-		except Exception as e:
-			raise e #TODO
+		# Open file to read bytes
+		self.file = open(self.filename, 'rb')
 
 		# Advance to offset
-		start = self.offset
 		if self.offset > 0:
 			self.file.seek(self.offset)
 
@@ -64,81 +60,109 @@ class DBPF:
 				self.indexData[index]['instanceID2'] = self.read_ID()
 			self.indexData[index]['offset'] = self.read_UL4()
 			self.indexData[index]['filesize'] = self.read_UL4()
-			self.indexData[index]['compressed'] = False #TODO
-			self.indexData[index]['truesize'] = 0 #TODO
+			#self.indexData[index]['compressed'] = #TODO
+			#self.indexData[index]['truesize'] = #TODO
 
 	
 	def close(self):
+
 		self.file.close()
 
 
 	def decompress(self, length):
 
-		#report('Decompressing ' + str(length) + ' bytes...', self)
+		buf = ""			# TODO what does this do?
+		answer = bytes()	# TODO what does this do?
+		answerlen = 0		# TODO what does this do?
+		numplain = ""		# TODO what does this do?
+		numcopy = ""		# TODO what does this do?
+		offset = ""			# TODO what does this do?
 
-		buf = ""
-		answer = bytes()
-		answerlen = 0
-		numplain = ""
-		numcopy = ""
-		offset = ""
-
+		# Read until there's nothing left to read
 		while length > 0:
-			try:
-				cc = self.read_UL1(self.file)
-			except:
-				self.show_error("DBPF decompression error.", no_ui=True)
-				break
-			#print("Control char is " + str(cc) + ", length remaining is " + str(length) + ".\n")
-			if cc >= 252: #0xFC
-				numplain = cc & 3 #0x03
-				if numplain > length:
-					numplain = length
+			
+			# Read control char
+			cc = self.read_UL1(self.file)
+			length -= 1
+
+			# For development
+			#print(f"Control char is {cc}, length remaining is {length}.")
+
+			if cc >= 252:	#0xFC
+
+				numplain = cc & 3										#3 = 0x03
+				numplain = length if numplain > length else numplain
+				
 				numcopy = 0
 				offset = 0
-			elif cc >= 224: #0xE0
-				numplain = (cc - 223) << 2 #223 = 0xdf
+
+			elif cc >= 224:	#0xE0
+
+				numplain = (cc - 223) << 2								#223 = 0xdf
+
 				numcopy = 0
 				offset = 0
-			elif cc >= 192: #0xC0
+
+			elif cc >= 192:	#0xC0
+
 				length -= 3
+
 				byte1 = self.read_UL1(self.file)
 				byte2 = self.read_UL1(self.file)
 				byte3 = self.read_UL1(self.file)
-				numplain = cc & 3 #0x03
-				numcopy = ((cc & 12) << 6) + 5 + byte3 #12 = 0x0c
-				offset = ((cc & 16) << 12) + (byte1 << 8) + byte2 #16 = 0x10
+
+				numplain = cc & 3										#3 = 0x03
+				
+				numcopy = ((cc & 12) << 6) + 5 + byte3 					#12 = 0x0c
+				offset = ((cc & 16) << 12) + (byte1 << 8) + byte2 		#16 = 0x10
+
 			elif cc >= 128: #0x80
+
 				length -= 2
+
 				byte1 = self.read_UL1(self.file)
 				byte2 = self.read_UL1(self.file)
-				numplain = (byte1 & 192) >> 6 #192 = 0xc0
-				numcopy = (cc & 63) + 4 #63 = 0x3f
-				offset = ((byte1 & 63) << 8) + byte2 #63 = 0x3f
+
+				numplain = (byte1 & 192) >> 6 							#192 = 0xc0
+
+				numcopy = (cc & 63) + 4 								#63 = 0x3f
+				offset = ((byte1 & 63) << 8) + byte2 					#63 = 0x3f
+
 			else:
+
 				length -= 1
+
 				byte1 = self.read_UL1(self.file)
-				numplain = cc & 3 #3 = 0x03
-				numcopy = ((cc & 28) >> 2) + 3 #28 = 0x1c
-				offset = ((cc & 96) << 3) + byte1 #96 = 0x60
+
+				numplain = cc & 3 										#3 = 0x03
+
+				numcopy = ((cc & 28) >> 2) + 3 							#28 = 0x1c
+				offset = ((cc & 96) << 3) + byte1 						#96 = 0x60
+
 			length -= numplain
 
 			# This section basically copies the parts of the string to the end of the buffer:
 			if numplain > 0:
+
 				buf = self.file.read(numplain)
-				answer = answer + buf
+
+				answer += buf
+
 			fromoffset = len(answer) - (offset + 1)  # 0 == last char
 			for index in range(numcopy):
+
 				#print(str(answer))
 				#print(str(cc))
 				#print(str(offset))
 				#print(str(fromoffset))
+				
 				#TODO remove try and except block. decompression algorithm breaks with a control char of 206. the offset becomes larger than the length of the answer, causing a negative fromindex and an indexing error. for now it does not seem to affect city coordinates
 				try:
 					answer = answer + (answer[fromoffset + index]).to_bytes(1, 'little') #substr(fromoffset + index, 1)
 				except Exception as e:
 					#show_error(e) #TODO
 					return io.BytesIO(answer)
+				
 			answerlen += numplain
 			answerlen += numcopy
 
@@ -166,7 +190,7 @@ class DBPF:
 		return struct.unpack('<L', file.read(4))[0]
 
 
-	def read_string(self, file=None):
+	def read_unistr(self, file=None):
 		if file is None:
 			file = self.file
 		length = struct.unpack("<L", file.read(4))[0]
@@ -270,13 +294,13 @@ class DBPF:
 		self.SC4ReadRegionalCity['modeFlag'] = self.read_UL1(data)
 
 		# City name
-		self.SC4ReadRegionalCity['cityName'] = self.read_string(data)
+		self.SC4ReadRegionalCity['cityName'] = self.read_unistr(data)
 
 		# Unknown
 		data.read(4)
 
 		# Mayor name
-		self.SC4ReadRegionalCity['mayorName'] = self.read_string(data)
+		self.SC4ReadRegionalCity['mayorName'] = self.read_unistr(data)
 
 		#TODO keep reading subfile
 
@@ -308,9 +332,23 @@ if __name__ == "__main__":
 	def error(e):
 		print(f"{e}")
 
-	dbpf = DBPF(sys.argv[1], 0, error)
+	filename = sys.argv[1]
 
-	with open("SC4ReadRegionalCity.sc4", "wb") as file:
-		file.write(dbpf.decompress_subfile("ca027edb").read())
+	dbpf = DBPF(filename, 0, error)
 
-	print(dbpf.get_SC4ReadRegionalCity())
+	if filename.endswith(".sc4"):
+
+		print(dbpf.indexData)
+
+		with open("SC4ReadRegionalCity.sc4", "wb") as file:
+			file.write(dbpf.decompress_subfile("ca027edb").read())
+
+		print(dbpf.get_SC4ReadRegionalCity())
+
+	elif filename.endswith(".cfg"):
+
+		for entry in dbpf.indexData:
+			with open(f"{entry['typeID']}.cfg", "wb") as file:
+				file.write(dbpf.decompress_subfile(entry["typeID"]).read())
+
+		print(dbpf.indexData)

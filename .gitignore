@@ -19,3 +19,4 @@ version.rc
 *.lnk
 *.log
 *.pdn
+*.cfg
