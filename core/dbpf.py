@@ -338,7 +338,7 @@ if __name__ == "__main__":
 
 	if filename.endswith(".sc4"):
 
-		print(dbpf.indexData)
+		print(f"{dbpf.majorVersion}.{dbpf.minorVersion}")
 
 		with open("SC4ReadRegionalCity.sc4", "wb") as file:
 			file.write(dbpf.decompress_subfile("ca027edb").read())
@@ -347,8 +347,8 @@ if __name__ == "__main__":
 
 	elif filename.endswith(".cfg"):
 
+		print(f"{dbpf.majorVersion}.{dbpf.minorVersion}")
+
 		for entry in dbpf.indexData:
 			with open(f"{entry['typeID']}.cfg", "wb") as file:
 				file.write(dbpf.decompress_subfile(entry["typeID"]).read())
-
-		print(dbpf.indexData)
