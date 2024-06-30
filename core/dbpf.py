@@ -191,11 +191,24 @@ class DBPF:
 		return struct.unpack('<L', file.read(4))[0]
 
 
-	def read_unistr(self, file=None):
+	def read_unistr(self, file=None, length=None):
 		if file is None:
 			file = self.file
-		length = struct.unpack("<L", file.read(4))[0]
+		if length is None:
+			length = struct.unpack("<L", file.read(4))[0]
 		return file.read(length).decode()
+
+
+	def read_nullstring(self, file=None):
+		if file is None:
+			file = self.file
+		text = ""
+		while True:
+			byte = file.read(1)
+			if byte == b"\x00":
+				return text
+			else:
+				text += byte.decode()
 
 
 	def read_ID(self, file=None):
@@ -330,10 +343,20 @@ class DBPF:
 
 		data = self.decompress_subfile("a9dd6e06")
 
+		# For development
+		#print(data.read())
+		#data.seek(0)
+
 		self.simcity_4_cfg = {}
 
-		data.seek(3774)
-		self.simcity_4_cfg["RegionName"] = data.read(32)
+		data.seek(110)														# 0x06E
+		self.simcity_4_cfg["LastCityName"] = self.read_nullstring(data)
+
+		data.seek(622)														# 0x26E
+		self.simcity_4_cfg["LastMayorName"] = self.read_nullstring(data)
+
+		data.seek(3774)														# 0xEBE
+		self.simcity_4_cfg["LastRegionName"] = self.read_nullstring(data)
 
 		return self.simcity_4_cfg
 
