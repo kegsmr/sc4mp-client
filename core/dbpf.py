@@ -6,7 +6,7 @@ class DBPF:
 	"""TODO include credits to original php file"""
 
 
-	def __init__(self, filename, offset=0, error_callback=None):
+	def __init__(self, filename, offset=0, error_callback=None, require_identifier=True):
 		"""TODO"""
 
 		print(f'Parsing "{filename}"...')
@@ -14,6 +14,7 @@ class DBPF:
 		self.filename = filename
 		self.offset = offset
 		self.show_error = error_callback
+		self.require_identifier = require_identifier
 
 		self.NONSENSE_BYTE_OFFSET = 9
 
@@ -24,14 +25,14 @@ class DBPF:
 		if self.offset > 0:
 			self.file.seek(self.offset)
 
-		# Verify that the file is a DBPF
-		test = self.file.read(4)
-		if test != b"DBPF":
-			return #TODO raise exception
+		# Read the identifier
+		self.identifier = self.file.read(4).decode()		# Always "DBPF"
+		if self.require_identifier and self.identifier != "DBPF":
+			raise Exception()
 
 		# Read the header
-		self.majorVersion = self.read_UL4()
-		self.minorVersion = self.read_UL4()
+		self.majorVersion = self.read_UL4()					# Always 1
+		self.minorVersion = self.read_UL4()					# Always 0
 		self.reserved = self.file.read(12)
 		self.dateCreated = self.read_UL4()
 		self.dateModified = self.read_UL4()
@@ -56,7 +57,7 @@ class DBPF:
 			self.indexData[index]['typeID'] = self.read_ID()
 			self.indexData[index]['groupID'] = self.read_ID()
 			self.indexData[index]['instanceID'] = self.read_ID()
-			if (self.indexMajorVersion == "7") and (self.indexMinorVersion == "1"):
+			if (self.indexMajorVersion == 7) and (self.indexMinorVersion == 1):
 				self.indexData[index]['instanceID2'] = self.read_ID()
 			self.indexData[index]['offset'] = self.read_UL4()
 			self.indexData[index]['filesize'] = self.read_UL4()
@@ -296,8 +297,8 @@ class DBPF:
 		# City name
 		self.SC4ReadRegionalCity['cityName'] = self.read_unistr(data)
 
-		# Unknown
-		data.read(4)
+		# Former city name
+		self.SC4ReadRegionalCity['formerCityName'] = self.read_unistr(data)
 
 		# Mayor name
 		self.SC4ReadRegionalCity['mayorName'] = self.read_unistr(data)
@@ -325,6 +326,18 @@ class DBPF:
 		return self.cSC4Simulator
 
 
+	def get_simcity_4_cfg(self):
+
+		data = self.decompress_subfile("a9dd6e06")
+
+		self.simcity_4_cfg = {}
+
+		data.seek(3774)
+		self.simcity_4_cfg["RegionName"] = data.read(32)
+
+		return self.simcity_4_cfg
+
+
 if __name__ == "__main__":
 
 	import sys
@@ -338,7 +351,9 @@ if __name__ == "__main__":
 
 	if filename.endswith(".sc4"):
 
-		print(f"{dbpf.majorVersion}.{dbpf.minorVersion}")
+		print(dbpf.indexData)
+
+		print(dbpf.indexOffset)
 
 		with open("SC4ReadRegionalCity.sc4", "wb") as file:
 			file.write(dbpf.decompress_subfile("ca027edb").read())
@@ -347,8 +362,10 @@ if __name__ == "__main__":
 
 	elif filename.endswith(".cfg"):
 
-		print(f"{dbpf.majorVersion}.{dbpf.minorVersion}")
+		print(dbpf.get_simcity_4_cfg())
 
-		for entry in dbpf.indexData:
-			with open(f"{entry['typeID']}.cfg", "wb") as file:
-				file.write(dbpf.decompress_subfile(entry["typeID"]).read())
+		#print(f"{dbpf.majorVersion}.{dbpf.minorVersion}")
+
+		#for entry in dbpf.indexData:
+		#	with open(f"{entry['typeID']}.cfg", "wb") as file:
+		#		file.write(dbpf.decompress_subfile(entry["typeID"]).read())
