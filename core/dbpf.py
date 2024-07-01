@@ -83,8 +83,12 @@ class DBPF:
 		while length > 0:
 			
 			# Read control char
-			cc = self.read_UL1(self.file)
-			length -= 1
+			try:
+				cc = self.read_UL1(self.file) # This line causes errors sometimes for some reason. End of file?
+				length -= 1
+			except Exception as e:
+				self.show_error(e)
+				return io.BytesIO(answer) # Just return what we've got so far. 
 
 			# For development
 			#print(f"Control char is {cc}, length remaining is {length}.")
