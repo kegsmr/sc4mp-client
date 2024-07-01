@@ -331,8 +331,7 @@ def check_updates():
 								try:
 
 									# Update UI
-									if ui is not None:
-										report("Downloading update...")
+									report("Downloading update...")
 
 									# Pause if necessary
 									pause()
@@ -383,9 +382,9 @@ def check_updates():
 									# Pause if necessary
 									pause()
 
-									# Report installing update and wait a few seconds (gives time for users to cancel)
+									# Report installing update
+									report("Installing update...")
 									if ui is not None:
-										report("Installing update...")
 										ui.progress_bar['mode'] = "indeterminate"
 										ui.progress_bar['maximum'] = 100
 										ui.progress_bar.start(2)
@@ -629,13 +628,6 @@ def process_exists(process_name): #TODO add MacOS compatability / deprecate in f
 		output = subprocess.check_output(call, shell=True).decode()
 		last_line = output.strip().split('\r\n')[-1]
 		return last_line.lower().startswith(process_name.lower())
-	else:
-		return None
-
-
-def process_count(process_name): #TODO add MacOS compatability
-	if platform.system() == "Windows":
-		return int(subprocess.check_output(f"tasklist | find /I /C \"{process_name}\"", shell=True))
 	else:
 		return None
 
