@@ -68,17 +68,18 @@ SC4MP_LAUNCHERMAP_ENABLED = False
 SC4MP_CONFIG_DEFAULTS = [
 	("GENERAL", [
 		("auto_update", True),
+		("use_game_overlay", 1),
+		("use_launcher_map", True),
+		("allow_game_monitor_exit", False),
+		("save_server_passwords", True),
+		("ignore_third_party_server_warnings", False),
+		("ignore_token_errors", False),
+		("ignore_risky_file_warnings", False),		
+		("custom_plugins", False),
+		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser()),	
 		("default_host", SC4MP_HOST),
 		("default_port", SC4MP_PORT),
-		("custom_plugins", False),
-		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser()),
-		("stat_mayors_online_cutoff", 60),
-		("ignore_token_errors", False),
-		("allow_game_monitor_exit", False),
-		("use_game_overlay", 1),
-		("ignore_risky_file_warnings", False),
-		("ignore_third_party_server_warnings", False),
-		("save_server_passwords", True)
+		("stat_mayors_online_cutoff", 60)
 	]),
 	("STORAGE", [
 		("storage_path", Path("~/Documents/SimCity 4/_SC4MP").expanduser()),
@@ -3719,7 +3720,11 @@ class UI(tk.Tk):
 		# Key bindings
 
 		self.bind("<F1>", lambda event:self.direct_connect())
-		#self.bind("<F2>", lambda event:self.host()) #TODO
+		self.bind("<F2>", lambda event:self.refresh())
+		#self.bind("<F3>", lambda event:self.host()) #TODO
+		self.bind("<F5>", lambda event:self.general_settings())
+		self.bind("<F6>", lambda event:self.storage_settings())
+		self.bind("<F7>", lambda event:self.SC4_settings())
 
 
 		# Menu
@@ -3728,9 +3733,9 @@ class UI(tk.Tk):
 		
 		launcher = Menu(menu, tearoff=0)  
 		settings_submenu = Menu(menu, tearoff=0)
-		settings_submenu.add_command(label="General...", command=self.general_settings)     
-		settings_submenu.add_command(label="Storage...", command=self.storage_settings)    
-		settings_submenu.add_command(label="SC4...", command=self.SC4_settings)
+		settings_submenu.add_command(label="General...", accelerator="F5", command=self.general_settings)     
+		settings_submenu.add_command(label="Storage...", accelerator="F6", command=self.storage_settings)    
+		settings_submenu.add_command(label="SC4...", accelerator="F7", command=self.SC4_settings)
 		launcher.add_cascade(label="Settings", menu=settings_submenu) 
 		launcher.add_separator()
 		launcher.add_command(label="Updates...", command=lambda:webbrowser.open_new_tab(SC4MP_RELEASES_URL)) 
@@ -3740,10 +3745,10 @@ class UI(tk.Tk):
 
 		servers = Menu(menu, tearoff=0)  
 		
-		#servers.add_command(label="Host...", command=self.host) #TODO
-		#servers.add_separator() #TODO
-		servers.add_command(label="Connect...", accelerator="F1", command=self.direct_connect)  #"Direct connect..."
-		servers.add_command(label="Refresh", command=self.refresh)
+		servers.add_command(label="Connect...", accelerator="F1", command=self.direct_connect)
+		servers.add_command(label="Refresh", accelerator="F2", command=self.refresh)
+		#servers.add_separator() 
+		#servers.add_command(label="Host...", accelerator="F3", command=self.host) #TODO
 		menu.add_cascade(label="Servers", menu=servers)  
 
 		help = Menu(menu, tearoff=0)  	
@@ -3868,8 +3873,8 @@ class GeneralSettingsUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry('400x400')
-		self.maxsize(450, 230)
-		self.minsize(450, 230)
+		self.maxsize(450, 425)
+		self.minsize(450, 425)
 		self.grid()
 		center_window(self)
 		
@@ -3883,9 +3888,77 @@ class GeneralSettingsUI(tk.Toplevel):
 		# Config update
 		self.config_update = []
 
+		# Updates frame
+		self.updates_frame = tk.LabelFrame(self, text="Updates", width=50)
+		self.updates_frame.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="nw")
+
+		# Updates checkbutton
+		self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
+		self.updates_frame.checkbutton = ttk.Checkbutton(self.updates_frame, text="Check for updates at startup", onvalue=True, offvalue=False, variable=self.updates_frame.checkbutton_variable)
+		self.updates_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=(10,10), sticky="w")
+		self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
+
+		# UI frame
+		self.ui_frame = tk.LabelFrame(self, text="UI")		
+		self.ui_frame.grid(row=1, column=0, columnspan=1, padx=10, pady=0, sticky="nw")
+
+		# Use game overlay
+		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_game_overlay"])
+		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use game overlay", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		self.ui_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=(10,65), pady=(10,5), sticky="w")
+		self.config_update.append((self.ui_frame.checkbutton_variable, "use_game_overlay"))
+
+		# Use launcher map
+		#self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_launcher_map"])
+		#self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use launcher map", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		#self.ui_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
+		#self.config_update.append((self.ui_frame.checkbutton_variable, "use_launcher_map"))
+
+		# Allow manual disconnect
+		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["allow_game_monitor_exit"])
+		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Allow manual disconnect", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		self.ui_frame.checkbutton.grid(row=2, column=0, columnspan=1, padx=10, pady=(5,10), sticky="w")
+		self.config_update.append((self.ui_frame.checkbutton_variable, "allow_game_monitor_exit"))
+
+		# Mayors online cutoff label
+		#self.ui_frame.mayors_online_cutoff_label = tk.Label(self.ui_frame, text="Show mayors online in the past")
+		#self.ui_frame.mayors_online_cutoff_label.grid(row=0, column=0, padx=10, pady=(10,5))
+
+		# Mayors online cutoff combobox
+		#self.ui_frame.mayors_online_cutoff_combobox = ttk.Combobox(self.ui_frame)
+		#self.ui_frame.mayors_online_cutoff_combobox.grid(row=0, column=1)
+
+		# Security frame
+		self.security_frame = tk.LabelFrame(self, text="Security")
+		self.security_frame.grid(row=0, column=1, columnspan=1, rowspan=2, padx=10, pady=10, sticky="nw")
+
+		# Save server passwords checkbutton
+		self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["save_server_passwords"])
+		self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text="Save server passwords", onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
+		self.security_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=(10,5), sticky="w")
+		self.config_update.append((self.security_frame.checkbutton_variable, "save_server_passwords"))
+
+		# Ignore 3rd-party server warnings checkbutton
+		self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["ignore_third_party_server_warnings"])
+		self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text="Hide 3rd-party server warnings", onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
+		self.security_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
+		self.config_update.append((self.security_frame.checkbutton_variable, "ignore_third_party_server_warnings"))
+
+		# Ignore authentication errors checkbutton
+		self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["ignore_token_errors"])
+		self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text="Hide authentication warnings", onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
+		self.security_frame.checkbutton.grid(row=2, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
+		self.config_update.append((self.security_frame.checkbutton_variable, "ignore_token_errors"))
+
+		# Ignore file warnings checkbutton
+		self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["ignore_risky_file_warnings"])
+		self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text="Hide dangerous file warnings", onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
+		self.security_frame.checkbutton.grid(row=3, column=0, columnspan=1, padx=10, pady=(5,32), sticky="w")
+		self.config_update.append((self.security_frame.checkbutton_variable, "ignore_risky_file_warnings"))
+
 		# Path frame
 		self.path_frame = tk.LabelFrame(self, text="Custom plugins")		
-		self.path_frame.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="w")
+		self.path_frame.grid(row=10, column=0, columnspan=3, padx=10, pady=10, sticky="w")
 
 		# Path checkbutton
 		self.path_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["custom_plugins"])
@@ -3906,18 +3979,6 @@ class GeneralSettingsUI(tk.Toplevel):
 		# Path label
 		self.path_frame.label = ttk.Label(self.path_frame, text='Some servers allow users to load their own plugins alongside the server \nplugins. Specify your plugins directory here so that they can be loaded \nwhen joining a server.')
 		self.path_frame.label.grid(row=2, column=0, columnspan=2, padx=10, pady=(0,10), sticky="w")
-
-		# Nickname frame
-		'''self.nickname_frame = ttk.LabelFrame(self, text="Nickname")
-		self.nickname_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10)'''
-
-		# Nickname entry
-		'''self.nickname_frame.entry = ttk.Entry(self.nickname_frame, width = 40)
-		self.nickname_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
-		self.nickname_frame.entry.insert(0, sc4mp_config["GENERAL"]["nickname"])
-		self.config_update.append((self.nickname_frame.entry, "nickname"))'''
-
-		#TODO explain what the nickname is used for?
 
 		# Reset button
 		self.reset_button = ttk.Button(self, text="Reset", command=self.reset)
