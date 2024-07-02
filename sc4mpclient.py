@@ -2345,7 +2345,7 @@ class ServerLoader(th.Thread):
 				# Update progress bar
 				size_downloaded += filesize
 				old_percent = percent
-				percent = math.floor(100 * (size_downloaded / size))
+				percent = math.floor(100 * (size_downloaded / (size + 1)))
 				if percent > old_percent:
 					self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
 
@@ -2424,7 +2424,7 @@ class ServerLoader(th.Thread):
 					total_size_already_downloaded += len(bytes_read)
 					size_downloaded += len(bytes_read)
 					old_percent = percent
-					percent = math.floor(100 * (size_downloaded / size))
+					percent = math.floor(100 * (size_downloaded / (size + 1)))
 					if percent > old_percent:
 						self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
 					if sc4mp_ui is not None:
@@ -2460,7 +2460,7 @@ class ServerLoader(th.Thread):
 		# Receive files
 		#size_downloaded = 0
 		#for files_received in range(file_count):
-		#	percent = math.floor(100 * (size_downloaded / size))
+		#	percent = math.floor(100 * (size_downloaded / (size + 1)))
 		#	self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
 		#	s.sendall(SC4MP_SEPARATOR)
 		#	size_downloaded += self.receive_or_cached(s, destination)
@@ -3338,7 +3338,7 @@ class RegionsRefresher(th.Thread):
 						# Update progress bar
 						size_downloaded += filesize
 						old_percent = percent
-						percent = math.floor(100 * (size_downloaded / size))
+						percent = math.floor(100 * (size_downloaded / (size + 1)))
 						if percent > old_percent:
 							self.report_progress(f"Refreshing regions... ({percent}%)", percent, 100)
 
@@ -3405,7 +3405,7 @@ class RegionsRefresher(th.Thread):
 							filesize_read += len(bytes_read)
 							size_downloaded += len(bytes_read)
 							old_percent = percent
-							percent = math.floor(100 * (size_downloaded / size))
+							percent = math.floor(100 * (size_downloaded / (size + 1)))
 							if percent > old_percent:
 								self.report_progress(f"Refreshing regions... ({percent}%)", percent, 100)
 
@@ -3423,7 +3423,7 @@ class RegionsRefresher(th.Thread):
 				# Receive files
 				#size_downloaded = 0
 				#for files_received in range(file_count):
-				#	percent = math.floor(100 * (size_downloaded / size))
+				#	percent = math.floor(100 * (size_downloaded / (size + 1)))
 				#	self.report_progress(f'Refreshing regions... ({percent}%)', percent, 100)
 				#	s.sendall(SC4MP_SEPARATOR)
 				#	size_downloaded += self.receive_or_cached(s, destination)
