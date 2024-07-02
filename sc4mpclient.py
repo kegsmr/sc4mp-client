@@ -34,7 +34,7 @@ from core.util import *
 
 # Header
 
-SC4MP_VERSION = "0.5.0"
+SC4MP_VERSION = "0.5.1"
 
 SC4MP_SERVERS = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
 
