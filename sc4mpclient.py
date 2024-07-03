@@ -273,7 +273,7 @@ def check_updates():
 
 				# Get latest release info
 				try:
-					with urllib.request.urlopen(f"https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest", timeout=5) as url:
+					with urllib.request.urlopen(f"https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest", timeout=10) as url:
 						latest_release_info = json.load(url)
 				except urllib.error.URLError:
 					raise ClientException("GitHub API call timed out.")
