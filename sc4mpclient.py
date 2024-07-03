@@ -489,7 +489,16 @@ def create_subdirectories() -> None:
 			new_directory.mkdir(exist_ok=True, parents=True)
 		except Exception as e:
 			raise ClientException("Failed to create SC4MP subdirectories.\n\n" + str(e))
-
+		
+	# Create notice files
+	with open(launchdir / "_Cache" / "___DELETE THESE FILES IF YOU WANT___", "w") as file:
+		file.write("These files are OK to delete if you want to save disk space. You can also delete them in the launcher in the storage settings.")
+	with open(launchdir / "_Temp" / "___DELETE THESE FILES IF YOU WANT___", "w") as file:
+		file.write("These files are OK to delete if you want to save disk space. Don't do it while the launcher is running though.")
+	with open(launchdir / "_Database" / "___DO NOT DELETE OR SHARE THESE FILES___", "w") as file:
+		file.write("Deleting these files can cause you to lose access to your claims in servers you've joined. Only delete them if you know what you're doing.\n\nSharing these files with someone else will let that person access all your claims and mess with your cities. Don't do it!")
+	with open(launchdir / "_Salvage" / "___DO NOT DELETE THESE FILES___", "w") as file:
+		file.write("Deleting these files will make you unable to restore the salvaged savegames stored here. If you don't care about that, then go ahead and delete them.")
 
 def load_database():
 	"""TODO"""
