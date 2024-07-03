@@ -29,12 +29,13 @@ import urllib.request
 
 from core.config import *
 from core.dbpf import *
+from core.networking import *
 from core.util import *
 
 
 # Header
 
-SC4MP_VERSION = "0.5.0"
+SC4MP_VERSION = "0.5.1"
 
 SC4MP_SERVERS = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
 
@@ -68,17 +69,18 @@ SC4MP_LAUNCHERMAP_ENABLED = True
 SC4MP_CONFIG_DEFAULTS = [
 	("GENERAL", [
 		("auto_update", True),
+		("use_game_overlay", 1),
+		("use_launcher_map", True),
+		("allow_game_monitor_exit", False),
+		("save_server_passwords", True),
+		("ignore_third_party_server_warnings", False),
+		("ignore_token_errors", False),
+		("ignore_risky_file_warnings", False),		
+		("custom_plugins", False),
+		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser()),	
 		("default_host", SC4MP_HOST),
 		("default_port", SC4MP_PORT),
-		("custom_plugins", False),
-		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser()),
-		("stat_mayors_online_cutoff", 60),
-		("ignore_token_errors", False),
-		("allow_game_monitor_exit", False),
-		("use_game_overlay", 1),
-		("ignore_risky_file_warnings", False),
-		("ignore_third_party_server_warnings", False),
-		("save_server_passwords", True)
+		("stat_mayors_online_cutoff", 60)
 	]),
 	("STORAGE", [
 		("storage_path", Path("~/Documents/SimCity 4/_SC4MP").expanduser()),
@@ -150,7 +152,7 @@ def main():
 		# "-force-update"/"-skip-update" flags
 		global sc4mp_force_update, sc4mp_skip_update
 		sc4mp_force_update = "-force-update" in sc4mp_args
-		sc4mp_skip_update = "-skip-update" in sc4mp_args or (len(sc4mp_args) > 0 and not sc4mp_force_update)
+		sc4mp_skip_update = "-skip-update" in sc4mp_args or (len(sc4mp_args) > 1 and not sc4mp_force_update)
 
 		# "-no-ui" flag
 		global sc4mp_ui
@@ -271,8 +273,11 @@ def check_updates():
 			if sc4mp_force_update or exec_file == "sc4mpclient.exe":
 
 				# Get latest release info
-				with urllib.request.urlopen(f"https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest", timeout=5) as url:
-					latest_release_info = json.load(url)
+				try:
+					with urllib.request.urlopen(f"https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest", timeout=10) as url:
+						latest_release_info = json.load(url)
+				except urllib.error.URLError:
+					raise ClientException("GitHub API call timed out.")
 
 				# Download the update if the version doesn't match
 				if sc4mp_force_update or latest_release_info["tag_name"] != f"v{SC4MP_VERSION}":
@@ -281,6 +286,18 @@ def check_updates():
 					def update(ui=None):
 						
 						try:
+
+							set_thread_name("UpdtThread", enumerate=False)
+
+							# Function to pause updates when user presses <ESC>
+							def pause():
+								while ui.pause:
+									time.sleep(.1)
+
+							# Function to write to console and update ui
+							def report(message):
+								print(message)
+								ui.label["text"] = message
 
 							# Change working directory to the one where the executable can be found
 							if exec_file == "sc4mpclient.exe":
@@ -303,11 +320,11 @@ def check_updates():
 
 							# Give the user a chance to cancel the update
 							if ui is not None:
-								for count in range(2):
-									ui.label["text"] = "Downloading update..."
-									time.sleep(1)
-									ui.label["text"] = "(press escape to cancel)"
-									time.sleep(1)
+								report("Preparing update...")
+								time.sleep(3)
+
+							# Pause if necessary
+							pause()
 
 							# Loop until download is successful
 							while True:
@@ -315,12 +332,10 @@ def check_updates():
 								try:
 
 									# Update UI
-									if ui is not None:
-										ui.label["text"] = "Downloading update..."
+									report("Downloading update...")
 
 									# Pause if necessary
-									while ui.pause:
-										time.sleep(.1)
+									pause()
 
 									# Get download URL
 									download_url = None
@@ -335,8 +350,7 @@ def check_updates():
 										raise ClientException("The correct release asset was not found.")
 
 									# Pause if necessary
-									while ui.pause:
-										time.sleep(.1)
+									pause()
 
 									# Prepare destination
 									os.makedirs("update", exist_ok=True)
@@ -344,12 +358,12 @@ def check_updates():
 										os.unlink(destination)
 
 									# Pause if necessary
-									while ui.pause:
-										time.sleep(.1)
+									pause()
 
 									# Download file
 									download_size = int(urllib.request.urlopen(download_url).headers["Content-Length"])
 									if ui is not None:
+										ui.label["text"] = "Downloading update... (0%)"
 										ui.progress_bar["mode"] = "determinate"
 										ui.progress_bar["maximum"] = download_size
 										ui.progress_bar["value"] = 0
@@ -367,19 +381,17 @@ def check_updates():
 												wfile.write(bytes_read)
 
 									# Pause if necessary
-									while ui.pause:
-										time.sleep(.1)
+									pause()
 
-									# Report installing update and wait a few seconds (gives time for users to cancel)
+									# Report installing update
+									report("Installing update...")
 									if ui is not None:
-										ui.label["text"] = "Installing update..."
 										ui.progress_bar['mode'] = "indeterminate"
 										ui.progress_bar['maximum'] = 100
 										ui.progress_bar.start(2)
 										
 									# Pause if necessary
-									while ui.pause:
-										time.sleep(.1)
+									pause()
 
 									# Start installer in very silent mode and exit
 									subprocess.Popen([os.path.abspath(destination), f"/dir={os.getcwd()}", "/verysilent"])
@@ -394,7 +406,7 @@ def check_updates():
 										ui.progress_bar['mode'] = "indeterminate"
 										ui.progress_bar.start(2)
 										for count in range(5):
-											ui.label["text"] = f"Update failed. Retrying in {5 - count}..."
+											report(f"Update failed. Retrying in {5 - count}...")
 											time.sleep(1)
 						
 						except:
@@ -477,7 +489,16 @@ def create_subdirectories() -> None:
 			new_directory.mkdir(exist_ok=True, parents=True)
 		except Exception as e:
 			raise ClientException("Failed to create SC4MP subdirectories.\n\n" + str(e))
-
+		
+	# Create notice files
+	with open(launchdir / "_Cache" / "___DELETE THESE FILES IF YOU WANT___", "w") as file:
+		file.write("These files are OK to delete if you want to save disk space. You can also delete them in the launcher in the storage settings.")
+	with open(launchdir / "_Temp" / "___DELETE THESE FILES IF YOU WANT___", "w") as file:
+		file.write("These files are OK to delete if you want to save disk space. Don't do it while the launcher is running though.")
+	with open(launchdir / "_Database" / "___DO NOT DELETE OR SHARE THESE FILES___", "w") as file:
+		file.write("Deleting these files can cause you to lose access to your claims in servers you've joined. Only delete them if you know what you're doing.\n\nSharing these files with someone else will let that person access all your claims and mess with your cities. Don't do it!")
+	with open(launchdir / "_Salvage" / "___DO NOT DELETE THESE FILES___", "w") as file:
+		file.write("Deleting these files will make you unable to restore the salvaged savegames stored here. If you don't care about that, then go ahead and delete them.")
 
 def load_database():
 	"""TODO"""
@@ -617,13 +638,6 @@ def process_exists(process_name): #TODO add MacOS compatability / deprecate in f
 		output = subprocess.check_output(call, shell=True).decode()
 		last_line = output.strip().split('\r\n')[-1]
 		return last_line.lower().startswith(process_name.lower())
-	else:
-		return None
-
-
-def process_count(process_name): #TODO add MacOS compatability
-	if platform.system() == "Windows":
-		return int(subprocess.check_output(f"tasklist | find /I /C \"{process_name}\"", shell=True))
 	else:
 		return None
 
@@ -935,25 +949,6 @@ def arp():
 		return [line for line in re.findall('([-.0-9]+)\s+([-0-9a-f]{17})\s+(\w+)', output)]
 	else: #TODO make this work on other platforms besides Windows
 		return []
-
-
-def send_json(s, data):
-	"""TODO"""
-	s.sendall(json.dumps(data).encode())
-
-
-def recv_json(s):
-	"""TODO"""
-	data = ""
-	while True:
-		new_data = s.recv(SC4MP_BUFFER_SIZE).decode()
-		if len(new_data) > 0:
-			data += new_data
-			try:
-				return json.loads(data)
-			except json.decoder.JSONDecodeError:
-				pass
-		time.sleep(SC4MP_DELAY)
 			
 
 def set_thread_name(name, enumerate=True):
@@ -2102,8 +2097,8 @@ class ServerLoader(th.Thread):
 			self.server.fetch()
 			if self.server.fetched == False:
 				raise ClientException("Unable to find server. Check the IP address and port, then try again.")
-		#if unformat_version(self.server.server_version)[:2] < unformat_version(SC4MP_VERSION)[:2]:
-		#	raise ClientException(f"The server requires an outdated version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please contact the server administrators.")
+		if unformat_version(self.server.server_version)[:2] < unformat_version(SC4MP_VERSION)[:2]:
+			raise ClientException(f"The server requires an outdated version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please contact the server administrators.")
 		if unformat_version(self.server.server_version)[:2] > unformat_version(SC4MP_VERSION)[:2]:
 			raise ClientException(f"The server requires a newer version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please update the launcher to connect to this server.")
 		if self.ui != None:
@@ -2341,7 +2336,7 @@ class ServerLoader(th.Thread):
 				# Update progress bar
 				size_downloaded += filesize
 				old_percent = percent
-				percent = math.floor(100 * (size_downloaded / size))
+				percent = math.floor(100 * (size_downloaded / (size + 1)))
 				if percent > old_percent:
 					self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
 
@@ -2420,7 +2415,7 @@ class ServerLoader(th.Thread):
 					total_size_already_downloaded += len(bytes_read)
 					size_downloaded += len(bytes_read)
 					old_percent = percent
-					percent = math.floor(100 * (size_downloaded / size))
+					percent = math.floor(100 * (size_downloaded / (size + 1)))
 					if percent > old_percent:
 						self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
 					if sc4mp_ui is not None:
@@ -2456,7 +2451,7 @@ class ServerLoader(th.Thread):
 		# Receive files
 		#size_downloaded = 0
 		#for files_received in range(file_count):
-		#	percent = math.floor(100 * (size_downloaded / size))
+		#	percent = math.floor(100 * (size_downloaded / (size + 1)))
 		#	self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
 		#	s.sendall(SC4MP_SEPARATOR)
 		#	size_downloaded += self.receive_or_cached(s, destination)
@@ -3337,7 +3332,7 @@ class RegionsRefresher(th.Thread):
 						# Update progress bar
 						size_downloaded += filesize
 						old_percent = percent
-						percent = math.floor(100 * (size_downloaded / size))
+						percent = math.floor(100 * (size_downloaded / (size + 1)))
 						if percent > old_percent:
 							self.report_progress(f"Refreshing regions... ({percent}%)", percent, 100)
 
@@ -3404,7 +3399,7 @@ class RegionsRefresher(th.Thread):
 							filesize_read += len(bytes_read)
 							size_downloaded += len(bytes_read)
 							old_percent = percent
-							percent = math.floor(100 * (size_downloaded / size))
+							percent = math.floor(100 * (size_downloaded / (size + 1)))
 							if percent > old_percent:
 								self.report_progress(f"Refreshing regions... ({percent}%)", percent, 100)
 
@@ -3422,7 +3417,7 @@ class RegionsRefresher(th.Thread):
 				# Receive files
 				#size_downloaded = 0
 				#for files_received in range(file_count):
-				#	percent = math.floor(100 * (size_downloaded / size))
+				#	percent = math.floor(100 * (size_downloaded / (size + 1)))
 				#	self.report_progress(f'Refreshing regions... ({percent}%)', percent, 100)
 				#	s.sendall(SC4MP_SEPARATOR)
 				#	size_downloaded += self.receive_or_cached(s, destination)
@@ -3711,7 +3706,11 @@ class UI(tk.Tk):
 		# Key bindings
 
 		self.bind("<F1>", lambda event:self.direct_connect())
-		#self.bind("<F2>", lambda event:self.host()) #TODO
+		self.bind("<F2>", lambda event:self.refresh())
+		#self.bind("<F3>", lambda event:self.host()) #TODO
+		self.bind("<F5>", lambda event:self.general_settings())
+		self.bind("<F6>", lambda event:self.storage_settings())
+		self.bind("<F7>", lambda event:self.SC4_settings())
 
 
 		# Menu
@@ -3720,9 +3719,9 @@ class UI(tk.Tk):
 		
 		launcher = Menu(menu, tearoff=0)  
 		settings_submenu = Menu(menu, tearoff=0)
-		settings_submenu.add_command(label="General...", command=self.general_settings)     
-		settings_submenu.add_command(label="Storage...", command=self.storage_settings)    
-		settings_submenu.add_command(label="SC4...", command=self.SC4_settings)
+		settings_submenu.add_command(label="General...", accelerator="F5", command=self.general_settings)     
+		settings_submenu.add_command(label="Storage...", accelerator="F6", command=self.storage_settings)    
+		settings_submenu.add_command(label="SC4...", accelerator="F7", command=self.SC4_settings)
 		launcher.add_cascade(label="Settings", menu=settings_submenu) 
 		launcher.add_separator()
 		launcher.add_command(label="Updates...", command=lambda:webbrowser.open_new_tab(SC4MP_RELEASES_URL)) 
@@ -3732,10 +3731,10 @@ class UI(tk.Tk):
 
 		servers = Menu(menu, tearoff=0)  
 		
-		#servers.add_command(label="Host...", command=self.host) #TODO
-		#servers.add_separator() #TODO
-		servers.add_command(label="Connect...", accelerator="F1", command=self.direct_connect)  #"Direct connect..."
-		servers.add_command(label="Refresh", command=self.refresh)
+		servers.add_command(label="Connect...", accelerator="F1", command=self.direct_connect)
+		servers.add_command(label="Refresh", accelerator="F2", command=self.refresh)
+		#servers.add_separator() 
+		#servers.add_command(label="Host...", accelerator="F3", command=self.host) #TODO
 		menu.add_cascade(label="Servers", menu=servers)  
 
 		help = Menu(menu, tearoff=0)  	
@@ -3860,8 +3859,8 @@ class GeneralSettingsUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry('400x400')
-		self.maxsize(450, 230)
-		self.minsize(450, 230)
+		self.maxsize(450, 425)
+		self.minsize(450, 425)
 		self.grid()
 		center_window(self)
 		
@@ -3875,9 +3874,77 @@ class GeneralSettingsUI(tk.Toplevel):
 		# Config update
 		self.config_update = []
 
+		# Updates frame
+		self.updates_frame = tk.LabelFrame(self, text="Updates", width=50)
+		self.updates_frame.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="nw")
+
+		# Updates checkbutton
+		self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
+		self.updates_frame.checkbutton = ttk.Checkbutton(self.updates_frame, text="Check for updates at startup", onvalue=True, offvalue=False, variable=self.updates_frame.checkbutton_variable)
+		self.updates_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=(10,10), sticky="w")
+		self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
+
+		# UI frame
+		self.ui_frame = tk.LabelFrame(self, text="UI")		
+		self.ui_frame.grid(row=1, column=0, columnspan=1, padx=10, pady=0, sticky="nw")
+
+		# Use game overlay
+		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_game_overlay"])
+		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use game overlay", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		self.ui_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=(10,65), pady=(10,5), sticky="w")
+		self.config_update.append((self.ui_frame.checkbutton_variable, "use_game_overlay"))
+
+		# Use launcher map
+		#self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_launcher_map"])
+		#self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use launcher map", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		#self.ui_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
+		#self.config_update.append((self.ui_frame.checkbutton_variable, "use_launcher_map"))
+
+		# Allow manual disconnect
+		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["allow_game_monitor_exit"])
+		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Allow manual disconnect", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		self.ui_frame.checkbutton.grid(row=2, column=0, columnspan=1, padx=10, pady=(5,10), sticky="w")
+		self.config_update.append((self.ui_frame.checkbutton_variable, "allow_game_monitor_exit"))
+
+		# Mayors online cutoff label
+		#self.ui_frame.mayors_online_cutoff_label = tk.Label(self.ui_frame, text="Show mayors online in the past")
+		#self.ui_frame.mayors_online_cutoff_label.grid(row=0, column=0, padx=10, pady=(10,5))
+
+		# Mayors online cutoff combobox
+		#self.ui_frame.mayors_online_cutoff_combobox = ttk.Combobox(self.ui_frame)
+		#self.ui_frame.mayors_online_cutoff_combobox.grid(row=0, column=1)
+
+		# Security frame
+		self.security_frame = tk.LabelFrame(self, text="Security")
+		self.security_frame.grid(row=0, column=1, columnspan=1, rowspan=2, padx=10, pady=10, sticky="nw")
+
+		# Save server passwords checkbutton
+		self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["save_server_passwords"])
+		self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text="Save server passwords", onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
+		self.security_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=(10,5), sticky="w")
+		self.config_update.append((self.security_frame.checkbutton_variable, "save_server_passwords"))
+
+		# Ignore 3rd-party server warnings checkbutton
+		self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["ignore_third_party_server_warnings"])
+		self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text="Hide 3rd-party server warnings", onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
+		self.security_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
+		self.config_update.append((self.security_frame.checkbutton_variable, "ignore_third_party_server_warnings"))
+
+		# Ignore authentication errors checkbutton
+		self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["ignore_token_errors"])
+		self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text="Hide authentication warnings", onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
+		self.security_frame.checkbutton.grid(row=2, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
+		self.config_update.append((self.security_frame.checkbutton_variable, "ignore_token_errors"))
+
+		# Ignore file warnings checkbutton
+		self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["ignore_risky_file_warnings"])
+		self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text="Hide dangerous file warnings", onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
+		self.security_frame.checkbutton.grid(row=3, column=0, columnspan=1, padx=10, pady=(5,32), sticky="w")
+		self.config_update.append((self.security_frame.checkbutton_variable, "ignore_risky_file_warnings"))
+
 		# Path frame
 		self.path_frame = tk.LabelFrame(self, text="Custom plugins")		
-		self.path_frame.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="w")
+		self.path_frame.grid(row=10, column=0, columnspan=3, padx=10, pady=10, sticky="w")
 
 		# Path checkbutton
 		self.path_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["custom_plugins"])
@@ -3898,18 +3965,6 @@ class GeneralSettingsUI(tk.Toplevel):
 		# Path label
 		self.path_frame.label = ttk.Label(self.path_frame, text='Some servers allow users to load their own plugins alongside the server \nplugins. Specify your plugins directory here so that they can be loaded \nwhen joining a server.')
 		self.path_frame.label.grid(row=2, column=0, columnspan=2, padx=10, pady=(0,10), sticky="w")
-
-		# Nickname frame
-		'''self.nickname_frame = ttk.LabelFrame(self, text="Nickname")
-		self.nickname_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10)'''
-
-		# Nickname entry
-		'''self.nickname_frame.entry = ttk.Entry(self.nickname_frame, width = 40)
-		self.nickname_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
-		self.nickname_frame.entry.insert(0, sc4mp_config["GENERAL"]["nickname"])
-		self.config_update.append((self.nickname_frame.entry, "nickname"))'''
-
-		#TODO explain what the nickname is used for?
 
 		# Reset button
 		self.reset_button = ttk.Button(self, text="Reset", command=self.reset)
@@ -5528,8 +5583,8 @@ class UpdaterUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.minsize(400, 90)
-		self.maxsize(400, 90)
+		self.minsize(400, 95)
+		self.maxsize(400, 95)
 		self.grid()
 		center_window(self)
 
@@ -5546,7 +5601,7 @@ class UpdaterUI(tk.Toplevel):
 		# Label
 		self.label = ttk.Label(self)
 		self.label['text'] = "Loading..."
-		self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=10)
+		self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=(10,5))
 
 		# Progress bar
 		self.progress_bar = ttk.Progressbar(
@@ -5558,6 +5613,10 @@ class UpdaterUI(tk.Toplevel):
 		)
 		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10,5))
 		self.progress_bar.start(2)
+
+		# Small label
+		self.label_small = tk.Label(self, fg="gray", font=("Arial", 8), text="Press <ESC> to cancel")
+		self.label_small.grid(column=0, row=2, columnspan=2, padx=10, pady=(0,5))
 
 		# Pause underlying thread
 		self.pause = False
