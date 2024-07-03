@@ -8,7 +8,10 @@ SC4MP_BUFFER_SIZE = 4096
 
 def send_json(s, data, length_encoding="I"):
 
-	data = json.dumps(data).encode()
+	if data is None:
+		data = b"" 
+	else:
+		data = json.dumps(data).encode()
 
 	s.sendall(struct.pack(length_encoding, len(data)) + data)
 
@@ -35,4 +38,7 @@ def recv_json(s, length_encoding="I"):
 		
 		data_size_read += len(new_data)
 
-	return json.loads(data.decode())
+	if len(data) < 1:
+		return None
+	else:
+		return json.loads(data.decode())
