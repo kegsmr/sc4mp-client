@@ -2701,7 +2701,6 @@ class GameMonitor(th.Thread):
 		if sc4mp_ui is not None:
 			if SC4MP_LAUNCHERMAP_ENABLED:
 				self.ui = GameMonitorMapUI(self)
-				self.ui = GameMonitorMapUI(self)
 			else:
 				self.ui = GameMonitorUI(self)
 			if (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
@@ -2745,13 +2744,11 @@ class GameMonitor(th.Thread):
 					if ping != None:
 						print(f"Ping: {ping}")
 						if self.ui != None and not SC4MP_LAUNCHERMAP_ENABLED:
-						if self.ui != None and not SC4MP_LAUNCHERMAP_ENABLED:
 							self.ui.ping_frame.right['text'] = f"{ping}ms"
 					
 					# If the server is unresponsive print a warning in the console and update the ui accordingly
 					else:
 						print("[WARNING] Disconnected.")
-						if self.ui != None and not SC4MP_LAUNCHERMAP_ENABLED:
 						if self.ui != None and not SC4MP_LAUNCHERMAP_ENABLED:
 							self.ui.ping_frame.right['text'] = "Server unresponsive."
 
@@ -5229,8 +5226,6 @@ class GameMonitorUI(tk.Toplevel):
 					pass
 			else:
 				return
-			else:
-				return
 		if messagebox.askokcancel(title=SC4MP_TITLE, message="Disconnect from the server?\n\nAll unsaved changes will be lost.", icon="warning"):
 			global sc4mp_game_exit_ovveride
 			sc4mp_game_exit_ovveride = True
@@ -5242,7 +5237,6 @@ class GameMonitorMapUI(tk.Toplevel):
 	"""TODO"""
 
 
-	def __init__(self, parent):
 	def __init__(self, parent):
 		"""TODO"""
 
@@ -5323,7 +5317,6 @@ class GameMonitorMapUI(tk.Toplevel):
 
 
 	def delete_window(self):
-	def delete_window(self):
 		"""TODO"""
 		if not sc4mp_config["GENERAL"]["allow_game_monitor_exit"]:	
 			if sc4mp_allow_game_monitor_exit_if_error:
@@ -5354,27 +5347,6 @@ class GameMonitorMapUI(tk.Toplevel):
 				self.canvas.images[state][size] = tk.PhotoImage(file=get_sc4mp_path(f"launcher-map-tile-{state}-{size}.png"))
 
 
-	def get_region_data(self):
-
-		#TODO
-
-		return {}
-		if not sc4mp_config["GENERAL"]["allow_game_monitor_exit"]:	
-			if sc4mp_allow_game_monitor_exit_if_error:
-				try:
-					process_exists("simcity 4.exe")
-					return
-				except:
-					pass
-			else:
-				return
-		if messagebox.askokcancel(title=SC4MP_TITLE, message="Disconnect from the server?\n\nAll unsaved changes will be lost.", icon="warning"):
-			global sc4mp_game_exit_ovveride
-			sc4mp_game_exit_ovveride = True
-			self.parent.end = True
-			self.destroy()
-
-
 	def prep_canvas_tiles(self):
 
 		self.canvas.images = {}
@@ -5399,8 +5371,6 @@ class GameMonitorMapUI(tk.Toplevel):
 		
 		region_data = self.get_region_data()
 
-		region_data = self.get_region_data()
-
 		TILE_SIZE = 17
 
 		REGION_WIDTH = 6 * 4
@@ -5413,19 +5383,12 @@ class GameMonitorMapUI(tk.Toplevel):
 
 		VIEWPORT_WIDTH = 408 / WIDTH
 		VIEWPORT_HEIGHT = 408 / HEIGHT
-		VIEWPORT_WIDTH = 408 / WIDTH
-		VIEWPORT_HEIGHT = 408 / HEIGHT
 
 		if VIEWPORT_WIDTH < 1:
 			self.canvas_horizontal_scrollbar.set((1 + VIEWPORT_WIDTH) / 2, (1 - VIEWPORT_WIDTH) / 2)
 		if VIEWPORT_WIDTH < 1:
 			self.canvas_horizontal_scrollbar.set((1 + VIEWPORT_WIDTH) / 2, (1 - VIEWPORT_WIDTH) / 2)
 		
-		if VIEWPORT_HEIGHT < 1:
-			self.canvas_vertical_scrollbar.set((1 + VIEWPORT_HEIGHT) / 2, (1 - VIEWPORT_HEIGHT) / 2)
-		if VIEWPORT_HEIGHT < 1:
-			self.canvas_vertical_scrollbar.set((1 + VIEWPORT_HEIGHT) / 2, (1 - VIEWPORT_HEIGHT) / 2)
-
 		LARGE_TILE_COUNT_X = REGION_WIDTH / 4
 		LARGE_TILE_COUNT_Y = REGION_HEIGHT / 4
 
