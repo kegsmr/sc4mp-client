@@ -940,25 +940,6 @@ def arp():
 		return [line for line in re.findall('([-.0-9]+)\s+([-0-9a-f]{17})\s+(\w+)', output)]
 	else: #TODO make this work on other platforms besides Windows
 		return []
-
-
-def send_json(s, data):
-	"""TODO"""
-	s.sendall(json.dumps(data).encode())
-
-
-def recv_json(s):
-	"""TODO"""
-	data = ""
-	while True:
-		new_data = s.recv(SC4MP_BUFFER_SIZE).decode()
-		if len(new_data) > 0:
-			data += new_data
-			try:
-				return json.loads(data)
-			except json.decoder.JSONDecodeError:
-				pass
-		time.sleep(SC4MP_DELAY)
 			
 
 def set_thread_name(name, enumerate=True):
