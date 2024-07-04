@@ -2661,8 +2661,8 @@ class ServerLoader(th.Thread):
 				config_path = region_dir / child / "region.ini"
 				prep_region_config(config_path)
 
-		# Copy the latest failed save push into the region downloads subdirectory
-		downloads_path = region_dir / "downloads"
+		# Copy the latest failed save push into the region `Downloads` subdirectory
+		downloads_path = region_dir / "Downloads"
 		downloads_path.mkdir(exist_ok=True, parents=True)
 
 		try:
@@ -2675,7 +2675,7 @@ class ServerLoader(th.Thread):
 			pass
 			#show_error(e, no_ui=True)
 
-		# Create the refresh auxiliary region
+		# Create the refresh region
 		refresh_path = region_dir / "_Refresh" #TODO possible name conflict!
 		refresh_path.mkdir(parents=True)
 		shutil.copy(get_sc4mp_path("refresh-config.bmp"), refresh_path / "config.bmp")
