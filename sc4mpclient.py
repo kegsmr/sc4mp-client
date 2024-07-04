@@ -2676,7 +2676,7 @@ class ServerLoader(th.Thread):
 			#show_error(e, no_ui=True)
 
 		# Create the refresh auxiliary region
-		refresh_path = region_dir / "ZZZRefreshAuxiliary" #TODO possible name conflict!
+		refresh_path = region_dir / "_Refresh" #TODO possible name conflict!
 		refresh_path.mkdir(parents=True)
 		shutil.copy(get_sc4mp_path("refresh-config.bmp"), refresh_path / "config.bmp")
 		shutil.copy(get_sc4mp_path("refresh-region.ini"), refresh_path / "region.ini")
