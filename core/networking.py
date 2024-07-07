@@ -42,3 +42,31 @@ def recv_json(s, length_encoding="I"):
 		return None
 	else:
 		return json.loads(data.decode())
+	
+
+class Socket(socket.socket):
+
+
+	def __init__(self, timeout=10):
+
+		super().__init__()
+
+		self.settimeout(timeout)
+
+
+	def send_json(self, data, **kwargs):
+		
+		return send_json(self, data, **kwargs)
+	
+	
+	def recv_json(self, **kwargs):
+
+		return recv_json(self, **kwargs)
+	
+
+	def request(self, request, **kwargs):
+
+		data = kwargs
+		data["request"] = request
+
+		self.send_json(data)
