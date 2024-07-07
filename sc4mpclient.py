@@ -499,6 +499,7 @@ def create_subdirectories() -> None:
 	with open(launchdir / "_Salvage" / "___DO NOT DELETE THESE FILES___", "w") as file:
 		file.write("Deleting these files will make you unable to restore the salvaged savegames stored here. If you don't care about that, then go ahead and delete them.")
 
+
 def load_database():
 	"""TODO"""
 
@@ -687,21 +688,6 @@ def directory_size(directory: Path) -> int:
 	return size
 
 
-def event_generate(ui, event, when):
-	"""Deprecated."""
-	if ui != None:
-		ui.event_generate(event, when=when)
-
-
-'''def create_empty_json(filename):
-	"""Deprecated."""
-	with open(filename, 'w') as file:
-		data = dict()
-		file.seek(0)
-		json.dump(data, file, indent=4)
-		file.truncate()'''
-
-
 def load_json(filename):
 	"""Returns data from a json file as a dictionary."""
 	try:
@@ -849,17 +835,6 @@ def request_header(s, server):
 	s.sendall(server.user_id.encode())
 
 
-def format_version(version: tuple[int, int, int]) -> str:
-	"""Converts a version number from a tuple to a string."""
-	major, minor, patch = version
-	return f'{major}.{minor}.{patch}'
-
-
-def unformat_version(version: str) -> tuple[int, int, int]:
-	"""Converts a version number from a string to a tuple."""
-	return tuple([int(v) for v in version.split('.')])
-
-
 def set_server_data(entry, server):
 	"""Updates the json entry for a given server with the appropriate values."""
 	entry["host"] = server.host
@@ -948,26 +923,6 @@ def arp():
 		return [line for line in re.findall('([-.0-9]+)\s+([-0-9a-f]{17})\s+(\w+)', output)]
 	else: #TODO make this work on other platforms besides Windows
 		return []
-			
-
-def set_thread_name(name, enumerate=True):
-
-	if enumerate:
-
-		thread_names = [thread.name for thread in th.enumerate()]
-
-		count = 1
-		while (True):
-			thread_name = f"{name}-{count}"
-			if not thread_name in thread_names:
-				th.current_thread().name = thread_name
-				return thread_name
-			count += 1
-
-	else:
-
-		th.current_thread().name = name
-		return name
 
 
 # Objects
