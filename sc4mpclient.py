@@ -3,7 +3,6 @@ from __future__ import annotations
 import configparser
 import hashlib
 import inspect
-import io
 import json
 import math
 import os
