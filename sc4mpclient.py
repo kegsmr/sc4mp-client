@@ -1079,6 +1079,7 @@ class Server:
 
 			# Get total download size
 			size = sum([entry[1] for entry in file_table])
+			#size = sum([(0 if os.path.exists(os.path.join(SC4MP_LAUNCHPATH, "_Cache", entry[0])) else entry[1]) for entry in file_table])
 
 			# Prune file table as necessary
 			ft = []
