@@ -2377,7 +2377,7 @@ class ServerLoader(th.Thread):
 						try:
 							now = time.time()
 							eta = int((total_size_to_download - total_size_already_downloaded) / (total_size_already_downloaded / float(now - download_start_time)))
-							if (old_eta is None or (old_eta > eta or int(now - old_eta_display_time) > 5)) and float(now - old_eta_display_time) >= .8:
+							if (eta < 86400) and (old_eta is None or (old_eta > eta or int(now - old_eta_display_time) > 5)) and float(now - old_eta_display_time) >= .8:
 								old_eta = eta
 								old_eta_display_time = now
 								hours = math.floor(eta / 3600)
