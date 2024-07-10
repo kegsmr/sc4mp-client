@@ -470,8 +470,9 @@ def create_subdirectories() -> None:
 		Path("_Temp"),
 		Path("_Temp") / "ServerList",
 		Path("Plugins"),
-		Path("Plugins") / "server",
 		Path("Plugins") / "client",
+		Path("Plugins") / "default",
+		Path("Plugins") / "server",
 		Path("Regions")
 	] #"SC4MPBackups", os.path.join("_Cache","Plugins"), os.path.join("_Cache","Regions")]
 
@@ -2122,10 +2123,26 @@ class ServerLoader(th.Thread):
 		if not destination.exists():
 			destination.mkdir(parents=True, exist_ok=True)
 
-		# Synchronize or clear custom plugins (the code is organized like hell here, but it works)
+		# Load custom/local plugins (the code is organized like hell here, but it works)
 		if target == "plugins":
 
-			# Set source and destination
+			self.report("", "Synchronizing default plugins...")
+
+			# Set source and destination for default plugins
+			default_plugins_source = Path("resources")
+			default_plugins_destination = Path(SC4MP_LAUNCHPATH) / "Plugins" / "default"
+
+			# Clear default plugins directory
+			purge_directory(default_plugins_destination)
+
+			# Load default plugins
+			for default_plugin_filename in []:
+				try:
+					shutil.copy(default_plugins_source / default_plugin_filename, default_plugins_destination)
+				except Exception as e:
+					show_error(f"Failed to load default plugin \"{default_plugin_filename}\".\n\n{e}", no_ui=True)
+
+			# Set source and destination for custom plugins
 			client_plugins_source = Path(sc4mp_config["GENERAL"]["custom_plugins_path"])
 			client_plugins_destination = Path(SC4MP_LAUNCHPATH) / "Plugins" / "client"
 
