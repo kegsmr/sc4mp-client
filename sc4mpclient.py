@@ -1467,7 +1467,8 @@ class ServerList(th.Thread):
 							self.stat_ping[server_id] = update_server.stat_ping
 							self.calculate_rating(update_server)
 						except:
-							pass
+							self.stat_ping[server_id] = update_server.stat_ping
+							self.calculate_rating(update_server)
 
 					# Add missing rows to the tree
 					server_ids = self.servers.keys()
@@ -1695,7 +1696,7 @@ class ServerList(th.Thread):
 	    	lambda: str(int(server.stat_claimed * 100)) + "%",
 		    lambda: format_filesize(server.stat_download),
 		    lambda: str(server.stat_ping) + "ms",
-		    lambda: str(round(server.rating, 1)), # + " ⭐️",
+		    lambda: str(round(server.rating, 1)) #+ " / 5.0", # + " ⭐️",
 		]
 		cells = []
 		for function in functions:
@@ -1707,19 +1708,25 @@ class ServerList(th.Thread):
 
 	
 	def calculate_rating(self, server):
-		"""TODO"""
+		
 		try:
-			categories = [
-				.5 * (self.max_category(server.stat_mayors, self.stat_mayors.values())) * (self.max_category(server.stat_mayors_online, self.stat_mayors_online.values()) + 1),
-				self.min_category(server.stat_claimed, self.stat_claimed.values()),
-				self.min_category(server.stat_download, self.stat_download.values()),
-				self.min_category(server.stat_ping, self.stat_ping.values()),
-			]
-			rating = 1 + sum(categories)
+
+			try:
+				categories = [
+					.5 * (self.max_category(server.stat_mayors, self.stat_mayors.values())) * (self.max_category(server.stat_mayors_online, self.stat_mayors_online.values()) + 1),
+					self.min_category(server.stat_claimed, self.stat_claimed.values()),
+					self.min_category(server.stat_download, self.stat_download.values()),
+					self.min_category(server.stat_ping, self.stat_ping.values()),
+				]
+				rating = 1 + sum(categories)
+			except:
+				rating = 1 + self.min_category(server.stat_ping, self.stat_ping.values())
+			
 			try:
 				server.rating = ((99 * server.rating) + rating) / 100
 			except:
 				server.rating = rating
+
 		except:
 			pass
 	
