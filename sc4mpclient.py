@@ -1468,8 +1468,11 @@ class ServerList(th.Thread):
 							self.stat_ping[server_id] = update_server.stat_ping
 							self.calculate_rating(update_server)
 						except:
-							self.stat_ping[server_id] = update_server.stat_ping
-							self.calculate_rating(update_server)
+							try:
+								self.stat_ping[server_id] = update_server.stat_ping
+								self.calculate_rating(update_server)
+							except:
+								pass
 
 					# Add missing rows to the tree
 					server_ids = self.servers.keys()
@@ -1697,7 +1700,7 @@ class ServerList(th.Thread):
 	    	lambda: str(int(server.stat_claimed * 100)) + "%",
 		    lambda: format_filesize(server.stat_download),
 		    lambda: str(server.stat_ping) + "ms",
-		    lambda: str(round(server.rating, 1)) #+ " / 5.0", # + " ⭐️",
+		    lambda: str(round(server.rating, 1)) + " ⭐️",
 		]
 		cells = []
 		for function in functions:
