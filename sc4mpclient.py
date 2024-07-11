@@ -957,7 +957,8 @@ class Server:
 		server_info = self.request("info")
 		if server_info is not None:
 			try:
-				server_info = json.loads(server_info)
+				server_info = json.loads("{"+ "{".join(server_info.split("{")[1:]))
+				#print(server_info)
 			except:
 				raise ClientException("Unable to fetch server info.")
 		else:
@@ -989,65 +990,62 @@ class Server:
 	def fetch_stats(self):
 		"""TODO"""
 
-		download = self.fetch_temp()
+		if not sc4mp_config["DEBUG"]["random_server_stats"]:
 
-		regions_path: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server_id / "Regions"
+			download = self.fetch_temp()
 
-		server_time = self.time()
+			regions_path: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server_id / "Regions"
 
-		mayors = []
-		mayors_online = []
-		claimed_area = 0
-		total_area = 0
-		for region in os.listdir(regions_path):
+			server_time = self.time()
+
+			mayors = []
+			mayors_online = []
+			claimed_area = 0
+			total_area = 0
+			for region in os.listdir(regions_path):
+				try:
+					region_path = regions_path / region
+					region_config_path = region_path / "config.bmp"
+					region_dimensions = get_bitmap_dimensions(region_config_path)
+					region_database_path = region_path / "_Database" / "region.json"
+					region_database = load_json(region_database_path)
+					for coords in region_database.keys():
+						city_entry = region_database[coords]
+						if city_entry != None:
+							owner = city_entry["owner"]
+							if owner != None:
+								claimed_area += city_entry["size"] ** 2
+								if owner not in mayors:
+									mayors.append(owner)
+								modified = city_entry["modified"]
+								if modified != None:
+									modified = datetime.strptime(modified, "%Y-%m-%d %H:%M:%S")
+									if modified > server_time - timedelta(minutes=sc4mp_config["GENERAL"]["stat_mayors_online_cutoff"]) and owner not in mayors_online:
+										mayors_online.append(owner)
+					total_area += region_dimensions[0] * region_dimensions[1]
+				except Exception as e:
+					show_error(f"An error occurred while calculating region statistics for \"{region}\".", no_ui=True)
+
+			self.stat_mayors = len(mayors) #(random.randint(0,1000))
+			
+			self.stat_mayors_online = len(mayors_online) #int(self.stat_mayors * (float(random.randint(0, 100)) / 100))
+			
 			try:
-				region_path = regions_path / region
-				region_config_path = region_path / "config.bmp"
-				region_dimensions = get_bitmap_dimensions(region_config_path)
-				region_database_path = region_path / "_Database" / "region.json"
-				region_database = load_json(region_database_path)
-				for coords in region_database.keys():
-					city_entry = region_database[coords]
-					if city_entry != None:
-						owner = city_entry["owner"]
-						if owner != None:
-							claimed_area += city_entry["size"] ** 2
-							if owner not in mayors:
-								mayors.append(owner)
-							modified = city_entry["modified"]
-							if modified != None:
-								modified = datetime.strptime(modified, "%Y-%m-%d %H:%M:%S")
-								if modified > server_time - timedelta(minutes=sc4mp_config["GENERAL"]["stat_mayors_online_cutoff"]) and owner not in mayors_online:
-									mayors_online.append(owner)
-				total_area += region_dimensions[0] * region_dimensions[1]
-			except Exception as e:
-				show_error(f"An error occurred while calculating region statistics for \"{region}\".", no_ui=True)
+				self.stat_claimed = (float(claimed_area) / float(total_area)) #(float(random.randint(0, 100)) / 100)
+			except ZeroDivisionError:
+				self.stat_claimed = 1
 
-		self.stat_mayors = len(mayors) #(random.randint(0,1000))
-		
-		self.stat_mayors_online = len(mayors_online) #int(self.stat_mayors * (float(random.randint(0, 100)) / 100))
-		
-		try:
-			self.stat_claimed = (float(claimed_area) / float(total_area)) #(float(random.randint(0, 100)) / 100)
-		except ZeroDivisionError:
-			self.stat_claimed = 1
-
-		self.stat_download = download #(random.randint(0, 10 ** 11))
+			self.stat_download, self.stat_actual_download = download #(random.randint(0, 10 ** 11))
 
 		ping = self.ping()
 		if ping != None:
 			self.stat_ping = ping
 
-		if (sc4mp_config["DEBUG"]["random_server_stats"]):
-			self.stat_mayors = random.randint(0,1000)
-			self.stat_mayors_online = int(self.stat_mayors * (float(random.randint(0, 100)) / 100))
-			self.stat_claimed = float(random.randint(0, 100)) / 100
-			self.stat_download = random.randint(0, 10 ** 11)
-
 		sc4mp_servers_database[self.server_id]["stat_mayors"] = self.stat_mayors
 		sc4mp_servers_database[self.server_id]["stat_mayors_online"] = self.stat_mayors_online
 		sc4mp_servers_database[self.server_id]["stat_claimed"] = self.stat_claimed
 		sc4mp_servers_database[self.server_id]["stat_download"] = self.stat_download
+		sc4mp_servers_database[self.server_id]["stat_actual_download"] = self.stat_actual_download
 		sc4mp_servers_database[self.server_id]["stat_ping"] = self.stat_ping
 
 
@@ -1058,6 +1056,7 @@ class Server:
 		DIRECTORIES = ["Plugins", "Regions"]
 
 		total_size = 0
+		download_size = 0
 
 		for request, directory in zip(REQUESTS, DIRECTORIES):
 
@@ -1078,8 +1077,13 @@ class Server:
 			# Receive file table
 			file_table = recv_json(s)
 
-			# Get total download size
-			size = sum([entry[1] for entry in file_table])
+			# Get total and download size
+			#size = sum([entry[1] for entry in file_table])
+			for entry in file_table:
+				total_size += entry[1]
+				if not os.path.exists(os.path.join(SC4MP_LAUNCHPATH, "_Cache", entry[0])):
+					download_size += entry[1]
+
 			#size = sum([(0 if os.path.exists(os.path.join(SC4MP_LAUNCHPATH, "_Cache", entry[0])) else entry[1]) for entry in file_table])
 
 			# Prune file table as necessary
@@ -1121,7 +1125,7 @@ class Server:
 						dest.write(bytes_read)
 						filesize_read += len(bytes_read)
 
-			total_size += size
+			#total_size += size
 
 			# Request the type of data
 			#if not self.private:
@@ -1143,7 +1147,7 @@ class Server:
 			#	s.sendall(SC4MP_SEPARATOR)
 			#	size_downloaded += self.receive_or_cached(s, destination)
 
-		return total_size
+		return (total_size, download_size)
 
 
 	"""def receive_or_cached(self, s:socket.socket, rootpath: Path) -> int:
@@ -1368,7 +1372,7 @@ class ServerList(th.Thread):
 		self.stat_mayors = dict()
 		self.stat_mayors_online = dict()
 		self.stat_claimed = dict()
-		self.stat_download = dict()
+		self.stat_actual_download = dict()
 		self.stat_ping = dict()
 
 		self.blank_icon = tk.PhotoImage(file=get_sc4mp_path("blank-icon.png"))
@@ -1463,11 +1467,12 @@ class ServerList(th.Thread):
 							update_server = self.servers[server_id]
 							self.stat_mayors[server_id] = update_server.stat_mayors
 							self.stat_mayors_online[server_id] = update_server.stat_mayors_online
-							self.stat_download[server_id] = update_server.stat_download
+							self.stat_actual_download[server_id] = update_server.stat_actual_download
 							self.stat_claimed[server_id] = update_server.stat_claimed
 							self.stat_ping[server_id] = update_server.stat_ping
 							self.calculate_rating(update_server)
-						except:
+						except: #Exception as e:
+							#show_error(e)
 							try:
 								self.stat_ping[server_id] = update_server.stat_ping
 								self.calculate_rating(update_server)
@@ -1711,7 +1716,8 @@ class ServerList(th.Thread):
 		for function in functions:
 			try:
 				cells.append(function())
-			except:
+			except: #Exception as e:
+				#show_error(e)
 				cells.append("...")
 		return cells
 
@@ -1724,7 +1730,7 @@ class ServerList(th.Thread):
 				categories = [
 					.5 * (self.max_category(server.stat_mayors, self.stat_mayors.values())) * (self.max_category(server.stat_mayors_online, self.stat_mayors_online.values()) + 1),
 					self.min_category(server.stat_claimed, self.stat_claimed.values()),
-					self.min_category(server.stat_download, self.stat_download.values()),
+					self.min_category(server.stat_actual_download, self.stat_actual_download.values()),
 					self.min_category(server.stat_ping, self.stat_ping.values()),
 				]
 				rating = 1 + sum(categories)
@@ -1795,20 +1801,32 @@ class ServerFetcher(th.Thread):
 
 				print("- populating server statistics")
 
-				if not self.server.private:
-					try:
-						self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
-						self.server.stat_mayors = sc4mp_servers_database[self.server.server_id]["stat_mayors"]
-						self.server.stat_mayors_online = sc4mp_servers_database[self.server.server_id]["stat_mayors_online"]
-						self.server.stat_claimed = sc4mp_servers_database[self.server.server_id]["stat_claimed"]
-						self.server.stat_download = sc4mp_servers_database[self.server.server_id]["stat_download"]
-					except:
-						pass
+				if sc4mp_config["DEBUG"]["random_server_stats"]:
+
+					self.server.stat_mayors = random.randint(0,1000)
+					self.server.stat_mayors_online = int(self.server.stat_mayors * (float(random.randint(0, 100)) / 100))
+					self.server.stat_claimed = float(random.randint(0, 100)) / 100
+					self.server.stat_download = random.randint(0, 10 ** 11)
+					self.server.stat_actual_download = int(self.server.stat_download * (float(random.randint(0, 100)) / 100))
+					self.server.stat_ping = random.randint(0, 300)
+
 				else:
-					try:
-						self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
-					except:
-						pass
+
+					if not self.server.private:
+						try:
+							self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
+							self.server.stat_mayors = sc4mp_servers_database[self.server.server_id]["stat_mayors"]
+							self.server.stat_mayors_online = sc4mp_servers_database[self.server.server_id]["stat_mayors_online"]
+							self.server.stat_claimed = sc4mp_servers_database[self.server.server_id]["stat_claimed"]
+							self.server.stat_download = sc4mp_servers_database[self.server.server_id]["stat_download"]
+							self.server.stat_actual_download = sc4mp_servers_database[self.server.server_id]["stat_actual_download"]
+						except:
+							pass
+					else:
+						try:
+							self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
+						except:
+							pass
 
 				print("- adding server to server list...")
 
