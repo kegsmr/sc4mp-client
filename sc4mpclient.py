@@ -1489,6 +1489,11 @@ class ServerList(th.Thread):
 							else:
 								image = self.blank_icon
 							self.ui.tree.insert("", self.in_order_index(server), server_id, text=server.server_name, values=self.format_server(server), image=image)
+							#x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
+							#canvas = tk.Canvas(width=w, height=h, borderwidth=0)
+							#canvas.image = tk.PhotoImage(file=get_sc4mp_path("rating-template.png"))
+							#canvas.create_image(0, 0, anchor="nw", image=canvas.image)
+							#canvas.place(x=15+x, y=155+y)							
 
 					# Filter the tree
 					filter = self.ui.combo_box.get()
