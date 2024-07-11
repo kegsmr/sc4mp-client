@@ -71,6 +71,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("use_game_overlay", 1),
 		("use_launcher_map", True),
 		("allow_game_monitor_exit", False),
+		("use_stat_actual_download", False),
 		("save_server_passwords", True),
 		("ignore_third_party_server_warnings", False),
 		("ignore_token_errors", False),
@@ -905,6 +906,13 @@ def format_filesize(size):
 		return str(int(size)) + "B"
 
 
+def format_download_size(size):
+	if size == 0:
+		return "(cached)"
+	else:
+		return format_filesize(size)
+
+
 def get_bitmap_dimensions(filename):
 	"""TODO"""
 
@@ -1694,7 +1702,7 @@ class ServerList(th.Thread):
 			elif sort_mode == "Claimed":
 				return server.stat_claimed
 			elif sort_mode == "Download":
-				return server.stat_download
+				return server.stat_actual_download if sc4mp_config["GENERAL"]["use_stat_actual_download"] else server.stat_download
 			elif sort_mode == "Ping":
 				return server.stat_ping
 			else:
@@ -1708,7 +1716,7 @@ class ServerList(th.Thread):
 		functions = [
 			lambda: str(server.stat_mayors) + " (" + str(server.stat_mayors_online) + ")" if server.stat_mayors_online > 0 else str(server.stat_mayors),
 	    	lambda: str(int(server.stat_claimed * 100)) + "%",
-		    lambda: format_filesize(server.stat_download),
+		    lambda: format_download_size(server.stat_actual_download) if sc4mp_config["GENERAL"]["use_stat_actual_download"] else format_filesize(server.stat_download),
 		    lambda: str(server.stat_ping) + "ms",
 		    lambda: str(round(server.rating, 1)) # + " ⭐️",
 		]
