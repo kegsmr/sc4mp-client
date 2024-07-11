@@ -1700,7 +1700,7 @@ class ServerList(th.Thread):
 	    	lambda: str(int(server.stat_claimed * 100)) + "%",
 		    lambda: format_filesize(server.stat_download),
 		    lambda: str(server.stat_ping) + "ms",
-		    lambda: str(round(server.rating, 1)) + " ⭐️",
+		    lambda: str(round(server.rating, 1)) # + " ⭐️",
 		]
 		cells = []
 		for function in functions:
