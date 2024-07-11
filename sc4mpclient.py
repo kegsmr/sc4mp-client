@@ -957,7 +957,7 @@ class Server:
 		server_info = self.request("info")
 		if server_info is not None:
 			try:
-				server_info = json.loads("{"+ "{".join(server_info.split("{")[1:]))
+				server_info = json.loads("{"+ "{".join(server_info.split("{")[1:]))	#TODO fix this mess
 				#print(server_info)
 			except:
 				raise ClientException("Unable to fetch server info.")
