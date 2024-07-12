@@ -71,7 +71,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("use_game_overlay", 1),
 		("use_launcher_map", True),
 		("allow_game_monitor_exit", False),
-		("show_actual_download", False),
+		("show_actual_download", True),
 		("save_server_passwords", True),
 		("ignore_third_party_server_warnings", False),
 		("ignore_token_errors", False),
@@ -908,7 +908,7 @@ def format_filesize(size):
 
 def format_download_size(size):
 	if size == 0:
-		return "(cached)"
+		return "(none)"
 	else:
 		return format_filesize(size)
 
@@ -1066,6 +1066,8 @@ class Server:
 		total_size = 0
 		download_size = 0
 
+		cache_files = os.listdir(os.path.join(SC4MP_LAUNCHPATH, "_Cache"))
+
 		for request, directory in zip(REQUESTS, DIRECTORIES):
 
 			# Set destination
@@ -1089,7 +1091,7 @@ class Server:
 			#size = sum([entry[1] for entry in file_table])
 			for entry in file_table:
 				total_size += entry[1]
-				if not os.path.exists(os.path.join(SC4MP_LAUNCHPATH, "_Cache", entry[0])):
+				if not entry[0] in cache_files:
 					download_size += entry[1]
 
 			#size = sum([(0 if os.path.exists(os.path.join(SC4MP_LAUNCHPATH, "_Cache", entry[0])) else entry[1]) for entry in file_table])
