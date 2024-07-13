@@ -2023,7 +2023,7 @@ class ServerLoader(th.Thread):
 									sc4mp_ui.deiconify()
 								return
 							elif choice is True:
-								exit_code = ctypes.windll.shell32.ShellExecuteW(None, "runas", f"{get_sc4mp_path('4gb_patch.exe').absolute()}", f"\"{sc4_exe_path}\"", None, 1)
+								exit_code = ctypes.windll.shell32.ShellExecuteW(None, "runas", f"{get_sc4mp_path('4gb-patch.exe').absolute()}", f"\"{sc4_exe_path}\"", None, 1)
 								if exit_code not in [0, 42]:
 									raise ClientException(f"Patcher exited with code {exit_code}.")
 					except Exception as e:
@@ -2201,7 +2201,7 @@ class ServerLoader(th.Thread):
 			purge_directory(default_plugins_destination)
 
 			# Load default plugins
-			for default_plugin_filename in []:
+			for default_plugin_filename in ["sc4-fix.dll", "sc4-fix-license.txt"]:
 				try:
 					shutil.copy(default_plugins_source / default_plugin_filename, default_plugins_destination)
 				except Exception as e:

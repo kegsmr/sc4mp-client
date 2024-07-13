@@ -21,4 +21,4 @@ version.rc
 *.pdn
 *.cfg
 
-!resources/4gb_patch.exe
+!resources/4gb-patch.exe
