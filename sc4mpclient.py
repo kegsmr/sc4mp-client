@@ -1647,9 +1647,9 @@ class ServerList(th.Thread):
 		search_fields = [server.server_name, server.server_description, server.server_url]
 		if len(search_terms) > 0:
 			for search_field in search_fields:
-				search_field.lower()
+				search_field = search_field.lower()
 				for search_term in search_terms:
-					search_term.lower()
+					search_term = search_term.lower()
 					if search_term in search_field and category in server.categories:
 						return False
 		elif category in server.categories:
