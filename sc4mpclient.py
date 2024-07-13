@@ -472,7 +472,7 @@ def create_subdirectories() -> None:
 		Path("_Temp") / "ServerList",
 		Path("Plugins"),
 		Path("Plugins") / "client",
-		Path("Plugins") / "default",
+		#Path("Plugins") / "default",
 		Path("Plugins") / "server",
 		Path("Regions")
 	] #"SC4MPBackups", os.path.join("_Cache","Plugins"), os.path.join("_Cache","Regions")]
@@ -574,6 +574,29 @@ def get_sc4_path() -> Optional[Path]:
 	return None
 
 
+def is_patched_sc4():
+	"""Broken"""
+	
+	if platform.system() == "Windows":
+
+		import win32api
+
+		sc4_exe_path = get_sc4_path()
+
+		file_version_info = win32api.GetFileVersionInfo(sc4_exe_path, '\\')
+		file_version_ls = file_version_info["FileVersionLS"]
+
+		if win32api.HIWORD(file_version_ls) == 641:
+			return True
+		else:
+			return False
+
+	else:
+
+		return None
+
+
+
 def start_sc4():
 	"""Attempts to find the install path of SimCity 4 and launches the game with custom launch parameters if found."""
 
@@ -663,14 +686,15 @@ def random_string(length):
 	return ''.join(random.SystemRandom().choice(string.ascii_letters + string.digits) for i in range(length))
 
 
-def purge_directory(directory: Path) -> None:
+def purge_directory(directory: Path, recursive=True) -> None:
 	"""Deletes all files and subdirectories of a directory"""
 	for path in directory.iterdir():
 		try:
 			if path.is_file():
 				path.unlink()
 			elif path.is_dir():
-				shutil.rmtree(path)
+				if recursive:
+					shutil.rmtree(path)
 		except PermissionError as e:
 			raise ClientException(f'Failed to delete "{path}" because the file is being used by another process.') #\n\n' + str(e)
 
@@ -2195,13 +2219,16 @@ class ServerLoader(th.Thread):
 
 			# Set source and destination for default plugins
 			default_plugins_source = Path("resources")
-			default_plugins_destination = Path(SC4MP_LAUNCHPATH) / "Plugins" / "default"
+			default_plugins_destination = Path(SC4MP_LAUNCHPATH) / "Plugins" #/ "default"
 
 			# Clear default plugins directory
-			purge_directory(default_plugins_destination)
+			try:
+				purge_directory(default_plugins_destination, recursive=False)
+			except:
+				raise ClientException("SimCity 4 is already running!")
 
 			# Load default plugins
-			for default_plugin_filename in ["sc4-fix.dll", "sc4-fix-license.txt"]:
+			for default_plugin_filename in ["sc4-fix.dll", "sc4-fix-license.txt", "sc4-dbpf-loading.dll", "sc4-dbpf-loading-license.txt", "sc4-dbpf-loading-third-party-notices.txt"]:
 				try:
 					shutil.copy(default_plugins_source / default_plugin_filename, default_plugins_destination)
 				except Exception as e:
