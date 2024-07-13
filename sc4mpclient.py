@@ -1986,8 +1986,16 @@ class ServerLoader(th.Thread):
 			set_thread_name("SldThread", enumerate=False)
 
 			if self.ui != None:
-				while get_sc4_path() == None:
-					show_warning('No SimCity 4 installation found. \n\nPlease provide the correct installation path.')
+				
+				# Prompt the SC4 intallation directory while not found
+				while get_sc4_path() is None:
+					if not messagebox.askokcancel(SC4MP_TITLE, 'No SimCity 4 installation found. \n\nPlease provide the correct installation path.'):
+						self.ui.destroy()
+						if sc4mp_exit_after:
+							sc4mp_ui.destroy()
+						else:
+							sc4mp_ui.deiconify()
+						return
 					path = filedialog.askdirectory(parent=self.ui)
 					if len(path) > 0:
 						sc4mp_config["SC4"]["game_path"] = path
@@ -1999,6 +2007,27 @@ class ServerLoader(th.Thread):
 						else:
 							sc4mp_ui.deiconify()
 						return
+					
+				# Prompt to apply the 4gb patch if not yet applied
+				if platform.system() == "Windows":
+					try:
+						import ctypes
+						sc4_exe_path = get_sc4_path()
+						if not os.path.exists(sc4_exe_path.parent / (sc4_exe_path.name + ".Backup")):
+							choice = messagebox.askyesnocancel(SC4MP_TITLE, "It appears the 4GB patch has not been applied to SimCity 4.\n\nLoading certain plugins may cause SimCity 4 to crash if the patch has not been applied.\n\nWould you like to apply the patch now?", icon="warning")
+							if choice is None:
+								self.ui.destroy()
+								if sc4mp_exit_after:
+									sc4mp_ui.destroy()
+								else:
+									sc4mp_ui.deiconify()
+								return
+							elif choice is True:
+								exit_code = ctypes.windll.shell32.ShellExecuteW(None, "runas", f"{get_sc4mp_path('4gb_patch.exe').absolute()}", f"\"{sc4_exe_path}\"", None, 1)
+								if exit_code != 42:
+									raise ClientException(f"Patcher exited with code {exit_code}.")
+					except Exception as e:
+						show_error(f"An error occurred while applying the 4GB patch.\n\n{e}")
 		
 			host = self.server.host
 			port = self.server.port
