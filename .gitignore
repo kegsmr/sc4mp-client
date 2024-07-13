@@ -20,3 +20,5 @@ version.rc
 *.log
 *.pdn
 *.cfg
+
+!resources/4gb_patch.exe
