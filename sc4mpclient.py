@@ -5417,7 +5417,10 @@ class GameOverlayUI(tk.Toplevel):
 
 
 	def click(self, event):
-		self.game_monitor_ui.focus_set()
+		try:
+			self.game_monitor_ui.focus_set()
+		except:
+			pass
 
 
 class RegionsRefresherUI(tk.Toplevel):
