@@ -2800,8 +2800,12 @@ class GameMonitor(th.Thread):
 
 			# Set initial status in ui
 			self.report_quietly("Welcome, start a city and save to claim a tile.") #Ready. #"Monitoring for changes...")
-			
-		
+				
+			# Show server description in UI
+			if sc4mp_ui and not SC4MP_LAUNCHERMAP_ENABLED:
+				self.ui.description_label["text"] = self.server.server_description
+				self.ui.url_label["text"] = self.server.server_url
+
 			# Infinite loop that can be broken by the "end" variable
 			while True:
 
@@ -2816,12 +2820,14 @@ class GameMonitor(th.Thread):
 						print(f"Ping: {ping}")
 						if self.ui != None:
 							self.ui.ping_frame.right['text'] = f"{ping}ms"
+							self.ui.ping_frame.right['fg'] = "gray"
 					
 					# If the server is unresponsive print a warning in the console and update the ui accordingly
 					else:
 						print("[WARNING] Disconnected.")
 						if self.ui != None:
-							self.ui.ping_frame.right['text'] = "Server unresponsive."
+							self.ui.ping_frame.right['text'] = "Disconnected"
+							self.ui.ping_frame.right['fg'] = "red"
 
 					#new_city_paths, new_city_hashcodes = self.get_cities()
 					
@@ -5253,8 +5259,8 @@ class GameMonitorUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry("400x400")
-		self.minsize(420, 80)
-		self.maxsize(420, 80)
+		self.minsize(420, 240)
+		self.maxsize(420, 240)
 		self.grid()
 
 		# Protocol
@@ -5262,28 +5268,44 @@ class GameMonitorUI(tk.Toplevel):
 
 		# Status frame
 		self.status_frame = tk.Frame(self)
-		self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+		self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=1, padx=0, pady=20, sticky="n")
 
 		# Status label left
-		self.status_frame.left = tk.Label(self.status_frame, text="Status:")
-		self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
+		#self.status_frame.left = tk.Label(self.status_frame, text="Status:")
+		#self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
 
 		# Status label right
 		self.status_frame.right = tk.Label(self.status_frame, text="")
-		self.status_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=10, sticky="w")
+		self.status_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="n")
 		self.label = self.status_frame.right
+
+		# Server info frame
+		self.server_info = tk.Frame(self, width=420, height=140, background="white")
+		self.server_info.grid(row=1, column=0, padx=0, pady=0, sticky="nw")
+		self.server_info.grid_propagate(0)
+
+		# Description label
+		self.description_label = ttk.Label(self.server_info, background="white")
+		self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=10, pady=(10,0), sticky="nw")
+		self.description_label['text'] = ""
+
+		# URL label
+		self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2", background="white")
+		self.url_label.grid(row=1, column=0, columnspan=1, padx=10, pady=5, sticky="nw")
+		self.url_label['text'] = ""
+		self.url_label.bind("<Button-1>", lambda e:webbrowser.open_new_tab(self.url_label["text"]))
 
 		# Ping frame
 		self.ping_frame = tk.Frame(self)
-		self.ping_frame.grid(column=0, row=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+		self.ping_frame.grid(column=0, row=2, rowspan=1, columnspan=1, padx=0, pady=10, sticky="w")
 
 		# Ping label left
-		self.ping_frame.left = tk.Label(self.ping_frame, text="Ping:")
-		self.ping_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
+		#self.ping_frame.left = tk.Label(self.ping_frame, text="Ping:")
+		#self.ping_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
 
 		# Ping label right
-		self.ping_frame.right = tk.Label(self.ping_frame, text="")
-		self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")		
+		self.ping_frame.right = tk.Label(self.ping_frame, text="", fg="gray")
+		self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")		
 
 
 	def delete_window(self):
