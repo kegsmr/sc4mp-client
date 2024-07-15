@@ -774,7 +774,10 @@ def fatal_error():
 		messagebox.showerror(SC4MP_TITLE, message)
 		startfile(SC4MP_LOG_PATH)
 
-	cleanup()
+	try:
+		cleanup()
+	except Exception as e:
+		show_error(e, no_ui=True)
 
 	sys.exit()
 
