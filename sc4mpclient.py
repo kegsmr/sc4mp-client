@@ -2072,7 +2072,7 @@ class ServerLoader(th.Thread):
 				self.report("", "Synchronizing regions...")
 				self.load("regions")
 
-				self.report("", "Prepping regions...")
+				self.report("", "Preparing regions...")
 				self.prep_regions()
 
 				self.report("", "Done.")
