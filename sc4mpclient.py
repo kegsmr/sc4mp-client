@@ -5017,7 +5017,7 @@ class ServerListUI(tk.Frame):
 
 		# Description label
 
-		self.description_label = ttk.Label(self.server_info)
+		self.description_label = ttk.Label(self.server_info, wraplength=self.server_info["width"])
 		self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="nw")
 		self.description_label['text'] = ""
 
@@ -5321,7 +5321,7 @@ class GameMonitorUI(tk.Toplevel):
 		self.server_info.grid_propagate(0)
 
 		# Description label
-		self.description_label = ttk.Label(self.server_info, background="white")
+		self.description_label = ttk.Label(self.server_info, background="white", wraplength=self.server_info["width"])
 		self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=10, pady=(10,0), sticky="nw")
 		self.description_label['text'] = ""
 
