@@ -1,6 +1,7 @@
 import socket
 import json
 import struct
+import time
 
 
 SC4MP_BUFFER_SIZE = 4096
@@ -31,8 +32,15 @@ def recv_json(s, length_encoding="I"):
 		buffer_size = min(SC4MP_BUFFER_SIZE, data_size - data_size_read)
 
 		new_data = s.recv(buffer_size)
-		data += new_data
-		
-		data_size_read += len(new_data)
+
+		if len(new_data) < 1:
+
+			time.sleep(.1)
+
+		else:
+
+			data += new_data
+			
+			data_size_read += len(new_data)
 
 	return json.loads(data.decode())
