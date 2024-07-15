@@ -3,7 +3,6 @@ from __future__ import annotations
 import configparser
 import hashlib
 import inspect
-import io
 import json
 import math
 import os
@@ -29,6 +28,7 @@ import urllib.request
 
 from core.config import *
 from core.dbpf import *
+from core.networking import *
 from core.util import *
 
 
@@ -71,6 +71,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("use_game_overlay", 1),
 		("use_launcher_map", True),
 		("allow_game_monitor_exit", False),
+		("show_actual_download", True),
 		("save_server_passwords", True),
 		("ignore_third_party_server_warnings", False),
 		("ignore_token_errors", False),
@@ -470,8 +471,9 @@ def create_subdirectories() -> None:
 		Path("_Temp"),
 		Path("_Temp") / "ServerList",
 		Path("Plugins"),
-		Path("Plugins") / "server",
 		Path("Plugins") / "client",
+		#Path("Plugins") / "default",
+		Path("Plugins") / "server",
 		Path("Regions")
 	] #"SC4MPBackups", os.path.join("_Cache","Plugins"), os.path.join("_Cache","Regions")]
 
@@ -488,6 +490,16 @@ def create_subdirectories() -> None:
 			new_directory.mkdir(exist_ok=True, parents=True)
 		except Exception as e:
 			raise ClientException("Failed to create SC4MP subdirectories.\n\n" + str(e))
+		
+	# Create notice files
+	with open(launchdir / "_Cache" / "___DELETE THESE FILES IF YOU WANT___", "w") as file:
+		file.write("These files are OK to delete if you want to save disk space. You can also delete them in the launcher in the storage settings.")
+	with open(launchdir / "_Temp" / "___DELETE THESE FILES IF YOU WANT___", "w") as file:
+		file.write("These files are OK to delete if you want to save disk space. Don't do it while the launcher is running though.")
+	with open(launchdir / "_Database" / "___DO NOT DELETE OR SHARE THESE FILES___", "w") as file:
+		file.write("Deleting these files can cause you to lose access to your claims in servers you've joined. Only delete them if you know what you're doing.\n\nSharing these files with someone else will let that person access all your claims and mess with your cities. Don't do it!")
+	with open(launchdir / "_Salvage" / "___DO NOT DELETE THESE FILES___", "w") as file:
+		file.write("Deleting these files will make you unable to restore the salvaged savegames stored here. If you don't care about that, then go ahead and delete them.")
 
 
 def load_database():
@@ -560,6 +572,29 @@ def get_sc4_path() -> Optional[Path]:
 
 	# Return `None` if none of the paths exist
 	return None
+
+
+def is_patched_sc4():
+	"""Broken"""
+	
+	if platform.system() == "Windows":
+
+		import win32api
+
+		sc4_exe_path = get_sc4_path()
+
+		file_version_info = win32api.GetFileVersionInfo(sc4_exe_path, '\\')
+		file_version_ls = file_version_info["FileVersionLS"]
+
+		if win32api.HIWORD(file_version_ls) == 641:
+			return True
+		else:
+			return False
+
+	else:
+
+		return None
+
 
 
 def start_sc4():
@@ -651,14 +686,15 @@ def random_string(length):
 	return ''.join(random.SystemRandom().choice(string.ascii_letters + string.digits) for i in range(length))
 
 
-def purge_directory(directory: Path) -> None:
+def purge_directory(directory: Path, recursive=True) -> None:
 	"""Deletes all files and subdirectories of a directory"""
 	for path in directory.iterdir():
 		try:
 			if path.is_file():
 				path.unlink()
 			elif path.is_dir():
-				shutil.rmtree(path)
+				if recursive:
+					shutil.rmtree(path)
 		except PermissionError as e:
 			raise ClientException(f'Failed to delete "{path}" because the file is being used by another process.') #\n\n' + str(e)
 
@@ -676,21 +712,6 @@ def directory_size(directory: Path) -> int:
 				size += directory_size(item.path)
 
 	return size
-
-
-def event_generate(ui, event, when):
-	"""Deprecated."""
-	if ui != None:
-		ui.event_generate(event, when=when)
-
-
-'''def create_empty_json(filename):
-	"""Deprecated."""
-	with open(filename, 'w') as file:
-		data = dict()
-		file.seek(0)
-		json.dump(data, file, indent=4)
-		file.truncate()'''
 
 
 def load_json(filename):
@@ -840,17 +861,6 @@ def request_header(s, server):
 	s.sendall(server.user_id.encode())
 
 
-def format_version(version: tuple[int, int, int]) -> str:
-	"""Converts a version number from a tuple to a string."""
-	major, minor, patch = version
-	return f'{major}.{minor}.{patch}'
-
-
-def unformat_version(version: str) -> tuple[int, int, int]:
-	"""Converts a version number from a string to a tuple."""
-	return tuple([int(v) for v in version.split('.')])
-
-
 def set_server_data(entry, server):
 	"""Updates the json entry for a given server with the appropriate values."""
 	entry["host"] = server.host
@@ -920,6 +930,13 @@ def format_filesize(size):
 		return str(int(size)) + "B"
 
 
+def format_download_size(size):
+	if size == 0:
+		return "(none)"
+	else:
+		return format_filesize(size)
+
+
 def get_bitmap_dimensions(filename):
 	"""TODO"""
 
@@ -939,45 +956,6 @@ def arp():
 		return [line for line in re.findall('([-.0-9]+)\s+([-0-9a-f]{17})\s+(\w+)', output)]
 	else: #TODO make this work on other platforms besides Windows
 		return []
-
-
-def send_json(s, data):
-	"""TODO"""
-	s.sendall(json.dumps(data).encode())
-
-
-def recv_json(s):
-	"""TODO"""
-	data = ""
-	while True:
-		new_data = s.recv(SC4MP_BUFFER_SIZE).decode()
-		if len(new_data) > 0:
-			data += new_data
-			try:
-				return json.loads(data)
-			except json.decoder.JSONDecodeError:
-				pass
-		time.sleep(SC4MP_DELAY)
-			
-
-def set_thread_name(name, enumerate=True):
-
-	if enumerate:
-
-		thread_names = [thread.name for thread in th.enumerate()]
-
-		count = 1
-		while (True):
-			thread_name = f"{name}-{count}"
-			if not thread_name in thread_names:
-				th.current_thread().name = thread_name
-				return thread_name
-			count += 1
-
-	else:
-
-		th.current_thread().name = name
-		return name
 
 
 # Objects
@@ -1011,7 +989,8 @@ class Server:
 		server_info = self.request("info")
 		if server_info is not None:
 			try:
-				server_info = json.loads(server_info)
+				server_info = json.loads("{"+ "{".join(server_info.split("{")[1:]))	#TODO fix this mess
+				#print(server_info)
 			except:
 				raise ClientException("Unable to fetch server info.")
 		else:
@@ -1043,65 +1022,62 @@ class Server:
 	def fetch_stats(self):
 		"""TODO"""
 
-		download = self.fetch_temp()
+		if not sc4mp_config["DEBUG"]["random_server_stats"]:
 
-		regions_path: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server_id / "Regions"
+			download = self.fetch_temp()
 
-		server_time = self.time()
+			regions_path: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server_id / "Regions"
 
-		mayors = []
-		mayors_online = []
-		claimed_area = 0
-		total_area = 0
-		for region in os.listdir(regions_path):
+			server_time = self.time()
+
+			mayors = []
+			mayors_online = []
+			claimed_area = 0
+			total_area = 0
+			for region in os.listdir(regions_path):
+				try:
+					region_path = regions_path / region
+					region_config_path = region_path / "config.bmp"
+					region_dimensions = get_bitmap_dimensions(region_config_path)
+					region_database_path = region_path / "_Database" / "region.json"
+					region_database = load_json(region_database_path)
+					for coords in region_database.keys():
+						city_entry = region_database[coords]
+						if city_entry != None:
+							owner = city_entry["owner"]
+							if owner != None:
+								claimed_area += city_entry["size"] ** 2
+								if owner not in mayors:
+									mayors.append(owner)
+								modified = city_entry["modified"]
+								if modified != None:
+									modified = datetime.strptime(modified, "%Y-%m-%d %H:%M:%S")
+									if modified > server_time - timedelta(minutes=sc4mp_config["GENERAL"]["stat_mayors_online_cutoff"]) and owner not in mayors_online:
+										mayors_online.append(owner)
+					total_area += region_dimensions[0] * region_dimensions[1]
+				except Exception as e:
+					show_error(f"An error occurred while calculating region statistics for \"{region}\".", no_ui=True)
+
+			self.stat_mayors = len(mayors) #(random.randint(0,1000))
+			
+			self.stat_mayors_online = len(mayors_online) #int(self.stat_mayors * (float(random.randint(0, 100)) / 100))
+			
 			try:
-				region_path = regions_path / region
-				region_config_path = region_path / "config.bmp"
-				region_dimensions = get_bitmap_dimensions(region_config_path)
-				region_database_path = region_path / "_Database" / "region.json"
-				region_database = load_json(region_database_path)
-				for coords in region_database.keys():
-					city_entry = region_database[coords]
-					if city_entry != None:
-						owner = city_entry["owner"]
-						if owner != None:
-							claimed_area += city_entry["size"] ** 2
-							if owner not in mayors:
-								mayors.append(owner)
-							modified = city_entry["modified"]
-							if modified != None:
-								modified = datetime.strptime(modified, "%Y-%m-%d %H:%M:%S")
-								if modified > server_time - timedelta(minutes=sc4mp_config["GENERAL"]["stat_mayors_online_cutoff"]) and owner not in mayors_online:
-									mayors_online.append(owner)
-				total_area += region_dimensions[0] * region_dimensions[1]
-			except Exception as e:
-				show_error(f"An error occurred while calculating region statistics for \"{region}\".", no_ui=True)
+				self.stat_claimed = (float(claimed_area) / float(total_area)) #(float(random.randint(0, 100)) / 100)
+			except ZeroDivisionError:
+				self.stat_claimed = 1
 
-		self.stat_mayors = len(mayors) #(random.randint(0,1000))
-		
-		self.stat_mayors_online = len(mayors_online) #int(self.stat_mayors * (float(random.randint(0, 100)) / 100))
-		
-		try:
-			self.stat_claimed = (float(claimed_area) / float(total_area)) #(float(random.randint(0, 100)) / 100)
-		except ZeroDivisionError:
-			self.stat_claimed = 1
-
-		self.stat_download = download #(random.randint(0, 10 ** 11))
+			self.stat_download, self.stat_actual_download = download #(random.randint(0, 10 ** 11))
 
 		ping = self.ping()
 		if ping != None:
 			self.stat_ping = ping
 
-		if (sc4mp_config["DEBUG"]["random_server_stats"]):
-			self.stat_mayors = random.randint(0,1000)
-			self.stat_mayors_online = int(self.stat_mayors * (float(random.randint(0, 100)) / 100))
-			self.stat_claimed = float(random.randint(0, 100)) / 100
-			self.stat_download = random.randint(0, 10 ** 11)
-
 		sc4mp_servers_database[self.server_id]["stat_mayors"] = self.stat_mayors
 		sc4mp_servers_database[self.server_id]["stat_mayors_online"] = self.stat_mayors_online
 		sc4mp_servers_database[self.server_id]["stat_claimed"] = self.stat_claimed
 		sc4mp_servers_database[self.server_id]["stat_download"] = self.stat_download
+		sc4mp_servers_database[self.server_id]["stat_actual_download"] = self.stat_actual_download
 		sc4mp_servers_database[self.server_id]["stat_ping"] = self.stat_ping
 
 
@@ -1112,6 +1088,9 @@ class Server:
 		DIRECTORIES = ["Plugins", "Regions"]
 
 		total_size = 0
+		download_size = 0
+
+		cache_files = os.listdir(os.path.join(SC4MP_LAUNCHPATH, "_Cache"))
 
 		for request, directory in zip(REQUESTS, DIRECTORIES):
 
@@ -1132,8 +1111,14 @@ class Server:
 			# Receive file table
 			file_table = recv_json(s)
 
-			# Get total download size
-			size = sum([entry[1] for entry in file_table])
+			# Get total and download size
+			#size = sum([entry[1] for entry in file_table])
+			for entry in file_table:
+				total_size += entry[1]
+				if not entry[0] in cache_files:
+					download_size += entry[1]
+
+			#size = sum([(0 if os.path.exists(os.path.join(SC4MP_LAUNCHPATH, "_Cache", entry[0])) else entry[1]) for entry in file_table])
 
 			# Prune file table as necessary
 			ft = []
@@ -1174,7 +1159,7 @@ class Server:
 						dest.write(bytes_read)
 						filesize_read += len(bytes_read)
 
-			total_size += size
+			#total_size += size
 
 			# Request the type of data
 			#if not self.private:
@@ -1196,7 +1181,7 @@ class Server:
 			#	s.sendall(SC4MP_SEPARATOR)
 			#	size_downloaded += self.receive_or_cached(s, destination)
 
-		return total_size
+		return (total_size, download_size)
 
 
 	"""def receive_or_cached(self, s:socket.socket, rootpath: Path) -> int:
@@ -1421,7 +1406,7 @@ class ServerList(th.Thread):
 		self.stat_mayors = dict()
 		self.stat_mayors_online = dict()
 		self.stat_claimed = dict()
-		self.stat_download = dict()
+		self.stat_actual_download = dict()
 		self.stat_ping = dict()
 
 		self.blank_icon = tk.PhotoImage(file=get_sc4mp_path("blank-icon.png"))
@@ -1516,12 +1501,17 @@ class ServerList(th.Thread):
 							update_server = self.servers[server_id]
 							self.stat_mayors[server_id] = update_server.stat_mayors
 							self.stat_mayors_online[server_id] = update_server.stat_mayors_online
-							self.stat_download[server_id] = update_server.stat_download
+							self.stat_actual_download[server_id] = update_server.stat_actual_download
 							self.stat_claimed[server_id] = update_server.stat_claimed
 							self.stat_ping[server_id] = update_server.stat_ping
 							self.calculate_rating(update_server)
-						except:
-							pass
+						except: #Exception as e:
+							#show_error(e)
+							try:
+								self.stat_ping[server_id] = update_server.stat_ping
+								self.calculate_rating(update_server)
+							except:
+								pass
 
 					# Add missing rows to the tree
 					server_ids = self.servers.keys()
@@ -1538,6 +1528,11 @@ class ServerList(th.Thread):
 							else:
 								image = self.blank_icon
 							self.ui.tree.insert("", self.in_order_index(server), server_id, text=server.server_name, values=self.format_server(server), image=image)
+							#x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
+							#canvas = tk.Canvas(width=w, height=h, borderwidth=0)
+							#canvas.image = tk.PhotoImage(file=get_sc4mp_path("rating-template.png"))
+							#canvas.create_image(0, 0, anchor="nw", image=canvas.image)
+							#canvas.place(x=15+x, y=155+y)							
 
 					# Filter the tree
 					filter = self.ui.combo_box.get()
@@ -1733,7 +1728,7 @@ class ServerList(th.Thread):
 			elif sort_mode == "Claimed":
 				return server.stat_claimed
 			elif sort_mode == "Download":
-				return server.stat_download
+				return server.stat_actual_download if sc4mp_config["GENERAL"]["show_actual_download"] else server.stat_download
 			elif sort_mode == "Ping":
 				return server.stat_ping
 			else:
@@ -1747,33 +1742,40 @@ class ServerList(th.Thread):
 		functions = [
 			lambda: str(server.stat_mayors) + " (" + str(server.stat_mayors_online) + ")" if server.stat_mayors_online > 0 else str(server.stat_mayors),
 	    	lambda: str(int(server.stat_claimed * 100)) + "%",
-		    lambda: format_filesize(server.stat_download),
+		    lambda: format_download_size(server.stat_actual_download) if sc4mp_config["GENERAL"]["show_actual_download"] else format_filesize(server.stat_download),
 		    lambda: str(server.stat_ping) + "ms",
-		    lambda: str(round(server.rating, 1)), # + " ⭐️",
+		    lambda: str(round(server.rating, 1)) # + " ⭐️",
 		]
 		cells = []
 		for function in functions:
 			try:
 				cells.append(function())
-			except:
+			except: #Exception as e:
+				#show_error(e)
 				cells.append("...")
 		return cells
 
 	
 	def calculate_rating(self, server):
-		"""TODO"""
+		
 		try:
-			categories = [
-				.5 * (self.max_category(server.stat_mayors, self.stat_mayors.values())) * (self.max_category(server.stat_mayors_online, self.stat_mayors_online.values()) + 1),
-				self.min_category(server.stat_claimed, self.stat_claimed.values()),
-				self.min_category(server.stat_download, self.stat_download.values()),
-				self.min_category(server.stat_ping, self.stat_ping.values()),
-			]
-			rating = 1 + sum(categories)
+
+			try:
+				categories = [
+					.5 * (self.max_category(server.stat_mayors, self.stat_mayors.values())) * (self.max_category(server.stat_mayors_online, self.stat_mayors_online.values()) + 1),
+					self.min_category(server.stat_claimed, self.stat_claimed.values()),
+					self.min_category(server.stat_actual_download, self.stat_actual_download.values()),
+					self.min_category(server.stat_ping, self.stat_ping.values()),
+				]
+				rating = 1 + sum(categories)
+			except:
+				rating = 1 + self.min_category(server.stat_ping, self.stat_ping.values())
+			
 			try:
 				server.rating = ((99 * server.rating) + rating) / 100
 			except:
 				server.rating = rating
+
 		except:
 			pass
 	
@@ -1833,20 +1835,32 @@ class ServerFetcher(th.Thread):
 
 				print("- populating server statistics")
 
-				if not self.server.private:
-					try:
-						self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
-						self.server.stat_mayors = sc4mp_servers_database[self.server.server_id]["stat_mayors"]
-						self.server.stat_mayors_online = sc4mp_servers_database[self.server.server_id]["stat_mayors_online"]
-						self.server.stat_claimed = sc4mp_servers_database[self.server.server_id]["stat_claimed"]
-						self.server.stat_download = sc4mp_servers_database[self.server.server_id]["stat_download"]
-					except:
-						pass
+				if sc4mp_config["DEBUG"]["random_server_stats"]:
+
+					self.server.stat_mayors = random.randint(0,1000)
+					self.server.stat_mayors_online = int(self.server.stat_mayors * (float(random.randint(0, 100)) / 100))
+					self.server.stat_claimed = float(random.randint(0, 100)) / 100
+					self.server.stat_download = random.randint(0, 10 ** 11)
+					self.server.stat_actual_download = int(self.server.stat_download * (float(random.randint(0, 100)) / 100))
+					self.server.stat_ping = random.randint(0, 300)
+
 				else:
-					try:
-						self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
-					except:
-						pass
+
+					if not self.server.private:
+						try:
+							self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
+							self.server.stat_mayors = sc4mp_servers_database[self.server.server_id]["stat_mayors"]
+							self.server.stat_mayors_online = sc4mp_servers_database[self.server.server_id]["stat_mayors_online"]
+							self.server.stat_claimed = sc4mp_servers_database[self.server.server_id]["stat_claimed"]
+							self.server.stat_download = sc4mp_servers_database[self.server.server_id]["stat_download"]
+							self.server.stat_actual_download = sc4mp_servers_database[self.server.server_id]["stat_actual_download"]
+						except:
+							pass
+					else:
+						try:
+							self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
+						except:
+							pass
 
 				print("- adding server to server list...")
 
@@ -1996,8 +2010,16 @@ class ServerLoader(th.Thread):
 			set_thread_name("SldThread", enumerate=False)
 
 			if self.ui != None:
-				while get_sc4_path() == None:
-					show_warning('No SimCity 4 installation found. \n\nPlease provide the correct installation path.')
+				
+				# Prompt the SC4 intallation directory while not found
+				while get_sc4_path() is None:
+					if not messagebox.askokcancel(SC4MP_TITLE, 'No SimCity 4 installation found. \n\nPlease provide the correct installation path.'):
+						self.ui.destroy()
+						if sc4mp_exit_after:
+							sc4mp_ui.destroy()
+						else:
+							sc4mp_ui.deiconify()
+						return
 					path = filedialog.askdirectory(parent=self.ui)
 					if len(path) > 0:
 						sc4mp_config["SC4"]["game_path"] = path
@@ -2009,6 +2031,27 @@ class ServerLoader(th.Thread):
 						else:
 							sc4mp_ui.deiconify()
 						return
+					
+				# Prompt to apply the 4gb patch if not yet applied
+				if platform.system() == "Windows":
+					try:
+						import ctypes
+						sc4_exe_path = get_sc4_path()
+						if not os.path.exists(sc4_exe_path.parent / (sc4_exe_path.name + ".Backup")):
+							choice = messagebox.askyesnocancel(SC4MP_TITLE, "It appears the 4GB patch has not been applied to SimCity 4.\n\nLoading certain plugins may cause SimCity 4 to crash if the patch has not been applied.\n\nWould you like to apply the patch now?", icon="warning")
+							if choice is None:
+								self.ui.destroy()
+								if sc4mp_exit_after:
+									sc4mp_ui.destroy()
+								else:
+									sc4mp_ui.deiconify()
+								return
+							elif choice is True:
+								exit_code = ctypes.windll.shell32.ShellExecuteW(None, "runas", f"{get_sc4mp_path('4gb-patch.exe').absolute()}", f"\"{sc4_exe_path}\"", None, 1)
+								if exit_code not in [0, 42]:
+									raise ClientException(f"Patcher exited with code {exit_code}.")
+					except Exception as e:
+						show_error(f"An error occurred while applying the 4GB patch.\n\n{e}")
 		
 			host = self.server.host
 			port = self.server.port
@@ -2026,10 +2069,13 @@ class ServerLoader(th.Thread):
 				self.report("", "Synchronizing plugins...")
 				self.load("plugins")
 
+				self.report("", "Preparing plugins...")
+				self.prep_plugins()
+
 				self.report("", "Synchronizing regions...")
 				self.load("regions")
 
-				self.report("", "Prepping regions...")
+				self.report("", "Preparing regions...")
 				self.prep_regions()
 
 				self.report("", "Done.")
@@ -2169,10 +2215,13 @@ class ServerLoader(th.Thread):
 		if not destination.exists():
 			destination.mkdir(parents=True, exist_ok=True)
 
-		# Synchronize or clear custom plugins (the code is organized like hell here, but it works)
+		# Load or clear custom plugins (the code is organized like hell here, but it works)
 		if target == "plugins":
 
-			# Set source and destination
+			# For keeping track of DLL plugins
+			self.dll_plugin_paths = []
+
+			# Set source and destination for custom plugins
 			client_plugins_source = Path(sc4mp_config["GENERAL"]["custom_plugins_path"])
 			client_plugins_destination = Path(SC4MP_LAUNCHPATH) / "Plugins" / "client"
 
@@ -2220,6 +2269,10 @@ class ServerLoader(th.Thread):
 					src = client_plugins_source / relpath
 					dest = client_plugins_destination / relpath
 
+					# For DLL plugins
+					if relpath.suffix == ".dll":
+						self.dll_plugin_paths.append((dest, "client"))
+
 					# More progress bar stuff
 					destination_size += src.stat().st_size
 
@@ -2237,7 +2290,6 @@ class ServerLoader(th.Thread):
 							dest.unlink()
 
 					# Make the destination directory if necessary, then try to make a symbolic link (fast), and if the required priveleges are not held, copy the file (slower)
-					
 					dest.parent.mkdir(parents=True, exist_ok=True)
 					try:
 						os.symlink(src, dest)
@@ -2313,6 +2365,10 @@ class ServerLoader(th.Thread):
 							raise ClientException("Connection cancelled.")
 				else:
 					print(f"[WARNING] Downloading risky file: \"{relpath.name}\"")
+
+			# For DLL plugins
+			if relpath.suffix == ".dll":
+				self.dll_plugin_paths.append((Path(destination) / relpath, "server"))
 
 			# Get path of cached file
 			t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
@@ -2431,7 +2487,7 @@ class ServerLoader(th.Thread):
 						try:
 							now = time.time()
 							eta = int((total_size_to_download - total_size_already_downloaded) / (total_size_already_downloaded / float(now - download_start_time)))
-							if (old_eta is None or (old_eta > eta or int(now - old_eta_display_time) > 5)) and float(now - old_eta_display_time) >= .8:
+							if (eta < 86400) and (old_eta is None or (old_eta > eta or int(now - old_eta_display_time) > 5)) and float(now - old_eta_display_time) >= .8:
 								old_eta = eta
 								old_eta_display_time = now
 								hours = math.floor(eta / 3600)
@@ -2654,6 +2710,48 @@ class ServerLoader(th.Thread):
 				self.report_progress(f'Downloading "{filename}" ({filesize_read} / {filesize} bytes)...', int(filesize_read), int(filesize)) #os.path.basename(os.path.normpath(filename))
 
 
+	def prep_plugins(self):
+
+		# Get checksums of plugins installed to the top-level of the program files plugins folder (to avoid dobule-loading DLLs)
+		toplevel_plugins_checksums = []
+		try:
+			installation_plugins_path = get_sc4_path().parent.parent / "Plugins"
+			for file_name in os.listdir(installation_plugins_path):
+				file_path = installation_plugins_path / file_name
+				if file_path.is_file():
+					toplevel_plugins_checksums.append(md5(file_path))
+		except Exception as e: 
+			show_error(e, no_ui=True)
+
+		# Set source and destination for default plugins
+		default_plugins_source = Path("resources")
+		default_plugins_destination = Path(SC4MP_LAUNCHPATH) / "Plugins" #/ "default"
+
+		# Clear default plugins directory
+		try:
+			purge_directory(default_plugins_destination, recursive=False)
+		except:
+			raise ClientException("SimCity 4 is already running!")
+
+		# Load default plugins
+		for default_plugin_file_name in ["sc4-fix.dll", "sc4-fix-license.txt"]: #, "sc4-dbpf-loading.dll", "sc4-dbpf-loading-license.txt", "sc4-dbpf-loading-third-party-notices.txt"]:
+			try:
+				default_plugin_file_path = default_plugins_source / default_plugin_file_name
+				default_plugin_checksum = md5(default_plugin_file_path)
+				if not default_plugin_checksum in toplevel_plugins_checksums:
+					shutil.copy(default_plugin_file_path, default_plugins_destination / f"default-{default_plugin_file_name}")
+					toplevel_plugins_checksums.append(default_plugin_checksum)
+			except Exception as e:
+				show_error(f"Failed to load default plugin \"{default_plugin_file_name}\".\n\n{e}", no_ui=True)
+
+		# Copy DLLs from subfolders (DLL plugins do not load in subfolders)
+		for path, basename in self.dll_plugin_paths:
+			checksum = md5(path)
+			if not checksum in toplevel_plugins_checksums:
+				shutil.copy(path, default_plugins_destination / f"{basename}-{checksum}.dll")
+				toplevel_plugins_checksums.append(checksum)
+
+
 	def prep_regions(self):
 		"""TODO"""
 
@@ -2670,8 +2768,8 @@ class ServerLoader(th.Thread):
 				config_path = region_dir / child / "region.ini"
 				prep_region_config(config_path)
 
-		# Copy the latest failed save push into the region downloads subdirectory
-		downloads_path = region_dir / "downloads"
+		# Copy the latest failed save push into the region `Downloads` subdirectory
+		downloads_path = region_dir / "Downloads"
 		downloads_path.mkdir(exist_ok=True, parents=True)
 
 		try:
@@ -2684,8 +2782,8 @@ class ServerLoader(th.Thread):
 			pass
 			#show_error(e, no_ui=True)
 
-		# Create the refresh auxiliary region
-		refresh_path = region_dir / "ZZZRefreshAuxiliary" #TODO possible name conflict!
+		# Create the refresh region
+		refresh_path = region_dir / "_Refresh" #TODO possible name conflict!
 		refresh_path.mkdir(parents=True)
 		shutil.copy(get_sc4mp_path("refresh-config.bmp"), refresh_path / "config.bmp")
 		shutil.copy(get_sc4mp_path("refresh-region.ini"), refresh_path / "region.ini")
@@ -2738,8 +2836,12 @@ class GameMonitor(th.Thread):
 
 			# Set initial status in ui
 			self.report_quietly("Welcome, start a city and save to claim a tile.") #Ready. #"Monitoring for changes...")
-			
-		
+				
+			# Show server description in UI
+			if sc4mp_ui and not SC4MP_LAUNCHERMAP_ENABLED:
+				self.ui.description_label["text"] = self.server.server_description
+				self.ui.url_label["text"] = self.server.server_url
+
 			# Infinite loop that can be broken by the "end" variable
 			while True:
 
@@ -2754,12 +2856,14 @@ class GameMonitor(th.Thread):
 						print(f"Ping: {ping}")
 						if self.ui != None:
 							self.ui.ping_frame.right['text'] = f"{ping}ms"
+							self.ui.ping_frame.right['fg'] = "gray"
 					
 					# If the server is unresponsive print a warning in the console and update the ui accordingly
 					else:
 						print("[WARNING] Disconnected.")
 						if self.ui != None:
-							self.ui.ping_frame.right['text'] = "Server unresponsive."
+							self.ui.ping_frame.right['text'] = "Disconnected"
+							self.ui.ping_frame.right['fg'] = "red"
 
 					#new_city_paths, new_city_hashcodes = self.get_cities()
 					
@@ -5191,8 +5295,8 @@ class GameMonitorUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry("400x400")
-		self.minsize(420, 80)
-		self.maxsize(420, 80)
+		self.minsize(420, 240)
+		self.maxsize(420, 240)
 		self.grid()
 
 		# Protocol
@@ -5200,28 +5304,44 @@ class GameMonitorUI(tk.Toplevel):
 
 		# Status frame
 		self.status_frame = tk.Frame(self)
-		self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+		self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=1, padx=0, pady=20, sticky="n")
 
 		# Status label left
-		self.status_frame.left = tk.Label(self.status_frame, text="Status:")
-		self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
+		#self.status_frame.left = tk.Label(self.status_frame, text="Status:")
+		#self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
 
 		# Status label right
 		self.status_frame.right = tk.Label(self.status_frame, text="")
-		self.status_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=10, sticky="w")
+		self.status_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="n")
 		self.label = self.status_frame.right
+
+		# Server info frame
+		self.server_info = tk.Frame(self, width=420, height=140, background="white")
+		self.server_info.grid(row=1, column=0, padx=0, pady=0, sticky="nw")
+		self.server_info.grid_propagate(0)
+
+		# Description label
+		self.description_label = ttk.Label(self.server_info, background="white")
+		self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=10, pady=(10,0), sticky="nw")
+		self.description_label['text'] = ""
+
+		# URL label
+		self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2", background="white")
+		self.url_label.grid(row=1, column=0, columnspan=1, padx=10, pady=5, sticky="nw")
+		self.url_label['text'] = ""
+		self.url_label.bind("<Button-1>", lambda e:webbrowser.open_new_tab(self.url_label["text"]))
 
 		# Ping frame
 		self.ping_frame = tk.Frame(self)
-		self.ping_frame.grid(column=0, row=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+		self.ping_frame.grid(column=0, row=2, rowspan=1, columnspan=1, padx=0, pady=10, sticky="w")
 
 		# Ping label left
-		self.ping_frame.left = tk.Label(self.ping_frame, text="Ping:")
-		self.ping_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
+		#self.ping_frame.left = tk.Label(self.ping_frame, text="Ping:")
+		#self.ping_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
 
 		# Ping label right
-		self.ping_frame.right = tk.Label(self.ping_frame, text="")
-		self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")		
+		self.ping_frame.right = tk.Label(self.ping_frame, text="", fg="gray")
+		self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")		
 
 
 	def delete_window(self):
