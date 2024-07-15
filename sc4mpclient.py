@@ -2069,6 +2069,9 @@ class ServerLoader(th.Thread):
 				self.report("", "Synchronizing plugins...")
 				self.load("plugins")
 
+				self.report("", "Preparing plugins...")
+				self.prep_plugins()
+
 				self.report("", "Synchronizing regions...")
 				self.load("regions")
 
@@ -2212,27 +2215,11 @@ class ServerLoader(th.Thread):
 		if not destination.exists():
 			destination.mkdir(parents=True, exist_ok=True)
 
-		# Load custom/local plugins (the code is organized like hell here, but it works)
+		# Load or clear custom plugins (the code is organized like hell here, but it works)
 		if target == "plugins":
 
-			self.report("", "Synchronizing default plugins...")
-
-			# Set source and destination for default plugins
-			default_plugins_source = Path("resources")
-			default_plugins_destination = Path(SC4MP_LAUNCHPATH) / "Plugins" #/ "default"
-
-			# Clear default plugins directory
-			try:
-				purge_directory(default_plugins_destination, recursive=False)
-			except:
-				raise ClientException("SimCity 4 is already running!")
-
-			# Load default plugins
-			for default_plugin_filename in ["sc4-fix.dll", "sc4-fix-license.txt"]: #, "sc4-dbpf-loading.dll", "sc4-dbpf-loading-license.txt", "sc4-dbpf-loading-third-party-notices.txt"]:
-				try:
-					shutil.copy(default_plugins_source / default_plugin_filename, default_plugins_destination)
-				except Exception as e:
-					show_error(f"Failed to load default plugin \"{default_plugin_filename}\".\n\n{e}", no_ui=True)
+			# For keeping track of DLL plugins
+			self.dll_plugin_paths = []
 
 			# Set source and destination for custom plugins
 			client_plugins_source = Path(sc4mp_config["GENERAL"]["custom_plugins_path"])
@@ -2282,6 +2269,10 @@ class ServerLoader(th.Thread):
 					src = client_plugins_source / relpath
 					dest = client_plugins_destination / relpath
 
+					# For DLL plugins
+					if relpath.suffix == ".dll":
+						self.dll_plugin_paths.append((dest, "client"))
+
 					# More progress bar stuff
 					destination_size += src.stat().st_size
 
@@ -2299,7 +2290,6 @@ class ServerLoader(th.Thread):
 							dest.unlink()
 
 					# Make the destination directory if necessary, then try to make a symbolic link (fast), and if the required priveleges are not held, copy the file (slower)
-					
 					dest.parent.mkdir(parents=True, exist_ok=True)
 					try:
 						os.symlink(src, dest)
@@ -2375,6 +2365,10 @@ class ServerLoader(th.Thread):
 							raise ClientException("Connection cancelled.")
 				else:
 					print(f"[WARNING] Downloading risky file: \"{relpath.name}\"")
+
+			# For DLL plugins
+			if relpath.suffix == ".dll":
+				self.dll_plugin_paths.append((Path(destination) / relpath, "server"))
 
 			# Get path of cached file
 			t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
@@ -2714,6 +2708,48 @@ class ServerLoader(th.Thread):
 				f.write(bytes_read)
 				filesize_read += len(bytes_read)
 				self.report_progress(f'Downloading "{filename}" ({filesize_read} / {filesize} bytes)...', int(filesize_read), int(filesize)) #os.path.basename(os.path.normpath(filename))
+
+
+	def prep_plugins(self):
+
+		# Get checksums of plugins installed to the top-level of the program files plugins folder (to avoid dobule-loading DLLs)
+		toplevel_plugins_checksums = []
+		try:
+			installation_plugins_path = get_sc4_path().parent.parent / "Plugins"
+			for file_name in os.listdir(installation_plugins_path):
+				file_path = installation_plugins_path / file_name
+				if file_path.is_file():
+					toplevel_plugins_checksums.append(md5(file_path))
+		except Exception as e: 
+			show_error(e, no_ui=True)
+
+		# Set source and destination for default plugins
+		default_plugins_source = Path("resources")
+		default_plugins_destination = Path(SC4MP_LAUNCHPATH) / "Plugins" #/ "default"
+
+		# Clear default plugins directory
+		try:
+			purge_directory(default_plugins_destination, recursive=False)
+		except:
+			raise ClientException("SimCity 4 is already running!")
+
+		# Load default plugins
+		for default_plugin_file_name in ["sc4-fix.dll", "sc4-fix-license.txt"] #, "sc4-dbpf-loading.dll", "sc4-dbpf-loading-license.txt", "sc4-dbpf-loading-third-party-notices.txt"]:
+			try:
+				default_plugin_file_path = default_plugins_source / default_plugin_file_name
+				default_plugin_checksum = md5(default_plugin_file_path)
+				if not default_plugin_checksum in toplevel_plugins_checksums:
+					shutil.copy(default_plugin_file_path, default_plugins_destination / f"default-{default_plugin_file_name}")
+					toplevel_plugins_checksums.append(default_plugin_checksum)
+			except Exception as e:
+				show_error(f"Failed to load default plugin \"{default_plugin_file_name}\".\n\n{e}", no_ui=True)
+
+		# Copy DLLs from subfolders (DLL plugins do not load in subfolders)
+		for path, basename in self.dll_plugin_paths:
+			checksum = md5(path)
+			if not checksum in toplevel_plugins_checksums:
+				shutil.copy(path, default_plugins_destination / f"{basename}-{checksum}.dll")
+				toplevel_plugins_checksums.append(checksum)
 
 
 	def prep_regions(self):
