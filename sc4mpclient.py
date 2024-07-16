@@ -1063,8 +1063,13 @@ class Server:
 						city_entry = region_database[coords]
 						if city_entry != None:
 							owner = city_entry["owner"]
+							locked = city_entry.get("locked", False)
+							area = city_entry["size"] ** 2
+							if locked:
+								total_area -= area
 							if owner != None:
-								claimed_area += city_entry["size"] ** 2
+								if not locked:
+									claimed_area += area
 								if owner not in mayors:
 									mayors.append(owner)
 								modified = city_entry["modified"]
