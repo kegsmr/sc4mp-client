@@ -1001,7 +1001,7 @@ class Server:
 			s.send(b"info")
 			server_info = recv_json(s)
 		except:
-			ClientException("Unable to find server. Check the IP address and port, then try again.")
+			raise ClientException("Unable to find server. Check the IP address and port, then try again.")
 
 		#server_info = self.request("info")
 		#if server_info is not None:
