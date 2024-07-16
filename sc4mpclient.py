@@ -994,15 +994,25 @@ class Server:
 		self.fetched = True
 
 		# Request server info
-		server_info = self.request("info")
-		if server_info is not None:
-			try:
-				server_info = json.loads("{"+ "{".join(server_info.split("{")[1:]))	#TODO fix this mess
-				#print(server_info)
-			except:
-				raise ClientException("Unable to fetch server info.")
-		else:
-			raise ClientException("Unable to find server. Check the IP address and port, then try again.")
+		try:
+			s = socket.socket()
+			s.settimeout(10)
+			s.connect((self.host, self.port))
+			s.send(b"info")
+			server_info = recv_json(s)
+		except:
+			ClientException("Unable to find server. Check the IP address and port, then try again.")
+
+		#server_info = self.request("info")
+		#if server_info is not None:
+		#	try:
+		#		server_info = json.loads("{"+ "{".join(server_info.split("{")[1:]))
+		#		#print(server_info)
+		#	except:
+		#		raise ClientException("Unable to fetch server info.")
+		#else:
+		#	raise ClientException("Unable to find server. Check the IP address and port, then try again.")
+		
 		self.server_id = server_info["server_id"] #self.request("server_id")
 		self.server_name = server_info["server_name"] #self.request("server_name")
 		self.server_description = server_info["server_description"] #self.request("server_description")
