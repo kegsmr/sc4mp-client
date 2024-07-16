@@ -961,6 +961,11 @@ def arp():
 		return []
 
 
+def format_url(url: str) -> str:
+	if not (url.startswith("http://") or url.startswith("https://")):
+		return f"http://{url}"
+
+
 # Objects
 
 class Server:
@@ -5031,7 +5036,7 @@ class ServerListUI(tk.Frame):
 		self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2")
 		self.url_label.grid(row=1, column=0, columnspan=1, padx=0, pady=5, sticky="nw")
 		self.url_label['text'] = ""
-		self.url_label.bind("<Button-1>", lambda e:webbrowser.open_new_tab(self.url_label["text"]))
+		self.url_label.bind("<Button-1>", lambda e:webbrowser.open_new_tab(format_url(self.url_label["text"])))
 
 
 		# Combo box
@@ -5333,7 +5338,7 @@ class GameMonitorUI(tk.Toplevel):
 		self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2", background="white")
 		self.url_label.grid(row=1, column=0, columnspan=1, padx=10, pady=5, sticky="nw")
 		self.url_label['text'] = ""
-		self.url_label.bind("<Button-1>", lambda e:webbrowser.open_new_tab(self.url_label["text"]))
+		self.url_label.bind("<Button-1>", lambda e:webbrowser.open_new_tab(format_url(self.url_label["text"])))
 
 		# Ping frame
 		self.ping_frame = tk.Frame(self, width=420, height=0)
