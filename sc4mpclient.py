@@ -964,6 +964,8 @@ def arp():
 def format_url(url: str) -> str:
 	if not (url.startswith("http://") or url.startswith("https://")):
 		return f"http://{url}"
+	else:
+		return url
 
 
 # Objects
