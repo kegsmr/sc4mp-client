@@ -2842,6 +2842,7 @@ class GameMonitor(th.Thread):
 				
 			# Show server description in UI
 			if sc4mp_ui and not SC4MP_LAUNCHERMAP_ENABLED:
+				self.ui.ping_frame.left["text"] = f"{self.server.host}:{self.server.port}"
 				self.ui.description_label["text"] = self.server.server_description
 				self.ui.url_label["text"] = self.server.server_url
 
@@ -5298,8 +5299,8 @@ class GameMonitorUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry("400x400")
-		self.minsize(420, 240)
-		self.maxsize(420, 240)
+		self.minsize(420, 280)
+		self.maxsize(420, 280)
 		self.grid()
 
 		# Protocol
@@ -5307,7 +5308,7 @@ class GameMonitorUI(tk.Toplevel):
 
 		# Status frame
 		self.status_frame = tk.Frame(self)
-		self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=1, padx=0, pady=20, sticky="n")
+		self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=2, padx=0, pady=20, sticky="n")
 
 		# Status label left
 		#self.status_frame.left = tk.Label(self.status_frame, text="Status:")
@@ -5319,12 +5320,12 @@ class GameMonitorUI(tk.Toplevel):
 		self.label = self.status_frame.right
 
 		# Server info frame
-		self.server_info = tk.Frame(self, width=420, height=140, background="white")
-		self.server_info.grid(row=1, column=0, padx=0, pady=0, sticky="nw")
+		self.server_info = tk.Frame(self, width=400, height=180, background="white", highlightbackground="gray", highlightthickness=1)
+		self.server_info.grid(row=1, column=0, columnspan=2, padx=10, pady=0, sticky="nw")
 		self.server_info.grid_propagate(0)
 
 		# Description label
-		self.description_label = ttk.Label(self.server_info, background="white", wraplength=self.server_info["width"])
+		self.description_label = ttk.Label(self.server_info, background="white", wraplength=(self.server_info["width"] - 20))
 		self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=10, pady=(10,0), sticky="nw")
 		self.description_label['text'] = ""
 
@@ -5335,16 +5336,17 @@ class GameMonitorUI(tk.Toplevel):
 		self.url_label.bind("<Button-1>", lambda e:webbrowser.open_new_tab(self.url_label["text"]))
 
 		# Ping frame
-		self.ping_frame = tk.Frame(self)
-		self.ping_frame.grid(column=0, row=2, rowspan=1, columnspan=1, padx=0, pady=10, sticky="w")
+		self.ping_frame = tk.Frame(self, width=420, height=0)
+		self.ping_frame.grid(column=0, row=2, rowspan=1, columnspan=2, padx=0, pady=4, sticky="ew")
+		self.ping_frame.grid_propagate(0)
 
 		# Ping label left
-		#self.ping_frame.left = tk.Label(self.ping_frame, text="Ping:")
-		#self.ping_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
+		self.ping_frame.left = tk.Label(self, text="", fg="gray")
+		self.ping_frame.left.grid(column=0, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
 
 		# Ping label right
-		self.ping_frame.right = tk.Label(self.ping_frame, text="", fg="gray")
-		self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")		
+		self.ping_frame.right = tk.Label(self, text="", fg="gray")
+		self.ping_frame.right.grid(column=1, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="e")		
 
 
 	def delete_window(self):
