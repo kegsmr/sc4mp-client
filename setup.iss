@@ -42,6 +42,12 @@ Source: "dist32\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs create
 Source: "Readme.html"; DestDir: "{app}"; Flags: isreadme
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
+[Registry]
+Root: HKA; Subkey: "Software\Classes\sc4mp"; ValueType: "string"; ValueData: "URL:SC4MP"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\sc4mp"; ValueType: "string"; ValueName: "URL Protocol"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\sc4mp\DefaultIcon"; ValueType: "string"; ValueData: "{app}\{#MyAppExeName},0"
+Root: HKA; Subkey: "Software\Classes\sc4mp\shell\open\command"; ValueType: "string"; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
 [Icons]
 Name: "{autoprograms}\{#MyAppPublisher}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
