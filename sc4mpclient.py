@@ -142,6 +142,13 @@ def main():
 			except:
 				pass
 
+		# Set working directory
+		exec_path = Path(sys.executable)
+		exec_file = exec_path.name
+		exec_dir = exec_path.parent
+		if exec_file == "sc4mpclient.exe":
+			os.chdir(exec_dir)
+
 		# Output
 		sys.stdout = Logger()
 		set_thread_name("Main", enumerate=False)
@@ -188,6 +195,13 @@ def main():
 				sc4mp_password = get_arg_value("--password", sc4mp_args)
 			except:
 				raise ClientException("Invalid arguments.")
+
+		# URL scheme
+		if len(sc4mp_args) > 1 and sc4mp_args[1].startswith("sc4mp://"):
+			url = sc4mp_args[1].split("/")[2]
+			sc4mp_host = ":".join(url.split(":")[:-1])
+			sc4mp_port = int(url.split(":")[-1])
+			sc4mp_exit_after = True
 
 		# Prep
 		prep()
