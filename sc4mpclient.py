@@ -935,7 +935,7 @@ def format_filesize(size):
 
 def format_download_size(size):
 	if size == 0:
-		return "none"
+		return "None"
 	else:
 		return format_filesize(size)
 
