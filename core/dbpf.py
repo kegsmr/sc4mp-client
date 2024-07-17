@@ -257,17 +257,46 @@ class DBPF:
 		return self.decompress(self.get_subfile_size(type_id))
 
 
+class SC4Config(DBPF):
+
+
+	def __init__(self, *args, **kwargs):
+
+		super().__init__(*args, **kwargs)
+
+	
+	def get_simcity_4_cfg(self):
+
+		data = self.decompress_subfile("a9dd6e06")
+
+		self.simcity_4_cfg = {}
+
+		data.seek(110)														# 0x06E
+		self.simcity_4_cfg["LastCityName"] = self.read_nullstring(data)
+
+		data.seek(622)														# 0x26E
+		self.simcity_4_cfg["LastMayorName"] = self.read_nullstring(data)
+
+		data.seek(3774)														# 0xEBE
+		self.simcity_4_cfg["LastRegionName"] = self.read_nullstring(data)
+
+		return self.simcity_4_cfg
+
+
+class SC4Savegame(DBPF):
+
+
+	def __init__(self, *args, **kwargs):
+
+		super().__init__(*args, **kwargs)
+
+	
 	def get_SC4ReadRegionalCity(self):
-		"""TODO"""
 
 		print(f'Parsing region view subfile of "{self.filename}"...')
 
 		# Decompress the subfile and get the data as a bytes stream
 		data = self.decompress_subfile("ca027edb")
-	
-		# For development
-		#print(data.read())
-		#data.seek(0)
 
 		# Dictionary to return
 		self.SC4ReadRegionalCity = {}
@@ -324,46 +353,6 @@ class DBPF:
 
 		return self.SC4ReadRegionalCity
 
-	
-	def get_cSC4Simulator(self):
-		"""TODO"""
-
-		# Decompress the subfile and get the data as a bytes stream
-		data = self.decompress_subfile("2990c1e5")
-
-		# For development
-		#print(data.read())
-		#data.seek(0)
-
-		# Dictionary to return
-		self.cSC4Simulator = {}
-
-		#TODO read subfile
-
-		return self.cSC4Simulator
-
-
-	def get_simcity_4_cfg(self):
-
-		data = self.decompress_subfile("a9dd6e06")
-
-		# For development
-		#print(data.read())
-		#data.seek(0)
-
-		self.simcity_4_cfg = {}
-
-		data.seek(110)														# 0x06E
-		self.simcity_4_cfg["LastCityName"] = self.read_nullstring(data)
-
-		data.seek(622)														# 0x26E
-		self.simcity_4_cfg["LastMayorName"] = self.read_nullstring(data)
-
-		data.seek(3774)														# 0xEBE
-		self.simcity_4_cfg["LastRegionName"] = self.read_nullstring(data)
-
-		return self.simcity_4_cfg
-
 
 if __name__ == "__main__":
 
@@ -374,22 +363,24 @@ if __name__ == "__main__":
 
 	filename = sys.argv[1]
 
-	dbpf = DBPF(filename, 0, error)
-
 	if filename.endswith(".sc4"):
 
-		print(dbpf.indexData)
+		savegame = SC4Savegame(filename, 0, error)
 
-		print(dbpf.indexOffset)
+		print(savegame.indexData)
+
+		print(savegame.indexOffset)
 
 		with open("SC4ReadRegionalCity.sc4", "wb") as file:
-			file.write(dbpf.decompress_subfile("ca027edb").read())
+			file.write(savegame.decompress_subfile("ca027edb").read())
 
-		print(dbpf.get_SC4ReadRegionalCity())
+		print(savegame.get_SC4ReadRegionalCity())
 
 	elif filename.endswith(".cfg"):
 
-		print(dbpf.get_simcity_4_cfg())
+		cfg = SC4Config(filename, 0, error)
+
+		print(cfg.get_simcity_4_cfg())
 
 		#print(f"{dbpf.majorVersion}.{dbpf.minorVersion}")
 
