@@ -876,18 +876,30 @@ def set_server_data(entry, server):
 
 
 def get_sc4_cfg_path() -> Path: #TODO can this find the cfg for the origin version?
-	"""TODO"""
+	"""Returns the path to the `SimCity 4.cfg` file"""
 	return Path(SC4MP_LAUNCHPATH) / "SimCity 4.cfg"
 
 
-def region_open(region):
-	"""TODO"""
-	cfg_path = get_sc4_cfg_path()
-	return b"\x00" + region.encode() + b"\x00" in DBPF(cfg_path, error_callback=show_error).decompress_subfile("a9dd6e06").read() #TODO maybe the surrounding zeroes are just from that decompression error?
+def get_sc4_cfg() -> dict:
+	"""Returns data parsed from the SimCity 4.cfg file"""
+	return SC4Config(get_sc4_cfg_path(), error_callback=show_error).get_simcity_4_cfg() 
 
 
-def refresh_region_open():
-	"""TODO"""
+def get_last_region_name() -> str:
+	"""Returns the last open region stored in the `SimCity 4.cfg` file."""
+	return get_sc4_cfg()["LastRegionName"]
+
+
+def region_open(region) -> bool:
+	"""Checks if a given region is open in SC4."""
+	return region == get_last_region_name()
+
+	#cfg_path = get_sc4_cfg_path()
+	#return b"\x00" + region.encode() + b"\x00" in DBPF(cfg_path, error_callback=show_error).decompress_subfile("a9dd6e06").read()
+
+
+def refresh_region_open() -> bool:
+	"""Checks if the refresh region is open in SC4"""
 	return region_open("Refresh...")
 
 
