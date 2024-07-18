@@ -83,8 +83,8 @@ SC4MP_CONFIG_DEFAULTS = [
 		("stat_mayors_online_cutoff", 60)
 	]),
 	("STORAGE", [
-		("storage_path", Path("~/Documents/SimCity 4/_SC4MP").expanduser()),
-		("cache_size", 8192)
+		("storage_path", Path("~/Documents/SimCity 4/SC4MP Launcher/_SC4MP").expanduser()),
+		("cache_size", 8000)
 	]),
 	("SC4", [
 		("game_path", ""),
