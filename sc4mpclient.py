@@ -574,27 +574,26 @@ def get_sc4_path() -> Optional[Path]:
 	return None
 
 
-def is_patched_sc4():
-	"""Broken"""
-	
-	if platform.system() == "Windows":
-
-		import win32api
-
-		sc4_exe_path = get_sc4_path()
-
-		file_version_info = win32api.GetFileVersionInfo(sc4_exe_path, '\\')
-		file_version_ls = file_version_info["FileVersionLS"]
-
-		if win32api.HIWORD(file_version_ls) == 641:
-			return True
-		else:
-			return False
-
-	else:
-
-		return None
-
+#def is_patched_sc4():
+#	"""Broken"""
+#	
+#	if platform.system() == "Windows":
+#
+#		import win32api
+#
+#		sc4_exe_path = get_sc4_path()
+#
+#		file_version_info = win32api.GetFileVersionInfo(sc4_exe_path, '\\')
+#		file_version_ls = file_version_info["FileVersionLS"]
+#
+#		if win32api.HIWORD(file_version_ls) == 641:
+#			return True
+#		else:
+#			return False
+#
+#	else:
+#
+#		return None
 
 
 def start_sc4():
