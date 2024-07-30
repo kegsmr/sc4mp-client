@@ -636,7 +636,7 @@ def start_sc4():
 		else:
 			subprocess.run(arguments)  # on Linux, the first String passed as argument must be a file that exists
 	except PermissionError as e:
-		show_error(f"Permission denied. Try running the SC4MP Launcher as administrator.\n\n{e}")
+		show_error(f"The launcher does not have the necessary privileges to launch SimCity 4. Try running the SC4MP Launcher as administrator.\n\n{e}")
 
 	# For compatability with the steam version of SC4
 	sc4mp_allow_game_monitor_exit_if_error = True
