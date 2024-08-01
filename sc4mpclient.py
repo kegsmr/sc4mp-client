@@ -2275,6 +2275,9 @@ class ServerLoader(th.Thread):
 				destination_size = 0
 				percent = -1
 
+				# True if symlinks are allowed
+				linking = False
+
 				# Loop through the file paths in the source directory, and copy them to the destination if necessary
 				for relpath in source_relpaths:
 
@@ -2285,7 +2288,10 @@ class ServerLoader(th.Thread):
 						self.report_progress(f'Synchronizing custom plugins... ({percent}%)', percent, 100)
 					try:
 						self.ui.progress_label["text"] = relpath.name
-						self.ui.duration_label["text"] = "(local)"
+						if linking:
+							self.ui.duration_label["text"] = "(linking)"
+						else:
+							self.ui.duration_label["text"] = "(copying)"
 					except:
 						pass
 
@@ -2318,9 +2324,11 @@ class ServerLoader(th.Thread):
 					try:
 						os.symlink(src, dest)
 						print(f'- linked "{src}"')
+						linking = True
 					except OSError:
 						print(f'- copying "{src}"')
 						shutil.copy(src, dest)
+						linking = False
 			
 			# Clear custom plugins
 			else:
@@ -2409,7 +2417,7 @@ class ServerLoader(th.Thread):
 				# Display current file in UI
 				try:
 					self.ui.progress_label["text"] = d.name #.relative_to(destination)
-					self.ui.duration_label["text"] = "(cache)"
+					self.ui.duration_label["text"] = "(cached)"
 				except:
 					pass
 
@@ -2438,7 +2446,7 @@ class ServerLoader(th.Thread):
 		file_table = ft
 
 		if sc4mp_ui:
-			self.ui.duration_label["text"] = "(download)"
+			self.ui.duration_label["text"] = "(downloading)"
 
 		download_start_time = time.time() + 2
 
@@ -3451,7 +3459,7 @@ class RegionsRefresher(th.Thread):
 						# Display current file in UI
 						try:
 							self.ui.progress_label["text"] = d.name #.relative_to(destination)
-							self.ui.duration_label["text"] = "(cache)"
+							self.ui.duration_label["text"] = "(cached)"
 						except:
 							pass
 
@@ -3498,7 +3506,7 @@ class RegionsRefresher(th.Thread):
 					# Display current file in UI
 					try:
 						self.ui.progress_label["text"] = d.name #.relative_to(destination)
-						self.ui.duration_label["text"] = "(download)"
+						self.ui.duration_label["text"] = "(downloading)"
 					except:
 						pass
 
