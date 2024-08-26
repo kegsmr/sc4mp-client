@@ -84,7 +84,7 @@ SC4MP_CONFIG_DEFAULTS = [
 	]),
 	("STORAGE", [
 		("storage_path", Path("~/Documents/SimCity 4/_SC4MP").expanduser()),
-		("cache_size", 8000)
+		("cache_size", 8192)
 	]),
 	("SC4", [
 		("game_path", ""),
