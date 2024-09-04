@@ -2766,7 +2766,7 @@ class ServerLoader(th.Thread):
 			raise ClientException("SimCity 4 is already running!")
 
 		# Load default plugins
-		for default_plugin_file_name in ["sc4-fix.dll", "sc4-fix-license.txt"]: #, "sc4-dbpf-loading.dll", "sc4-dbpf-loading-license.txt", "sc4-dbpf-loading-third-party-notices.txt"]:
+		for default_plugin_file_name in ["sc4-fix.dll", "sc4-fix-license.txt", "sc4-thumbnail-fix.dll", "sc4-thumbnail-fix-license.txt", "sc4-thumbnail-fix-third-party-notices.txt"]: #, "sc4-dbpf-loading.dll", "sc4-dbpf-loading-license.txt", "sc4-dbpf-loading-third-party-notices.txt"]:
 			try:
 				default_plugin_file_path = default_plugins_source / default_plugin_file_name
 				default_plugin_checksum = md5(default_plugin_file_path)
