@@ -899,14 +899,26 @@ def report(message, object):
 
 
 def prep_region_config(path):
+	
 	try:
+
+		REGION_NAME_PREFIX = "[SC4MP] "
+
 		config = configparser.RawConfigParser()
 		config.read(path)
-		config.set("Regional Settings", "Name", "[SC4MP] " + config.get("Regional Settings", "Name"))
-		with open(path, 'wt') as config_file:
-			config.write(config_file)
+		
+		region_name = config.get("Regional Settings", "Name")
+		
+		if not region_name.startswith(REGION_NAME_PREFIX):
+			
+			config.set("Regional Settings", "Name", REGION_NAME_PREFIX + region_name)
+
+			with open(path, 'wt') as config_file:
+				config.write(config_file)
+
 	except:
-		raise ClientException(f"Failed to prep region config at {path}.")
+
+		raise ClientException(f"Failed to prepare region config at {path}.")
 
 
 def format_filesize(size):
