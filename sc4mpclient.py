@@ -55,8 +55,8 @@ SC4MP_RESOURCES_PATH = "resources"
 SC4MP_TITLE = f"SC4MP Launcher v{SC4MP_VERSION}" + (" (x86)" if 8 * struct.calcsize('P') == 32 else "")
 SC4MP_ICON: Path() = Path(SC4MP_RESOURCES_PATH) / "icon.png"
 
-SC4MP_HOST = SC4MP_SERVERS[0][0]
-SC4MP_PORT = SC4MP_SERVERS[0][1]
+SC4MP_HOST = "localhost" #SC4MP_SERVERS[0][0]
+SC4MP_PORT = 7240 #SC4MP_SERVERS[0][1]
 
 SC4MP_BUFFER_SIZE = 4096
 
@@ -2254,6 +2254,7 @@ class ServerLoader(th.Thread):
 				
 				# Report for the loading sequence
 				self.report("", "Synchronizing custom plugins...")
+				#self.ui.duration_label["text"] = "(verifying)" # doesn't work :(
 
 				# Get the paths to all files in the destination directory
 				destination_relpaths = get_fullpaths_recursively(client_plugins_destination)
