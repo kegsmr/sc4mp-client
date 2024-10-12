@@ -4273,16 +4273,27 @@ class StorageSettingsUI(tk.Toplevel):
 
 
 	def update(self):
+		restart = False
 		for item in self.config_update:
 			data = item[0].get()
 			key = item[1]
-			if key == "storage_path" and type(data) is str and not data == sc4mp_config["STORAGE"]["storage_path"]:
+			if key == "storage_path" and type(data) is str and Path(data) != Path(sc4mp_config["STORAGE"]["storage_path"]):
 				if (Path(data) / 'Plugins').exists() or (Path(data) / 'Regions').exists():
 					if not messagebox.askokcancel(title=SC4MP_TITLE, message=f'The directory "{data}" already contains SimCity 4 plugins and regions. \n\nProceeding will result in the IRREVERSIBLE DELETION of these files! \n\nThis is your final warning, do you wish to proceed?', icon="warning"): #TODO make message box show yes/no and not ok/cancel
 						raise ClientException("Operation cancelled by user.")
+				else:
+					if not messagebox.askokcancel(title=SC4MP_TITLE, message="Changing the launch path will cause you to lose access to your claimed tiles on servers you play on.\n\nYou will only be able to access these claims in the future by setting the launch path back to what it's currently set to now.\n\nDo you wish to proceed?", icon="warning"):
+						raise ClientException("Operation cancelled by user.")
+				restart = True
 			update_config_value("STORAGE", key, data)
-		create_subdirectories()
-		load_database()
+		if restart:
+			if Path(sys.executable).name == "sc4mpclient.exe":
+				subprocess.Popen([sys.executable, "-skip-update", "-allow-multiple"])
+			else:
+				subprocess.Popen([sys.executable, os.path.abspath(__file__)])
+			sc4mp_ui.quit()
+		#create_subdirectories() 
+		#load_database()
 		
 
 	def ok(self):
