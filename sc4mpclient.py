@@ -2864,7 +2864,7 @@ class ServerLoader(th.Thread):
 			pass #show_error(e, no_ui=True)
 
 		# Create the auxiliary regions for launcher functions (eg. refreshing)
-		AUXILIARY_REGIONS = ["Refresh"] #["Backups", "Export", "Refresh"]
+		AUXILIARY_REGIONS = ["Export", "Refresh"] #["Backups", "Export", "Refresh"]
 		for auxiliary_region in AUXILIARY_REGIONS:
 
 			# Create the auxiliary region directory
