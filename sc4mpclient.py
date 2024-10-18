@@ -2830,34 +2830,62 @@ class ServerLoader(th.Thread):
 		self.server.regions: list[Path] = []
 
 		# Path to regions directory
-		region_dir = Path(SC4MP_LAUNCHPATH) / "Regions"
+		regions_directory = Path(SC4MP_LAUNCHPATH) / "Regions"
 
 		# Loop through the server regions, add them to the server regions instance variable and add prefixes to the region names in the region config files
-		for child in region_dir.iterdir():
+		for child in regions_directory.iterdir():
 			if child.is_dir():
 				self.server.regions.append(child)
-				config_path = region_dir / child / "region.ini"
+				config_path = regions_directory / child / "region.ini"
 				prep_region_config(config_path)
 
-		# Copy the latest failed save push into the region `Downloads` subdirectory
-		downloads_path = region_dir / "Downloads"
+		# Create `Downloads` directory in the `Regions` folder
+		downloads_path = regions_directory / "Downloads"
 		downloads_path.mkdir(exist_ok=True, parents=True)
 
+		# Copy the latest failed save push into the `Downloads` directory
 		try:
+			
+			# Pick the salvage subdirectory corresponding to the current server
 			salvage_directory = Path(SC4MP_LAUNCHPATH) / "_Salvage" / self.server.server_id
-			save_directory = os.path.join(salvage_directory, os.listdir(salvage_directory)[-1]) # TODO: this picks an arbitrary directory?
-			region_directory = os.path.join(save_directory, os.listdir(save_directory)[0]) # TODO: arbitrary directory?
+
+			# Pick the directory corresponding to the latest failed save push
+			save_directory = os.path.join(salvage_directory, os.listdir(salvage_directory)[-1])
+
+			# Pick the directory corresponding to the first region in the failed save push (there should only be one anyway)
+			region_directory = os.path.join(save_directory, os.listdir(save_directory)[0])
+
+			# Copy each file from the region directory to the `Downloads` directory
 			for filename in os.listdir(region_directory):
 				shutil.copy(os.path.join(region_directory, filename), os.path.join(downloads_path, filename))
-		except Exception as e:
-			pass
-			#show_error(e, no_ui=True)
 
-		# Create the refresh region
-		refresh_path = region_dir / "_Refresh" #TODO possible name conflict!
-		refresh_path.mkdir(parents=True)
-		shutil.copy(get_sc4mp_path("refresh-config.bmp"), refresh_path / "config.bmp")
-		shutil.copy(get_sc4mp_path("refresh-region.ini"), refresh_path / "region.ini")
+		except Exception as e:
+			
+			pass #show_error(e, no_ui=True)
+
+		# Create the auxiliary regions for launcher functions (eg. refreshing)
+		AUXILIARY_REGIONS = ["Refresh"] #["Backups", "Export", "Refresh"]
+		for auxiliary_region in AUXILIARY_REGIONS:
+
+			# Create the auxiliary region directory
+			auxiliary_region_path = regions_directory / f"_{auxiliary_region}" #TODO possible directory name conflicts?
+			auxiliary_region_path.mkdir(parents=True)
+
+			# Copy the blank `config.bmp` file to the auxiliary region directory
+			shutil.copy(get_sc4mp_path("config.bmp"), auxiliary_region_path / "config.bmp")
+
+			# Create a `region.ini` file for the auxiliary region
+			with open(get_sc4mp_path("region.ini"), "r") as template_config_file:
+
+				# Read the contents of the template `region.ini`
+				config_file_contents: str = template_config_file.read()
+
+				# Replace the region name
+				config_file_contents = config_file_contents.replace("New Region", f"{auxiliary_region}...")
+
+				# Write the file
+				with open(auxiliary_region_path / "region.ini", "w") as config_file:
+					config_file.write(config_file_contents)
 
 
 class GameMonitor(th.Thread):
