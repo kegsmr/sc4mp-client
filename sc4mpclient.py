@@ -4643,19 +4643,19 @@ class HostUI(tk.Toplevel):
 		self.top_buttons.grid(row=1, column=0, columnspan=3, sticky="w")
 
 		# Start/Stop button
-		self.top_buttons.button_1 = ttk.Button(self.top_buttons, text="Start", command=self.start_stop, default="disabled")
+		self.top_buttons.button_1 = ttk.Button(self.top_buttons, text="Start", command=self.start_stop, state="disabled")
 		self.top_buttons.button_1.grid(row=0, column=0, columnspan=1, padx=(10, 5), pady=10, sticky="w")
 
 		# Edit button
-		self.top_buttons.button_2 = ttk.Button(self.top_buttons, text="Edit", command=self.edit, default="disabled")
+		self.top_buttons.button_2 = ttk.Button(self.top_buttons, text="Edit", command=self.edit, state="disabled")
 		self.top_buttons.button_2.grid(row=0, column=1, columnspan=1, padx=5, pady=10, sticky="w")
 
 		# Rename button
-		self.top_buttons.button_3 = ttk.Button(self.top_buttons, text="Rename", command=self.rename, default="disabled")
+		self.top_buttons.button_3 = ttk.Button(self.top_buttons, text="Rename", command=self.rename, state="disabled")
 		self.top_buttons.button_3.grid(row=0, column=2, columnspan=1, padx=5, pady=10)
 
 		# Delete button
-		self.top_buttons.button_4 = ttk.Button(self.top_buttons, text="Delete", command=self.delete, default="disabled")
+		self.top_buttons.button_4 = ttk.Button(self.top_buttons, text="Delete", command=self.delete, state="disabled")
 		self.top_buttons.button_4.grid(row=0, column=3, columnspan=1, padx=5, pady=10, sticky="e")
 
 		# List box
