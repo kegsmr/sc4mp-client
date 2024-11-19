@@ -4622,8 +4622,8 @@ class HostUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry('400x400')
-		self.maxsize(305, 375)
-		self.minsize(305, 375)
+		self.maxsize(355, 375)
+		self.minsize(355, 375)
 		self.grid()
 		center_window(self)
 		
@@ -4635,30 +4635,38 @@ class HostUI(tk.Toplevel):
 		self.bind("<Escape>", lambda event:self.destroy())
 
 		# Label
-		self.label = ttk.Label(self, text="Select a server configuration to launch with.", justify="center")
-		self.label.grid(row=0, column=0, columnspan=3, padx=10, pady=10)
+		self.label = ttk.Label(self, text="Select a server configuration below to start", justify="center")
+		self.label.grid(row=0, column=0, columnspan=3, padx=10, pady=(20,10))
 
-		# Rename/Config/Files frame
-		self.rename_config_files = tk.Frame(self)
-		self.rename_config_files.grid(row=1, column=0, columnspan=3, sticky="w")
+		# Buttons frame
+		self.top_buttons = tk.Frame(self)
+		self.top_buttons.grid(row=1, column=0, columnspan=3, sticky="w")
+
+		# Start/Stop button
+		self.top_buttons.button_1 = ttk.Button(self.top_buttons, text="Start", command=self.start_stop, default="disabled")
+		self.top_buttons.button_1.grid(row=0, column=0, columnspan=1, padx=(10, 5), pady=10, sticky="w")
+
+		# Edit button
+		self.top_buttons.button_2 = ttk.Button(self.top_buttons, text="Edit", command=self.edit, default="disabled")
+		self.top_buttons.button_2.grid(row=0, column=1, columnspan=1, padx=5, pady=10, sticky="w")
 
 		# Rename button
-		self.rename_config_files.rename_button = ttk.Button(self.rename_config_files, text="Rename...", command=self.rename, default="disabled")
-		self.rename_config_files.rename_button.grid(row=0, column=0, columnspan=1, padx=(10, 5), pady=10, sticky="w")
+		self.top_buttons.button_3 = ttk.Button(self.top_buttons, text="Rename", command=self.rename, default="disabled")
+		self.top_buttons.button_3.grid(row=0, column=2, columnspan=1, padx=5, pady=10)
 
-		# Config button
-		self.rename_config_files.config_button = ttk.Button(self.rename_config_files, text="Edit...", command=self.config, default="disabled")
-		self.rename_config_files.config_button.grid(row=0, column=1, columnspan=1, padx=5, pady=10)
-
-		# Files button
-		self.rename_config_files.files_button = ttk.Button(self.rename_config_files, text="Locate...", command=self.files, default="disabled")
-		self.rename_config_files.files_button.grid(row=0, column=2, columnspan=1, padx=5, pady=10, sticky="e")
+		# Delete button
+		self.top_buttons.button_4 = ttk.Button(self.top_buttons, text="Delete", command=self.delete, default="disabled")
+		self.top_buttons.button_4.grid(row=0, column=3, columnspan=1, padx=5, pady=10, sticky="e")
 
 		# List box
-		self.list_box_variable = tk.Variable(value=os.listdir("_Servers"))
-		self.list_box = tk.Listbox(self, width=47, height=15, listvariable=self.list_box_variable)
-		self.list_box.select_set(0)
-		self.list_box.grid(row=2, column=0, columnspan=3, padx=10, pady=0)
+		#self.list_box_variable = tk.Variable(value=os.listdir("_Servers"))
+		#self.list_box = tk.Listbox(self, width=55, height=15, listvariable=self.list_box_variable)
+		#self.list_box.select_set(0)
+		#self.list_box.grid(row=2, column=0, columnspan=3, padx=10, pady=0)
+
+		# Configuration list
+		self.configs = ttk.Treeview(self)
+		self.configs.grid(row=2, column=0, columnspan=3, padx=10, pady=0)
 
 		# New button
 		self.new_button = ttk.Button(self, text="New...", command=self.new)
@@ -4669,13 +4677,29 @@ class HostUI(tk.Toplevel):
 		self.ok_cancel.grid(row=3, column=1, columnspan=2, sticky="se")
 
 		# Ok button
-		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Host", command=self.ok, default="active")
-		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
+		#self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Start", command=self.ok, default="active")
+		#self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
 
 		# Cancel button
 		self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
 		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
 
+
+	def start_stop(self):
+		"""TODO"""
+
+		#TODO
+
+		return
+	
+
+	def edit(self):
+		"""TODO"""
+
+		#TODO
+
+		return
+	
 
 	def rename(self):
 		"""TODO"""
@@ -4685,15 +4709,7 @@ class HostUI(tk.Toplevel):
 		return
 	
 
-	def config(self):
-		"""TODO"""
-
-		#TODO
-
-		return
-	
-
-	def files(self):
+	def delete(self):
 		"""TODO"""
 
 		#TODO
@@ -4712,12 +4728,15 @@ class HostUI(tk.Toplevel):
 	def ok(self):
 		"""TODO"""
 
-		path = Path("_Servers") / self.list_box_variable.get()[self.list_box.curselection()[0]]
+		#TODO
 
-		start_server(path)
+		#path = Path("_Servers") / self.list_box_variable.get()[self.list_box.curselection()[0]]
 
-		self.destroy()
+		#start_server(path)
 
+		#self.destroy()
+
+		return
 
 class DirectConnectUI(tk.Toplevel):
 
