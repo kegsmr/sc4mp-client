@@ -4631,8 +4631,8 @@ class HostUI(tk.Toplevel):
 		self.grab_set()
 
 		# Key bindings
-		self.bind("<Return>", lambda event:self.ok())
-		self.bind("<Escape>", lambda event:self.destroy())
+		#self.bind("<Return>", lambda event:self.destroy())
+		self.bind("<Escape>", lambda event:self.start_stop())
 
 		# Label
 		self.label = ttk.Label(self, text="Select a server configuration below to start", justify="center")
