@@ -4722,6 +4722,8 @@ class HostUI(tk.Toplevel):
 
 		#TODO
 
+		ServerConfigUI()
+
 		return
 
 
@@ -4737,6 +4739,61 @@ class HostUI(tk.Toplevel):
 		#self.destroy()
 
 		return
+
+
+class ServerConfigUI(tk.Toplevel):
+
+
+	def __init__(self):
+		"""TODO"""
+
+		#print("Initializing...")
+
+		# Init
+		super().__init__()
+
+		# Title
+		self.title("Server configuration")
+
+		# Icon
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+
+		# Geometry
+		self.geometry('400x400')
+		self.maxsize(355, 375)
+		self.minsize(355, 375)
+		self.grid()
+		center_window(self)
+		
+		# Priority
+		self.grab_set()
+
+		# Key bindings
+		self.bind("<Return>", lambda event:self.ok())
+		self.bind("<Escape>", lambda event:self.destroy())
+
+		# Ok/Cancel frame
+		self.ok_cancel = tk.Frame(self)
+		self.ok_cancel.grid(row=3, column=1, columnspan=2, sticky="se")
+
+		# Ok button
+		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Create", command=self.ok, default="active")
+		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
+
+		# Cancel button
+		self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
+		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
+
+
+	def ok(self):
+		"""TODO"""
+
+		#TODO
+
+		self.destroy()
+
+		return
+
 
 class DirectConnectUI(tk.Toplevel):
 
