@@ -3917,7 +3917,7 @@ class UI(tk.Tk):
 
 		self.bind("<F1>", lambda event:self.direct_connect())
 		self.bind("<F2>", lambda event:self.refresh())
-		#self.bind("<F3>", lambda event:self.host()) #TODO
+		self.bind("<F3>", lambda event:self.host())
 		self.bind("<F5>", lambda event:self.general_settings())
 		self.bind("<F6>", lambda event:self.storage_settings())
 		self.bind("<F7>", lambda event:self.SC4_settings())
@@ -4677,18 +4677,26 @@ class HostUI(tk.Toplevel):
 		self.ok_cancel.grid(row=3, column=1, columnspan=2, sticky="se")
 
 		# Ok button
-		#self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Start", command=self.ok, default="active")
-		#self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
+		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Ok", command=self.destroy, default="active")
+		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
 
 		# Cancel button
-		self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
-		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
+		#self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
+		#self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
+
+		sc4mp_ui.withdraw()
 
 
 	def start_stop(self):
 		"""TODO"""
 
 		#TODO
+
+		#path = Path("_Servers") / self.list_box_variable.get()[self.list_box.curselection()[0]]
+
+		#start_server(path)
+
+		#self.destroy()
 
 		return
 	
@@ -4727,18 +4735,12 @@ class HostUI(tk.Toplevel):
 		return
 
 
-	def ok(self):
+	def destroy(self):
 		"""TODO"""
 
-		#TODO
+		super().destroy()
 
-		#path = Path("_Servers") / self.list_box_variable.get()[self.list_box.curselection()[0]]
-
-		#start_server(path)
-
-		#self.destroy()
-
-		return
+		sc4mp_ui.deiconify()
 
 
 class ServerConfigUI(tk.Toplevel):
@@ -4753,7 +4755,7 @@ class ServerConfigUI(tk.Toplevel):
 		super().__init__()
 
 		# Title
-		self.title("Server configuration")
+		self.title("Server Config")
 
 		# Icon
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
@@ -4791,8 +4793,6 @@ class ServerConfigUI(tk.Toplevel):
 		#TODO
 
 		self.destroy()
-
-		return
 
 
 class DirectConnectUI(tk.Toplevel):
