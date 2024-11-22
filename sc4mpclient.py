@@ -4677,8 +4677,8 @@ class HostUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry('400x400')
-		self.maxsize(355, 375)
-		self.minsize(355, 375)
+		#self.maxsize(375, 375)
+		#self.minsize(375, 375)
 		self.grid()
 		center_window(self)
 		
@@ -4690,28 +4690,32 @@ class HostUI(tk.Toplevel):
 		self.bind("<Escape>", lambda event:self.destroy())
 
 		# Label
-		self.label = ttk.Label(self, text="Select a server configuration below to start", justify="center")
-		self.label.grid(row=0, column=0, columnspan=3, padx=10, pady=(20,10))
+		#self.label = ttk.Label(self, text="Select a server configuration below to start", justify="center")
+		#self.label.grid(row=0, column=0, columnspan=3, padx=10, pady=(20,10))
 
 		# Buttons frame
 		self.top_buttons = tk.Frame(self)
-		self.top_buttons.grid(row=1, column=0, columnspan=3, sticky="w")
+		self.top_buttons.grid(row=1, column=0, rowspan=1, sticky="n", pady=30, padx=(10,0))
 
 		# Start/Stop button
 		self.top_buttons.button_1 = ttk.Button(self.top_buttons, text="Start", command=self.start_stop, state="disabled")
-		self.top_buttons.button_1.grid(row=0, column=0, columnspan=1, padx=(10, 5), pady=10, sticky="w")
+		self.top_buttons.button_1.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
+
+		# Logs button
+		self.top_buttons.button_2 = ttk.Button(self.top_buttons, text="Logs", command=self.logs, state="disabled")
+		self.top_buttons.button_2.grid(row=1, column=0, columnspan=1, padx=0, pady=5, sticky="w")
 
 		# Edit button
-		self.top_buttons.button_2 = ttk.Button(self.top_buttons, text="Edit", command=self.edit, state="disabled")
-		self.top_buttons.button_2.grid(row=0, column=1, columnspan=1, padx=5, pady=10, sticky="w")
+		self.top_buttons.button_3 = ttk.Button(self.top_buttons, text="Edit", command=self.edit, state="disabled")
+		self.top_buttons.button_3.grid(row=2, column=0, columnspan=1, padx=0, pady=5, sticky="w")
 
 		# Rename button
-		self.top_buttons.button_3 = ttk.Button(self.top_buttons, text="Rename", command=self.rename, state="disabled")
-		self.top_buttons.button_3.grid(row=0, column=2, columnspan=1, padx=5, pady=10)
+		self.top_buttons.button_4 = ttk.Button(self.top_buttons, text="Rename", command=self.rename, state="disabled")
+		self.top_buttons.button_4.grid(row=3, column=0, columnspan=1, padx=0, pady=5, sticky="w")
 
 		# Delete button
-		self.top_buttons.button_4 = ttk.Button(self.top_buttons, text="Delete", command=self.delete, state="disabled")
-		self.top_buttons.button_4.grid(row=0, column=3, columnspan=1, padx=5, pady=10, sticky="e")
+		self.top_buttons.button_5 = ttk.Button(self.top_buttons, text="Delete", command=self.delete, state="disabled")
+		self.top_buttons.button_5.grid(row=4, column=0, columnspan=1, padx=0, pady=5, sticky="w")
 
 		# List box
 		#self.list_box_variable = tk.Variable(value=os.listdir("_Servers"))
@@ -4721,25 +4725,25 @@ class HostUI(tk.Toplevel):
 
 		# Configuration list
 		self.configs = ttk.Treeview(self)
-		self.configs.grid(row=2, column=0, columnspan=3, padx=10, pady=0)
+		self.configs.grid(row=1, column=1, padx=10, pady=10)
 
 		# New button
-		self.new_button = ttk.Button(self, text="New...", command=self.new)
-		self.new_button.grid(row=3, column=0, columnspan=1, padx=10, pady=10, sticky="w")
+		self.new_button = ttk.Button(self, text="New", command=self.new)
+		self.new_button.grid(row=3, column=0, columnspan=1, padx=(10,0), pady=10, sticky="w")
 
 		# Ok/Cancel frame
 		self.ok_cancel = tk.Frame(self)
-		self.ok_cancel.grid(row=3, column=1, columnspan=2, sticky="se")
+		self.ok_cancel.grid(row=3, column=1, columnspan=1, sticky="e")
 
 		# Ok button
 		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Ok", command=self.destroy, default="active")
-		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
+		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
 
 		# Cancel button
 		#self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
 		#self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
 
-		sc4mp_ui.withdraw()
+		#sc4mp_ui.withdraw()
 
 
 	def start_stop(self):
@@ -4755,6 +4759,14 @@ class HostUI(tk.Toplevel):
 
 		return
 	
+
+	def logs(self):
+		"""TODO"""
+
+		#TODO
+
+		return
+
 
 	def edit(self):
 		"""TODO"""
@@ -4795,7 +4807,7 @@ class HostUI(tk.Toplevel):
 
 		super().destroy()
 
-		sc4mp_ui.deiconify()
+		#sc4mp_ui.deiconify()
 
 
 class ServerConfigUI(tk.Toplevel):
@@ -4810,15 +4822,15 @@ class ServerConfigUI(tk.Toplevel):
 		super().__init__()
 
 		# Title
-		self.title("Server Config")
+		self.title("Server")
 
 		# Icon
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.geometry('400x400')
-		self.maxsize(355, 375)
-		self.minsize(355, 375)
+		self.geometry('800x600')
+		#self.maxsize(355, 375)
+		#self.minsize(355, 375)
 		self.grid()
 		center_window(self)
 		
@@ -4829,17 +4841,172 @@ class ServerConfigUI(tk.Toplevel):
 		self.bind("<Return>", lambda event:self.ok())
 		self.bind("<Escape>", lambda event:self.destroy())
 
+		# Network frame
+		self.network_frame = tk.LabelFrame(self, text="Network", padx=10, pady=10)
+		self.network_frame.grid(row=0, column=0, columnspan=2, sticky="w", padx=10)
+
+		# Port label
+		self.network_frame.port_label = ttk.Label(self.network_frame, text="Port")
+		self.network_frame.port_label.grid(row=0, column=0, columnspan=1, padx=(48,10), pady=0, sticky="e")
+
+		# Port Entry
+		self.network_frame.port_entry = ttk.Entry(self.network_frame, width=5)
+		self.network_frame.port_entry.insert(0, 7240)
+		self.network_frame.port_entry.grid(row=0, column=1, columnspan=1, padx=(10,50), pady=(10,10), sticky="w")
+
+		# Port help label 1
+		#self.network_frame.port_help_label_1 = tk.Label(self.network_frame, text="Ensure you've port forwarded.", fg="gray", justify="left")
+		#self.network_frame.port_help_label_1.grid(row=0, column=2, columnspan=1, padx=10, pady=10, sticky="w")
+
+		# Port help label 2
+		#self.network_frame.port_help_label_2 = tk.Label(self.network_frame, text="More information...", fg="blue", justify="left")
+		#self.network_frame.port_help_label_2.grid(row=2, column=1, columnspan=1, padx=10, pady=0, sticky="w")
+
+		# Discoverable checkbutton
+		#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
+		self.network_frame.checkbutton = ttk.Checkbutton(self.network_frame, text="Discoverable", onvalue=True, offvalue=False) #, variable=self.updates_frame.checkbutton_variable)
+		self.network_frame.checkbutton.grid(row=0, column=2, columnspan=1, padx=(10,70), pady=10, sticky="w")
+		#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
+
+		# Warning label
+		#self.network_frame.warning_label = tk.Label(self.network_frame, text="Ensure the port accepts incoming connections.") #, fg="red")
+		#self.network_frame.warning_label.grid(row=1, column=0, columnspan=3, padx=10, pady=(10,0), sticky="n")
+
+		# Port forwarding help label
+		#self.network_frame.warning_label = tk.Label(self.network_frame, text="How do I port forward?", fg="blue")
+		#self.network_frame.warning_label.grid(row=2, column=0, columnspan=3, padx=10, pady=(0,10), sticky="n")
+
+		# Info frame
+		self.info_frame = tk.LabelFrame(self, text="Info", padx=10, pady=10)
+		self.info_frame.grid(row=1, column=0, columnspan=2, rowspan=2, sticky="w", padx=10)
+
+		# Name label
+		self.info_frame.name_label = ttk.Label(self.info_frame, text="Name")
+		self.info_frame.name_label.grid(row=10, column=0, columnspan=1, padx=10, pady=0, sticky="e")
+
+		# Name entry
+		self.info_frame.name_entry = ttk.Entry(self.info_frame, width=40)
+		self.info_frame.name_entry.grid(row=10, column=1, columnspan=1, padx=10, pady=(10,0), sticky="w")
+
+		# Name help label
+		self.info_frame.description_help_label = tk.Label(self.info_frame, text="Choose a name for your server", fg="gray", justify="left")
+		self.info_frame.description_help_label.grid(row=11, column=1, columnspan=1, padx=10, pady=0, sticky="w")
+
+		# Description label
+		self.info_frame.description_label = ttk.Label(self.info_frame, text="Description")
+		self.info_frame.description_label.grid(row=20, column=0, columnspan=1, padx=10, pady=0, sticky="e")
+
+		# Description entry
+		self.info_frame.description_entry = ttk.Entry(self.info_frame, width=40)
+		self.info_frame.description_entry.grid(row=20, column=1, columnspan=1, padx=10, pady=(10,0), sticky="w")
+		
+		# Description help label
+		self.info_frame.description_help_label = tk.Label(self.info_frame, text="Briefly describe your server", fg="gray", justify="left")
+		self.info_frame.description_help_label.grid(row=21, column=1, columnspan=1, padx=10, pady=0, sticky="w")
+
+		# URL label
+		self.info_frame.url_label = ttk.Label(self.info_frame, text="URL")
+		self.info_frame.url_label.grid(row=30, column=0, columnspan=1, padx=10, pady=0, sticky="e")
+
+		# URL entry
+		self.info_frame.url_entry = ttk.Entry(self.info_frame, width=40)
+		self.info_frame.url_entry.grid(row=30, column=1, columnspan=1, padx=10, pady=(10,0), sticky="w")
+
+		# URL help label
+		self.info_frame.url_help_label = tk.Label(self.info_frame, text="Link a site for communication (eg. Discord)", fg="gray", justify="left")
+		self.info_frame.url_help_label.grid(row=31, column=1, columnspan=1, padx=10, pady=0, sticky="w")
+
+		# Security frame
+		self.security_frame = tk.LabelFrame(self, text="Security", padx=10, pady=10)
+		self.security_frame.grid(row=0, column=3, columnspan=2, sticky="w", padx=10)
+
+		# Private checkbutton
+		#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
+		#self.security_frame.private_checkbutton = ttk.Checkbutton(self.security_frame, text="Private", onvalue=True, offvalue=False) #, variable=self.updates_frame.checkbutton_variable)
+		#self.security_frame.private_checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
+		#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
+
+		# Password label
+		self.security_frame.password_label = ttk.Label(self.security_frame, text="Password")
+		self.security_frame.password_label.grid(row=0, column=0, columnspan=1, padx=10, pady=0, sticky="e")
+
+		# Password entry
+		self.security_frame.password_entry = ttk.Entry(self.security_frame, width=40)
+		self.security_frame.password_entry.grid(row=0, column=1, columnspan=1, padx=(20,10), pady=(10,0), sticky="w")
+
+		# Password checkbutton
+		#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
+		self.security_frame.password_checkbutton = ttk.Checkbutton(self.security_frame, text="Enabled", onvalue=True, offvalue=False) #, variable=self.updates_frame.checkbutton_variable)
+		self.security_frame.password_checkbutton.grid(row=1, column=1, columnspan=1, padx=20, pady=10, sticky="w")
+		#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
+
+		# Rules frame
+		self.rules_frame = tk.LabelFrame(self, text="Rules", padx=10, pady=10)
+		self.rules_frame.grid(row=1, column=3, columnspan=2, rowspan=1, sticky="w", padx=10)
+
+		# Claim duration label 1
+		self.rules_frame.claim_duration_label_1 = ttk.Label(self.rules_frame, text="Claim duration")
+		self.rules_frame.claim_duration_label_1.grid(row=0, column=0, columnspan=1, padx=10, pady=0, sticky="e")
+
+		# Claim duration entry
+		self.rules_frame.claim_duration_entry = ttk.Entry(self.rules_frame, width=5)
+		#self.cache_size_frame.entry.insert(0, str(sc4mp_config["STORAGE"]["cache_size"]))
+		self.rules_frame.claim_duration_entry.grid(row=0, column=1, columnspan=1, padx=(10,0), pady=10, sticky="w")
+		#self.config_update.append((self.cache_size_frame.entry, "cache_size"))
+
+		# Claim duration label 2
+		self.rules_frame.claim_duration_label_2 = ttk.Label(self.rules_frame, text="days")
+		self.rules_frame.claim_duration_label_2.grid(row=0, column=2, columnspan=1, padx=(2,10), pady=10, sticky="w")
+
+		# Max region claims
+
+		# Godmode filter
+
+		# User plugins
+
+		# Plugins frame
+		self.plugins_frame = tk.LabelFrame(self, text="Plugins", padx=10, pady=10)
+		self.plugins_frame.grid(row=2, column=3, columnspan=2, sticky="w", padx=10)
+
+		# Browse button
+		self.plugins_frame.button = ttk.Button(self.plugins_frame, text="Browse...", command=self.browse_plugins)
+		self.plugins_frame.button.grid(row=0, column=0, columnspan=1, padx=(10,67), pady=10)
+
+		# Regions frame
+		self.regions_frame = tk.LabelFrame(self, text="Regions", padx=10, pady=10)
+		self.regions_frame.grid(row=2, column=4, columnspan=2, sticky="w", padx=10)
+
+		# Browse button
+		self.regions_frame.button = ttk.Button(self.regions_frame, text="Browse...", command=self.browse_regions)
+		self.regions_frame.button.grid(row=0, column=0, columnspan=1, padx=(10,67), pady=10)
+
 		# Ok/Cancel frame
 		self.ok_cancel = tk.Frame(self)
-		self.ok_cancel.grid(row=3, column=1, columnspan=2, sticky="se")
+		self.ok_cancel.grid(row=99, column=0, columnspan=99, sticky="se")
 
 		# Ok button
-		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Create", command=self.ok, default="active")
+		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Ok", command=self.ok, default="active")
 		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
 
 		# Cancel button
 		self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
 		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
+
+
+	def browse_plugins(self):
+
+		subprocess.Popen(f"explorer.exe 'C:\\'") # TESTING
+
+		#TODO
+
+		return
+
+
+	def browse_regions(self):
+
+		#TODO
+
+		return
 
 
 	def ok(self):
