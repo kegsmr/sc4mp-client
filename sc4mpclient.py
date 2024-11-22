@@ -1014,15 +1014,39 @@ def get_nssm_path() -> Path:
 		return get_sc4mp_path("nssm64.exe")
 
 
-def new_nssm_service(name, program, args):
-	"""Creates an NSSM service."""
+def install_nssm_service(name, program, args):
+	"""Installs an NSSM service."""
 
 	nssm_path = get_nssm_path()
 
 	#TODO
 
 
-def delete_nssm_service(name):
+def start_nssm_service(name):
+	"""Starts an NSSM service."""
+
+	nssm_path = get_nssm_path()
+
+	#TODO
+
+
+def stop_nssm_service(name):
+	"""Stops an NSSM service."""
+
+	nssm_path = get_nssm_path()
+
+	#TODO
+
+
+def query_nssm_service(name):
+	"""Checks the status of an NSSM service."""
+
+	nssm_path = get_nssm_path()
+
+	#TODO
+
+
+def remove_nssm_service(name):
 	"""Removes an NSSM service."""
 
 	nssm_path = get_nssm_path()
