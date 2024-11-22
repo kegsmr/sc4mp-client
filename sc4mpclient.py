@@ -4059,10 +4059,10 @@ class UI(tk.Tk):
 
 		print('"Host..."')
 
-		if platform.system() == "Windowsd":
+		if platform.system() == "Windows":
 			HostUI()
 		else:
-			if messagebox.askyesno(SC4MP_TITLE, "Hosting a server requires the latest version of the SC4MP Server.\n\nWould you like to view the download page?"):
+			if messagebox.askyesno(SC4MP_TITLE, "Hosting a server requires installing the SC4MP Server.\n\nWould you like to view the download page?"):
 				webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/releases/latest")
 
 
