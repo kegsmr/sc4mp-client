@@ -1005,6 +1005,31 @@ def format_url(url: str) -> str:
 		return url
 
 
+def get_nssm_path() -> Path:
+	"""Returns the path to the Non-Sucking Service Manager."""
+
+	if 8 * struct.calcsize('P') == 32:
+		return get_sc4mp_path("nssm32.exe")
+	else:
+		return get_sc4mp_path("nssm64.exe")
+
+
+def new_nssm_service(name, program, args):
+	"""Creates an NSSM service."""
+
+	nssm_path = get_nssm_path()
+
+	#TODO
+
+
+def delete_nssm_service(name):
+	"""Removes an NSSM service."""
+
+	nssm_path = get_nssm_path()
+
+	#TODO
+
+
 # Objects
 
 class Server:
