@@ -4894,10 +4894,10 @@ class ServerConfigUI(tk.Toplevel):
 
 		# Description label
 		self.info_frame.description_label = ttk.Label(self.info_frame, text="Description")
-		self.info_frame.description_label.grid(row=20, column=0, columnspan=1, padx=10, pady=0, sticky="e")
+		self.info_frame.description_label.grid(row=20, column=0, columnspan=1, padx=10, pady=0, sticky="ne")
 
 		# Description entry
-		self.info_frame.description_entry = ttk.Entry(self.info_frame, width=40)
+		self.info_frame.description_entry = tk.Text(self.info_frame, width=30, height=5, font={'family': 'DejaVu Sans', 'weight': 'normal', 'slant': 'roman', 'overstrike': 0, 'underline': 0, 'size': 1}, )
 		self.info_frame.description_entry.grid(row=20, column=1, columnspan=1, padx=10, pady=(10,0), sticky="w")
 		
 		# Description help label
