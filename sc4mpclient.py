@@ -4056,8 +4056,14 @@ class UI(tk.Tk):
 
 	def host(self):
 		"""TODO"""
+
 		print('"Host..."')
-		HostUI()
+
+		if platform.system() == "Windowsd":
+			HostUI()
+		else:
+			if messagebox.askyesno(SC4MP_TITLE, "Hosting a server requires the latest version of the SC4MP Server.\n\nWould you like to view the download page?"):
+				webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/releases/latest")
 
 
 	def direct_connect(self):
