@@ -4878,7 +4878,7 @@ class ServerConfigUI(tk.Toplevel):
 
 		# Info frame
 		self.info_frame = tk.LabelFrame(self, text="Info", padx=10, pady=10)
-		self.info_frame.grid(row=1, column=0, columnspan=2, rowspan=2, sticky="w", padx=10)
+		self.info_frame.grid(row=1, column=0, columnspan=2, rowspan=2, sticky="nw", padx=10)
 
 		# Name label
 		self.info_frame.name_label = ttk.Label(self.info_frame, text="Name")
@@ -4897,7 +4897,7 @@ class ServerConfigUI(tk.Toplevel):
 		self.info_frame.description_label.grid(row=20, column=0, columnspan=1, padx=10, pady=0, sticky="ne")
 
 		# Description entry
-		self.info_frame.description_entry = tk.Text(self.info_frame, width=30, height=5, font={'family': 'DejaVu Sans', 'weight': 'normal', 'slant': 'roman', 'overstrike': 0, 'underline': 0, 'size': 1}, )
+		self.info_frame.description_entry = ttk.Entry(self.info_frame, width=40) #, height=5, font={'family': 'DejaVu Sans', 'weight': 'normal', 'slant': 'roman', 'overstrike': 0, 'underline': 0, 'size': 1}, )
 		self.info_frame.description_entry.grid(row=20, column=1, columnspan=1, padx=10, pady=(10,0), sticky="w")
 		
 		# Description help label
@@ -4914,7 +4914,7 @@ class ServerConfigUI(tk.Toplevel):
 
 		# URL help label
 		self.info_frame.url_help_label = tk.Label(self.info_frame, text="Link a site for communication (eg. Discord)", fg="gray", justify="left")
-		self.info_frame.url_help_label.grid(row=31, column=1, columnspan=1, padx=10, pady=0, sticky="w")
+		self.info_frame.url_help_label.grid(row=31, column=1, columnspan=1, padx=10, pady=(0,92), sticky="w")
 
 		# Security frame
 		self.security_frame = tk.LabelFrame(self, text="Security", padx=10, pady=10)
@@ -4956,13 +4956,33 @@ class ServerConfigUI(tk.Toplevel):
 
 		# Claim duration label 2
 		self.rules_frame.claim_duration_label_2 = ttk.Label(self.rules_frame, text="days")
-		self.rules_frame.claim_duration_label_2.grid(row=0, column=2, columnspan=1, padx=(2,10), pady=10, sticky="w")
+		self.rules_frame.claim_duration_label_2.grid(row=0, column=2, columnspan=1, padx=(2,171), pady=10, sticky="w")
 
-		# Max region claims
+		# Max region claims label 1
+		self.rules_frame.max_region_claims_label_1 = ttk.Label(self.rules_frame, text="Max claims")
+		self.rules_frame.max_region_claims_label_1.grid(row=1, column=0, columnspan=1, padx=10, pady=0, sticky="e")
 
-		# Godmode filter
+		# Max region claims entry
+		self.rules_frame.max_region_claims_entry = ttk.Entry(self.rules_frame, width=5)
+		#self.cache_size_frame.entry.insert(0, str(sc4mp_config["STORAGE"]["cache_size"]))
+		self.rules_frame.max_region_claims_entry.grid(row=1, column=1, columnspan=1, padx=(10,0), pady=10, sticky="w")
+		#self.config_update.append((self.cache_size_frame.entry, "cache_size"))
 
-		# User plugins
+		# Max region claims label 2
+		self.rules_frame.max_region_claims_label_2 = ttk.Label(self.rules_frame, text="per region")
+		self.rules_frame.max_region_claims_label_2.grid(row=1, column=2, columnspan=1, padx=(2,10), pady=10, sticky="w")
+
+		# Godmode filter checkbutton
+		#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
+		self.rules_frame.godmode_filter_checkbutton = ttk.Checkbutton(self.rules_frame, text="Allow claims in godmode", onvalue=False, offvalue=True) #, variable=self.updates_frame.checkbutton_variable)
+		self.rules_frame.godmode_filter_checkbutton.grid(row=2, column=1, columnspan=2, padx=20, pady=10, sticky="w")
+		#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
+
+		# User plugins checkbutton
+		#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
+		self.rules_frame.user_plugins_checkbutton = ttk.Checkbutton(self.rules_frame, text="Allow user plugins", onvalue=True, offvalue=False) #, variable=self.updates_frame.checkbutton_variable)
+		self.rules_frame.user_plugins_checkbutton.grid(row=3, column=1, columnspan=2, padx=20, pady=10, sticky="w")
+		#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
 
 		# Plugins frame
 		self.plugins_frame = tk.LabelFrame(self, text="Plugins", padx=10, pady=10)
