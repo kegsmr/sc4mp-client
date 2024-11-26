@@ -2844,24 +2844,40 @@ class GameMonitor(th.Thread):
 		th.Thread.__init__(self)
 
 		self.server = server
+		
+		# Get list of city paths and their md5's
 		self.city_paths, self.city_hashcodes = self.get_cities()
 
+		# For backwards compatability
 		self.PREFIX = ""
 
+		# For status window and overlay window
 		self.ui = None
 		self.overlay_ui = None
+		
+		# If UI enabled (not commandline mode)
 		if sc4mp_ui is not None:
+			
+			# If launcher map enabled, use the map UI for the status window
 			if SC4MP_LAUNCHERMAP_ENABLED:
 				self.ui = GameMonitorMapUI()
+
+			# Otherwise, use the legacy status window
 			else:
 				self.ui = GameMonitorUI(self)
+
+			# Create game overlay window if the game overlay is enabled (`1` is fullscreen-mode only; `2` is always enabled)
 			if (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
 				self.overlay_ui = GameOverlayUI(self.ui)
+
+			# Set window title to server name
 			self.ui.title(server.server_name)
 
+		# Start the game launcher thread (starts the game)
 		self.game_launcher = GameLauncher()
 		self.game_launcher.start()
 
+		# Thread shutsdown when this is set to `True`
 		self.end = False
 
 
@@ -2871,24 +2887,26 @@ class GameMonitor(th.Thread):
 		# Catch all errors and show an error message
 		try:
 
+			# Thead name for logging
 			set_thread_name("GmThread", enumerate=False)
 
 			# Declare variable to break loop after the game closes
 			end = False
 
+			# Used for refresh stuff (`cfg_hashcode` is the md5 of `SimCity 4.cfg`)
 			cfg_hashcode = None
 			old_refresh_region_open = False
 
-			# Set initial status in ui
+			# Set initial status in UI
 			self.report_quietly("Welcome, start a city and save to claim a tile.") #Ready. #"Monitoring for changes...")
 				
-			# Show server description in UI
+			# Show server description in UI (only for the legacy status window)
 			if sc4mp_ui and not SC4MP_LAUNCHERMAP_ENABLED:
 				self.ui.ping_frame.left["text"] = f"{self.server.host}:{self.server.port}"
 				self.ui.description_label["text"] = self.server.server_description
 				self.ui.url_label["text"] = self.server.server_url
 
-			# Infinite loop that can be broken by the "end" variable
+			# Infinite loop that can be broken by the "end" variable (runs an extra time once it's set to `True`)
 			while True:
 
 				# Catch all errors and show an error message in the console
@@ -2897,14 +2915,14 @@ class GameMonitor(th.Thread):
 					# Ping the server
 					ping = self.ping()
 
-					# If the server is responsive print the ping in the console and display the ping in the ui
+					# If the server is responsive, print the ping in the console and display the ping in the ui
 					if ping != None:
 						print(f"Ping: {ping}")
 						if self.ui != None:
 							self.ui.ping_frame.right['text'] = f"{ping}ms"
 							self.ui.ping_frame.right['fg'] = "gray"
 					
-					# If the server is unresponsive print a warning in the console and update the ui accordingly
+					# If the server is unresponsive, print a warning in the console and update the ui accordingly
 					else:
 						print("[WARNING] Disconnected.")
 						if self.ui != None:
@@ -2950,10 +2968,11 @@ class GameMonitor(th.Thread):
 						self.city_paths = new_city_paths
 						self.city_hashcodes = new_city_hashcodes
 
+						# If modified savegames are found
 						if len(save_city_paths) > 0:
 							
 							# Report waiting to sync if new/modified savegames found
-							self.report("", "Saving...") #Scanning #Waiting to sync
+							self.report("", f"Saving: found {len(save_city_paths)} files...") #Scanning #Waiting to sync
 							self.set_overlay_state("saving")
 							
 							# Wait
@@ -3018,6 +3037,7 @@ class GameMonitor(th.Thread):
 						cfg_hashcode = new_cfg_hashcode
 					except Exception as e:
 						show_error(f"An unexpected error occurred while refreshing regions.\n\n{e}", no_ui=True)
+					
 					# Refresh by asking the server for the hashcodes of all its savegames (excluding ones already claimed by the user) and downloading the savegames missing locally, tossing them directly into the respective region (was supposed to work but SimCity 4 actually tries to keep files of the same checksum)
 					'''if (ping != None):
 						old_text = self.ui.label["text"]
@@ -3069,7 +3089,6 @@ class GameMonitor(th.Thread):
 				self.overlay_ui.destroy()
 
 			# Show the main ui once again	
-			
 			if sc4mp_exit_after:
 				if sc4mp_ui is not None:
 					sc4mp_ui.destroy()
@@ -3163,11 +3182,11 @@ class GameMonitor(th.Thread):
 		#for save_city_path in save_city_paths:
 		#	self.backup_city(save_city_path)
 
-		# Report progress: save
-		self.report(self.PREFIX, 'Saving...') #Pushing save #for "' + new_city_path + '"')
+		# Update overlay
 		self.set_overlay_state("saving")
 
 		# Salvage
+		self.report(self.PREFIX, 'Saving: copying to salvage...') #Pushing save #for "' + new_city_path + '"')
 		salvage_directory = Path(SC4MP_LAUNCHPATH) / "_Salvage" / self.server.server_id / datetime.now().strftime("%Y%m%d%H%M%S")
 		for path in save_city_paths:
 			relpath = path.relative_to(Path(SC4MP_LAUNCHPATH) / "Regions")
@@ -3177,6 +3196,7 @@ class GameMonitor(th.Thread):
 			shutil.copy(path, filename)
 
 		# Verify that all saves come from the same region
+		self.report(self.PREFIX, 'Saving: verifying...')
 		regions = set([save_city_path.parent.name for save_city_path in save_city_paths])
 		if len(regions) > 1:
 			self.report(self.PREFIX, 'Save push failed! Too many regions.', color="red") 
@@ -3186,23 +3206,22 @@ class GameMonitor(th.Thread):
 			region = list(regions)[0]
 
 		# Create socket
+		self.report(self.PREFIX, 'Saving: connecting to server...')
 		s = self.create_socket()
 		if s == None:
 			self.report(self.PREFIX, 'Save push failed! Server unreachable.', color="red") #'Unable to save the city "' + new_city + '" because the server is unreachable.'
 			self.set_overlay_state("not-saved")
 			return
 
-		# Report progress: save
-		self.report(self.PREFIX, 'Saving...')
-		self.set_overlay_state("saving")
-
 		# Send save request
+		self.report(self.PREFIX, 'Saving: sending save request...')
 		s.sendall(f"save {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
 		
 		# Separator
 		s.recv(SC4MP_BUFFER_SIZE)
 
 		# Send region name and file sizes
+		self.report(self.PREFIX, 'Saving: sending metadata...')
 		send_json(s, [
 			region,
 			[os.path.getsize(save_city_path) for save_city_path in save_city_paths]
@@ -3213,6 +3232,7 @@ class GameMonitor(th.Thread):
 
 		# Send file contents
 		for save_city_path in save_city_paths:
+			self.report(self.PREFIX, f'Saving: sending files ({save_city_paths.index(save_city_path) + 1} of {len(save_city_paths)})...')
 			with open(save_city_path, "rb") as file:
 				while True:
 					data = file.read(SC4MP_BUFFER_SIZE)
@@ -3247,6 +3267,7 @@ class GameMonitor(th.Thread):
 		#s.sendall(SC4MP_SEPARATOR)
 
 		# Handle response from server
+		self.report(self.PREFIX, 'Saving: awaiting response...')
 		response = s.recv(SC4MP_BUFFER_SIZE).decode()
 		if response == "ok":
 			self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green") #TODO keep track locally of the client's claims
@@ -3286,10 +3307,10 @@ class GameMonitor(th.Thread):
 
 			try:
 
-				self.report("", "Connecting...")
+				#self.report("", "Connecting...")
 				s.connect((host, port))
 
-				self.report("", "Connected.")
+				#self.report("", "Connected.")
 
 				break
 
