@@ -2972,11 +2972,23 @@ class GameMonitor(th.Thread):
 						if len(save_city_paths) > 0:
 							
 							# Report waiting to sync if new/modified savegames found
-							self.report("", f"Saving: found {len(save_city_paths)} files...") #Scanning #Waiting to sync
+							print("Saving...")
 							self.set_overlay_state("saving")
 							
+							# Pretty waiting loop
+							for i in range(6):
+								text = "Saving"
+								for text in [
+									"Saving.  ",
+									"Saving.. ",
+									"Saving...",
+									"Saving.. ",
+								]:
+									self.report_quietly(text)
+									time.sleep(.25)
+
 							# Wait
-							time.sleep(6) #5 #6 #10 #3 #TODO make configurable?
+							#time.sleep(6) #5 #6 #10 #3 #TODO make configurable?
 					
 					# If there are any new/modified savegame files, push them to the server. If errors occur, log them in the console and display a warning
 					if len(save_city_paths) > 0:
