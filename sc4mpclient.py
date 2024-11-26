@@ -2972,7 +2972,7 @@ class GameMonitor(th.Thread):
 						if len(save_city_paths) > 0:
 							
 							# Report waiting to sync if new/modified savegames found
-							print("Saving...")
+							self.report("", "Saving...")
 							self.set_overlay_state("saving")
 							
 							# Pretty waiting loop
