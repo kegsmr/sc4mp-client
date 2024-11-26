@@ -2972,7 +2972,7 @@ class GameMonitor(th.Thread):
 						if len(save_city_paths) > 0:
 							
 							# Report waiting to sync if new/modified savegames found
-							self.report("", "Saving...") #Scanning #Waiting to sync
+							self.report("", f"Saving: found {len(save_city_paths)} files...") #Scanning #Waiting to sync
 							self.set_overlay_state("saving")
 							
 							# Wait
@@ -3182,11 +3182,11 @@ class GameMonitor(th.Thread):
 		#for save_city_path in save_city_paths:
 		#	self.backup_city(save_city_path)
 
-		# Report progress: save
-		self.report(self.PREFIX, 'Saving...') #Pushing save #for "' + new_city_path + '"')
+		# Update overlay
 		self.set_overlay_state("saving")
 
 		# Salvage
+		self.report(self.PREFIX, 'Saving: copying to salvage...') #Pushing save #for "' + new_city_path + '"')
 		salvage_directory = Path(SC4MP_LAUNCHPATH) / "_Salvage" / self.server.server_id / datetime.now().strftime("%Y%m%d%H%M%S")
 		for path in save_city_paths:
 			relpath = path.relative_to(Path(SC4MP_LAUNCHPATH) / "Regions")
@@ -3196,6 +3196,7 @@ class GameMonitor(th.Thread):
 			shutil.copy(path, filename)
 
 		# Verify that all saves come from the same region
+		self.report(self.PREFIX, 'Saving: verifying...')
 		regions = set([save_city_path.parent.name for save_city_path in save_city_paths])
 		if len(regions) > 1:
 			self.report(self.PREFIX, 'Save push failed! Too many regions.', color="red") 
@@ -3205,23 +3206,22 @@ class GameMonitor(th.Thread):
 			region = list(regions)[0]
 
 		# Create socket
+		self.report(self.PREFIX, 'Saving: connecting to server...')
 		s = self.create_socket()
 		if s == None:
 			self.report(self.PREFIX, 'Save push failed! Server unreachable.', color="red") #'Unable to save the city "' + new_city + '" because the server is unreachable.'
 			self.set_overlay_state("not-saved")
 			return
 
-		# Report progress: save
-		self.report(self.PREFIX, 'Saving...')
-		self.set_overlay_state("saving")
-
 		# Send save request
+		self.report(self.PREFIX, 'Saving: sending save request...')
 		s.sendall(f"save {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
 		
 		# Separator
 		s.recv(SC4MP_BUFFER_SIZE)
 
 		# Send region name and file sizes
+		self.report(self.PREFIX, 'Saving: sending metadata...')
 		send_json(s, [
 			region,
 			[os.path.getsize(save_city_path) for save_city_path in save_city_paths]
@@ -3232,6 +3232,7 @@ class GameMonitor(th.Thread):
 
 		# Send file contents
 		for save_city_path in save_city_paths:
+			self.report(self.PREFIX, f'Saving: sending files ({save_city_paths.index(save_city_path) + 1} of {len(save_city_paths)})...')
 			with open(save_city_path, "rb") as file:
 				while True:
 					data = file.read(SC4MP_BUFFER_SIZE)
@@ -3266,6 +3267,7 @@ class GameMonitor(th.Thread):
 		#s.sendall(SC4MP_SEPARATOR)
 
 		# Handle response from server
+		self.report(self.PREFIX, 'Saving: awaiting response...')
 		response = s.recv(SC4MP_BUFFER_SIZE).decode()
 		if response == "ok":
 			self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green") #TODO keep track locally of the client's claims
@@ -3305,10 +3307,10 @@ class GameMonitor(th.Thread):
 
 			try:
 
-				self.report("", "Connecting...")
+				#self.report("", "Connecting...")
 				s.connect((host, port))
 
-				self.report("", "Connected.")
+				#self.report("", "Connected.")
 
 				break
 
