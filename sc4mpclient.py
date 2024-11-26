@@ -2862,7 +2862,7 @@ class GameMonitor(th.Thread):
 			if SC4MP_LAUNCHERMAP_ENABLED:
 				self.ui = GameMonitorMapUI()
 
-			# Otherwise, use the regular status window
+			# Otherwise, use the legacy status window
 			else:
 				self.ui = GameMonitorUI(self)
 
@@ -2893,14 +2893,14 @@ class GameMonitor(th.Thread):
 			# Declare variable to break loop after the game closes
 			end = False
 
-			# Used for refresh stuff
+			# Used for refresh stuff (`cfg_hashcode` is the md5 of `SimCity 4.cfg`)
 			cfg_hashcode = None
 			old_refresh_region_open = False
 
-			# Set initial status in ui
+			# Set initial status in UI
 			self.report_quietly("Welcome, start a city and save to claim a tile.") #Ready. #"Monitoring for changes...")
 				
-			# Show server description in UI
+			# Show server description in UI (only for the legacy status window)
 			if sc4mp_ui and not SC4MP_LAUNCHERMAP_ENABLED:
 				self.ui.ping_frame.left["text"] = f"{self.server.host}:{self.server.port}"
 				self.ui.description_label["text"] = self.server.server_description
@@ -2915,14 +2915,14 @@ class GameMonitor(th.Thread):
 					# Ping the server
 					ping = self.ping()
 
-					# If the server is responsive print the ping in the console and display the ping in the ui
+					# If the server is responsive, print the ping in the console and display the ping in the ui
 					if ping != None:
 						print(f"Ping: {ping}")
 						if self.ui != None:
 							self.ui.ping_frame.right['text'] = f"{ping}ms"
 							self.ui.ping_frame.right['fg'] = "gray"
 					
-					# If the server is unresponsive print a warning in the console and update the ui accordingly
+					# If the server is unresponsive, print a warning in the console and update the ui accordingly
 					else:
 						print("[WARNING] Disconnected.")
 						if self.ui != None:
@@ -2968,6 +2968,7 @@ class GameMonitor(th.Thread):
 						self.city_paths = new_city_paths
 						self.city_hashcodes = new_city_hashcodes
 
+						# If modified savegames are found
 						if len(save_city_paths) > 0:
 							
 							# Report waiting to sync if new/modified savegames found
