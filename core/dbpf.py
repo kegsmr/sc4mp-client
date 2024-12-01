@@ -260,7 +260,7 @@ class DBPF:
 	def get_SC4ReadRegionalCity(self):
 		"""TODO"""
 
-		print(f'Parsing region view subfile of "{self.filename}"...')
+		#print(f'Parsing region view subfile of "{self.filename}"...')
 
 		# Decompress the subfile and get the data as a bytes stream
 		data = self.decompress_subfile("ca027edb")
