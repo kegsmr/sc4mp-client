@@ -1857,19 +1857,19 @@ class ServerFetcher(th.Thread):
 
 				print(f"Fetching {self.server.host}:{self.server.port}...")
 
-				print("- fetching server info...")
+				#print("- fetching server info...")
 
 				try:
 					self.server.fetch()
 				except:
-					raise ClientException("Server not found")
+					raise ClientException("Server not found.")
 
 				if self.parent.end:
 					raise ClientException("The parent thread was signaled to end.")
 				elif not self.server.fetched:
 					raise ClientException("Server is not fetched.")
 
-				print("- populating server statistics")
+				#print("- populating server statistics")
 
 				if sc4mp_config["DEBUG"]["random_server_stats"]:
 
@@ -1898,21 +1898,21 @@ class ServerFetcher(th.Thread):
 						except:
 							pass
 
-				print("- adding server to server list...")
+				#print("- adding server to server list...")
 
 				try:
 					self.parent.fetched_servers.append(self.server)
 				except:
 					raise ClientException("Unable to add server to server list.")
 
-				print("- starting server pinger...")
+				#print("- starting server pinger...")
 
 				try:
 					ServerPinger(self.parent, self.server).start()
 				except:
 					raise ClientException("Unable to start server pinger.")
 
-				print("- fetching server list...")
+				#print("- fetching server list...")
 
 				try:
 					self.server_list()
@@ -1921,14 +1921,14 @@ class ServerFetcher(th.Thread):
 
 				if not self.server.private:
 
-					print("- fetching server stats...")
+					#print("- fetching server stats...")
 					
 					try:
 						self.fetch_stats()
 					except Exception as e:
 						print(f"[WARNING] Unable to fetch server stats for {self.server.host}:{self.server.port}! " + str(e))
 
-				print("- done.")
+				#print("- done.")
 
 			except Exception as e:
 
@@ -2009,7 +2009,7 @@ class ServerPinger(th.Thread):
 			while not self.parent.end:
 				time.sleep(len(self.parent.servers) + 1)
 				if not self.parent.pause:
-					print(f"Pinging {self.server.host}:{self.server.port}")
+					#print(f"Pinging {self.server.host}:{self.server.port}")
 					ping = self.server.ping()
 					if ping != None:
 						self.server.stat_ping = ping #int((self.server.stat_ping + ping) / 2)
@@ -3811,9 +3811,9 @@ class DatabaseManager(th.Thread):
 					time.sleep(SC4MP_DELAY * 5)
 					new_data = str(self.data)
 					if old_data != new_data:
-						report(f'Updating "{self.filename}"...', self)
+						#report(f'Updating "{self.filename}"...', self)
 						self.update_json()
-						report("- done.", self)
+						#report("- done.", self)
 					old_data = new_data
 				except Exception as e:
 					show_error(f"An unexpected error occurred in the database thread.\n\n{e}")
