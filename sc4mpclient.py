@@ -2906,28 +2906,37 @@ class GameMonitor(th.Thread):
 				self.ui.description_label["text"] = self.server.server_description
 				self.ui.url_label["text"] = self.server.server_url
 
+			# Time the server was last pinged (`None` for now)
+			last_ping_time = None
+
 			# Infinite loop that can be broken by the "end" variable (runs an extra time once it's set to `True`)
 			while True:
 
 				# Catch all errors and show an error message in the console
 				try:
 
-					# Ping the server
-					ping = self.ping()
+					# Update server ping in UI every 5 seconds
+					if last_ping_time is None or time.time() - last_ping_time >= 5:
 
-					# If the server is responsive, print the ping in the console and display the ping in the ui
-					if ping != None:
-						print(f"Ping: {ping}")
-						if self.ui != None:
-							self.ui.ping_frame.right['text'] = f"{ping}ms"
-							self.ui.ping_frame.right['fg'] = "gray"
-					
-					# If the server is unresponsive, print a warning in the console and update the ui accordingly
-					else:
-						print("[WARNING] Disconnected.")
-						if self.ui != None:
-							self.ui.ping_frame.right['text'] = "Disconnected"
-							self.ui.ping_frame.right['fg'] = "red"
+						# Ping the server
+						ping = self.ping()
+
+						# If the server is responsive, print the ping in the console and display the ping in the ui
+						if ping != None:
+							print(f"Ping: {ping}")
+							if self.ui != None:
+								self.ui.ping_frame.right['text'] = f"{ping}ms"
+								self.ui.ping_frame.right['fg'] = "gray"
+						
+						# If the server is unresponsive, print a warning in the console and update the ui accordingly
+						else:
+							print("[WARNING] Disconnected.")
+							if self.ui != None:
+								self.ui.ping_frame.right['text'] = "Disconnected"
+								self.ui.ping_frame.right['fg'] = "red"
+
+						# Set the last ping time
+						last_ping_time = time.time()
 
 					#new_city_paths, new_city_hashcodes = self.get_cities()
 					
@@ -2975,20 +2984,24 @@ class GameMonitor(th.Thread):
 							self.report("", "Saving...")
 							self.set_overlay_state("saving")
 							
-							# Pretty waiting loop
-							for i in range(6):
-								text = "Saving"
-								for text in [
-									"Saving.  ",
-									"Saving.. ",
-									"Saving...",
-									"Saving.. ",
-								]:
-									self.report_quietly(text)
-									time.sleep(.25)
+							# Filter the savegames if more than two are found
+							if len(save_city_paths) > 2:
+								try:
+									savegames = []
+									for save_city_path in save_city_paths:
+										savegame = DBPF(save_city_path, error_callback=None)
+										savegame.get_SC4ReadRegionalCity()
+										savegames.append(savegame)
+									filtered_savegames = self.filter_bordering_tiles(savegames)
+									if len(filtered_savegames) == 1:
+										save_city_paths = [savegame.filename for savegame in filtered_savegames]
+										[savegame.close() for savegame in savegames]
+										break
+								except Exception as e:
+									show_error(e, no_ui=True)
 
-							# Wait
-							#time.sleep(6) #5 #6 #10 #3 #TODO make configurable?
+							# Wait for more savegames
+							time.sleep(5)
 					
 					# If there are any new/modified savegame files, push them to the server. If errors occur, log them in the console and display a warning
 					if len(save_city_paths) > 0:
@@ -3002,7 +3015,7 @@ class GameMonitor(th.Thread):
 							show_error(e, no_ui=True)
 							self.report("[WARNING] ", "Save push failed! Unexpected client-side error.", color="red")
 							self.set_overlay_state("not-saved")
-						time.sleep(6)
+						time.sleep(5)
 
 					# Break the loop when signaled
 					if end == True:
@@ -3013,7 +3026,7 @@ class GameMonitor(th.Thread):
 						end = True
 
 					# Wait
-					time.sleep(3) #1 #3
+					time.sleep(1) #3 #1 #3
 
 					# Refresh
 					cfg_path = get_sc4_cfg_path()
@@ -3049,41 +3062,6 @@ class GameMonitor(th.Thread):
 						cfg_hashcode = new_cfg_hashcode
 					except Exception as e:
 						show_error(f"An unexpected error occurred while refreshing regions.\n\n{e}", no_ui=True)
-					
-					# Refresh by asking the server for the hashcodes of all its savegames (excluding ones already claimed by the user) and downloading the savegames missing locally, tossing them directly into the respective region (was supposed to work but SimCity 4 actually tries to keep files of the same checksum)
-					'''if (ping != None):
-						old_text = self.ui.label["text"]
-						self.report("", "Refreshing...")
-						with self.create_socket() as s:
-							self.report("", "Refreshing...")
-							s.sendall(b'refresh')
-							request_header(s, self.server)
-							s.recv(SC4MP_BUFFER_SIZE)
-							s.sendall(self.server.user_id.encode())
-							timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-							file_count = 0
-							while (True):
-								message = s.recv(SC4MP_BUFFER_SIZE).decode()
-								if (message == "done"):
-									break
-								else:
-									hashcode = message
-									#print(hashcode)
-									if (hashcode in self.city_hashcodes):
-										s.sendall(b'present')
-									else:
-										s.sendall(b'missing')
-										region = s.recv(SC4MP_BUFFER_SIZE).decode()
-										s.sendall(SC4MP_SEPARATOR)
-										destination = os.path.join(SC4MP_LAUNCHPATH, "Regions", region, "_refresh_" + timestamp + "_" + str(file_count) + ".sc4")
-										self.receive_file(s, destination)
-										self.city_paths.append(destination)
-										self.city_hashcodes.append(hashcode)
-										s.sendall(SC4MP_SEPARATOR)
-										file_count += 1
-							s.close()
-							print("- " + str(file_count) + " savegame(s) downloaded.")
-						self.ui.label["text"] = old_text'''
 					
 				except Exception as e:
 					if self.end:
@@ -3182,6 +3160,59 @@ class GameMonitor(th.Thread):
 				f.write(bytes_read)
 				filesize_read += len(bytes_read)
 				#print('Downloading "' + filename + '" (' + str(filesize_read) + " / " + str(filesize) + " bytes)...", int(filesize_read), int(filesize)) #os.path.basename(os.path.normpath(filename))
+
+
+	def filter_bordering_tiles(self, savegames):
+
+		#report("Savegame filter 1", self)
+
+		filtered_savegames = []
+
+		for savegame in savegames:
+
+			add = True
+
+			savegameX = savegame.SC4ReadRegionalCity["tileXLocation"]
+			savegameY = savegame.SC4ReadRegionalCity["tileYLocation"]
+
+			savegameSizeX = savegame.SC4ReadRegionalCity["citySizeX"]
+			savegameSizeY = savegame.SC4ReadRegionalCity["citySizeY"]
+
+			for neighbor in savegames:
+
+				if neighbor == savegame:
+					continue
+
+				neighborX = neighbor.SC4ReadRegionalCity["tileXLocation"]
+				neighborY = neighbor.SC4ReadRegionalCity["tileYLocation"]
+
+				neighborSizeX = neighbor.SC4ReadRegionalCity["citySizeX"]
+				neighborSizeY = neighbor.SC4ReadRegionalCity["citySizeY"]
+
+				conditionX1 = (neighborX == savegameX - neighborSizeX)
+				conditionX2 = (neighborX == savegameX + savegameSizeX)
+				conditionY1 = (neighborY == savegameY - neighborSizeY)
+				conditionY2 = (neighborY == savegameY + savegameSizeY)
+
+				conditionX = xor(conditionX1, conditionX2) and ((neighborY + neighborSizeY > savegameY) or (neighborY < savegameY + savegameSizeY))
+				conditionY = xor(conditionY1, conditionY2) and ((neighborX + neighborSizeX > savegameX) or (neighborX < savegameX + savegameSizeX))
+
+				condition = xor(conditionX, conditionY)
+
+				if not condition:
+					add = False
+
+			if add:
+
+				filtered_savegames.append(savegame)
+
+				#report("YES (" + str(savegameX) + ", " + str(savegameY) + ")", self)
+
+			#else:
+
+				#report("NO (" + str(savegameX) + ", " + str(savegameY) + ")", self)
+
+		return filtered_savegames
 
 
 	def push_save(self, save_city_paths: list[Path]) -> None:

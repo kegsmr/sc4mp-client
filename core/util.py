@@ -57,3 +57,8 @@ def set_thread_name(name, enumerate=True):
 
 		th.current_thread().name = name
 		return name
+	
+
+def xor(conditionA, conditionB):
+	
+	return (conditionA or conditionB) and (not (conditionA and conditionB))
