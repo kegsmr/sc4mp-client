@@ -5117,7 +5117,7 @@ class ServerListUI(tk.Frame):
 		self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2")
 		self.url_label.grid(row=1, column=0, columnspan=1, padx=0, pady=5, sticky="nw")
 		self.url_label['text'] = ""
-		self.url_label.bind("<Button-1>", lambda e:webbrowser.open_new_tab(format_url(self.url_label["text"])))
+		self.url_label.bind("<Button-1>", lambda e:self.open_server_url())
 
 
 		# Combo box
@@ -5224,6 +5224,11 @@ class ServerListUI(tk.Frame):
 			self.tree.focus_set()
 		except Exception as e:
 			show_error(f"An error occurred before the server loader thread could start.\n\n{e}")
+
+
+	def open_server_url(self):
+
+		webbrowser.open_new_tab(format_url(self.url_label["text"]))
 
 
 class ServerLoaderUI(tk.Toplevel):
