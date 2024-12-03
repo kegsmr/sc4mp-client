@@ -2984,24 +2984,20 @@ class GameMonitor(th.Thread):
 							self.report("", "Saving...")
 							self.set_overlay_state("saving")
 							
-							# Filter the savegames if more than two are found
-							if len(save_city_paths) > 2:
-								try:
-									savegames = []
-									for save_city_path in save_city_paths:
-										savegame = DBPF(save_city_path, error_callback=None)
-										savegame.get_SC4ReadRegionalCity()
-										savegames.append(savegame)
-									filtered_savegames = self.filter_bordering_tiles(savegames)
-									if len(filtered_savegames) == 1:
-										save_city_paths = [savegame.filename for savegame in filtered_savegames]
-										[savegame.close() for savegame in savegames]
-										break
-								except Exception as e:
-									show_error(e, no_ui=True)
+							# Pretty waiting loop
+							#for i in range(6):
+							#	text = "Saving"
+							#	for text in [
+							#		"Saving.  ",
+							#		"Saving.. ",
+							#		"Saving...",
+							#		"Saving.. ",
+							#	]:
+							#		self.report_quietly(text)
+							#		time.sleep(.25)
 
-							# Wait for more savegames
-							time.sleep(5)
+							# Wait
+							time.sleep(5) #6 #5 #6 #10 #3 #TODO make configurable?
 					
 					# If there are any new/modified savegame files, push them to the server. If errors occur, log them in the console and display a warning
 					if len(save_city_paths) > 0:
