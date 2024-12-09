@@ -5469,8 +5469,26 @@ class ServerDetailsUI(tk.Toplevel):
 		self.grab_set()
 
 		# Key bindings
-		self.bind("<Return>", lambda event:self.ok())
+		self.bind("<Return>", lambda event:self.destroy())
 		self.bind("<Escape>", lambda event:self.destroy())
+
+		# Notebook
+		self.notebook = ttk.Notebook(self, width=400, height=300)
+		self.notebook.grid(row=0, column=0, padx=5, pady=5)
+
+		# Mayors frame
+		self.mayors_frame = tk.Frame(self.notebook)
+		self.mayors_frame.tree = ttk.Treeview(self.mayors_frame, columns=[], selectmode="browse", height=12)
+		self.mayors_frame.tree.grid(row=0, column=0)
+		self.notebook.add(self.mayors_frame, text="Mayors")
+
+		# Files frame
+		self.files_frame = tk.Frame(self.notebook)
+		self.notebook.add(self.files_frame, text="Files")
+
+		# Ok button
+		self.ok_button = ttk.Button(self, text="Ok", command=self.destroy, default="active")
+		self.ok_button.grid(row=1, column=0, padx=0, pady=5, sticky="se")
 
 
 class GameMonitorUI(tk.Toplevel):
