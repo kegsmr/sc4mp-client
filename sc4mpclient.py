@@ -1522,15 +1522,17 @@ class ServerList(th.Thread):
 
 				if self.pause == False:
 
-					# Enable or disable connect button and update labels
+					# Enable or disable buttons and update labels
 					server_id = self.ui.tree.focus()
 					if server_id == "" or server_id not in self.servers.keys():
 						self.ui.connect_button['state'] = tk.DISABLED
+						self.ui.details_button['state'] = tk.DISABLED
 						self.ui.address_label["text"] = ""
 						self.ui.description_label["text"] = ""
 						self.ui.url_label["text"] = ""
 					else:
 						self.ui.connect_button['state'] = tk.NORMAL
+						self.ui.details_button['state'] = tk.NORMAL
 						self.ui.address_label["text"] = self.servers[server_id].host + ":" + str(self.servers[server_id].port)
 						self.ui.description_label["text"] = self.servers[server_id].server_description
 						self.ui.url_label["text"] = self.servers[server_id].server_url
@@ -5059,20 +5061,20 @@ class ServerListUI(tk.Frame):
 		self.canvas.create_image(400, 50, image=self.canvas.image)    
 		self.canvas["borderwidth"] = 0
 		self.canvas["highlightthickness"] = 0
-		self.canvas.grid(row=0, column=0, rowspan=1, columnspan=2, padx=0, pady=0)
+		self.canvas.grid(row=0, column=0, rowspan=1, columnspan=3, padx=0, pady=0)
 
 
 		# Label
 
 		self.label = ttk.Label(self)
-		self.label.grid(row=1, column=0, rowspan=1, columnspan=2, padx=10, pady=(15, 10))
+		self.label.grid(row=1, column=0, rowspan=1, columnspan=3, padx=10, pady=(15, 10))
 		#self.label['text'] = 'Loading...' #'To get started, select a server below and click "Connect."' #"Loading server list..."
 
 
 		# Frame
 
 		self.frame = tk.Frame(self)
-		self.frame.grid(row=2, column=0, rowspan=1, columnspan=2, padx=15, pady=10, sticky="n")
+		self.frame.grid(row=2, column=0, rowspan=1, columnspan=3, padx=15, pady=10, sticky="n")
 
 
 		# Tree
@@ -5155,7 +5157,7 @@ class ServerListUI(tk.Frame):
 		# Server info frame
 
 		self.server_info = tk.Frame(self, width=540, height=120)
-		self.server_info.grid(row=3, column=0, padx=20, pady=0, sticky="nw")
+		self.server_info.grid(row=3, column=0, columnspan=2, padx=20, pady=0, sticky="nw")
 		self.server_info.grid_propagate(0)
 
 
@@ -5178,7 +5180,7 @@ class ServerListUI(tk.Frame):
 
 		self.combo_box = ttk.Combobox(self, width=20)
 		self.combo_box["values"] = ("category: All", "category: Official", "category: Public", "category: Private", "category: History") #"category: Favorites"
-		self.combo_box.grid(row=3, column=1, rowspan=1, columnspan=1, padx=(0,15), pady=(5,10), sticky="ne")
+		self.combo_box.grid(row=3, column=2, rowspan=1, columnspan=1, padx=(0,15), pady=(5,10), sticky="ne")
 		
 
 		# Address label
@@ -5188,10 +5190,23 @@ class ServerListUI(tk.Frame):
 		self.address_label['text'] = ""
 
 
+		# Server options frame
+
+		self.server_options = tk.Frame(self)
+		self.server_options.grid(row=4, column=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="se")
+
+
+		# Details button
+
+		self.details_button = ttk.Button(self.server_options, text="Details", command=self.details)
+		self.details_button['state'] = tk.DISABLED
+		self.details_button.grid(row=0, column=99, columnspan=1, padx=(15,20), pady=10, sticky="se")
+
+
 		# Refresh / connect frame
 
 		self.refresh_connect = tk.Frame(self)
-		self.refresh_connect.grid(row=4, column=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="se")
+		self.refresh_connect.grid(row=4, column=2, rowspan=1, columnspan=1, padx=0, pady=0, sticky="se")
 
 
 		# Refresh button
@@ -5253,6 +5268,11 @@ class ServerListUI(tk.Frame):
 				self.tree.selection_add([children[0]])
 		except Exception as e:
 			show_error("Error setting focus on server list UI.", no_ui=True) # Method not all that important so we'll just toss an error in the console and call it a day 
+
+
+	def details(self):
+
+		ServerDetailsUI(self.worker.servers[self.tree.focus()])
 
 
 	def connect(self):
@@ -5419,6 +5439,38 @@ class ServerLoaderBackgoundUI(tk.Toplevel):
 				rgb = '#%02x%02x%02x' % img.get(xOld, yOld)
 				newPhotoImage.put(rgb, (x, y))
 		return newPhotoImage
+
+
+class ServerDetailsUI(tk.Toplevel):
+
+
+	def __init__(self, server: Server):
+		"""TODO"""
+
+		#print("Initializing...")
+
+		# Init
+		super().__init__()
+
+		# Title
+		self.title(server.server_name)
+
+		# Icon
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+
+		# Geometry
+		self.geometry('400x400')
+		self.maxsize(450, 425)
+		self.minsize(450, 425)
+		self.grid()
+		center_window(self)
+		
+		# Priority
+		self.grab_set()
+
+		# Key bindings
+		self.bind("<Return>", lambda event:self.ok())
+		self.bind("<Escape>", lambda event:self.destroy())
 
 
 class GameMonitorUI(tk.Toplevel):
