@@ -2056,7 +2056,7 @@ class ServerLoader(th.Thread):
 		th.Thread.__init__(self)
 
 		self.ui = ui
-		self.server = server
+		self.server: Server = server
 
 		self.setDaemon(True)
 
@@ -4844,7 +4844,7 @@ class PasswordDialogUI(tk.Toplevel):
 		print("Initializing...")
 
 		# Parameters
-		self.server_loader = server_loader
+		self.server_loader: ServerLoader = server_loader
 		self.tries = tries
 
 		# Hide server loader
@@ -4895,19 +4895,29 @@ class PasswordDialogUI(tk.Toplevel):
 
 		# OK button
 		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Ok", command=self.ok, default="active")
-		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=3, pady=5, sticky="w")
+		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=(3,0), pady=5, sticky="w")
+
+		# Guest button
+		#if True:
+		#	self.ok_cancel.guest_button = ttk.Button(self.ok_cancel, text="Guest", command=self.ok)
+		#	self.ok_cancel.guest_button.grid(row=0, column=0, columnspan=1, padx=(10,0), pady=5, sticky="w")
 
 		# Cancel button
 		self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.cancel)
-		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=7, pady=5, sticky="e")
+		self.ok_cancel.cancel_button.grid(row=0, column=2, columnspan=1, padx=(10,7), pady=5, sticky="e")
 
 		# Update loop
 		self.wait = True
 		while self.wait:
 			if len(self.password_entry.get()) < 1:
-				self.ok_cancel.ok_button['state'] = tk.DISABLED
+				if self.server_loader.server.private:
+					self.ok_cancel.ok_button['state'] = tk.DISABLED
+				else:
+					self.ok_cancel.ok_button['state'] = tk.NORMAL
+					self.ok_cancel.ok_button["text"] = "Guest"
 			else:
 				self.ok_cancel.ok_button['state'] = tk.NORMAL
+				self.ok_cancel.ok_button["text"] = "Ok"
 			time.sleep(SC4MP_DELAY)
 
 
@@ -4921,6 +4931,12 @@ class PasswordDialogUI(tk.Toplevel):
 			self.server_loader.ui.deiconify()
 			self.server_loader.ui.lift()
 			self.server_loader.ui.grab_set()
+		elif not self.server_loader.server.private:
+			self.withdraw()
+			if messagebox.askokcancel(self.server_loader.server.server_name, "Connecting as a guest will not allow you to modify any cities.\n\nDo you wish to continue?", icon="warning"):
+				fatal_error()
+			else:
+				self.deiconify()
 
 
 	def cancel(self):
