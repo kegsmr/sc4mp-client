@@ -2058,7 +2058,7 @@ class ServerLoader(th.Thread):
 		th.Thread.__init__(self)
 
 		self.ui = ui
-		self.server = server
+		self.server: Server = server
 
 		self.setDaemon(True)
 
@@ -2237,7 +2237,8 @@ class ServerLoader(th.Thread):
 				tries += 1
 			else:
 				raise ClientException("Incorrect password.")
-		self.server.authenticate()
+		if self.server.password != "":
+			self.server.authenticate()
 		
 
 	def check_password(self):
@@ -2249,6 +2250,8 @@ class ServerLoader(th.Thread):
 						self.server.password = sc4mp_servers_database[self.server.server_id]["password"]
 					except:
 						return False
+			if self.server.password == "":
+				return True
 			s = self.create_socket()
 			if self.ui is not None:
 				self.ui.label['text'] = "Authenticating..."
@@ -2924,7 +2927,7 @@ class GameMonitor(th.Thread):
 
 			# Create game overlay window if the game overlay is enabled (`1` is fullscreen-mode only; `2` is always enabled)
 			if (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
-				self.overlay_ui = GameOverlayUI(self.ui)
+				self.overlay_ui = GameOverlayUI(self.ui, guest=(server.password == ""))
 
 			# Set window title to server name
 			self.ui.title(server.server_name)
@@ -2954,7 +2957,10 @@ class GameMonitor(th.Thread):
 			old_refresh_region_open = False
 
 			# Set initial status in UI
-			self.report_quietly("Welcome, start a city and save to claim a tile.") #Ready. #"Monitoring for changes...")
+			if self.server.password == "":
+				self.report_quietly("Welcome, you've joined as a guest.")
+			else:
+				self.report_quietly("Welcome, start a city and save to claim a tile.") #Ready. #"Monitoring for changes...")
 				
 			# Show server description in UI (only for the legacy status window)
 			if sc4mp_ui and not SC4MP_LAUNCHERMAP_ENABLED:
@@ -2984,81 +2990,84 @@ class GameMonitor(th.Thread):
 						if self.ui != None:
 							self.ui.ping_frame.right['text'] = "Disconnected"
 							self.ui.ping_frame.right['fg'] = "red"
-
-					#new_city_paths, new_city_hashcodes = self.get_cities()
 					
-					# Array of savegames to push to the server
-					save_city_paths = []
+					# If not in guest mode
+					if self.server.password != "":
 
-					# Print statements for debugging
-					#print("Old cities: " + str(self.city_paths))
-					#print("New cities: " + str(new_city_paths))
-
-					# Will be used to store the amount of savegames detected in the previous iteration of the following while loop (-1 means the while loop will always run at least one time!)
-					save_city_paths_length = -1
-
-					# Loop until no new/modified savegames were found in the last iteration of the loop (meant to prevent fragmented save pushes, not the best solution because it relies somewhat on the loop delay)
-					while len(save_city_paths) != save_city_paths_length:
-
-						# Update the new/modified savegame counter
-						save_city_paths_length = len(save_city_paths)
-
-						# Store the paths and hashcodes of savegames in the "Regions" directory to two local arrays
-						new_city_paths, new_city_hashcodes = self.get_cities() #TODO I think this should be here...?
+						#new_city_paths, new_city_hashcodes = self.get_cities()
 						
-						# Loop through the paths of the savegames currently found in the "Regions" directory
-						for new_city_path in new_city_paths:
+						# Array of savegames to push to the server
+						save_city_paths = []
+
+						# Print statements for debugging
+						#print("Old cities: " + str(self.city_paths))
+						#print("New cities: " + str(new_city_paths))
+
+						# Will be used to store the amount of savegames detected in the previous iteration of the following while loop (-1 means the while loop will always run at least one time!)
+						save_city_paths_length = -1
+
+						# Loop until no new/modified savegames were found in the last iteration of the loop (meant to prevent fragmented save pushes, not the best solution because it relies somewhat on the loop delay)
+						while len(save_city_paths) != save_city_paths_length:
+
+							# Update the new/modified savegame counter
+							save_city_paths_length = len(save_city_paths)
+
+							# Store the paths and hashcodes of savegames in the "Regions" directory to two local arrays
+							new_city_paths, new_city_hashcodes = self.get_cities() #TODO I think this should be here...?
 							
-							# If it's a new savegame, add it to the list of savegames to be pushed to the server
-							if not new_city_path in self.city_paths:
-								save_city_paths.append(new_city_path)
-							
-							# If it's not a new savegame, check if it's a modified savegame. If so, add it to the same list
-							else:
-								city_hashcode = self.city_hashcodes[self.city_paths.index(new_city_path)]
-								new_city_hashcode = new_city_hashcodes[new_city_paths.index(new_city_path)]
-								if city_hashcode != new_city_hashcode:
+							# Loop through the paths of the savegames currently found in the "Regions" directory
+							for new_city_path in new_city_paths:
+								
+								# If it's a new savegame, add it to the list of savegames to be pushed to the server
+								if not new_city_path in self.city_paths:
 									save_city_paths.append(new_city_path)
+								
+								# If it's not a new savegame, check if it's a modified savegame. If so, add it to the same list
+								else:
+									city_hashcode = self.city_hashcodes[self.city_paths.index(new_city_path)]
+									new_city_hashcode = new_city_hashcodes[new_city_paths.index(new_city_path)]
+									if city_hashcode != new_city_hashcode:
+										save_city_paths.append(new_city_path)
 
-						# For future comparisons
-						self.city_paths = new_city_paths
-						self.city_hashcodes = new_city_hashcodes
+							# For future comparisons
+							self.city_paths = new_city_paths
+							self.city_hashcodes = new_city_hashcodes
 
-						# If modified savegames are found
+							# If modified savegames are found
+							if len(save_city_paths) > 0:
+								
+								# Report waiting to sync if new/modified savegames found
+								self.report("", "Saving...")
+								self.set_overlay_state("saving")
+								
+								# Pretty waiting loop
+								#for i in range(6):
+								#	text = "Saving"
+								#	for text in [
+								#		"Saving.  ",
+								#		"Saving.. ",
+								#		"Saving...",
+								#		"Saving.. ",
+								#	]:
+								#		self.report_quietly(text)
+								#		time.sleep(.25)
+
+								# Wait
+								time.sleep(5) #6 #5 #6 #10 #3 #TODO make configurable?
+						
+						# If there are any new/modified savegame files, push them to the server. If errors occur, log them in the console and display a warning
 						if len(save_city_paths) > 0:
-							
-							# Report waiting to sync if new/modified savegames found
-							self.report("", "Saving...")
-							self.set_overlay_state("saving")
-							
-							# Pretty waiting loop
-							#for i in range(6):
-							#	text = "Saving"
-							#	for text in [
-							#		"Saving.  ",
-							#		"Saving.. ",
-							#		"Saving...",
-							#		"Saving.. ",
-							#	]:
-							#		self.report_quietly(text)
-							#		time.sleep(.25)
-
-							# Wait
-							time.sleep(5) #6 #5 #6 #10 #3 #TODO make configurable?
-					
-					# If there are any new/modified savegame files, push them to the server. If errors occur, log them in the console and display a warning
-					if len(save_city_paths) > 0:
-						try:
-							self.push_save(save_city_paths)
-						except socket.timeout as e:
-							show_error(e, no_ui=True)
-							self.report("[WARNING] ", "Save push failed! Server timed out.", color="red")
-							self.set_overlay_state("not-saved")
-						except Exception as e:
-							show_error(e, no_ui=True)
-							self.report("[WARNING] ", "Save push failed! Unexpected client-side error.", color="red")
-							self.set_overlay_state("not-saved")
-						time.sleep(6)
+							try:
+								self.push_save(save_city_paths)
+							except socket.timeout as e:
+								show_error(e, no_ui=True)
+								self.report("[WARNING] ", "Save push failed! Server timed out.", color="red")
+								self.set_overlay_state("not-saved")
+							except Exception as e:
+								show_error(e, no_ui=True)
+								self.report("[WARNING] ", "Save push failed! Unexpected client-side error.", color="red")
+								self.set_overlay_state("not-saved")
+							time.sleep(6)
 
 					# Break the loop when signaled
 					if end == True:
@@ -4846,7 +4855,7 @@ class PasswordDialogUI(tk.Toplevel):
 		print("Initializing...")
 
 		# Parameters
-		self.server_loader = server_loader
+		self.server_loader: ServerLoader = server_loader
 		self.tries = tries
 
 		# Hide server loader
@@ -4897,32 +4906,54 @@ class PasswordDialogUI(tk.Toplevel):
 
 		# OK button
 		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Ok", command=self.ok, default="active")
-		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=3, pady=5, sticky="w")
+		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=(3,0), pady=5, sticky="w")
+
+		# Guest button
+		#if True:
+		#	self.ok_cancel.guest_button = ttk.Button(self.ok_cancel, text="Guest", command=self.ok)
+		#	self.ok_cancel.guest_button.grid(row=0, column=0, columnspan=1, padx=(10,0), pady=5, sticky="w")
 
 		# Cancel button
 		self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.cancel)
-		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=7, pady=5, sticky="e")
+		self.ok_cancel.cancel_button.grid(row=0, column=2, columnspan=1, padx=(10,7), pady=5, sticky="e")
 
 		# Update loop
 		self.wait = True
 		while self.wait:
 			if len(self.password_entry.get()) < 1:
-				self.ok_cancel.ok_button['state'] = tk.DISABLED
+				if self.server_loader.server.private:
+					self.ok_cancel.ok_button['state'] = tk.DISABLED
+				else:
+					self.ok_cancel.ok_button['state'] = tk.NORMAL
+					self.ok_cancel.ok_button["text"] = "Guest"
 			else:
 				self.ok_cancel.ok_button['state'] = tk.NORMAL
+				self.ok_cancel.ok_button["text"] = "Ok"
 			time.sleep(SC4MP_DELAY)
 
 
 	def ok(self):
 		"""TODO"""
+
 		password = self.password_entry.get()
-		if len(password) > 0:
-			self.server_loader.server.password = password
-			self.wait = False
-			self.destroy()
-			self.server_loader.ui.deiconify()
-			self.server_loader.ui.lift()
-			self.server_loader.ui.grab_set()
+		
+		if len(password) < 1:
+			if self.server_loader.server.private:
+				return
+			else:
+				self.withdraw()
+				if not messagebox.askokcancel(self.server_loader.server.server_name, "You are about to join the server as a guest.\n\nAny cities you build will NOT be saved.", icon="info"):
+					self.deiconify()
+					return
+
+		self.server_loader.server.password = password
+		self.wait = False
+
+		self.destroy()
+
+		self.server_loader.ui.deiconify()
+		self.server_loader.ui.lift()
+		self.server_loader.ui.grab_set()		
 
 
 	def cancel(self):
@@ -5695,7 +5726,7 @@ class GameOverlayUI(tk.Toplevel):
 	"""TODO"""
 	
 
-	def __init__(self, game_monitor_ui):
+	def __init__(self, game_monitor_ui, guest=False):
 		"""TODO"""
 
 		#print("Initializing...")
@@ -5715,13 +5746,16 @@ class GameOverlayUI(tk.Toplevel):
 
 		# Images
 		self.images = {}
-		for state in ["connected", "not-saved", "refreshed", "refreshing", "saved", "saving"]:
+		for state in ["connected", "guest", "not-saved", "refreshed", "refreshing", "saved", "saving"]:
 			self.images[state] = tk.PhotoImage(file=get_sc4mp_path(f"overlay-{state}.png"))
 
 		# Canvas
 		self.canvas = tk.Canvas(self, bg="black", highlightthickness=0, cursor="hand2")
 		self.canvas.bind("<Button-1>", self.click)
-		self.set_state("connected")
+		if guest:
+			self.set_state("guest")	
+		else:
+			self.set_state("connected")
 
 
 	def overlay(self):
