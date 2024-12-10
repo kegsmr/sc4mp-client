@@ -5481,43 +5481,119 @@ class ServerDetailsUI(tk.Toplevel):
 		#print("Initializing...")
 
 		# Init
+
 		super().__init__()
 
+		self.server = server
+
 		# Title
-		self.title(server.server_name)
+
+		self.title(self.server.server_name)
+
 
 		# Icon
+
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
+
 		# Geometry
+
 		self.geometry('400x400')
 		self.maxsize(450, 425)
 		self.minsize(450, 425)
 		self.grid()
 		center_window(self)
 		
+
 		# Priority
+
 		self.grab_set()
 
+
 		# Key bindings
+		
 		self.bind("<Return>", lambda event:self.destroy())
 		self.bind("<Escape>", lambda event:self.destroy())
 
+
 		# Notebook
-		self.notebook = ttk.Notebook(self, width=400, height=300)
-		self.notebook.grid(row=0, column=0, padx=5, pady=5)
+
+		self.notebook = ttk.Notebook(self, width=400, height=327)
+		self.notebook.grid(row=0, column=0, padx=(5,0), pady=5)
+
 
 		# Mayors frame
+
 		self.mayors_frame = tk.Frame(self.notebook)
-		self.mayors_frame.tree = ttk.Treeview(self.mayors_frame, columns=[], selectmode="browse", height=12)
+		self.mayors_frame.tree = ttk.Treeview(self.mayors_frame, columns=[], selectmode="browse", height=15)
+
+		#for i in range(20):
+		#	self.mayors_frame.tree.insert("", 0, f"{i}", text=f"{i}")
+
+		regions_directory: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server.server_id / "Regions"
+		
+		mayors = {}
+		for region in os.listdir(regions_directory):
+			region_database: dict = load_json(regions_directory / region / "_Database" / "region.json")
+			for entry in region_database.values():
+				if entry is not None:
+					user_id = entry.get("owner", None)
+					if user_id is not None:
+						
+						mayors.setdefault(user_id, {})
+						
+						mayors[user_id].setdefault("name", "Defacto")
+
+						mayors[user_id].setdefault("last_online", None)
+						if mayors[user_id]["last_online"] is None or datetime.strptime(entry["modified"], "%Y-%m-%d %H:%M:%S") > datetime.strptime(mayors[user_id]["last_online"], "%Y-%m-%d %H:%M:%S"):
+							if not entry.get("reclaimed", False):
+								mayors[user_id]["name"] = entry["mayor_name"]
+							mayors[user_id]["last_online"] = entry["modified"]
+
+						mayors[user_id].setdefault("residential_population", 0)
+						mayors[user_id]["residential_population"] += entry["residential_population"]
+
+						mayors[user_id].setdefault("commercial_population", 0)
+						mayors[user_id]["commercial_population"] += entry["commercial_population"]
+
+						mayors[user_id].setdefault("industrial_population", 0)
+						mayors[user_id]["industrial_population"] += entry["industrial_population"]
+
+						mayors[user_id].setdefault("total_population", 0)
+						mayors[user_id]["total_population"] += entry["population"]
+
+						mayors[user_id].setdefault("mayor_rating", 0)
+						mayors[user_id]["mayor_rating"] += entry["residential_population"] * entry["mayor_rating"]
+
+						mayors[user_id].setdefault("tiles_claimed", 0)
+						mayors[user_id]["tiles_claimed"] += 1
+
+						mayors[user_id].setdefault("area_claimed", 0)
+						mayors[user_id]["area_claimed"] += entry["size"] ** 2
+
+		for entry in mayors.values():
+			if entry["residential_population"] > 0:
+				entry["mayor_rating"] = round(entry["mayor_rating"] / entry["residential_population"])
+			else:
+				entry["mayor_rating"] = 0
+
+		update_json("test.json", mayors) #TODO REMOVE THIS
+
+		for user_id, entry in mayors.items():
+			self.mayors_frame.tree.insert("", "end", f"{user_id}", text=f"{entry['name']}")
+
 		self.mayors_frame.tree.grid(row=0, column=0)
 		self.notebook.add(self.mayors_frame, text="Mayors")
 
+
 		# Files frame
-		self.files_frame = tk.Frame(self.notebook)
-		self.notebook.add(self.files_frame, text="Files")
+
+		#self.files_frame = tk.Frame(self.notebook)
+		#self.notebook.add(self.files_frame, text="Files")
+
 
 		# Ok button
+
 		self.ok_button = ttk.Button(self, text="Ok", command=self.destroy, default="active")
 		self.ok_button.grid(row=1, column=0, padx=0, pady=5, sticky="se")
 
