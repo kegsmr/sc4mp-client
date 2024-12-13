@@ -80,7 +80,8 @@ SC4MP_CONFIG_DEFAULTS = [
 		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser()),	
 		("default_host", SC4MP_HOST),
 		("default_port", SC4MP_PORT),
-		("stat_mayors_online_cutoff", 60)
+		("stat_mayors_online_cutoff", 60),
+		("sync_simcity_4_cfg", True)
 	]),
 	("STORAGE", [
 		("storage_path", Path("~/Documents/SimCity 4/SC4MP Launcher/_SC4MP").expanduser()),
@@ -117,7 +118,7 @@ sc4mp_ui = None
 sc4mp_current_server = None
 
 
-# Methods
+# Functions
 
 def main():
 	"""The main method.
@@ -1003,6 +1004,35 @@ def format_url(url: str) -> str:
 		return f"http://{url}"
 	else:
 		return url
+
+
+def sync_simcity_4_cfg(to_mp=True):
+
+	try:
+
+		# If config syncing enabled
+		if sc4mp_config["GENERAL"]["sync_simcity_4_cfg"]:
+
+			# Get paths to singleplayer and multiplayer `SimCity 4.cfg` files
+			sp_config_path = Path("~/Documents/SimCity 4/SimCity 4.cfg").expanduser()
+			mp_config_path = SC4MP_LAUNCHPATH / "SimCity 4.cfg"
+
+			# Pick the source and destination based on whether the transfer is to or from multiplayer
+			source = sp_config_path if to_mp else mp_config_path
+			destination = mp_config_path if to_mp else sp_config_path
+
+			# Copy the files
+			if source.exists():
+				if destination.exists():
+					backup = destination.with_suffix(destination.suffix + ".bak")
+					if not backup.exists():
+						shutil.copy(destination, backup)
+					os.unlink(destination)
+				shutil.copy(source, destination)
+
+	except Exception as e:
+
+		show_error(f"An error occurred while transfering the SimCity 4 config.\n\n{e}", no_ui=True)
 
 
 # Objects
@@ -2140,7 +2170,10 @@ class ServerLoader(th.Thread):
 				self.report("", "Preparing regions...")
 				self.prep_regions()
 
-				self.report("", "Done.")
+				self.report("", "Preparing config...")
+				sync_simcity_4_cfg(to_mp=True)
+
+				self.report("", "Done")
 
 				loading_end = time.time()
 
@@ -3154,7 +3187,10 @@ class GameMonitor(th.Thread):
 					else:
 						show_error("An unexpected error occurred in the game monitor loop.", no_ui=True)
 						time.sleep(5) #3
-			
+
+			# Transfer the multiplayer config to singleplayer
+			sync_simcity_4_cfg(to_mp=False)
+
 			# Destroy the game monitor ui if running
 			if self.ui != None:
 				self.ui.destroy()
