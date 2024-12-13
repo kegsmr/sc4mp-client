@@ -481,6 +481,7 @@ def create_subdirectories() -> None:
 
 	directories = [
 		Path("_Cache"),
+		Path("_Configs"),
 		Path("_Database"),
 		Path("_Salvage"),
 		Path("_Temp"),
@@ -509,6 +510,8 @@ def create_subdirectories() -> None:
 	# Create notice files
 	with open(launchdir / "_Cache" / "___DELETE THESE FILES IF YOU WANT___", "w") as file:
 		file.write("These files are OK to delete if you want to save disk space. You can also delete them in the launcher in the storage settings.")
+	with open(launchdir / "_Configs" / "___DELETE THESE FILES IF YOU WANT___", "w") as file:
+		file.write("These files are OK to delete, but some of your in-game settings may change if you do.")
 	with open(launchdir / "_Temp" / "___DELETE THESE FILES IF YOU WANT___", "w") as file:
 		file.write("These files are OK to delete if you want to save disk space. Don't do it while the launcher is running though.")
 	with open(launchdir / "_Database" / "___DO NOT DELETE OR SHARE THESE FILES___", "w") as file:
@@ -1006,29 +1009,26 @@ def format_url(url: str) -> str:
 		return url
 
 
-def sync_simcity_4_cfg(to_mp=True):
+def sync_simcity_4_cfg(to_mp=False):
 
 	try:
 
-		# If config syncing enabled
-		if sc4mp_config["GENERAL"]["sync_simcity_4_cfg"]:
+		# Get paths to singleplayer and multiplayer `SimCity 4.cfg` files
+		sp_config_path = Path("~/Documents/SimCity 4/SimCity 4.cfg").expanduser()
+		mp_config_path = SC4MP_LAUNCHPATH / "SimCity 4.cfg"
 
-			# Get paths to singleplayer and multiplayer `SimCity 4.cfg` files
-			sp_config_path = Path("~/Documents/SimCity 4/SimCity 4.cfg").expanduser()
-			mp_config_path = SC4MP_LAUNCHPATH / "SimCity 4.cfg"
+		# Pick the source and destination based on whether the transfer is to or from multiplayer
+		source = sp_config_path if to_mp else mp_config_path
+		destination = mp_config_path if to_mp else sp_config_path
 
-			# Pick the source and destination based on whether the transfer is to or from multiplayer
-			source = sp_config_path if to_mp else mp_config_path
-			destination = mp_config_path if to_mp else sp_config_path
-
-			# Copy the files
-			if source.exists():
-				if destination.exists():
-					backup = destination.with_suffix(destination.suffix + ".bak")
-					if not backup.exists():
-						shutil.copy(destination, backup)
-					os.unlink(destination)
-				shutil.copy(source, destination)
+		# Copy the files
+		if source.exists():
+			if destination.exists():
+				backup = destination.with_suffix(destination.suffix + ".bak")
+				if not backup.exists():
+					shutil.copy(destination, backup)
+				os.unlink(destination)
+			shutil.copy(source, destination)
 
 	except Exception as e:
 
@@ -2170,8 +2170,9 @@ class ServerLoader(th.Thread):
 				self.report("", "Preparing regions...")
 				self.prep_regions()
 
-				self.report("", "Preparing config...")
-				sync_simcity_4_cfg(to_mp=True)
+				if sc4mp_config["GENERAL"]["sync_simcity_4_cfg"]:
+					self.report("", "Preparing config...")
+					self.prep_config()
 
 				self.report("", "Done")
 
@@ -2924,6 +2925,40 @@ class ServerLoader(th.Thread):
 					config_file.write(config_file_contents)
 
 
+	def prep_config(self):
+
+		try:
+
+			# Get the path to the SimCity 4 config last used on this server
+			server_config_path = SC4MP_LAUNCHPATH / "_Configs" / f"{self.server.server_id}.cfg"
+
+			# Get the path to the multiplayer config
+			mp_config_path = SC4MP_LAUNCHPATH / "SimCity 4.cfg"
+
+			# If the server's config exists
+			if server_config_path.exists():
+
+				# Delete the old multiplayer config if it exists
+				if mp_config_path.exists():
+					os.unlink(mp_config_path)
+
+				# Copy the last used config to be the multiplayer config
+				shutil.copy(server_config_path, mp_config_path)
+
+				# Copy the multiplayer config to singleplayer
+				sync_simcity_4_cfg()
+
+			else:
+
+				# Copy the singleplayer config to multiplayer if it does not exist
+				if not mp_config_path.exists():
+					sync_simcity_4_cfg(to_mp=True)
+
+		except Exception as e:
+
+			show_error(f"An error occurred while preparing the config.\n\n{e}", no_ui=True)
+
+
 class GameMonitor(th.Thread):
 	"""TODO"""
 
@@ -3188,8 +3223,29 @@ class GameMonitor(th.Thread):
 						show_error("An unexpected error occurred in the game monitor loop.", no_ui=True)
 						time.sleep(5) #3
 
-			# Transfer the multiplayer config to singleplayer
-			sync_simcity_4_cfg(to_mp=False)
+			# Save the config used on the server to the `_Configs` directory and restore the singleplayer config
+			if sc4mp_config["GENERAL"]["sync_simcity_4_cfg"]:
+				try:
+					source = SC4MP_LAUNCHPATH / "SimCity 4.cfg"
+					destination = SC4MP_LAUNCHPATH / "_Configs" / f"{self.server.server_id}.cfg"
+					if destination.exists():
+						destination.unlink()
+					shutil.copy(source, destination)
+				except Exception as e:
+					show_error(f"An error occurred while saving the SimCity 4 config.\n\n{e}", no_ui=True)
+
+			# Restore the singleplayer config backup
+			if sc4mp_config["GENERAL"]["sync_simcity_4_cfg"]:
+				try:
+					sp_config_path = Path("~/Documents/SimCity 4/SimCity 4.cfg").expanduser()
+					sp_config_backup_path = Path("~/Documents/SimCity 4/SimCity 4.cfg.bak").expanduser()
+					if sp_config_backup_path.exists():
+						if sp_config_path.exists():
+							os.unlink(sp_config_path)
+						shutil.copy(sp_config_backup_path, sp_config_path)
+						os.unlink(sp_config_backup_path)
+				except Exception as e:
+					show_error(f"An error occurred while restoring the SimCity 4 config backup.\n\n{e}", no_ui=True)
 
 			# Destroy the game monitor ui if running
 			if self.ui != None:
