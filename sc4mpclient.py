@@ -53,7 +53,7 @@ SC4MP_README_PATH = "readme.html"
 SC4MP_RESOURCES_PATH = "resources"
 
 SC4MP_TITLE = f"SC4MP Launcher v{SC4MP_VERSION}" + (" (x86)" if 8 * struct.calcsize('P') == 32 else "")
-SC4MP_ICON: Path() = Path(SC4MP_RESOURCES_PATH) / "icon.png"
+SC4MP_ICON: Path = Path(SC4MP_RESOURCES_PATH) / "icon.png"
 
 SC4MP_HOST = "localhost" #SC4MP_SERVERS[0][0]
 SC4MP_PORT = 7240 #SC4MP_SERVERS[0][1]
@@ -696,13 +696,13 @@ def get_sc4mp_path(filename: str) -> Path:
 	return Path(SC4MP_RESOURCES_PATH) / filename
 
 
-def md5(filename: Path) -> str:
-	"""Returns an md5 hashcode generated from a given file."""
-	hash_md5 = hashlib.md5()
-	with filename.open("rb") as f:
-		for chunk in iter(lambda: f.read(4096), b""):
-			hash_md5.update(chunk)
-	return hash_md5.hexdigest()
+#def md5(filename: Path) -> str:
+#	"""Returns an md5 hashcode generated from a given file."""
+#	hash_md5 = hashlib.md5()
+#	with filename.open("rb") as f:
+#		for chunk in iter(lambda: f.read(4096), b""):
+#			hash_md5.update(chunk)
+#	return hash_md5.hexdigest()
 
 
 def random_string(length):
@@ -1098,6 +1098,8 @@ class Server:
 		self.user_plugins_enabled = server_info["user_plugins_enabled"] #self.request("user_plugins_enabled") == "y"
 		self.private = server_info["private"] #self.request("private") == "y"
 
+		self.password = sc4mp_servers_database[self.server_id].get("password", None) # Needed for stat fetching private servers
+
 		if self.password_enabled:
 			self.categories.append("Private")
 		else:
@@ -1203,9 +1205,9 @@ class Server:
 
 			# Request the type of data
 			if not self.private:
-				s.sendall(request.encode())
+				s.send(request.encode())
 			else:
-				s.sendall(f"{request} {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
+				s.send(f"{request} {SC4MP_VERSION} {self.user_id} {self.password}".encode())
 
 			# Receive file table
 			file_table = recv_json(s)
@@ -1945,21 +1947,21 @@ class ServerFetcher(th.Thread):
 
 				else:
 
-					if not self.server.private:
-						try:
-							self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
-							self.server.stat_mayors = sc4mp_servers_database[self.server.server_id]["stat_mayors"]
-							self.server.stat_mayors_online = sc4mp_servers_database[self.server.server_id]["stat_mayors_online"]
-							self.server.stat_claimed = sc4mp_servers_database[self.server.server_id]["stat_claimed"]
-							self.server.stat_download = sc4mp_servers_database[self.server.server_id]["stat_download"]
-							self.server.stat_actual_download = sc4mp_servers_database[self.server.server_id]["stat_actual_download"]
-						except:
-							pass
-					else:
-						try:
-							self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
-						except:
-							pass
+					#if not self.server.private:
+					try:
+						self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
+						self.server.stat_mayors = sc4mp_servers_database[self.server.server_id]["stat_mayors"]
+						self.server.stat_mayors_online = sc4mp_servers_database[self.server.server_id]["stat_mayors_online"]
+						self.server.stat_claimed = sc4mp_servers_database[self.server.server_id]["stat_claimed"]
+						self.server.stat_download = sc4mp_servers_database[self.server.server_id]["stat_download"]
+						self.server.stat_actual_download = sc4mp_servers_database[self.server.server_id]["stat_actual_download"]
+					except:
+						pass
+					#else:
+					#	try:
+					#		self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
+					#	except:
+					#		pass
 
 				#print("- adding server to server list...")
 
@@ -1982,14 +1984,14 @@ class ServerFetcher(th.Thread):
 				except:
 					raise ClientException("Unable to fetch server list.")
 
-				if not self.server.private:
+				#if not self.server.private:
 
 					#print("- fetching server stats...")
 					
-					try:
-						self.fetch_stats()
-					except Exception as e:
-						print(f"[WARNING] Unable to fetch server stats for {self.server.host}:{self.server.port}! " + str(e))
+				try:
+					self.fetch_stats()
+				except Exception as e:
+					print(f"[WARNING] Unable to fetch server stats for {self.server.host}:{self.server.port}! " + str(e))
 
 				#print("- done.")
 
@@ -2312,6 +2314,7 @@ class ServerLoader(th.Thread):
 		"""TODO"""
 
 		# Select the destination directory according to the parameter
+		destination = None
 		if target == "plugins":
 			destination = Path(SC4MP_LAUNCHPATH) / "Plugins" / "server"
 		elif target == "regions":
