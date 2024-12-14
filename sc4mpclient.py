@@ -3145,13 +3145,14 @@ class GameMonitor(th.Thread):
 
 					# Wait
 					time.sleep(3) #1 #3
-
+					
 					# Refresh
 					cfg_path = get_sc4_cfg_path()
 					try:
 						new_cfg_hashcode = md5(cfg_path)
 						if cfg_hashcode != None and new_cfg_hashcode != cfg_hashcode:
 							#print("Region switched!")
+							sync_simcity_4_cfg()
 							new_refresh_region_open = refresh_region_open()
 							if new_refresh_region_open and (not old_refresh_region_open):
 								#print("Refresh regions!")
