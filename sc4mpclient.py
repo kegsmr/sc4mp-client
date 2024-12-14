@@ -199,10 +199,17 @@ def main():
 
 		# URL scheme
 		if len(sc4mp_args) > 1 and sc4mp_args[1].startswith("sc4mp://"):
-			url = sc4mp_args[1].split("/")[2]
-			sc4mp_host = ":".join(url.split(":")[:-1])
-			sc4mp_port = int(url.split(":")[-1])
-			sc4mp_exit_after = True
+			try:
+				url = sc4mp_args[1].split("/")[2].split(":")
+				sc4mp_host = ":".join(url[:-1])
+				if len(url) > 1:
+					sc4mp_port = int(url[-1])
+				else:
+					sc4mp_port = 7240
+				sc4mp_exit_after = True
+			except:
+				show_error("Invalid URL.\n\nURLs must adhere to:\nsc4mp://<host>:<port>")
+				return
 
 		# Prep
 		prep()
