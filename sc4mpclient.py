@@ -785,6 +785,13 @@ def startfile(filename):
 		subprocess.call([opener, filename])
 
 
+def open_logs():
+	#if platform.system() == "Windows" and int(platform.win32_ver()[1].split(".")[0]) >= 10:
+	#	subprocess.Popen("start \"\" logs.bat", cwd=os.getcwd(), start_new_session=True)
+	#else:
+	startfile(SC4MP_LOG_PATH)
+
+
 def fatal_error():
 	"""Shows a fatal error message in the console and the UI. Exits the program."""
 
@@ -796,7 +803,7 @@ def fatal_error():
 		if sc4mp_ui == True:
 			tk.Tk().withdraw()
 		messagebox.showerror(SC4MP_TITLE, message)
-		startfile(SC4MP_LOG_PATH)
+		open_logs()
 
 	try:
 		cleanup()
@@ -4096,7 +4103,7 @@ class UI(tk.Tk):
 		help.add_command(label="About...", command=self.about)
 		help.add_command(label="Readme...", command=self.readme)
 		help.add_separator()
-		help.add_command(label="Logs...", command=lambda:startfile(SC4MP_LOG_PATH))
+		help.add_command(label="Logs...", command=open_logs)
 		help.add_separator()
 		help.add_command(label="Feedback...", command=lambda:webbrowser.open_new_tab(SC4MP_ISSUES_URL))
 		#feedback_submenu = Menu(help, tearoff=0)
