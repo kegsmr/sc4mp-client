@@ -5546,7 +5546,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 						mayors[user_id].setdefault("last_online", None)
 						if mayors[user_id]["last_online"] is None or datetime.strptime(entry["modified"], "%Y-%m-%d %H:%M:%S") > datetime.strptime(mayors[user_id]["last_online"], "%Y-%m-%d %H:%M:%S"):
-							if not entry.get("reclaimed", False):
+							if entry["mayor_name"] != entry.get("last_mayor_name", None):
 								mayors[user_id]["name"] = entry["mayor_name"]
 							mayors[user_id]["last_online"] = entry["modified"]
 
