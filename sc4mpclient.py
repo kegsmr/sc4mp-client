@@ -1105,7 +1105,8 @@ class Server:
 		self.user_plugins_enabled = server_info["user_plugins_enabled"] #self.request("user_plugins_enabled") == "y"
 		self.private = server_info["private"] #self.request("private") == "y"
 
-		self.password = sc4mp_servers_database[self.server_id].get("password", None) # Needed for stat fetching private servers
+		if self.server_id in sc4mp_servers_database.keys():
+			self.password = sc4mp_servers_database[self.server_id].get("password", None) # Needed for stat fetching private servers
 
 		if self.password_enabled:
 			self.categories.append("Private")
