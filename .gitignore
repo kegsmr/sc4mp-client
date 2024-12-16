@@ -10,11 +10,14 @@
 /builds
 /setupbuilds
 /temp
+
+.pylintrc
 api_test.py
 config.ini
 testing.py
 test.json
 version.rc
+
 *.bat
 *.exe
 *.lnk
