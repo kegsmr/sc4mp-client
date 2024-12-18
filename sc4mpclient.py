@@ -965,27 +965,29 @@ def prep_region_config(path):
 		raise ClientException(f"Failed to prepare region config at {path}.")
 
 
-def format_filesize(size):
-	if size >= 10 ** 11:
+def format_filesize(size, scale=None):
+	if scale is None:
+		scale = size
+	if scale >= 10 ** 11:
 		return ">99GB"
-	elif size >= 10 ** 10:
+	elif scale >= 10 ** 10:
 		return str(int(size / (10 ** 9))) + "GB"
-	elif size >= 10 ** 9:
+	elif scale >= 10 ** 9:
 		return str(float(int(size / (10 ** 8)) / 10)) + "GB"
-	elif size >= 10 ** 8:
+	elif scale >= 10 ** 8:
 		return str(int(size / (10 ** 6))) + "MB"
-	elif size >= 10 ** 7:
+	elif scale >= 10 ** 7:
 		return str(int(size / (10 ** 6))) + "MB"
-	elif size >= 10 ** 6:
+	elif scale >= 10 ** 6:
 		return str(float(int(size / (10 ** 5)) / 10)) + "MB"
-	elif size >= 10 ** 5:
+	elif scale >= 10 ** 5:
 		return str(int(size / (10 ** 3))) + "KB"
-	elif size >= 10 ** 4:
+	elif scale >= 10 ** 4:
 		return str(int(size / (10 ** 3))) + "KB"
-	elif size >= 10 ** 3:
+	elif scale >= 10 ** 3:
 		return str(float(int(size / (10 ** 2)) / 10)) + "KB"
 	else:
-		return str(int(size)) + "B"
+		return str(int(size)) + "B "
 
 
 def format_download_size(size):
@@ -1034,8 +1036,9 @@ def sync_simcity_4_cfg(to_mp=False):
 		# Pick the source and destination based on whether the transfer is to or from multiplayer
 		source = sp_config_path if to_mp else mp_config_path
 		destination = mp_config_path if to_mp else sp_config_path
-
+		
 		# Copy the files
+		print(f"\"{source}\" -> \"{destination}\"")
 		if source.exists():
 			if destination.exists():
 				backup = destination.with_suffix(destination.suffix + ".bak")
@@ -1447,6 +1450,8 @@ class Server:
 		port = self.port
 
 		s = socket.socket()
+		
+		s.settimeout(10)
 
 		try:
 			s.connect((host, port))
@@ -1457,7 +1462,7 @@ class Server:
 			s.close()
 			self.server_ping = round(1000 * (end - start))
 			return self.server_ping
-		except socket.error as e:
+		except socket.error:
 			return None
 
 
@@ -3127,23 +3132,27 @@ class GameMonitor(th.Thread):
 							self.city_hashcodes = new_city_hashcodes
 
 							# If modified savegames are found
-							if len(save_city_paths) > 0:
-								
+							if len(save_city_paths) > 0:	
+
 								# Report waiting to sync if new/modified savegames found
 								self.report("", "Saving...")
 								self.set_overlay_state("saving")
-								
-								# Pretty waiting loop
-								#for i in range(6):
-								#	text = "Saving"
-								#	for text in [
-								#		"Saving.  ",
-								#		"Saving.. ",
-								#		"Saving...",
-								#		"Saving.. ",
-								#	]:
-								#		self.report_quietly(text)
-								#		time.sleep(.25)
+
+								# Filter the savegames if more than two are found
+								if len(save_city_paths) > 2:
+									try:
+										savegames = []
+										for save_city_path in save_city_paths:
+											savegame = SC4Savegame(save_city_path, error_callback=None)
+											savegame.get_SC4ReadRegionalCity()
+											savegames.append(savegame)
+										filtered_savegames = self.filter_bordering_tiles(savegames)
+										if len(filtered_savegames) == 1:
+											save_city_paths = [savegame.filename for savegame in filtered_savegames]
+											[savegame.close() for savegame in savegames]
+											break
+									except Exception as e:
+										show_error(e, no_ui=True)
 
 								# Wait
 								time.sleep(5) #6 #5 #6 #10 #3 #TODO make configurable?
@@ -3399,7 +3408,7 @@ class GameMonitor(th.Thread):
 		self.set_overlay_state("saving")
 
 		# Salvage
-		self.report(self.PREFIX, 'Saving: copying to salvage...') #Pushing save #for "' + new_city_path + '"')
+		#self.report(self.PREFIX, 'Saving: copying to salvage...') #Pushing save #for "' + new_city_path + '"')
 		salvage_directory = Path(SC4MP_LAUNCHPATH) / "_Salvage" / self.server.server_id / datetime.now().strftime("%Y%m%d%H%M%S")
 		for path in save_city_paths:
 			relpath = path.relative_to(Path(SC4MP_LAUNCHPATH) / "Regions")
@@ -3409,7 +3418,7 @@ class GameMonitor(th.Thread):
 			shutil.copy(path, filename)
 
 		# Verify that all saves come from the same region
-		self.report(self.PREFIX, 'Saving: verifying...')
+		#self.report(self.PREFIX, 'Saving: verifying...')
 		regions = set([save_city_path.parent.name for save_city_path in save_city_paths])
 		if len(regions) > 1:
 			self.report(self.PREFIX, 'Save push failed! Too many regions.', color="red") 
@@ -3419,7 +3428,7 @@ class GameMonitor(th.Thread):
 			region = list(regions)[0]
 
 		# Create socket
-		self.report(self.PREFIX, 'Saving: connecting to server...')
+		#self.report(self.PREFIX, 'Saving: connecting to server...')
 		s = self.create_socket()
 		if s == None:
 			self.report(self.PREFIX, 'Save push failed! Server unreachable.', color="red") #'Unable to save the city "' + new_city + '" because the server is unreachable.'
@@ -3427,14 +3436,14 @@ class GameMonitor(th.Thread):
 			return
 
 		# Send save request
-		self.report(self.PREFIX, 'Saving: sending save request...')
+		#self.report(self.PREFIX, 'Saving: sending save request...')
 		s.sendall(f"save {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
 		
 		# Separator
 		s.recv(SC4MP_BUFFER_SIZE)
 
 		# Send region name and file sizes
-		self.report(self.PREFIX, 'Saving: sending metadata...')
+		#self.report(self.PREFIX, 'Saving: sending metadata...')
 		send_json(s, [
 			region,
 			[os.path.getsize(save_city_path) for save_city_path in save_city_paths]
@@ -3444,14 +3453,19 @@ class GameMonitor(th.Thread):
 		s.recv(SC4MP_BUFFER_SIZE)
 
 		# Send file contents
+		total_filesize = sum([save_city_path.stat().st_size for save_city_path in save_city_paths])
+		filesize_sent = 0
+		#self.report(self.PREFIX, f'Saving: sending gamedata...') # ({format_filesize(total_filesize)})...')
 		for save_city_path in save_city_paths:
-			self.report(self.PREFIX, f'Saving: sending files ({save_city_paths.index(save_city_path) + 1} of {len(save_city_paths)})...')
+			#self.report(self.PREFIX, f'Saving: sending files ({save_city_paths.index(save_city_path) + 1} of {len(save_city_paths)})...')
 			with open(save_city_path, "rb") as file:
 				while True:
 					data = file.read(SC4MP_BUFFER_SIZE)
 					if not data:
 						break
 					s.sendall(data)
+					filesize_sent += len(data)
+					self.report_quietly(f'Saving... ({round(filesize_sent / 1000):,}/{round(total_filesize / 1000):,}KB)') #self.report_quietly(f'Saving: sending gamedata ({format_filesize(filesize_sent, scale=total_filesize)[:-2]}/{format_filesize(total_filesize)})...')
 
 		# Send file count
 		#s.sendall(str(len(save_city_paths)).encode())
@@ -3480,7 +3494,7 @@ class GameMonitor(th.Thread):
 		#s.sendall(SC4MP_SEPARATOR)
 
 		# Handle response from server
-		self.report(self.PREFIX, 'Saving: awaiting response...')
+		#self.report(self.PREFIX, 'Saving: awaiting response...')
 		response = s.recv(SC4MP_BUFFER_SIZE).decode()
 		if response == "ok":
 			self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green") #TODO keep track locally of the client's claims
