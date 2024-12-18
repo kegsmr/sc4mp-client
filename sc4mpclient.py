@@ -81,7 +81,8 @@ SC4MP_CONFIG_DEFAULTS = [
 		("default_host", SC4MP_HOST),
 		("default_port", SC4MP_PORT),
 		("stat_mayors_online_cutoff", 60),
-		("sync_simcity_4_cfg", True)
+		("sync_simcity_4_cfg", True),
+		("scan_lan", True)
 	]),
 	("STORAGE", [
 		("storage_path", Path("~/Documents/SimCity 4/SC4MP Launcher/_SC4MP").expanduser()),
@@ -1541,11 +1542,12 @@ class ServerList(th.Thread):
 
 			set_thread_name("SLThread", enumerate=False)
 
-			try:
-				self.lan_servers = [(row[0], port) for port in range(7240, 7250) for row in [("localhost", None, None)] + arp()]
-			except Exception as e:
-				self.lan_servers = []
-				show_error("An error occurred while scanning for LAN servers, only internet servers will be shown.", no_ui=True)
+			self.lan_servers = []
+			if sc4mp_config["GENERAL"]["scan_lan"]:
+				try:
+					self.lan_servers = [(row[0], port) for port in range(7240, 7250) for row in [("localhost", None, None)] + arp()]
+				except Exception as e:
+					show_error("An error occurred while scanning for LAN servers, only internet servers will be shown.", no_ui=True)
 
 			delete_server_ids = []
 			for server_id in reversed(sc4mp_servers_database.keys()):
