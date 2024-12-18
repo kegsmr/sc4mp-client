@@ -1543,7 +1543,6 @@ class ServerList(th.Thread):
 					self.lan_servers = [(row[0], port) for port in range(7240, 7250) for row in [("localhost", None, None)] + arp()]
 				except Exception as e:
 					show_error("An error occurred while scanning for LAN servers, only internet servers will be shown.", no_ui=True)
-				
 
 			delete_server_ids = []
 			for server_id in reversed(sc4mp_servers_database.keys()):
