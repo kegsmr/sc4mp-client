@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "SC4MP Launcher"
-#define MyAppVersion "0.6.6"
+#define MyAppVersion "0.7.1"
 #define MyAppPublisher "SimCity 4 Multiplayer Project"
 #define MyAppExeName "sc4mpclient.exe"
 #define TimeStamp GetDateTimeString('yyyymmddhhnnss', '', '')
@@ -41,6 +41,12 @@ Source: "dist32\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion; Check:
 Source: "dist32\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Check: not Is64BitInstallMode
 Source: "Readme.html"; DestDir: "{app}"; Flags: isreadme
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
+
+[Registry]
+Root: HKA; Subkey: "Software\Classes\sc4mp"; ValueType: "string"; ValueData: "URL:SC4MP"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\sc4mp"; ValueType: "string"; ValueName: "URL Protocol"; ValueData: ""
+Root: HKA; Subkey: "Software\Classes\sc4mp\DefaultIcon"; ValueType: "string"; ValueData: "{app}\{#MyAppExeName},0"
+Root: HKA; Subkey: "Software\Classes\sc4mp\shell\open\command"; ValueType: "string"; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
 [Icons]
 Name: "{autoprograms}\{#MyAppPublisher}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
