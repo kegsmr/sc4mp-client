@@ -3155,7 +3155,7 @@ class GameMonitor(th.Thread):
 										show_error(e, no_ui=True)
 
 								# Wait
-								time.sleep(5) #6 #5 #6 #10 #3 #TODO make configurable?
+								time.sleep(1) #5 #6 #5 #6 #10 #3 #TODO make configurable?
 						
 						# If there are any new/modified savegame files, push them to the server. If errors occur, log them in the console and display a warning
 						if len(save_city_paths) > 0:
