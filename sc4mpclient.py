@@ -2185,11 +2185,11 @@ class ServerLoader(th.Thread):
 				self.report("", "Synchronizing plugins...")
 				self.load("plugins")
 
-				self.report("", "Preparing plugins...")
-				self.prep_plugins()
-
 				self.report("", "Synchronizing regions...")
 				self.load("regions")
+
+				self.report("", "Preparing plugins...")
+				self.prep_plugins()
 
 				self.report("", "Preparing regions...")
 				self.prep_regions()
@@ -3161,16 +3161,28 @@ class GameMonitor(th.Thread):
 
 						# If there are any new/modified savegame files, push them to the server. If errors occur, log them in the console and display a warning
 						if len(save_city_paths) > 0:
-							try:
-								self.push_save(save_city_paths)
-							except socket.timeout as e:
-								show_error(e, no_ui=True)
-								self.report("[WARNING] ", "Save push failed! Server timed out.", color="red")
-								self.set_overlay_state("not-saved")
-							except Exception as e:
-								show_error(e, no_ui=True)
-								self.report("[WARNING] ", "Save push failed! Unexpected client-side error.", color="red")
-								self.set_overlay_state("not-saved")
+							tries = 0
+							while True:
+								try:
+									self.report("", "Saving...")
+									self.push_save(save_city_paths)
+									break
+								except (socket.timeout, socket.error) as e: # Is `ConnectionResetError` a `socket.error`?
+									show_error(e, no_ui=True)
+									#self.report("[WARNING] ", "Save push failed! Server timed out.", color="red")
+									self.set_overlay_state("not-saved")
+								except Exception as e:
+									show_error(e, no_ui=True)
+									self.report("[WARNING] ", "Save push failed! Unexpected client-side error.", color="red")
+									self.set_overlay_state("not-saved")
+									break
+								tries += 1
+								for count in range(5):
+									self.report("[WARNING] ", f"Connection failed. Retrying {5 - count}...")
+									time.sleep(1)
+								if tries >= 3:
+									self.report("[WARNING] ", "Save push failed! Server unreachable.", color="red")
+									break
 							time.sleep(5)
 
 					# Break the loop when signaled
@@ -3533,7 +3545,7 @@ class GameMonitor(th.Thread):
 
 		s.settimeout(10)
 
-		tries_left = 10
+		tries_left = 3
 
 		while True:
 
