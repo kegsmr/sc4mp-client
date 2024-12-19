@@ -3457,6 +3457,7 @@ class GameMonitor(th.Thread):
 		# Send file contents
 		total_filesize = sum([save_city_path.stat().st_size for save_city_path in save_city_paths])
 		filesize_sent = 0
+		filesize_reported = 0
 		#self.report(self.PREFIX, f'Saving: sending gamedata...') # ({format_filesize(total_filesize)})...')
 		for save_city_path in save_city_paths:
 			#self.report(self.PREFIX, f'Saving: sending files ({save_city_paths.index(save_city_path) + 1} of {len(save_city_paths)})...')
@@ -3467,7 +3468,9 @@ class GameMonitor(th.Thread):
 						break
 					s.sendall(data)
 					filesize_sent += len(data)
-					self.report_quietly(f'Saving... ({round(filesize_sent / 1000):,}/{round(total_filesize / 1000):,}KB)') #self.report_quietly(f'Saving: sending gamedata ({format_filesize(filesize_sent, scale=total_filesize)[:-2]}/{format_filesize(total_filesize)})...')
+					if filesize_sent + 5000 > filesize_reported or filesize_sent == total_filesize:
+						filesize_reported = filesize_sent
+						self.report_quietly(f'Saving... ({round(filesize_sent / 1000):,}/{round(total_filesize / 1000):,}KB)') #self.report_quietly(f'Saving: sending gamedata ({format_filesize(filesize_sent, scale=total_filesize)[:-2]}/{format_filesize(total_filesize)})...')
 
 		# Send file count
 		#s.sendall(str(len(save_city_paths)).encode())
