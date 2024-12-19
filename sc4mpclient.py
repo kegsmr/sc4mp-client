@@ -141,7 +141,7 @@ def main():
 					tk.Tk().withdraw()
 					messagebox.showerror(title=SC4MP_TITLE, message="SC4MP Launcher is already running!")
 					return
-			except:
+			except Exception:
 				pass
 
 		# Set working directory
@@ -177,7 +177,7 @@ def main():
 		if "--host" in sc4mp_args:
 			try:
 				sc4mp_host = get_arg_value("--host", sc4mp_args)
-			except:
+			except Exception:
 				raise ClientException("Invalid arguments.")
 
 		# "--port" argument
@@ -186,7 +186,7 @@ def main():
 		if "--port" in sc4mp_args:
 			try:
 				sc4mp_port = int(get_arg_value("--port", sc4mp_args))
-			except:
+			except Exception:
 				raise ClientException("Invalid arguments.")
 			
 		# "--password" argument
@@ -195,7 +195,7 @@ def main():
 		if "--password" in sc4mp_args:
 			try:
 				sc4mp_password = get_arg_value("--password", sc4mp_args)
-			except:
+			except Exception:
 				raise ClientException("Invalid arguments.")
 
 		# URL scheme
@@ -208,7 +208,7 @@ def main():
 				else:
 					sc4mp_port = 7240
 				sc4mp_exit_after = True
-			except:
+			except Exception:
 				show_error("Invalid URL.\n\nURLs must adhere to:\nsc4mp://<host>:<port>")
 				return
 
@@ -330,7 +330,7 @@ def check_updates():
 							try:
 								if os.path.exists("update"):
 									purge_directory(Path("update"))
-							except:
+							except Exception:
 								pass
 
 							# Delete uninstaller if exists
@@ -338,7 +338,7 @@ def check_updates():
 								for filename in ["unins000.dat", "unins000.exe"]:
 									if os.path.exists(filename):
 										os.unlink(filename)
-							except:
+							except Exception:
 								pass
 
 							# Give the user a chance to cancel the update
@@ -432,7 +432,7 @@ def check_updates():
 											report(f"Update failed. Retrying in {5 - count}...")
 											time.sleep(1)
 						
-						except:
+						except Exception:
 
 							# All uncaught errors in thread trigger a fatal error
 							fatal_error()
@@ -863,7 +863,7 @@ def update_config_value(section, item, value):
 	try:
 		t = type(sc4mp_config[section][item])
 		sc4mp_config[section][item] = t(value)
-	except:
+	except Exception:
 		show_error(f'Invalid config value for "{item}" in section "{section}"', no_ui=True)
 
 
@@ -961,7 +961,7 @@ def prep_region_config(path):
 			with open(path, 'wt') as config_file:
 				config.write(config_file)
 
-	except:
+	except Exception:
 
 		raise ClientException(f"Failed to prepare region config at {path}.")
 
@@ -1087,7 +1087,7 @@ class Server:
 			s.connect((self.host, self.port))
 			s.send(b"info")
 			server_info = recv_json(s)
-		except:
+		except Exception:
 			raise ClientException("Unable to find server. Check the IP address and port, then try again.")
 
 		#server_info = self.request("info")
@@ -1095,7 +1095,7 @@ class Server:
 		#	try:
 		#		server_info = json.loads("{"+ "{".join(server_info.split("{")[1:]))
 		#		#print(server_info)
-		#	except:
+		#	except Exception:
 		#		raise ClientException("Unable to fetch server info.")
 		#else:
 		#	raise ClientException("Unable to find server. Check the IP address and port, then try again.")
@@ -1379,7 +1379,7 @@ class Server:
 			s.connect((host, port))
 			s.sendall(request.encode())
 			return s.recv(SC4MP_BUFFER_SIZE).decode()
-		except:
+		except Exception:
 			self.fetched = False
 			print(f'[WARNING] Unable to fetch "{request}" from {host}:{port}')
 			return None
@@ -1397,14 +1397,14 @@ class Server:
 		user_id = None
 		try:
 			user_id = entry["user_id"]
-		except:
+		except Exception:
 			user_id = random_string(32)
 
 		# Get token
 		token = None
 		try:
 			token = entry["token"]
-		except:
+		except Exception:
 			pass
 
 		# Verify server can produce the user_id from the hash of the user_id and token combined
@@ -1623,12 +1623,12 @@ class ServerList(th.Thread):
 							self.stat_claimed[server_id] = update_server.stat_claimed
 							self.stat_ping[server_id] = update_server.stat_ping
 							self.calculate_rating(update_server)
-						except: #Exception as e:
+						except Exception: #Exception as e:
 							#show_error(e)
 							try:
 								self.stat_ping[server_id] = update_server.stat_ping
 								self.calculate_rating(update_server)
-							except:
+							except Exception:
 								pass
 
 					# Add missing rows to the tree
@@ -1721,7 +1721,7 @@ class ServerList(th.Thread):
 
 			try:
 				self.ended = True
-			except:
+			except Exception:
 				pass
 
 			show_error(f"An error occurred while fetching servers.\n\n{e}") #, no_ui=True)
@@ -1851,7 +1851,7 @@ class ServerList(th.Thread):
 				return server.stat_ping
 			else:
 				return server.rating
-		except:
+		except Exception:
 			return None
 
 
@@ -1868,7 +1868,7 @@ class ServerList(th.Thread):
 		for function in functions:
 			try:
 				cells.append(function())
-			except: #Exception as e:
+			except Exception: #Exception as e:
 				#show_error(e)
 				cells.append("...")
 		return cells
@@ -1886,15 +1886,15 @@ class ServerList(th.Thread):
 					self.min_category(server.stat_ping, self.stat_ping.values()),
 				]
 				rating = 1 + sum(categories)
-			except:
+			except Exception:
 				rating = 1 + self.min_category(server.stat_ping, self.stat_ping.values())
 			
 			try:
 				server.rating = ((99 * server.rating) + rating) / 100
-			except:
+			except Exception:
 				server.rating = rating
 
-		except:
+		except Exception:
 			pass
 	
 
@@ -1903,7 +1903,7 @@ class ServerList(th.Thread):
 		item = float(item)
 		try:
 			return (item - min(array)) / (max(array) - min(array))
-		except:
+		except Exception:
 			return 1.0
 
 
@@ -1912,7 +1912,7 @@ class ServerList(th.Thread):
 		item = float(item)
 		try:
 			return 1.0 - ((item - min(array)) / (max(array) - min(array)))
-		except:
+		except Exception:
 			return 1.0
 
 
@@ -1943,7 +1943,7 @@ class ServerFetcher(th.Thread):
 
 				try:
 					self.server.fetch()
-				except:
+				except Exception:
 					raise ClientException("Server not found.")
 
 				if self.parent.end:
@@ -1972,33 +1972,33 @@ class ServerFetcher(th.Thread):
 						self.server.stat_claimed = sc4mp_servers_database[self.server.server_id]["stat_claimed"]
 						self.server.stat_download = sc4mp_servers_database[self.server.server_id]["stat_download"]
 						self.server.stat_actual_download = sc4mp_servers_database[self.server.server_id]["stat_actual_download"]
-					except:
+					except Exception:
 						pass
 					#else:
 					#	try:
 					#		self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
-					#	except:
+					#	except Exception:
 					#		pass
 
 				#print("- adding server to server list...")
 
 				try:
 					self.parent.fetched_servers.append(self.server)
-				except:
+				except Exception:
 					raise ClientException("Unable to add server to server list.")
 
 				#print("- starting server pinger...")
 
 				try:
 					ServerPinger(self.parent, self.server).start()
-				except:
+				except Exception:
 					raise ClientException("Unable to start server pinger.")
 
 				#print("- fetching server list...")
 
 				try:
 					self.server_list()
-				except:
+				except Exception:
 					raise ClientException("Unable to fetch server list.")
 
 				#if not self.server.private:
@@ -2065,7 +2065,7 @@ class ServerFetcher(th.Thread):
 			s.settimeout(10)
 			s.connect((host, port))
 			return s
-		except:
+		except Exception:
 			return None
 
 
@@ -2311,7 +2311,7 @@ class ServerLoader(th.Thread):
 				if sc4mp_config["GENERAL"]["save_server_passwords"]:
 					try:
 						self.server.password = sc4mp_servers_database[self.server.server_id]["password"]
-					except:
+					except Exception:
 						return False
 			if self.server.password == "":
 				return True
@@ -2323,7 +2323,7 @@ class ServerLoader(th.Thread):
 				if sc4mp_config["GENERAL"]["save_server_passwords"]:
 					try:
 						sc4mp_servers_database[self.server.server_id]["password"] = self.server.password
-					except:
+					except Exception:
 						pass
 				return True
 			else:
@@ -2400,7 +2400,7 @@ class ServerLoader(th.Thread):
 							self.ui.duration_label["text"] = "(linking)"
 						else:
 							self.ui.duration_label["text"] = "(copying)"
-					except:
+					except Exception:
 						pass
 
 					# Set the source and destination paths for the file
@@ -2535,7 +2535,7 @@ class ServerLoader(th.Thread):
 						try:
 							self.ui.progress_label["text"] = d.name #.relative_to(destination)
 							self.ui.duration_label["text"] = "(cached)"
-						except:
+						except Exception:
 							pass
 
 						# Create the destination directory if necessary
@@ -2593,7 +2593,7 @@ class ServerLoader(th.Thread):
 					# Display current file in UI
 					try:
 						self.ui.progress_label["text"] = d.name #.relative_to(destination)
-					except:
+					except Exception:
 						pass
 
 					# Set path of cached file
@@ -2747,7 +2747,7 @@ class ServerLoader(th.Thread):
 		# Clear default plugins directory
 		try:
 			purge_directory(default_plugins_destination, recursive=False)
-		except:
+		except Exception:
 			raise ClientException("SimCity 4 is already running!")
 
 		# Load default plugins
@@ -3110,7 +3110,7 @@ class GameMonitor(th.Thread):
 										regions_refresher_ui.worker.run()
 										try:
 											regions_refresher_ui.destroy()
-										except:
+										except Exception:
 											pass
 									else:
 										regions_refresher = RegionsRefresher(None, self.server)
@@ -3602,7 +3602,7 @@ class RegionsRefresher(th.Thread):
 						try:
 							self.ui.progress_label["text"] = d.name #.relative_to(destination)
 							self.ui.duration_label["text"] = "(cached)"
-						except:
+						except Exception:
 							pass
 
 						# Create the destination directory if necessary
@@ -3649,7 +3649,7 @@ class RegionsRefresher(th.Thread):
 					try:
 						self.ui.progress_label["text"] = d.name #.relative_to(destination)
 						self.ui.duration_label["text"] = "(downloading)"
-					except:
+					except Exception:
 						pass
 
 					# Set path of cached file
@@ -4838,7 +4838,7 @@ class DirectConnectUI(tk.Toplevel):
 				#raise ClientException("Invalid host")
 			try:
 				port = int(port)
-			except:
+			except Exception:
 				port = SC4MP_PORT
 				#raise ClientException("Invalid port")
 			ServerLoaderUI(Server(host, port))
@@ -4897,7 +4897,7 @@ class PasswordDialogUI(tk.Toplevel):
 		self.password_entry.focus()
 		#try:
 		#	self.password_entry.insert(0, sc4mp_servers_database[self.server_loader.server.server_id]["password"])
-		#except:
+		#except Exception:
 		#	pass
 
 		# OK/Cancel frame
@@ -5305,7 +5305,7 @@ class ServerListUI(tk.Frame):
 				host = SC4MP_HOST
 			try:
 				port = int(port)
-			except:
+			except Exception:
 				port = SC4MP_PORT
 			ServerLoaderUI(Server(host, port))
 			self.tree.focus_set()
@@ -5389,7 +5389,7 @@ class ServerLoaderUI(tk.Toplevel):
 
 		#try:
 		#	self.loading_background.destroy()
-		#except:
+		#except Exception:
 		#	pass
 
 
@@ -5534,7 +5534,7 @@ class GameMonitorUI(tk.Toplevel):
 				try:
 					process_exists("simcity 4.exe")
 					return
-				except:
+				except Exception:
 					pass
 		if messagebox.askokcancel(title=SC4MP_TITLE, message="Disconnect from the server?\n\nAll unsaved changes will be lost.", icon="warning"):
 			global sc4mp_game_exit_ovveride
@@ -5725,7 +5725,7 @@ class GameOverlayUI(tk.Toplevel):
 	def click(self, event):
 		try:
 			self.game_monitor_ui.focus_set()
-		except:
+		except Exception:
 			pass
 
 
@@ -5915,7 +5915,7 @@ class Logger:
 				try:
 					label += "(" + item[0].f_locals["self"].__class__.__name__ + ") "
 					break
-				except:
+				except Exception:
 					pass
 			
 
