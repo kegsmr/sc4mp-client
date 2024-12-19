@@ -70,7 +70,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("auto_update", True),
 		("use_game_overlay", 1),
 		("use_launcher_map", True),
-		("allow_game_monitor_exit", False),
+		("allow_game_monitor_exit", True),
 		("show_actual_download", True),
 		("save_server_passwords", True),
 		("ignore_third_party_server_warnings", False),
