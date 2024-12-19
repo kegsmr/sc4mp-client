@@ -2284,19 +2284,25 @@ class ServerLoader(th.Thread):
 
 	def authenticate(self):
 		
-		tries = 0
-		while not self.check_password():
-			if sc4mp_ui:
-				if tries >= 5:
-					raise ClientException("Too many password attempts.")
-				if tries > 0:
-					print("[WARNING] Incorrect password.")
-				PasswordDialogUI(self, tries)
-				tries += 1
-			else:
-				raise ClientException("Incorrect password.")
-		if self.server.password != "":
-			self.server.authenticate()
+		while True:
+			try:
+				tries = 0
+				while not self.check_password():
+					if sc4mp_ui:
+						if tries >= 5:
+							raise ClientException("Too many password attempts.")
+						if tries > 0:
+							print("[WARNING] Incorrect password.")
+						PasswordDialogUI(self, tries)
+						tries += 1
+					else:
+						raise ClientException("Incorrect password.")
+				if self.server.password != "":
+					self.server.authenticate()
+				break
+			except (socket.error, socket.timeout) as e:
+				show_error(e, no_ui=True)
+				time.sleep(5)
 		
 
 	def check_password(self):
