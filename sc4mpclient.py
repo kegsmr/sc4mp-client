@@ -2241,7 +2241,7 @@ class ServerLoader(th.Thread):
 
 		except Exception as e:
 
-			show_error(f"An unexpected error occurred in the server loader thread\n\n{e}")
+			show_error(f"An unexpected error occurred in the server loader thread.\n\n{e}")
 
 
 	def report(self, prefix, text):
@@ -2662,11 +2662,7 @@ class ServerLoader(th.Thread):
 
 				#if tries < 5:
 
-				show_error(e, no_ui=True)
-
-				for count in range(5):
-					self.report("[WARNING] ", f"Connection failed. Retrying in {5 - count}...")
-					time.sleep(1)
+				self.connection_failed_retrying(e)
 
 				#else:
 
@@ -2700,95 +2696,15 @@ class ServerLoader(th.Thread):
 				
 				if tries_left > 0:
 				
-					show_error(e, no_ui=True)
+					self.connection_failed_retrying(e)
 
-					count = 5
-					while count > 0:
-						self.report("[WARNING] ", f"Connection failed. Retrying in {count}...")
-						count = count - 1
-						time.sleep(1)
-
-					tries_left = tries_left - 1
+					tries_left -= 1
 
 				else:
 
 					raise ClientException("Maximum connection attempts exceeded. Check your internet connection and firewall settings, then try again.")
 
 		return s
-
-
-	#def receive_or_cached(self, s, rootpath):
-	#	
-	#
-	#	# Receive hashcode and set cache filename
-	#	hash = s.recv(SC4MP_BUFFER_SIZE).decode()
-	#	target = Path(SC4MP_LAUNCHPATH) / "_Cache" / hash
-	#
-	#	# Separator
-	#	s.sendall(SC4MP_SEPARATOR)
-	#
-	#	# Receive filesize
-	#	filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
-	#
-	#	# Separator
-	#	s.sendall(SC4MP_SEPARATOR)
-	#
-	#	# Receive relative path and set the destination
-	#	relpath = Path(s.recv(SC4MP_BUFFER_SIZE).decode())
-	#	destination = Path(rootpath) / relpath
-	#
-	#	# Use the cached file if it exists and has the same size
-	#	if target.exists() and target.stat().st_size == filesize:
-	#
-	#		print(f'- using cached "{hash}"')
-	#
-	#		# Tell the server that the file is cached
-	#		s.sendall(b"cached")
-	#
-	#		# Create the destination directory if necessary
-	#		destination.parent.mkdir(parents=True, exist_ok=True)
-	#
-	#		# Delete the destination file if it exists
-	#		destination.unlink(missing_ok=True)
-	#
-	#		# Copy the cached file to the destination
-	#		shutil.copy(target, destination)
-	#
-	#	else:
-	#
-	#		print(f'- caching "{hash}"...')
-	#
-	#		# Tell the server that the file is not cached
-	#		s.sendall(b"not cached")
-	#
-	#		# Create the destination directory if necessary
-	#		destination.parent.mkdir(parents=True, exist_ok=True)
-	#
-	#		# Delete the destination file if it exists
-	#		destination.unlink(missing_ok=True)
-	#
-	#		# Delete the cache file if it exists
-	#		target.unlink(missing_ok=True)
-	#
-	#		# Delete cache files if cache too large to accomadate the new cache file
-	#		cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
-	#		while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
-	#			random_cache = random.choice(list(cache_directory.iterdir()))
-	#			random_cache.unlink()
-	#
-	#		# Receive the file. Write to both the destination and cache
-	#		filesize_read = 0
-	#		with destination.open("wb") as dest, target.open("wb") as cache:
-	#			while filesize_read < filesize:
-	#				bytes_read = s.recv(SC4MP_BUFFER_SIZE)
-	#				if not bytes_read:
-	#					break
-	#				for file in [dest, cache]:
-	#					file.write(bytes_read)
-	#				filesize_read += len(bytes_read)
-	#			
-	#	# Return the file size
-	#	return filesize
 
 
 	def receive_file(self, s: socket.socket, filename: Path) -> None:
@@ -2951,6 +2867,15 @@ class ServerLoader(th.Thread):
 		except Exception as e:
 
 			show_error(f"An error occurred while preparing the config.\n\n{e}", no_ui=True)
+
+
+	def connection_failed_retrying(self, e, duration=5):
+
+		show_error(e, no_ui=True)
+
+		for count in range(duration):
+			self.report("[WARNING] ", f"Connection failed. Retrying in {duration - count}...")
+			time.sleep(1)
 
 
 class GameMonitor(th.Thread):
@@ -3274,35 +3199,6 @@ class GameMonitor(th.Thread):
 		return city_paths, city_hashcodes
 
 
-	'''def push_delete(self, city_path):
-		
-
-		self.report(self.PREFIX, 'Pushing deletion of "' + city_path + '"')
-
-		city = os.path.split(city_path)[1]
-		region = os.path.split(os.path.dirname(city_path))[1]
-
-		s = self.create_socket()
-
-		if (s == None):
-			self.report(self.PREFIX, 'Unable to delete the city "' + city + '" because the server is unreachable.')
-			return
-
-		s.sendall(b"push_delete")
-
-		s.recv(SC4MP_BUFFER_SIZE)
-		s.sendall(self.server.user_id.encode())
-		s.recv(SC4MP_BUFFER_SIZE)
-		s.sendall(region.encode())
-		s.recv(SC4MP_BUFFER_SIZE)
-		s.sendall(city.encode())
-
-		if (s.recv(SC4MP_BUFFER_SIZE).decode() == "ok"):
-			self.report(self.PREFIX, "Delete push authorized") #TODO placeholder
-		else:
-			self.report(self.PREFIX, "Delete push not authorized") #TODO placeholder'''
-
-	
 	def receive_file(self, s: socket.socket, filename: Path):
 		"""TODO: unused function?"""
 
@@ -3514,36 +3410,36 @@ class GameMonitor(th.Thread):
 
 		s.settimeout(10)
 
-		tries_left = 3
+		#tries_left = 3
 
-		while True:
+		#while True:
 
-			try:
+		#	try:
 
 				#self.report("", "Connecting...")
-				s.connect((host, port))
+		s.connect((host, port))
 
 				#self.report("", "Connected.")
 
-				break
+		#		break
 
-			except socket.error as e:
+		#	except socket.error as e:
 				
-				if tries_left > 0:
+		#		if tries_left > 0:
 				
-					show_error(e, no_ui=True)
+		#			show_error(e, no_ui=True)
 
-					count = 5
-					while count > 0:
-						self.report("[WARNING] ", f"Connection failed. Retrying in {count}...")
-						count = count - 1
-						time.sleep(1)
+		#			count = 5
+		#			while count > 0:
+		#				self.report("[WARNING] ", f"Connection failed. Retrying in {count}...")
+		#				count = count - 1
+		#				time.sleep(1)
 
-					tries_left = tries_left - 1
+		#			tries_left = tries_left - 1
 
-				else:
+		#		else:
 
-					return None
+		#			return None
 
 		return s
 
@@ -3875,37 +3771,6 @@ class RegionsRefresher(th.Thread):
 		except socket.error as e:
 			
 			raise ClientException("Connection failed.\n\n" + str(e))	
-
-		#tries_left = 6
-		
-		#while True:
-		
-		#	try:
-		
-		#		self.report("", "Connecting...")
-		#		s.connect((host, port))
-
-		#		self.report("", "Connected.")
-
-		#		break
-
-		#	except socket.error as e:
-				
-		#		if tries_left > 0:
-				
-		#			show_error(e, no_ui=True)
-
-		#			count = 5
-		#			while count > 0:
-		#				self.report("[ERROR] ", f"Connection failed. Retrying in {count}...")
-		#				count = count - 1
-		#				time.sleep(1)
-
-		#			tries_left = tries_left - 1
-
-		#		else:
-
-		#			raise ClientException("Maximum connection tries exceeded. Check your internet connection and firewall settings, then try again.\n\n" + str(e))
 
 		return s
 
