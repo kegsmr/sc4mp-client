@@ -3128,12 +3128,11 @@ class GameMonitor(th.Thread):
 							while True:
 								try:
 									self.report("", "Saving...")
+									self.set_overlay_state('saving')
 									self.push_save(save_city_paths)
 									break
 								except (socket.timeout, socket.error) as e: # Is `ConnectionResetError` a `socket.error`?
 									show_error(e, no_ui=True)
-									#self.report("[WARNING] ", "Save push failed! Server timed out.", color="red")
-									self.set_overlay_state("not-saved")
 								except Exception as e:
 									show_error(e, no_ui=True)
 									self.report("[WARNING] ", "Save push failed! Unexpected client-side error.", color="red")
@@ -3145,6 +3144,7 @@ class GameMonitor(th.Thread):
 									time.sleep(1)
 								if tries >= 3:
 									self.report("[WARNING] ", "Save push failed! Server unreachable.", color="red")
+									self.set_overlay_state("not-saved")
 									break
 							time.sleep(5)
 
@@ -3432,7 +3432,7 @@ class GameMonitor(th.Thread):
 		# Send file contents
 		total_filesize = sum([save_city_path.stat().st_size for save_city_path in save_city_paths])
 		filesize_sent = 0
-		filesize_reported = 0
+		filesize_reported = None
 		#self.report(self.PREFIX, f'Saving: sending gamedata...') # ({format_filesize(total_filesize)})...')
 		for save_city_path in save_city_paths:
 			#self.report(self.PREFIX, f'Saving: sending files ({save_city_paths.index(save_city_path) + 1} of {len(save_city_paths)})...')
@@ -3443,7 +3443,7 @@ class GameMonitor(th.Thread):
 						break
 					s.sendall(data)
 					filesize_sent += len(data)
-					if filesize_sent + 100000 > filesize_reported or filesize_sent == total_filesize:
+					if filesize_sent == total_filesize or filesize_reported is None or filesize_sent > filesize_reported + 50000:
 						filesize_reported = filesize_sent
 						self.report_quietly(f'Saving... ({round(filesize_sent / 1000):,}/{round(total_filesize / 1000):,}KB)') #self.report_quietly(f'Saving: sending gamedata ({format_filesize(filesize_sent, scale=total_filesize)[:-2]}/{format_filesize(total_filesize)})...')
 
