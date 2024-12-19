@@ -2301,8 +2301,7 @@ class ServerLoader(th.Thread):
 					self.server.authenticate()
 				break
 			except (socket.error, socket.timeout) as e:
-				show_error(e, no_ui=True)
-				time.sleep(5)
+				self.connection_failed_retrying(e)
 		
 
 	def check_password(self):
