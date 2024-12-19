@@ -3140,6 +3140,9 @@ class GameMonitor(th.Thread):
 								self.report("", "Saving...")
 								self.set_overlay_state("saving")
 
+								# Wait
+								time.sleep(1) #5 #6 #5 #6 #10 #3 #TODO make configurable?
+
 								# Filter the savegames if more than two are found
 								if len(save_city_paths) > 2:
 									try:
@@ -3156,9 +3159,6 @@ class GameMonitor(th.Thread):
 									except Exception as e:
 										show_error(e, no_ui=True)
 
-								# Wait
-								time.sleep(1) #5 #6 #5 #6 #10 #3 #TODO make configurable?
-						
 						# If there are any new/modified savegame files, push them to the server. If errors occur, log them in the console and display a warning
 						if len(save_city_paths) > 0:
 							try:
