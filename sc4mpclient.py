@@ -2652,19 +2652,19 @@ class ServerLoader(th.Thread):
 
 			except (socket.error, socket.timeout) as e:
 
-				tries += 1
+				#tries += 1
 
-				if tries < 5:
+				#if tries < 5:
 
-					show_error(e, no_ui=True)
+				show_error(e, no_ui=True)
 
-					for count in range(5):
-						self.report("[WARNING] ", f"Connection failed. Retrying in {5 - count}...")
-						time.sleep(1)
+				for count in range(5):
+					self.report("[WARNING] ", f"Connection failed. Retrying in {5 - count}...")
+					time.sleep(1)
 
-				else:
+				#else:
 
-					raise ClientException("Maximum connection attemps exceeded. Check your internet connection and firewall settings, then try again.\n\n" + str(e))
+					#raise ClientException("Maximum connection attemps exceeded. Check your internet connection and firewall settings, then try again.\n\n" + str(e))
 
 
 	def create_socket(self):
@@ -2706,7 +2706,7 @@ class ServerLoader(th.Thread):
 
 				else:
 
-					raise e #ClientException("Maximum connection tries exceeded. Check your internet connection and firewall settings, then try again.\n\n" + str(e))
+					raise ClientException("Maximum connection attempts exceeded. Check your internet connection and firewall settings, then try again.")
 
 		return s
 
