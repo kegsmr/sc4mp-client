@@ -1431,6 +1431,7 @@ class Server:
 
 		# Get the new token
 		s = socket.socket()
+		s.settimeout(10)
 		s.connect((self.host, self.port))
 		s.sendall(f"token {SC4MP_VERSION} {self.user_id} {self.password}".encode())
 		token = s.recv(SC4MP_BUFFER_SIZE).decode()
@@ -2658,7 +2659,7 @@ class ServerLoader(th.Thread):
 					show_error(e, no_ui=True)
 
 					for count in range(5):
-						self.report("[WARNING]", f"Connection failed. Retrying in {5 - count}...")
+						self.report("[WARNING] ", f"Connection failed. Retrying in {5 - count}...")
 						time.sleep(1)
 
 				else:
