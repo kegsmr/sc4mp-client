@@ -3443,7 +3443,7 @@ class GameMonitor(th.Thread):
 						break
 					s.sendall(data)
 					filesize_sent += len(data)
-					if filesize_sent == total_filesize or filesize_reported is None or filesize_sent > filesize_reported + 50000:
+					if filesize_sent == total_filesize or filesize_reported is None or filesize_sent > filesize_reported + 100000:
 						filesize_reported = filesize_sent
 						self.report_quietly(f'Saving... ({round(filesize_sent / 1000):,}/{round(total_filesize / 1000):,}KB)') #self.report_quietly(f'Saving: sending gamedata ({format_filesize(filesize_sent, scale=total_filesize)[:-2]}/{format_filesize(total_filesize)})...')
 
