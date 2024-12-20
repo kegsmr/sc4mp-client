@@ -299,7 +299,7 @@ def check_updates():
 
 				# Get latest release info
 				try:
-					with urllib.request.urlopen(f"https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest", timeout=10) as url:
+					with urllib.request.urlopen("https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest", timeout=10) as url:
 						latest_release_info = json.load(url)
 				except urllib.error.URLError as e:
 					raise ClientException("GitHub API call timed out.") from e
@@ -679,7 +679,7 @@ def start_sc4():
 			print("SimCity 4 closed.")
 			break
 		except Exception as e:
-			show_error(f"An error occured while checking if SC4 had exited yet.", no_ui=True)
+			show_error("An error occured while checking if SC4 had exited yet.", no_ui=True)
 			time.sleep(10)
 
 
@@ -1102,7 +1102,7 @@ class Server:
 		#else:
 		#	raise ClientException("Unable to find server. Check the IP address and port, then try again.")
 		
-		self.server_id = server_info["server_id"] #self.request("server_id")
+		self.server_id = sanitize_directory_name(server_info["server_id"]) #self.request("server_id")
 		self.server_name = server_info["server_name"] #self.request("server_name")
 		self.server_description = server_info["server_description"] #self.request("server_description")
 		self.server_url = server_info["server_url"] #self.request("server_url")
@@ -3578,7 +3578,7 @@ class RegionsRefresher(th.Thread):
 				percent = 0
 
 				# Set loading bar at 0%
-				self.report_progress(f"Refreshing regions... (0%)", 0, 100)
+				self.report_progress("Refreshing regions... (0%)", 0, 100)
 
 				# Prune file table as necessary
 				ft = []
@@ -3691,7 +3691,7 @@ class RegionsRefresher(th.Thread):
 							if percent > old_percent:
 								self.report_progress(f"Refreshing regions... ({percent}%)", percent, 100)
 
-				self.report_progress(f"Refreshing regions... (100%)", 100, 100)
+				self.report_progress("Refreshing regions... (100%)", 100, 100)
 
 				# Receive file count
 				#file_count = int(s.recv(SC4MP_BUFFER_SIZE).decode())
@@ -4611,7 +4611,7 @@ class SC4SettingsUI(tk.Toplevel):
 			if get_sc4_path() != None:
 
 				# Informational dialog
-				if not messagebox.askokcancel(title=SC4MP_TITLE, message=f'You are about to launch SimCity 4 in preview mode.\n\nThe purpose of preview mode is to test your SC4 launch configuration before joining a server. Any cities you build in preview mode will NOT be saved.\n\nOnce the game exits, the SC4 settings window will reappear. If the game does not launch, your SC4 settings are invalid.', icon="info"):
+				if not messagebox.askokcancel(title=SC4MP_TITLE, message='You are about to launch SimCity 4 in preview mode.\n\nThe purpose of preview mode is to test your SC4 launch configuration before joining a server. Any cities you build in preview mode will NOT be saved.\n\nOnce the game exits, the SC4 settings window will reappear. If the game does not launch, your SC4 settings are invalid.', icon="info"):
 					raise ClientException("Operation cancelled by user.")
 			
 				# Purge plugins and regions
