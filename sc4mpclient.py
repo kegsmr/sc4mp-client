@@ -1059,6 +1059,16 @@ def sync_simcity_4_cfg(to_mp=False):
 		show_error(f"An error occurred while transfering the SimCity 4 config.\n\n{e}", no_ui=True)
 
 
+def sanitize_relpath(basepath: Path, relpath: str) -> Path:
+
+	fullpath = basepath / relpath
+
+	if fullpath.resolve().is_relative_to(basepath.resolve()):
+		return fullpath
+	else:
+		raise ValueError(f"Invalid relative path: \"{relpath}\".")
+
+
 # Objects
 
 class Server:
@@ -1258,7 +1268,7 @@ class Server:
 				relpath = Path(entry[2])
 
 				# Set the destination
-				d = Path(destination) / relpath
+				s = sanitize_relpath(Path(destination), relpath)
 
 				# Create the destination directory if necessary
 				d.parent.mkdir(parents=True, exist_ok=True)
@@ -1301,55 +1311,6 @@ class Server:
 			#	size_downloaded += self.receive_or_cached(s, destination)
 
 		return (total_size, download_size)
-
-
-	"""def receive_or_cached(self, s:socket.socket, rootpath: Path) -> int:
-
-		# Receive hashcode and set cache filename
-		hash = s.recv(SC4MP_BUFFER_SIZE).decode()
-
-		# Separator
-		s.sendall(SC4MP_SEPARATOR)
-
-		# Receive filesize
-		filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
-
-		# Separator
-		s.sendall(SC4MP_SEPARATOR)
-
-		# Receive relative path and set the destination
-		relpath = Path(s.recv(SC4MP_BUFFER_SIZE).decode())
-		filename = relpath.name
-		destination = Path(rootpath) / relpath
-
-		if not (filename == "region.json" or filename == "config.bmp"):
-
-			# Tell the server that the file is cached
-			s.sendall(b"cached")
-
-		else:
-
-			# Tell the server that the file is not cached
-			s.sendall(b"not cached")
-
-			# Create the destination directory if necessary
-			destination.parent.mkdir(exist_ok=True, parents=True)
-
-			# Delete the destination file if it exists
-			destination.unlink(missing_ok=True)
-
-			# Receive the file
-			filesize_read = 0
-			with destination.open("wb") as f:
-				while filesize_read < filesize:
-					bytes_read = s.recv(SC4MP_BUFFER_SIZE)
-					if not bytes_read:
-						break
-					f.write(bytes_read)
-					filesize_read += len(bytes_read)
-
-		# Return the file size
-		return filesize"""
 
 
 	def update_database(self):
@@ -2502,7 +2463,7 @@ class ServerLoader(th.Thread):
 				for entry in file_table:
 
 					# Get necessary values from entry
-					checksum = entry[0]
+					checksum = sanitize_directory_name(entry[0])
 					filesize = entry[1]
 					relpath = Path(entry[2])
 
@@ -2536,7 +2497,7 @@ class ServerLoader(th.Thread):
 						print(f'- using cached "{checksum}"')
 
 						# Set the destination
-						d = Path(destination) / relpath
+						s = sanitize_relpath(Path(destination), relpath)
 
 						# Display current file in UI
 						try:
@@ -2587,7 +2548,7 @@ class ServerLoader(th.Thread):
 				for entry in file_table:
 
 					# Get necessary values from entry
-					checksum = entry[0]
+					checksum = sanitize_directory_name(entry[0])
 					filesize = entry[1]
 					relpath = Path(entry[2])
 
@@ -2595,7 +2556,7 @@ class ServerLoader(th.Thread):
 					print(f'- caching "{checksum}"...')
 
 					# Set the destination
-					d = Path(destination) / relpath
+					s = sanitize_relpath(Path(destination), relpath)
 
 					# Display current file in UI
 					try:
@@ -2604,7 +2565,7 @@ class ServerLoader(th.Thread):
 						pass
 
 					# Set path of cached file
-					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / sanitize_directory_name(checksum)
+					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
 
 					# Create the destination directory if necessary
 					d.parent.mkdir(parents=True, exist_ok=True)
@@ -3589,12 +3550,12 @@ class RegionsRefresher(th.Thread):
 				for entry in file_table:
 
 					# Get necessary values from entry
-					checksum = entry[0]
+					checksum = sanitize_directory_name(entry[0])
 					filesize = entry[1]
 					relpath = Path(entry[2])
 
 					# Get path of cached file
-					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / sanitize_directory_name(checksum)
+					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
 
 					# Use the cached file if it exists and has the same size, otherwise append the entry to the new file table
 					if t.exists() and t.stat().st_size == filesize:
@@ -3603,7 +3564,7 @@ class RegionsRefresher(th.Thread):
 						print(f'- using cached "{checksum}"')
 
 						# Set the destination
-						d = Path(destination) / relpath
+						s = sanitize_relpath(Path(destination), relpath)
 
 						# Display current file in UI
 						try:
@@ -3642,7 +3603,7 @@ class RegionsRefresher(th.Thread):
 				for entry in file_table:
 
 					# Get necessary values from entry
-					checksum = entry[0]
+					checksum = sanitize_directory_name(entry[0])
 					filesize = entry[1]
 					relpath = Path(entry[2])
 
@@ -3650,7 +3611,7 @@ class RegionsRefresher(th.Thread):
 					print(f'- caching "{checksum}"...')
 
 					# Set the destination
-					d = Path(destination) / relpath
+					s = sanitize_relpath(Path(destination), relpath)
 
 					# Display current file in UI
 					try:
@@ -3660,7 +3621,7 @@ class RegionsRefresher(th.Thread):
 						pass
 
 					# Set path of cached file
-					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / sanitize_directory_name(checksum)
+					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
 
 					# Create the destination directory if necessary
 					d.parent.mkdir(parents=True, exist_ok=True)

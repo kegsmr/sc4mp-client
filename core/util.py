@@ -64,14 +64,14 @@ def xor(conditionA, conditionB):
 	return (conditionA or conditionB) and (not (conditionA and conditionB))
 
 
-def filter_non_alpha_numeric(text: str):
+def filter_non_alpha_numeric(text: str) -> str:
 
 	import re
 
 	return " ".join(re.sub('[^0-9a-zA-Z ]+', " ", text).split())
 
 
-def sanitize_directory_name(text: str):
+def sanitize_directory_name(text: str) -> str:
 
 	text = text.replace("..", "")
 	
