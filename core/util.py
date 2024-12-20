@@ -73,7 +73,13 @@ def filter_non_alpha_numeric(text: str):
 
 def sanitize_directory_name(text: str):
 
+	text = text.replace("..", "")
+	
 	for character in ["/", "\\"]:
-		text.replace(character, "")
+		text = text.replace(character, "")
+
+	text = text.replace("..", "")
+
+	text = text.strip()
 
 	return text

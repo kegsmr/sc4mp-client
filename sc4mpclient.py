@@ -1262,7 +1262,7 @@ class Server:
 				# Delete the destination file if it exists
 				d.unlink(missing_ok=True)
 
-				# Receive the file. Write to both the destination and cache
+				# Receive the file
 				filesize_read = 0
 				with d.open("wb") as dest:
 					while filesize_read < filesize:
@@ -2600,7 +2600,7 @@ class ServerLoader(th.Thread):
 						pass
 
 					# Set path of cached file
-					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
+					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / sanitize_directory_name(checksum)
 
 					# Create the destination directory if necessary
 					d.parent.mkdir(parents=True, exist_ok=True)
@@ -3590,7 +3590,7 @@ class RegionsRefresher(th.Thread):
 					relpath = Path(entry[2])
 
 					# Get path of cached file
-					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
+					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / sanitize_directory_name(checksum)
 
 					# Use the cached file if it exists and has the same size, otherwise append the entry to the new file table
 					if t.exists() and t.stat().st_size == filesize:
@@ -3656,7 +3656,7 @@ class RegionsRefresher(th.Thread):
 						pass
 
 					# Set path of cached file
-					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
+					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / sanitize_directory_name(checksum)
 
 					# Create the destination directory if necessary
 					d.parent.mkdir(parents=True, exist_ok=True)
@@ -3775,79 +3775,6 @@ class RegionsRefresher(th.Thread):
 			raise ClientException("Connection failed.\n\n" + str(e)) from e
 
 		return s
-
-
-	"""def receive_or_cached(self, s: socket.socket, rootpath: Path) -> int:
-
-		# Receive hashcode and set cache filename
-		hash = s.recv(SC4MP_BUFFER_SIZE).decode()
-		target = Path(SC4MP_LAUNCHPATH) / "_Cache" / hash
-
-		# Separator
-		s.sendall(SC4MP_SEPARATOR)
-
-		# Receive filesize
-		filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
-
-		# Separator
-		s.sendall(SC4MP_SEPARATOR)
-
-		# Receive relative path and set the destination
-		relpath = Path(s.recv(SC4MP_BUFFER_SIZE).decode())
-		destination = rootpath / relpath
-
-		# Use the cached file if it exists and has the same size
-		if target.exists() and target.stat().st_size == filesize:
-			
-			print(f'- using cached "{hash}"')
-
-			# Tell the server that the file is cached
-			s.sendall(b"cached")
-
-			# Create the destination directory if necessary
-			destination.parent.mkdir(parents=True, exist_ok=True)
-
-			# Delete the destination file if it exists
-			destination.unlink(missing_ok=True)
-
-			# Copy the cached file to the destination
-			shutil.copy(target, destination)
-
-		else:
-
-			print(f'- caching "{hash}"...')
-
-			# Tell the server that the file is not cached
-			s.sendall(b"not cached")
-
-			# Create the destination directory if necessary
-			destination.parent.mkdir(parents=True, exist_ok=True)
-
-			# Delete the destination file if it exists
-			destination.unlink(missing_ok=True)
-
-			# Delete the cache file if it exists
-			target.unlink(missing_ok=True)
-
-			# Delete cache files if cache too large to accomadate the new cache file
-			cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
-			while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
-				random_cache = random.choice(list(cache_directory.iterdir()))
-				random_cache.unlink()
-
-			# Receive the file. Write to both the destination and cache
-			filesize_read = 0
-			with destination.open("wb") as dest, target.open("wb") as cache:
-				while filesize_read < filesize:
-					bytes_read = s.recv(SC4MP_BUFFER_SIZE)
-					if not bytes_read:
-						break
-					for file in [dest, cache]:
-						file.write(bytes_read)
-					filesize_read += len(bytes_read)
-			
-		# Return the file size
-		return filesize"""
 
 
 class DatabaseManager(th.Thread):
