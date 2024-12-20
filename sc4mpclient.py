@@ -26,6 +26,8 @@ from tkinter import Menu, filedialog, messagebox, ttk
 from typing import Optional
 import urllib.request
 
+#pylint: disable=wildcard-import
+#pylint: disable=unused-wildcard-import
 from core.config import *
 from core.dbpf import *
 from core.networking import *
@@ -2215,6 +2217,7 @@ class ServerLoader(th.Thread):
 
 			except Exception as e:
 
+				# pylint: disable-next=no-member
 				if (self.ui is not None) and (self.ui.winfo_exists() == 1) and not (type(e) is ClientException and e.message == "Connection cancelled."):
 					show_error(f"An error occurred while connecting to the server.\n\n{e}")
 				else:
