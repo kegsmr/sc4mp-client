@@ -201,13 +201,17 @@ def main():
 				raise ClientException("Invalid arguments.") from e
 
 		# URL scheme
-		if len(sc4mp_args) > 1 and sc4mp_args[1].startswith("sc4mp://"):
+		URL_PREFIX = "sc4mp://"
+		if len(sc4mp_args) > 1 and sc4mp_args[1].startswith(URL_PREFIX):
 			try:
-				url = sc4mp_args[1].split("/")[2].split(":")
-				sc4mp_host = ":".join(url[:-1])
+				url = sc4mp_args[1]
+				url = url.replace(URL_PREFIX, "", 1)
+				url = url.split(":")
 				if len(url) > 1:
+					sc4mp_host = ":".join(url[:-1])
 					sc4mp_port = int(url[-1])
 				else:
+					sc4mp_host = url[0]
 					sc4mp_port = 7240
 				sc4mp_exit_after = True
 			except Exception:
