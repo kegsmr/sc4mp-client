@@ -1063,7 +1063,7 @@ def sanitize_relpath(basepath: Path, relpath: str) -> Path:
 
 	fullpath = basepath / relpath
 
-	if fullpath.resolve().is_relative_to(basepath.resolve()):
+	if str(fullpath.resolve()).startswith(str(basepath.resolve())):
 		return fullpath
 	else:
 		raise ValueError(f"Invalid relative path: \"{relpath}\".")
@@ -1268,7 +1268,7 @@ class Server:
 				relpath = Path(entry[2])
 
 				# Set the destination
-				s = sanitize_relpath(Path(destination), relpath)
+				d = sanitize_relpath(Path(destination), relpath)
 
 				# Create the destination directory if necessary
 				d.parent.mkdir(parents=True, exist_ok=True)
@@ -2497,7 +2497,7 @@ class ServerLoader(th.Thread):
 						print(f'- using cached "{checksum}"')
 
 						# Set the destination
-						s = sanitize_relpath(Path(destination), relpath)
+						d = sanitize_relpath(Path(destination), relpath)
 
 						# Display current file in UI
 						try:
@@ -2556,7 +2556,7 @@ class ServerLoader(th.Thread):
 					print(f'- caching "{checksum}"...')
 
 					# Set the destination
-					s = sanitize_relpath(Path(destination), relpath)
+					d = sanitize_relpath(Path(destination), relpath)
 
 					# Display current file in UI
 					try:
@@ -3564,7 +3564,7 @@ class RegionsRefresher(th.Thread):
 						print(f'- using cached "{checksum}"')
 
 						# Set the destination
-						s = sanitize_relpath(Path(destination), relpath)
+						d = sanitize_relpath(Path(destination), relpath)
 
 						# Display current file in UI
 						try:
@@ -3611,7 +3611,7 @@ class RegionsRefresher(th.Thread):
 					print(f'- caching "{checksum}"...')
 
 					# Set the destination
-					s = sanitize_relpath(Path(destination), relpath)
+					d = sanitize_relpath(Path(destination), relpath)
 
 					# Display current file in UI
 					try:
