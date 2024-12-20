@@ -179,8 +179,8 @@ def main():
 		if "--host" in sc4mp_args:
 			try:
 				sc4mp_host = get_arg_value("--host", sc4mp_args)
-			except Exception:
-				raise ClientException("Invalid arguments.")
+			except Exception as e:
+				raise ClientException("Invalid arguments.") from e
 
 		# "--port" argument
 		global sc4mp_port
@@ -188,8 +188,8 @@ def main():
 		if "--port" in sc4mp_args:
 			try:
 				sc4mp_port = int(get_arg_value("--port", sc4mp_args))
-			except Exception:
-				raise ClientException("Invalid arguments.")
+			except Exception as e:
+				raise ClientException("Invalid arguments.") from e
 			
 		# "--password" argument
 		global sc4mp_password
@@ -197,8 +197,8 @@ def main():
 		if "--password" in sc4mp_args:
 			try:
 				sc4mp_password = get_arg_value("--password", sc4mp_args)
-			except Exception:
-				raise ClientException("Invalid arguments.")
+			except Exception as e:
+				raise ClientException("Invalid arguments.") from e
 
 		# URL scheme
 		if len(sc4mp_args) > 1 and sc4mp_args[1].startswith("sc4mp://"):
@@ -301,8 +301,8 @@ def check_updates():
 				try:
 					with urllib.request.urlopen(f"https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest", timeout=10) as url:
 						latest_release_info = json.load(url)
-				except urllib.error.URLError:
-					raise ClientException("GitHub API call timed out.")
+				except urllib.error.URLError as e:
+					raise ClientException("GitHub API call timed out.") from e
 
 				# Download the update if the version doesn't match
 				if sc4mp_force_update or latest_release_info["tag_name"] != f"v{SC4MP_VERSION}":
@@ -515,7 +515,7 @@ def create_subdirectories() -> None:
 		try:
 			new_directory.mkdir(exist_ok=True, parents=True)
 		except Exception as e:
-			raise ClientException("Failed to create SC4MP subdirectories.\n\n" + str(e))
+			raise ClientException("Failed to create SC4MP subdirectories.\n\n" + str(e)) from e
 		
 	# Create notice files
 	with open(launchdir / "_Cache" / "___DELETE THESE FILES IF YOU WANT___", "w") as file:
@@ -723,7 +723,7 @@ def purge_directory(directory: Path, recursive=True) -> None:
 				if recursive:
 					shutil.rmtree(path)
 		except PermissionError as e:
-			raise ClientException(f'Failed to delete "{path}" because the file is being used by another process.') #\n\n' + str(e)
+			raise ClientException(f'Failed to delete "{path}" because the file is being used by another process.') from e #\n\n' + str(e)
 
 
 def directory_size(directory: Path) -> int:
@@ -940,9 +940,9 @@ def refresh_region_open() -> bool:
 	return region_open("Refresh...")
 
 
-def report(message, object):
-	
-	print(message)
+#def report(message, object):
+#	
+#	print(message)
 
 
 def prep_region_config(path):
@@ -963,9 +963,9 @@ def prep_region_config(path):
 			with open(path, 'wt') as config_file:
 				config.write(config_file)
 
-	except Exception:
+	except Exception as e:
 
-		raise ClientException(f"Failed to prepare region config at {path}.")
+		raise ClientException(f"Failed to prepare region config at {path}.") from e
 
 
 def format_filesize(size, scale=None):
@@ -1089,8 +1089,8 @@ class Server:
 			s.connect((self.host, self.port))
 			s.send(b"info")
 			server_info = recv_json(s)
-		except Exception:
-			raise ClientException("Unable to find server. Check the IP address and port, then try again.")
+		except Exception as e:
+			raise ClientException("Unable to find server. Check the IP address and port, then try again.") from e
 
 		#server_info = self.request("info")
 		#if server_info is not None:
@@ -1945,8 +1945,8 @@ class ServerFetcher(th.Thread):
 
 				try:
 					self.server.fetch()
-				except Exception:
-					raise ClientException("Server not found.")
+				except Exception as e:
+					raise ClientException("Server not found.") from e
 
 				if self.parent.end:
 					raise ClientException("The parent thread was signaled to end.")
@@ -1986,22 +1986,22 @@ class ServerFetcher(th.Thread):
 
 				try:
 					self.parent.fetched_servers.append(self.server)
-				except Exception:
-					raise ClientException("Unable to add server to server list.")
+				except Exception as e:
+					raise ClientException("Unable to add server to server list.") from e
 
 				#print("- starting server pinger...")
 
 				try:
 					ServerPinger(self.parent, self.server).start()
-				except Exception:
-					raise ClientException("Unable to start server pinger.")
+				except Exception as e:
+					raise ClientException("Unable to start server pinger.") from e
 
 				#print("- fetching server list...")
 
 				try:
 					self.server_list()
-				except Exception:
-					raise ClientException("Unable to fetch server list.")
+				except Exception as e:
+					raise ClientException("Unable to fetch server list.") from e
 
 				#if not self.server.private:
 
@@ -2462,11 +2462,11 @@ class ServerLoader(th.Thread):
 				self.report("", f"Synchronizing {target}...") #"", "Purging " + type + " directory...")
 				try:
 					purge_directory(destination)
-				except ClientException:
-					raise ClientException("SimCity 4 is already running!")
+				except ClientException as e: 											# This is stupid
+					raise ClientException("SimCity 4 is already running!") from e		# #TODO better to check if the process is actually running
 
 				# Create the socket
-				s = self.create_socket() 
+				s = self.create_socket()
 				#s.settimeout(None)
 
 				# Report
@@ -2704,7 +2704,7 @@ class ServerLoader(th.Thread):
 
 				else:
 
-					raise ClientException("Maximum connection attempts exceeded. Check your internet connection and firewall settings, then try again.")
+					raise ClientException("Maximum connection attempts exceeded. Check your internet connection and firewall settings, then try again.") from e
 
 		return s
 
@@ -2750,8 +2750,8 @@ class ServerLoader(th.Thread):
 		# Clear default plugins directory
 		try:
 			purge_directory(default_plugins_destination, recursive=False)
-		except Exception:
-			raise ClientException("SimCity 4 is already running!")
+		except Exception as e:
+			raise ClientException("SimCity 4 is already running!") from e
 
 		# Load default plugins
 		for default_plugin_file_name in ["sc4-fix.dll", "sc4-fix-license.txt", "sc4-thumbnail-fix.dll", "sc4-thumbnail-fix-license.txt", "sc4-thumbnail-fix-third-party-notices.txt"]: #, "sc4-dbpf-loading.dll", "sc4-dbpf-loading-license.txt", "sc4-dbpf-loading-third-party-notices.txt"]:
@@ -3772,7 +3772,7 @@ class RegionsRefresher(th.Thread):
 
 		except socket.error as e:
 			
-			raise ClientException("Connection failed.\n\n" + str(e))	
+			raise ClientException("Connection failed.\n\n" + str(e)) from e
 
 		return s
 
