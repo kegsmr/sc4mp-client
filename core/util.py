@@ -83,3 +83,75 @@ def sanitize_directory_name(text: str) -> str:
 	text = text.strip()
 
 	return text
+
+
+def format_filesize(size, scale=None):
+	if scale is None:
+		scale = size
+	if scale >= 10 ** 13:
+		return str(int(size / (10 ** 12))) + "TB"
+	elif scale >= 10 ** 12:
+		return str(float(int(size / (10 ** 11)) / 10)) + "TB"
+	elif scale >= 10 ** 11:
+		return str(int(size / (10 ** 9))) + "GB"
+	elif scale >= 10 ** 10:
+		return str(int(size / (10 ** 9))) + "GB"
+	elif scale >= 10 ** 9:
+		return str(float(int(size / (10 ** 8)) / 10)) + "GB"
+	elif scale >= 10 ** 8:
+		return str(int(size / (10 ** 6))) + "MB"
+	elif scale >= 10 ** 7:
+		return str(int(size / (10 ** 6))) + "MB"
+	elif scale >= 10 ** 6:
+		return str(float(int(size / (10 ** 5)) / 10)) + "MB"
+	elif scale >= 10 ** 5:
+		return str(int(size / (10 ** 3))) + "KB"
+	elif scale >= 10 ** 4:
+		return str(int(size / (10 ** 3))) + "KB"
+	elif scale >= 10 ** 3:
+		return str(float(int(size / (10 ** 2)) / 10)) + "KB"
+	else:
+		return str(int(size)) + "B"
+
+
+def parse_filesize(filesize_str) -> int:
+    """
+    Parses a string representing a file size and returns its equivalent in bytes.
+
+    Args:
+        filesize_str (str): A string representing the file size (e.g., '8MB', '3.3KB').
+
+    Returns:
+        int: The file size in bytes.
+
+    Raises:
+        ValueError: If the input format is invalid.
+    """
+
+    # Define size multipliers
+    size_multipliers = {
+        'B': 1,
+        'KB': 10**3,
+        'MB': 10**6,
+        'GB': 10**9,
+        'TB': 10**12
+    }
+
+    import re
+
+    # Regular expression to match the input pattern
+    match = re.fullmatch(r"([0-9]*\.?[0-9]+)\s*(B|KB|MB|GB|TB)", filesize_str.strip(), re.IGNORECASE)
+
+    if not match:
+        raise ValueError("Invalid file size format. Use format like '8MB' or '3.3KB'.")
+
+    # Extract the numeric part and the unit
+    size, unit = match.groups()
+    size = float(size)
+    unit = unit.upper()
+
+    # Compute the size in bytes
+    if unit not in size_multipliers:
+        raise ValueError(f"Unsupported unit '{unit}'. Supported units are: {', '.join(size_multipliers.keys())}.")
+
+    return int(size * size_multipliers[unit])

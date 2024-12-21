@@ -988,31 +988,6 @@ def prep_region_config(path):
 		raise ClientException(f"Failed to prepare region config at {path}.") from e
 
 
-def format_filesize(size, scale=None):
-	if scale is None:
-		scale = size
-	if scale >= 10 ** 11:
-		return ">99GB"
-	elif scale >= 10 ** 10:
-		return str(int(size / (10 ** 9))) + "GB"
-	elif scale >= 10 ** 9:
-		return str(float(int(size / (10 ** 8)) / 10)) + "GB"
-	elif scale >= 10 ** 8:
-		return str(int(size / (10 ** 6))) + "MB"
-	elif scale >= 10 ** 7:
-		return str(int(size / (10 ** 6))) + "MB"
-	elif scale >= 10 ** 6:
-		return str(float(int(size / (10 ** 5)) / 10)) + "MB"
-	elif scale >= 10 ** 5:
-		return str(int(size / (10 ** 3))) + "KB"
-	elif scale >= 10 ** 4:
-		return str(int(size / (10 ** 3))) + "KB"
-	elif scale >= 10 ** 3:
-		return str(float(int(size / (10 ** 2)) / 10)) + "KB"
-	else:
-		return str(int(size)) + "B "
-
-
 def format_download_size(size):
 	if size == 0:
 		return "None"
@@ -4241,13 +4216,13 @@ class StorageSettingsUI(tk.Toplevel):
 
 		# Cache size entry
 		self.cache_size_frame.entry = ttk.Entry(self.cache_size_frame, width=10)
-		self.cache_size_frame.entry.insert(0, str(sc4mp_config["STORAGE"]["cache_size"]))
+		self.cache_size_frame.entry.insert(0, format_filesize(sc4mp_config["STORAGE"]["cache_size"] * 1000))
 		self.cache_size_frame.entry.grid(row=0, column=0, columnspan=1, padx=(10,0), pady=10, sticky="w")
 		self.config_update.append((self.cache_size_frame.entry, "cache_size"))
 
 		# Cache size label
-		self.cache_size_frame.label = ttk.Label(self.cache_size_frame, text="mb")
-		self.cache_size_frame.label.grid(row=0, column=1, columnspan=1, padx=(2,10), pady=10, sticky="w")
+		#self.cache_size_frame.label = ttk.Label(self.cache_size_frame, text="mb")
+		#self.cache_size_frame.label.grid(row=0, column=1, columnspan=1, padx=(2,10), pady=10, sticky="w")
 
 		# Clear cache button
 		self.cache_size_frame.button = ttk.Button(self.cache_size_frame, text="Clear cache", command=self.clear_cache)
@@ -4297,6 +4272,15 @@ class StorageSettingsUI(tk.Toplevel):
 					if not messagebox.askokcancel(title=SC4MP_TITLE, message="Changing the launch path will cause you to lose access to your claimed tiles on servers you play on.\n\nYou will only be able to access these claims in the future by setting the launch path back to what it's currently set to now.\n\nDo you wish to proceed?", icon="warning"):
 						raise ClientException("Operation cancelled by user.")
 				restart = True
+			if key == "cache_size":
+				try:
+					data = parse_filesize(data) / 1000
+				except ValueError:
+					try:
+						data = int(data)
+					except Exception as e:
+						show_error(e, no_ui=True)
+						continue
 			update_config_value("STORAGE", key, data)
 		if restart:
 			if Path(sys.executable).name == "sc4mpclient.exe":
