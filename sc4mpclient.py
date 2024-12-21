@@ -64,43 +64,59 @@ SC4MP_BUFFER_SIZE = 4096
 
 SC4MP_DELAY = .1
 
-SC4MP_SERVERLIST_ENABLED = True
-SC4MP_LAUNCHERMAP_ENABLED = False
+SC4MP_LAUNCHERMAP_ENABLED = False 		#TODO replace with config setting eventually
 
 SC4MP_CONFIG_DEFAULTS = [
 	("GENERAL", [
+
+		("default_host", SC4MP_HOST),
+		("default_port", SC4MP_PORT),
+
 		("auto_update", True),
-		("use_game_overlay", 1),
-		("use_launcher_map", True),
-		("allow_game_monitor_exit", True),
+
+		("use_server_browser", True),
+		("scan_lan", True),
+		("stat_mayors_online_cutoff", 60),
 		("show_actual_download", True),
+		("use_launcher_map", True),
+		("use_game_overlay", 1),
+		("allow_game_monitor_exit", True),
+
 		("save_server_passwords", True),
 		("ignore_third_party_server_warnings", False),
 		("ignore_token_errors", False),
-		("ignore_risky_file_warnings", False),		
+		("ignore_risky_file_warnings", False),
+
 		("custom_plugins", False),
 		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser()),	
-		("default_host", SC4MP_HOST),
-		("default_port", SC4MP_PORT),
-		("stat_mayors_online_cutoff", 60),
+
 		("sync_simcity_4_cfg", True),
-		("scan_lan", True)
+
 	]),
 	("STORAGE", [
+
 		("storage_path", Path("~/Documents/SimCity 4/SC4MP Launcher/_SC4MP").expanduser()),
 		("cache_size", 8000)
+
 	]),
 	("SC4", [
+
 		("game_path", ""),
-		("fullscreen", False),
+
 		("resw", 1280),
 		("resh", 800),
+		("fullscreen", False),
+
 		("cpu_count", 1),
 		("cpu_priority", "high"),
+
 		("additional_properties", "")
+
 	]),
 	("DEBUG", [
+
 		("random_server_stats", False),
+		
 	])
 ]
 
@@ -3906,12 +3922,14 @@ class UI(tk.Tk):
 
 		# Server List
 
-		if SC4MP_SERVERLIST_ENABLED:
+		if sc4mp_config["GENERAL"]["use_server_browser"]:
 			self.server_list = ServerListUI(self)
 			self.server_list.grid(row=0, column=0, padx=0, pady=0, sticky="w")
 		else:
-			self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Connect..." in the menu bar and enter the hostname and port of the server you wish to connect to.')
-			self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+			self.label = tk.Label(self, text="SERVER BROWSER DISABLED") #\n\nTo get started, press <F1> and enter the IP address and port of the server you wish to connect to.")
+			self.label.pack(anchor="center", pady=250)
+			#self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Connect..." in the menu bar and enter the hostname and port of the server you wish to connect to.')
+			#self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 	
 
 	def show_error(self, *args):
@@ -3958,8 +3976,9 @@ class UI(tk.Tk):
 
 	def refresh(self):
 		
-		self.server_list.worker = ServerList(self.server_list, kill=self.server_list.worker)
-		self.server_list.worker.start()
+		if sc4mp_config["GENERAL"]["use_server_browser"]:
+			self.server_list.worker = ServerList(self.server_list, kill=self.server_list.worker)
+			self.server_list.worker.start()
 
 
 	def about(self):
