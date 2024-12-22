@@ -2282,8 +2282,8 @@ class ServerLoader(th.Thread):
 				if sc4mp_config["GENERAL"]["save_server_passwords"]:
 					try:
 						sc4mp_servers_database[self.server.server_id]["password"] = self.server.password
-					except Exception:
-						pass
+					except Exception as e:
+						show_error(e, no_ui=True)
 				return True
 			else:
 				return False
@@ -2637,30 +2637,30 @@ class ServerLoader(th.Thread):
 
 		s.settimeout(10)
 
-		tries_left = 5
+		#tries_left = 5
 
-		while True:
+		#while True:
 
-			try:
+		#	try:
 
-				self.report("", "Connecting...")
-				s.connect((host, port))
+		self.report("", "Connecting...")
+		s.connect((host, port))
 
-				self.report("", "Connected.")
+		self.report("", "Connected.")
 
-				break
+		#		break
 
-			except socket.error as e:
+		#	except socket.error as e:
 				
-				if tries_left > 0:
+		#		if tries_left > 0:
 				
-					self.connection_failed_retrying(e)
+		#			self.connection_failed_retrying(e)
 
-					tries_left -= 1
+		#			tries_left -= 1
 
-				else:
+		#		else:
 
-					raise ClientException("Maximum connection attempts exceeded. Check your internet connection and firewall settings, then try again.") from e
+		#			raise ClientException("Maximum connection attempts exceeded. Check your internet connection and firewall settings, then try again.") from e
 
 		return s
 
