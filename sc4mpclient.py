@@ -2291,8 +2291,8 @@ class ServerLoader(th.Thread):
 				if sc4mp_config["GENERAL"]["save_server_passwords"]:
 					try:
 						sc4mp_servers_database[self.server.server_id]["password"] = self.server.password
-					except Exception:
-						pass
+					except Exception as e:
+						show_error(e, no_ui=True)
 				return True
 			else:
 				return False
