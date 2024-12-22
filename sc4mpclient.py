@@ -73,6 +73,8 @@ SC4MP_CONFIG_DEFAULTS = [
 		("default_port", SC4MP_PORT),
 
 		("auto_update", True),
+		("release_notes_version", SC4MP_VERSION),
+		("show_release_notes", True),
 
 		("use_server_browser", True),
 		("scan_lan", True),
@@ -318,11 +320,7 @@ def check_updates():
 			if sc4mp_force_update or exec_file == "sc4mpclient.exe":
 
 				# Get latest release info
-				try:
-					with urllib.request.urlopen("https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest", timeout=10) as url:
-						latest_release_info = json.load(url)
-				except urllib.error.URLError as e:
-					raise ClientException("GitHub API call timed out.") from e
+				latest_release_info = get_release_info()
 
 				# Download the update if the version doesn't match
 				if sc4mp_force_update or latest_release_info["tag_name"] != f"v{SC4MP_VERSION}":
@@ -488,6 +486,21 @@ def check_updates():
 
 			# Show error silently and continue as usual
 			show_error(f"An error occurred while updating.\n\n{e}", no_ui=True)
+
+
+def get_release_info(version="latest", timeout=10):
+
+	if version == "latest":
+		github_api_call = "https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest"
+	else:
+		github_api_call = f"https://api.github.com/repos/kegsmr/sc4mp-client/releases/tags/v{version}"
+
+	try:
+		with urllib.request.urlopen(url=github_api_call, timeout=timeout) as url:
+			return json.load(url)
+	except urllib.error.URLError as e:
+		raise ClientException("GitHub API call timed out.") from e
+	
 
 	
 def update_config_constants(config):
@@ -3895,7 +3908,12 @@ class UI(tk.Tk):
 		self.config(menu=menu)  
 
 
-		# Server List
+		# Release notes
+			
+		th.Thread(target=self.release_notes).start()
+
+
+		# Server browser
 
 		if sc4mp_config["GENERAL"]["use_server_browser"]:
 			self.server_list = ServerListUI(self)
@@ -3905,7 +3923,27 @@ class UI(tk.Tk):
 			self.label.pack(anchor="center", pady=250)
 			#self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Connect..." in the menu bar and enter the hostname and port of the server you wish to connect to.')
 			#self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+
+
+	def release_notes(self):
+
+		if sc4mp_config["GENERAL"]["show_release_notes"] and sc4mp_config["GENERAL"]["release_notes_version"] != SC4MP_VERSION:
+
+			try:
+
+				# Set version for release info
+				version = SC4MP_VERSION
+
+				# Get latest release info
+				release_info = get_release_info(version=version)
+
+				# Create release notes UI
+				ReleaseNotesUI(version, release_info["name"], release_info["body"])
+
+			except Exception as e:
 	
+				show_error(f"Unable to show release notes.\n\n{e}", no_ui=True)
+
 
 	def show_error(self, *args):
 		
@@ -5765,6 +5803,121 @@ class UpdaterUI(tk.Toplevel):
 		super().destroy()
 
 		self.parent.destroy()
+
+
+class ReleaseNotesUI(tk.Toplevel):
+	
+	def __init__(self, version: str, title: str, body: str):
+	
+
+		#print("Initializing...")
+
+		# Init
+		super().__init__()
+		self.version = version
+
+		# Title
+		self.title(f"Update v{version}")
+
+		# Icon
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+
+		# Geometry
+		self.geometry('400x400')
+		#self.maxsize(420, 375)
+		#self.minsize(420, 375)
+		self.grid()
+		
+		# Priority
+		self.grab_set()
+
+		# Key bindings
+		self.bind("<Return>", lambda event:self.destroy())
+		self.bind("<Escape>", lambda event:self.destroy())
+
+		try:
+
+			# Title
+			#self.title = ttk.Label(self, text=SC4MP_TITLE, font=("Arial", 16))
+			#self.title.grid(row=10, column=0, padx=10, pady=10)
+
+			# Description
+			#self.description = ttk.Label(self, text="Thank you for using the SC4MP launcher.")
+			#self.description.grid(row=11, column=0, sticky="n", padx=10, pady=10)
+
+			# Release notes label
+			self.subtitle = ttk.Label(self, text="Release notes")
+			self.subtitle.grid(row=19, column=0, columnspan=99, sticky="w", padx=10, pady=5)
+
+			# Body
+			self.body = tk.Frame(self, width=400, height=100, background="white", highlightbackground="gray", highlightthickness=1)
+			self.body.grid(row=20, column=0, padx=(10,0), pady=0, sticky="nw")
+			self.body.grid_propagate(0)
+
+			# Body title
+			self.body.title = ttk.Label(self.body, text=title, wraplength=(int(self.body["width"]) - 20), background="white", font=("Arial", 8, "bold"))
+			self.body.title.grid(row=0, column=0, columnspan=99, padx=10, pady=10, sticky="nw")
+
+			# Body text
+			lines = body.splitlines()
+			if len(lines) > 0 and lines[-1].startswith("**Full Changelog**"):
+				lines.pop(-1)
+				if len(lines) > 0 and len(lines[-1]) == 0:
+					lines.pop(-1)
+			if len(lines) < 1:
+				ttk.Label(self.body, text="No description provided.", background="white", font=("Arial", 8, "italic")).grid(row=1, column=0, columnspan=99, padx=10, pady=0, sticky="nw")
+			else:
+				for line_number in range(len(lines)):
+					line = lines[line_number]
+					bold = "**" in line
+					bulleted = line.startswith("- ")
+					for sequence in ["**", "- "]:
+						line = line.replace(sequence, "")
+					if bulleted:
+						ttk.Label(self.body, text="\u2022", background="white").grid(row=line_number + 1, column=0, columnspan=1, padx=(10,0), pady=0, sticky ="nw")
+						ttk.Label(self.body, text=line, wraplength=(int(self.body["width"]) - 40), background="white").grid(row=line_number + 1, column=1, columnspan=1, padx=10, pady=0, sticky="nw")
+					else:
+						ttk.Label(self.body, text=line, wraplength=(int(self.body["width"]) - 20), background="white").grid(row=line_number + 1, column=0, columnspan=99, padx=10, pady=0, sticky="nw")
+
+			# Body link
+			self.body.link = ttk.Label(self.body, text="View all releases...", foreground="blue", background="white", cursor="hand2")
+			self.body.link.grid(row=99, column=0, columnspan=99, padx=10, pady=10, sticky="nw")
+			self.body.link.bind("<Button-1>", lambda e:webbrowser.open_new_tab(SC4MP_RELEASES_URL))
+
+			# Resize body and window to fit content
+			sc4mp_ui.update()
+			body_height = self.body.link.winfo_y() + 30
+			window_height = body_height + 75
+			self.body.configure(height=body_height)
+			self.maxsize(420, window_height)
+			self.minsize(420, window_height)
+
+			# Scrollbar
+			#scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.body.yview)
+			#self.body.configure(yscrollcommand=self.scrollbar.set)
+			#self.scrollbar.grid(row=20, column=1, padx=0, pady=10)
+
+			# Ok button
+			self.ok_button = ttk.Button(self, text="Ok", command=self.destroy, default="active")
+			self.ok_button.grid(row=99, column=0, columnspan=99, padx=0, pady=10, sticky="s")
+
+			# Center window
+			center_window(self)
+
+		except Exception as e:
+
+			self.destroy()
+
+			raise e
+
+
+	def destroy(self):
+
+		sc4mp_config["GENERAL"]["release_notes_version"] = self.version
+
+		sc4mp_config.update()
+
+		return super().destroy()
 
 
 # Exceptions
