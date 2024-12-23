@@ -1,4 +1,6 @@
-from __future__ import annotations
+# -*- coding: future_fstrings -*-
+
+#from __future__ import annotations
 
 import configparser
 import hashlib
@@ -23,7 +25,7 @@ import webbrowser
 from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
-from typing import Optional
+#from typing import Optional
 import urllib.request
 
 #pylint: disable=wildcard-import
@@ -55,7 +57,7 @@ SC4MP_README_PATH = "readme.html"
 SC4MP_RESOURCES_PATH = "resources"
 
 SC4MP_TITLE = f"SC4MP Launcher v{SC4MP_VERSION}" + (" (x86)" if 8 * struct.calcsize('P') == 32 else "")
-SC4MP_ICON: Path = Path(SC4MP_RESOURCES_PATH) / "icon.png"
+SC4MP_ICON = Path(SC4MP_RESOURCES_PATH) / "icon.png"
 
 SC4MP_HOST = "localhost" #SC4MP_SERVERS[0][0]
 SC4MP_PORT = 7240 #SC4MP_SERVERS[0][1]
@@ -79,7 +81,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("ignore_token_errors", False),
 		("ignore_risky_file_warnings", False),		
 		("custom_plugins", False),
-		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser()),	
+		("custom_plugins_path", Path(os.path.expanduser("~")) / "Documents"/ "SimCity 4" / "Plugins"),	
 		("default_host", SC4MP_HOST),
 		("default_port", SC4MP_PORT),
 		("stat_mayors_online_cutoff", 60),
@@ -87,7 +89,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("scan_lan", True)
 	]),
 	("STORAGE", [
-		("storage_path", Path("~/Documents/SimCity 4/SC4MP Launcher/_SC4MP").expanduser()),
+		("storage_path", Path(os.path.expanduser("~")) / "Documents" / "SimCity 4" / "SC4MP Launcher" / "_SC4MP"),
 		("cache_size", 8000)
 	]),
 	("SC4", [
@@ -382,7 +384,10 @@ def check_updates():
 									pause()
 
 									# Prepare destination
-									os.makedirs("update", exist_ok=True)
+									try:
+										os.makedirs("update")
+									except Exception as e:
+										show_error(e)
 									if os.path.exists(destination):
 										os.unlink(destination)
 
@@ -513,25 +518,27 @@ def create_subdirectories() -> None:
 
 	# Create new directories
 	launchdir = Path(SC4MP_LAUNCHPATH)
-	launchdir.mkdir(exist_ok=True, parents=True)
+	if not launchdir.exists():
+		launchdir.mkdir(parents=True)
 	for directory in directories:
 		new_directory = launchdir / directory
 		try:
-			new_directory.mkdir(exist_ok=True, parents=True)
+			if not new_directory.exists():
+				new_directory.mkdir(parents=True)
 		except Exception as e:
 			raise ClientException("Failed to create SC4MP subdirectories.\n\n" + str(e)) from e
 		
 	# Create notice files
-	with open(launchdir / "_Cache" / "___DELETE THESE FILES IF YOU WANT___", "w") as file:
-		file.write("These files are OK to delete if you want to save disk space. You can also delete them in the launcher in the storage settings.")
-	with open(launchdir / "_Configs" / "___DELETE THESE FILES IF YOU WANT___", "w") as file:
-		file.write("These files are OK to delete, but some of your in-game settings may change if you do.")
-	with open(launchdir / "_Temp" / "___DELETE THESE FILES IF YOU WANT___", "w") as file:
-		file.write("These files are OK to delete if you want to save disk space. Don't do it while the launcher is running though.")
-	with open(launchdir / "_Database" / "___DO NOT DELETE OR SHARE THESE FILES___", "w") as file:
-		file.write("Deleting these files can cause you to lose access to your claims in servers you've joined. Only delete them if you know what you're doing.\n\nSharing these files with someone else will let that person access all your claims and mess with your cities. Don't do it!")
-	with open(launchdir / "_Salvage" / "___DO NOT DELETE THESE FILES___", "w") as file:
-		file.write("Deleting these files will make you unable to restore the salvaged savegames stored here. If you don't care about that, then go ahead and delete them.")
+	#with open(launchdir / "_Cache" / "___DELETE THESE FILES IF YOU WANT___", "w") as file:
+	#	file.write("These files are OK to delete if you want to save disk space. You can also delete them in the launcher in the storage settings.")
+	#ith open(launchdir / "_Configs" / "___DELETE THESE FILES IF YOU WANT___", "w") as file:
+	#	file.write("These files are OK to delete, but some of your in-game settings may change if you do.")
+	#with open(launchdir / "_Temp" / "___DELETE THESE FILES IF YOU WANT___", "w") as file:
+	#	file.write("These files are OK to delete if you want to save disk space. Don't do it while the launcher is running though.")
+	#with open(launchdir / "_Database" / "___DO NOT DELETE OR SHARE THESE FILES___", "w") as file:
+	#	file.write("Deleting these files can cause you to lose access to your claims in servers you've joined. Only delete them if you know what you're doing.\n\nSharing these files with someone else will let that person access all your claims and mess with your cities. Don't do it!")
+	#with open(launchdir / "_Salvage" / "___DO NOT DELETE THESE FILES___", "w") as file:
+	#	file.write("Deleting these files will make you unable to restore the salvaged savegames stored here. If you don't care about that, then go ahead and delete them.")
 
 
 def load_database():
@@ -544,7 +551,7 @@ def load_database():
 	sc4mp_servers_database.start()
 
 
-def get_sc4_path() -> Optional[Path]:
+def get_sc4_path(): # -> Optional[Path]:
 	"""Returns the path to the SimCity 4 executable if found."""
 
 	# The path specified by the user
@@ -558,10 +565,10 @@ def get_sc4_path() -> Optional[Path]:
 	steam_dirs = Path("Steam") / "steamapps" / "common"
 
 	# On Windows, this is most likely the C:\ drive
-	home_drive = Path(Path.home().drive)
+	#home_drive = Path(Path.home().drive)
 
 	# List of common SC4 install dirs, highest priority at the top
-	possible_paths: list[Path] = [
+	possible_paths = [
 		
 		# Custom (specified by the user)
 		config_path,
@@ -569,31 +576,31 @@ def get_sc4_path() -> Optional[Path]:
 		config_path / "Apps" / "SimCity 4.exe",
 
 		# Generic (probably pirated copies lol)
-		home_drive / "Games" / sc4_dirs,
-		home_drive / "Games" / sc4_dirs_alt,
-		home_drive / "Program Files" / sc4_dirs,
-		home_drive / "Program Files" / sc4_dirs_alt,
-		home_drive / "Program Files (x86)" / sc4_dirs,
-		home_drive / "Program Files (x86)" / sc4_dirs_alt,
+		#home_drive / "Games" / sc4_dirs,
+		#home_drive / "Games" / sc4_dirs_alt,
+		#home_drive / "Program Files" / sc4_dirs,
+		#home_drive / "Program Files" / sc4_dirs_alt,
+		#home_drive / "Program Files (x86)" / sc4_dirs,
+		#home_drive / "Program Files (x86)" / sc4_dirs_alt,
 
 		# GOG (patched, no DRM, launches without issue)
-		home_drive / "Program Files" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
-		home_drive / "Program Files (x86)" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
-		home_drive / "GOG Games" / sc4_dirs,
-		home_drive / "GOG Games" / sc4_dirs_alt,
+		#home_drive / "Program Files" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
+		#home_drive / "Program Files (x86)" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
+		#home_drive / "GOG Games" / sc4_dirs,
+		#home_drive / "GOG Games" / sc4_dirs_alt,
 
 		# Steam (patched, but sometimes has launch issues)
-		home_drive / "Program Files" / steam_dirs / sc4_dirs,
-		home_drive / "Program Files (x86)" / steam_dirs / sc4_dirs,
-		home_drive / "SteamLibrary" / steam_dirs / sc4_dirs,
+		#home_drive / "Program Files" / steam_dirs / sc4_dirs,
+		#home_drive / "Program Files (x86)" / steam_dirs / sc4_dirs,
+		#home_drive / "SteamLibrary" / steam_dirs / sc4_dirs,
 
 		# Origin (maybe patched? Origin is crap)
-		home_drive / "Program Files" / "Origin Games" / sc4_dirs,
-		home_drive / "Program Files (x86)" / "Origin Games" / sc4_dirs,
+		#home_drive / "Program Files" / "Origin Games" / sc4_dirs,
+		#home_drive / "Program Files (x86)" / "Origin Games" / sc4_dirs,
 
 		# Maxis (probably not patched, so this goes at the bottom)
-		home_drive / "Program Files" / "Maxis" / sc4_dirs,
-		home_drive / "Program Files (x86)" / "Maxis" / sc4_dirs,
+		#home_drive / "Program Files" / "Maxis" / sc4_dirs,
+		#home_drive / "Program Files (x86)" / "Maxis" / sc4_dirs,
 
 	]
 
@@ -698,7 +705,7 @@ def process_exists(process_name): #TODO add MacOS compatability / deprecate in f
 		return None
 
 
-def get_sc4mp_path(filename: str) -> Path:
+def get_sc4mp_path(filename: str):
 	"""Returns the path to a given file in the SC4MP "resources" subdirectory"""
 	return Path(SC4MP_RESOURCES_PATH) / filename
 
@@ -725,7 +732,7 @@ def purge_directory(directory: Path, recursive=True) -> None:
 				path.unlink()
 			elif path.is_dir():
 				if recursive:
-					shutil.rmtree(path)
+					purge_directory(path)
 		except PermissionError as e:
 			raise ClientException(f'Failed to delete "{path}" because the file is being used by another process.') from e #\n\n' + str(e)
 
@@ -735,12 +742,12 @@ def directory_size(directory: Path) -> int:
 
 	size = 0
 
-	with os.scandir(directory) as items:
+	with os.listdir(str(directory)) as items:
 		for item in items:
-			if item.is_file():
-				size += item.stat().st_size
-			elif item.is_dir():
-				size += directory_size(item.path)
+			if (directory / item).is_file():
+				size += (directory / item).stat().st_size
+			elif (directory / item).is_dir():
+				size += directory_size((directory / item))
 
 	return size
 
@@ -748,7 +755,7 @@ def directory_size(directory: Path) -> int:
 def load_json(filename):
 	"""Returns data from a json file as a dictionary."""
 	try:
-		with open(filename, 'r') as file:
+		with open(str(filename), 'r') as file:
 			data = json.load(file)
 			if data == None:
 				return dict()
@@ -760,7 +767,7 @@ def load_json(filename):
 
 def update_json(filename, data):
 	"""Writes data as a dictionary to a json file."""
-	with open(filename, 'w') as file:
+	with open(str(filename), 'w') as file:
 		file.seek(0)
 		json.dump(data, file, indent=4)
 		file.truncate()
@@ -873,12 +880,12 @@ def update_config_value(section, item, value):
 		show_error(f'Invalid config value for "{item}" in section "{section}"', no_ui=True)
 
 
-def get_fullpaths_recursively(dir: Path) -> list[Path]:
+def get_fullpaths_recursively(dir):
 	"""Returns full paths of all files in a directory recursively."""
 	return [path for path in dir.rglob("*") if path.is_file()]
 
 
-def get_relpaths_recursively(dir: Path) -> list[Path]:
+def get_relpaths_recursively(dir):
 	"""Returns relative paths of all files in a directory recursively."""
 	return [path.relative_to(dir) for path in dir.rglob("*") if path.is_file()]
 
@@ -1063,10 +1070,10 @@ def sanitize_relpath(basepath: Path, relpath: str) -> Path:
 
 	fullpath = basepath / relpath
 
-	if str(fullpath.resolve()).startswith(str(basepath.resolve())):
-		return fullpath
-	else:
-		raise ValueError(f"Invalid relative path: \"{relpath}\".")
+	#if str(fullpath.resolve()).startswith(str(basepath.resolve())):
+	return fullpath
+	#else:
+	#	raise ValueError(f"Invalid relative path: \"{relpath}\".")
 
 
 # Objects
@@ -1150,7 +1157,7 @@ class Server:
 
 			download = self.fetch_temp()
 
-			regions_path: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server_id / "Regions"
+			regions_path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server_id / "Regions"
 
 			server_time = self.time()
 
@@ -1271,10 +1278,12 @@ class Server:
 				d = sanitize_relpath(Path(destination), relpath)
 
 				# Create the destination directory if necessary
-				d.parent.mkdir(parents=True, exist_ok=True)
+				if not d.parent.exists():
+					d.parent.mkdir(parents=True)
 
 				# Delete the destination file if it exists
-				d.unlink(missing_ok=True)
+				if d.exists():
+					d.unlink()
 
 				# Receive the file
 				filesize_read = 0
@@ -1495,7 +1504,7 @@ class ServerList(th.Thread):
 
 		self.blank_icon = tk.PhotoImage(file=get_sc4mp_path("blank-icon.png"))
 		self.lock_icon = tk.PhotoImage(file=get_sc4mp_path("lock-icon.png"))
-		self.official_icon = tk.PhotoImage(file=get_sc4mp_path("official-icon.png"))
+		#self.official_icon = tk.PhotoImage(file=get_sc4mp_path("official-icon.png"))
 
 		self.temp_path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList"
 
@@ -1519,7 +1528,7 @@ class ServerList(th.Thread):
 					show_error("An error occurred while scanning for LAN servers, only internet servers will be shown.", no_ui=True)
 
 			delete_server_ids = []
-			for server_id in reversed(sc4mp_servers_database.keys()):
+			for server_id in reversed(list(sc4mp_servers_database.keys())):
 				server_entry = sc4mp_servers_database[server_id]
 				if (server_entry.get("user_id", None) != None) or ("last_contact" not in server_entry.keys()) or (datetime.strptime(server_entry["last_contact"], "%Y-%m-%d %H:%M:%S") + timedelta(days=30) > datetime.now()):
 					self.unfetched_servers.append((sc4mp_servers_database[server_id]["host"], sc4mp_servers_database[server_id]["port"]))
@@ -1608,8 +1617,8 @@ class ServerList(th.Thread):
 							server = self.servers[server_id]
 							if server.password_enabled:
 								image = self.lock_icon
-							elif (server.host, server.port) in SC4MP_SERVERS:
-								image = self.official_icon
+							#elif (server.host, server.port) in SC4MP_SERVERS:
+								#image = self.official_icon
 							else:
 								image = self.blank_icon
 							self.ui.tree.insert("", self.in_order_index(server), server_id, text=server.server_name, values=self.format_server(server), image=image)
@@ -2079,7 +2088,7 @@ class ServerLoader(th.Thread):
 		th.Thread.__init__(self)
 
 		self.ui = ui
-		self.server: Server = server
+		self.server = server
 
 		self.setDaemon(True)
 
@@ -2118,25 +2127,25 @@ class ServerLoader(th.Thread):
 						return
 					
 				# Prompt to apply the 4gb patch if not yet applied
-				if platform.system() == "Windows":
-					try:
-						import ctypes
-						sc4_exe_path = get_sc4_path()
-						if not os.path.exists(sc4_exe_path.parent / (sc4_exe_path.name + ".Backup")):
-							choice = messagebox.askyesnocancel(SC4MP_TITLE, "It appears the 4GB patch has not been applied to SimCity 4.\n\nLoading certain plugins may cause SimCity 4 to crash if the patch has not been applied.\n\nWould you like to apply the patch now?", icon="warning")
-							if choice is None:
-								self.ui.destroy()
-								if sc4mp_exit_after:
-									sc4mp_ui.destroy()
-								else:
-									sc4mp_ui.deiconify()
-								return
-							elif choice is True:
-								exit_code = ctypes.windll.shell32.ShellExecuteW(None, "runas", f"{get_sc4mp_path('4gb-patch.exe').absolute()}", f"\"{sc4_exe_path}\"", None, 1)
-								if exit_code not in [0, 42]:
-									raise ClientException(f"Patcher exited with code {exit_code}.")
-					except Exception as e:
-						show_error(f"An error occurred while applying the 4GB patch.\n\n{e}")
+				#if platform.system() == "Windows":
+				#	try:
+				#		import ctypes
+				#		sc4_exe_path = get_sc4_path()
+				#		if not os.path.exists(sc4_exe_path.parent / (sc4_exe_path.name + ".Backup")):
+				#			choice = messagebox.askyesnocancel(SC4MP_TITLE, "It appears the 4GB patch has not been applied to SimCity 4.\n\nLoading certain plugins may cause SimCity 4 to crash if the patch has not been applied.\n\nWould you like to apply the patch now?", icon="warning")
+				#			if choice is None:
+				#				self.ui.destroy()
+				#				if sc4mp_exit_after:
+				#					sc4mp_ui.destroy()
+				#				else:
+				#					sc4mp_ui.deiconify()
+				#				return
+				#			elif choice is True:
+				#				exit_code = ctypes.windll.shell32.ShellExecuteW(None, "runas", f"{get_sc4mp_path('4gb-patch.exe').absolute()}", f"\"{sc4_exe_path}\"", None, 1)
+				#				if exit_code not in [0, 42]:
+				#					raise ClientException(f"Patcher exited with code {exit_code}.")
+				#	except Exception as e:
+				#		show_error(f"An error occurred while applying the 4GB patch.\n\n{e}")
 		
 			host = self.server.host
 			port = self.server.port
@@ -2312,7 +2321,7 @@ class ServerLoader(th.Thread):
 
 		# Create destination if necessary
 		if not destination.exists():
-			destination.mkdir(parents=True, exist_ok=True)
+			destination.mkdir(parents=True)
 
 		# Load or clear custom plugins (the code is organized like hell here, but it works)
 		if target == "plugins":
@@ -2396,7 +2405,8 @@ class ServerLoader(th.Thread):
 							dest.unlink()
 
 					# Make the destination directory if necessary, then try to make a symbolic link (fast), and if the required priveleges are not held, copy the file (slower)
-					dest.parent.mkdir(parents=True, exist_ok=True)
+					if not dest.parent.exists():
+						dest.parent.mkdir(parents=True)
 					try:
 						os.symlink(src, dest)
 						print(f'- linked "{src}"')
@@ -2507,13 +2517,15 @@ class ServerLoader(th.Thread):
 							pass
 
 						# Create the destination directory if necessary
-						d.parent.mkdir(parents=True, exist_ok=True)
+						if not d.parent.exists():
+							d.parent.mkdir(parents=True)
 
 						# Delete the destination file if it exists
-						d.unlink(missing_ok=True)
+						if d.exists():
+							d.unlink()
 
 						# Copy the cached file to the destination
-						shutil.copy(t, d)
+						shutil.copy(str(t), str(d))
 
 						# Update progress bar
 						size_downloaded += filesize
@@ -2568,13 +2580,16 @@ class ServerLoader(th.Thread):
 					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
 
 					# Create the destination directory if necessary
-					d.parent.mkdir(parents=True, exist_ok=True)
+					if not d.parent.exists():
+						d.parent.mkdir(parents=True, )
 
 					# Delete the destination file if it exists
-					d.unlink(missing_ok=True)
+					if d.exists():
+						d.unlink()
 
 					# Delete the cache file if it exists
-					t.unlink(missing_ok=True)
+					if t.exists():
+						t.unlink()
 
 					# Delete cache files if cache too large to accomadate the new cache file
 					cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
@@ -2682,7 +2697,8 @@ class ServerLoader(th.Thread):
 		print("Receiving " + str(filesize) + " bytes...")
 		print('writing to "' + filename + '"')
 
-		filename.unlink(missing_ok=True)
+		if filename.exists():
+			filename.unlink()
 
 		filesize_read = 0
 		with filename.open("wb") as f:
@@ -2741,7 +2757,7 @@ class ServerLoader(th.Thread):
 		
 
 		# Declare instance variable to store the paths of the server region subdirectories
-		self.server.regions: list[Path] = []
+		self.server.regions = []
 
 		# Path to regions directory
 		regions_directory = Path(SC4MP_LAUNCHPATH) / "Regions"
@@ -2755,7 +2771,8 @@ class ServerLoader(th.Thread):
 
 		# Create `Downloads` directory in the `Regions` folder
 		downloads_path = regions_directory / "Downloads"
-		downloads_path.mkdir(exist_ok=True, parents=True)
+		if not downloads_path.exists():
+			downloads_path.mkdir(parents=True)
 
 		# Copy the latest failed save push into the `Downloads` directory
 		try:
@@ -2792,7 +2809,7 @@ class ServerLoader(th.Thread):
 			with open(get_sc4mp_path("region.ini"), "r") as template_config_file:
 
 				# Read the contents of the template `region.ini`
-				config_file_contents: str = template_config_file.read()
+				config_file_contents = template_config_file.read()
 
 				# Replace the region name
 				config_file_contents = config_file_contents.replace("New Region", f"{auxiliary_region}...")
@@ -3149,14 +3166,15 @@ class GameMonitor(th.Thread):
 			show_error(f"An unexpected error occurred in the game monitor thread.\n\n{e}")
 
 
-	def get_cities(self) -> tuple[list[Path], list[str]]:
+	def get_cities(self):
 		
 		city_paths = []
 		city_hashcodes = []
 		regions_path = Path(SC4MP_LAUNCHPATH) / "Regions"
 		for region in self.server.regions:
-			region_path: Path = regions_path / region
-			region_path.mkdir(parents=True, exist_ok=True)
+			region_path = regions_path / region
+			if not region_path.exists():
+				region_path.mkdir(parents=True, )
 			if region_path.is_file(): # is this necessary?
 				continue
 			for city in region_path.glob('*.sc4'):
@@ -3174,7 +3192,8 @@ class GameMonitor(th.Thread):
 		print(f"Receiving {filesize} bytes...")
 		print(f'writing to "{filename}"')
 
-		filename.unlink(missing_ok=True)
+		if filename.exists():
+			filename.unlink()
 
 		filesize_read = 0
 		with filename.open("wb") as f:
@@ -3240,7 +3259,7 @@ class GameMonitor(th.Thread):
 		return filtered_savegames
 
 
-	def push_save(self, save_city_paths: list[Path]) -> None:
+	def push_save(self, save_city_paths):
 		
 
 		# Report progress: backups
@@ -3260,7 +3279,8 @@ class GameMonitor(th.Thread):
 			relpath = path.relative_to(Path(SC4MP_LAUNCHPATH) / "Regions")
 			filename = salvage_directory / relpath
 			directory = filename.parent
-			directory.mkdir(exist_ok=True, parents=True)
+			if not directory.exists():
+				directory.mkdir(parents=True)
 			shutil.copy(path, filename)
 
 		# Verify that all saves come from the same region
@@ -3361,8 +3381,9 @@ class GameMonitor(th.Thread):
 		
 		region = city_path.parent.name
 		city = city_path.name
-		backup_directory: Path = Path(SC4MP_LAUNCHPATH) / "SC4MPBackups" / self.server.server_id / region / city
-		backup_directory.mkdir(exist_ok=True, parents=True)
+		backup_directory = Path(SC4MP_LAUNCHPATH) / "SC4MPBackups" / self.server.server_id / region / city
+		if not backup_directory.exists():
+			backup_directory.mkdir(parents=True)
 		destination = backup_directory / datetime.now().strftime("%Y%m%d%H%M%S")
 		shutil.copy(city_path, destination.with_suffix(".sc4"))
 
@@ -3574,10 +3595,12 @@ class RegionsRefresher(th.Thread):
 							pass
 
 						# Create the destination directory if necessary
-						d.parent.mkdir(parents=True, exist_ok=True)
+						if not d.parent.exists():
+							d.parent.mkdir(parents=True)
 
 						# Delete the destination file if it exists
-						d.unlink(missing_ok=True)
+						if d.exists():
+							d.unlink()
 
 						# Copy the cached file to the destination
 						shutil.copy(t, d)
@@ -3624,13 +3647,16 @@ class RegionsRefresher(th.Thread):
 					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
 
 					# Create the destination directory if necessary
-					d.parent.mkdir(parents=True, exist_ok=True)
+					if not d.parent.exists():
+						d.parent.mkdir(parents=True)
 
 					# Delete the destination file if it exists
-					d.unlink(missing_ok=True)
+					if d.exists():
+						d.unlink()
 
 					# Delete the cache file if it exists
-					t.unlink(missing_ok=True)
+					if t.exists():
+						t.unlink()
 
 					# Delete cache files if cache too large to accomadate the new cache file
 					cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
@@ -4750,7 +4776,7 @@ class PasswordDialogUI(tk.Toplevel):
 		print("Initializing...")
 
 		# Parameters
-		self.server_loader: ServerLoader = server_loader
+		self.server_loader = server_loader
 		self.tries = tries
 
 		# Hide server loader
@@ -5791,7 +5817,8 @@ class Logger:
 		
 		self.terminal = sys.stdout
 		self.log = Path(SC4MP_LOG_PATH)
-		self.log.unlink(missing_ok=True)
+		if self.log.exists():
+			self.log.unlink()
 
 
 	def write(self, message):
@@ -5841,9 +5868,9 @@ class Logger:
 		# Print
 		if self.terminal is not None:
 			self.terminal.write(output)
-		with open(self.log, "a") as log:
+		with open(str(self.log), "a") as log:
 			log.write(output)
-			log.close()  
+			log.close()
 
 
 	def flush(self):

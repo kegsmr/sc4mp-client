@@ -1,4 +1,4 @@
-from __future__ import annotations
+# -*- coding: future_fstrings -*-
 
 
 def process_count(process_name): #TODO add MacOS compatability
@@ -23,7 +23,7 @@ def md5(filename) -> str:
 	return hash_md5.hexdigest()
 
 
-def format_version(version: tuple[int, int, int]) -> str:
+def format_version(version):
 	"""Converts a version number from a tuple to a string."""
 	
 	major, minor, patch = version
@@ -31,7 +31,7 @@ def format_version(version: tuple[int, int, int]) -> str:
 	return f'{major}.{minor}.{patch}'
 
 
-def unformat_version(version: str) -> tuple[int, int, int]:
+def unformat_version(version: str):
 	"""Converts a version number from a string to a tuple."""
 
 	return tuple([int(v) for v in version.split('.')])

@@ -1,3 +1,5 @@
+# -*- coding: future_fstrings -*-
+
 import socket
 import json
 import struct
