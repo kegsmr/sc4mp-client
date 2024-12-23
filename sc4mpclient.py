@@ -124,7 +124,7 @@ sc4mp_current_server = None
 # Functions
 
 def main():
-	"""The main method.
+	"""The main function.
 
 	Arguments:
 		None
@@ -249,14 +249,19 @@ def main():
 				sc4mp_password = input("[PROMPT] - Enter server password... ")
 			server.password = sc4mp_password
 			ServerLoader(None, server).run()
-		
-		# Cleanup
-		cleanup()
+
+	except KeyboardInterrupt:
+
+		pass
 
 	except Exception as e:
 
 		# Fatal error 
 		fatal_error()
+
+	# Cleanup
+	print("Shutting down...")
+	cleanup()
 
 
 def prep():
