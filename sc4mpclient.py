@@ -5817,7 +5817,7 @@ class ReleaseNotesUI(tk.Toplevel):
 		self.version = version
 
 		# Title
-		self.title(f"Update v{version}")
+		self.title(f"Version {version}")
 
 		# Icon
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
@@ -5865,7 +5865,7 @@ class ReleaseNotesUI(tk.Toplevel):
 				if len(lines) > 0 and len(lines[-1]) == 0:
 					lines.pop(-1)
 			if len(lines) < 1:
-				ttk.Label(self.body, text="No description provided.", background="white", font=("Arial", 8, "italic")).grid(row=1, column=0, columnspan=99, padx=10, pady=0, sticky="nw")
+				ttk.Label(self.body, text="No description provided.", background="white", font=("Arial", 8, "italic")).grid(row=1, column=0, columnspan=99, padx=10, pady=2, sticky="nw")
 			else:
 				for line_number in range(len(lines)):
 					line = lines[line_number]
@@ -5874,10 +5874,10 @@ class ReleaseNotesUI(tk.Toplevel):
 					for sequence in ["**", "- "]:
 						line = line.replace(sequence, "")
 					if bulleted:
-						ttk.Label(self.body, text="\u2022", background="white").grid(row=line_number + 1, column=0, columnspan=1, padx=(10,0), pady=0, sticky ="nw")
-						ttk.Label(self.body, text=line, wraplength=(int(self.body["width"]) - 40), background="white").grid(row=line_number + 1, column=1, columnspan=1, padx=10, pady=0, sticky="nw")
+						ttk.Label(self.body, text="\u2022", background="white").grid(row=line_number + 1, column=0, columnspan=1, padx=(10,0), pady=2, sticky ="nw")
+						ttk.Label(self.body, text=line, wraplength=(int(self.body["width"]) - 40), background="white").grid(row=line_number + 1, column=1, columnspan=1, padx=10, pady=2, sticky="nw")
 					else:
-						ttk.Label(self.body, text=line, wraplength=(int(self.body["width"]) - 20), background="white").grid(row=line_number + 1, column=0, columnspan=99, padx=10, pady=0, sticky="nw")
+						ttk.Label(self.body, text=line, wraplength=(int(self.body["width"]) - 20), background="white").grid(row=line_number + 1, column=0, columnspan=99, padx=10, pady=2, sticky="nw")
 
 			# Body link
 			self.body.link = ttk.Label(self.body, text="View all releases...", foreground="blue", background="white", cursor="hand2")
