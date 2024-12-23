@@ -5592,28 +5592,35 @@ class GameOverlayUI(tk.Toplevel):
 
 	def overlay(self):
 		
+		try:
 
-		if sc4mp_ui.focus_get() is self.game_monitor_ui:
+			if sc4mp_ui.focus_get() is self.game_monitor_ui:
 
-			self.withdraw()
+				self.withdraw()
 
-		else:
-			
-			WIDTH = 115
-			HEIGHT = 20
+			else:
+				
+				WIDTH = 115
+				HEIGHT = 20
 
-			screen_height = self.winfo_screenheight()
-			screen_width = self.winfo_screenwidth()
+				screen_height = self.winfo_screenheight()
+				screen_width = self.winfo_screenwidth()
 
-			self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, screen_width - WIDTH, screen_height - HEIGHT))
+				self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, screen_width - WIDTH, screen_height - HEIGHT))
 
-			self.overrideredirect(True)
+				self.overrideredirect(True)
 
-			self.lift()
+				self.lift()
 
-			self.deiconify()
+				self.deiconify()
 
-		self.after(100, self.overlay)
+			self.after(100, self.overlay)
+
+		except Exception as e:
+
+			if type(e) is not tk.TclError or "bad window path name" not in str(e):
+				
+				show_error(f"Cannot overlay the game overlay.\n\n{e}", no_ui=True)
 
 
 	def set_state(self, state):
