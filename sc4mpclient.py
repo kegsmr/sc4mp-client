@@ -675,8 +675,8 @@ def start_sc4():
 	if process_exists("simcity 4.exe"):
 		show_error("SimCity 4 is already running!")
 		return
-
-	print("Starting SimCity 4...")
+	else:
+		print("Starting SimCity 4...")
 
 	# Get path to SC4 using a list of possible paths
 	path = get_sc4_path()
@@ -701,11 +701,14 @@ def start_sc4():
 		arguments.append('-w')
 	arguments.extend(sc4mp_config["SC4"]["additional_properties"].strip().split(' '))  # assumes that properties do not have spaces
 
-	# Set to true when the game is launched successfully with the Steam browser protocol
+	# `True` if the game is installed using Steam
+	steam_sc4 = is_steam_sc4(path)
+
+	# Set to `True` once the game is launched successfully with the Steam browser protocol
 	steam_launch = False
 
 	# If SC4 is installed through Steam, try to launch it using the Steam browser protocol
-	if sc4mp_config["SC4"]["use_steam_browser_protocol"] == 2  or (sc4mp_config["SC4"]["use_steam_browser_protocol"] == 1 and is_steam_sc4(path)):
+	if sc4mp_config["SC4"]["use_steam_browser_protocol"] == 2  or (sc4mp_config["SC4"]["use_steam_browser_protocol"] == 1 and steam_sc4):
 
 		# Steam browser protocol command
 		command = "steam://run/24780//" + ' '.join(arguments[1:]).replace("\\", "\\\\").replace('"', '\\"') + "/"
@@ -716,14 +719,11 @@ def start_sc4():
 		# Launch the game
 		print(f"- using Steam browser protocol ('{command}').")
 		try:
-			webbrowser.open(command)
-			count = 0
-			while process_exists("Steam.exe") and not process_exists("simcity 4.exe") and count < 30:
-				time.sleep(1)
-				count += 1
-			steam_launch = True
+			steam_launch = webbrowser.open(command)
+			if not steam_launch:
+				print("[WARNING] Unable to launch SimCity 4 using the Steam browser protocol (`webbrowser.open` returned `False`).")
 		except Exception as e:
-			show_error(f"Unable to launch SimCity 4 using the Steam browser protocol.\n\n{e}")
+			show_error(f"Unable to launch SimCity 4 using the Steam browser protocol.\n\n{e}", no_ui=True)
 
 	# If SC4 isn't installed through Steam, or if launching it through the Steam browser protocol didn't work, launch the SC4 exe directly
 	if not steam_launch:
@@ -741,21 +741,37 @@ def start_sc4():
 		except PermissionError as e:
 			show_error(f"The launcher does not have the necessary privileges to launch SimCity 4. Try running the SC4MP Launcher as administrator.")
 
-	# For compatability with the steam version of SC4
-	sc4mp_allow_game_monitor_exit_if_error = True
-	time.sleep(5)
-	while True:
-		if sc4mp_game_exit_ovveride:
-			print("Exiting without checking whether SC4 is still running...")
-			return
-		try:
-			while process_exists("simcity 4.exe"):
-				time.sleep(1)
-			print("SimCity 4 closed.")
-			break
-		except Exception as e:
-			show_error("An error occured while checking if SC4 had exited yet.", no_ui=True)
-			time.sleep(10)
+	else:
+
+		# Using Steam SC4 otherwise
+		steam_sc4 = True
+
+	# Wait an extra 30 seconds if running the Steam version of SC4 (needed for Steam browser protocol, also sometimes Steam isn't started yet)
+	if steam_sc4:
+		time.sleep(1)
+		count = 0
+		while process_exists("Steam.exe") and not process_exists("simcity 4.exe") and count < 30:
+			time.sleep(1)
+			count += 1
+
+	# Wait for SC4 to close if running the Steam version of SC4 (the Steam version of SC4 spawns a separate process)
+	if steam_sc4:
+		sc4mp_allow_game_monitor_exit_if_error = True
+		time.sleep(5)
+		while True:
+			if sc4mp_game_exit_ovveride:
+				print("Exiting without checking whether SC4 is still running...")
+				return
+			try:
+				while process_exists("simcity 4.exe"):
+					time.sleep(1)
+				break
+			except Exception as e:
+				show_error("An error occured while checking if SC4 had exited yet.", no_ui=True)
+				time.sleep(10)
+	
+	# SimCity 4 has closed
+	print("SimCity 4 closed.")
 
 
 def is_steam_sc4(path: Path):
