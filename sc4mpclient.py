@@ -4330,7 +4330,7 @@ class StorageSettingsUI(tk.Toplevel):
 
 		# Cache size entry
 		self.cache_size_frame.entry = ttk.Entry(self.cache_size_frame, width=10)
-		self.cache_size_frame.entry.insert(0, format_filesize(sc4mp_config["STORAGE"]["cache_size"] * 1000))
+		self.cache_size_frame.entry.insert(0, format_filesize(sc4mp_config["STORAGE"]["cache_size"] * 1000000))
 		self.cache_size_frame.entry.grid(row=0, column=0, columnspan=1, padx=(10,0), pady=10, sticky="w")
 		self.config_update.append((self.cache_size_frame.entry, "cache_size"))
 
@@ -4388,7 +4388,7 @@ class StorageSettingsUI(tk.Toplevel):
 				restart = True
 			if key == "cache_size":
 				try:
-					data = parse_filesize(data) / 1000
+					data = parse_filesize(data) / 1000000
 				except ValueError:
 					try:
 						data = int(data)
