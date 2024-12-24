@@ -556,7 +556,7 @@ def get_sc4_path() -> Optional[Path]:
 	# The path specified by the user
 	config_path = Path(sc4mp_config['SC4']['game_path'])
 
-	# Common SC4 dirs (alternate path used by GOG, and maybe others)
+	# Common SC4 dirs (alternate path used by GOG and Origin)
 	sc4_dirs = Path("SimCity 4 Deluxe") / "Apps" / "SimCity 4.exe"
 	sc4_dirs_alt = Path("SimCity 4 Deluxe Edition") / "Apps" / "SimCity 4.exe"
 
@@ -594,8 +594,8 @@ def get_sc4_path() -> Optional[Path]:
 		home_drive / "SteamLibrary" / steam_dirs / sc4_dirs,
 
 		# Origin (maybe patched? Origin is crap)
-		home_drive / "Program Files" / "Origin Games" / sc4_dirs,
-		home_drive / "Program Files (x86)" / "Origin Games" / sc4_dirs,
+		home_drive / "Program Files" / "Origin Games" / sc4_dirs_alt,
+		home_drive / "Program Files (x86)" / "Origin Games" / sc4_dirs_alt,
 
 		# Maxis (probably not patched, so this goes at the bottom)
 		home_drive / "Program Files" / "Maxis" / sc4_dirs,
