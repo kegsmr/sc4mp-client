@@ -36,7 +36,7 @@ from core.util import *
 
 # Header
 
-SC4MP_VERSION = "0.7.3"
+SC4MP_VERSION = "0.7.4"
 
 SC4MP_SERVERS = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
 
@@ -104,7 +104,8 @@ SC4MP_CONFIG_DEFAULTS = [
 	("SC4", [
 
 		("game_path", ""),
-
+		("use_steam_browser_protocol", 0),
+		
 		("resw", 1280),
 		("resh", 800),
 		("fullscreen", False),
@@ -142,7 +143,7 @@ sc4mp_current_server = None
 # Functions
 
 def main():
-	"""The main method.
+	"""The main function.
 
 	Arguments:
 		None
@@ -267,14 +268,19 @@ def main():
 				sc4mp_password = input("[PROMPT] - Enter server password... ")
 			server.password = sc4mp_password
 			ServerLoader(None, server).run()
-		
-		# Cleanup
-		cleanup()
+
+	except KeyboardInterrupt:
+
+		pass
 
 	except Exception as e:
 
 		# Fatal error 
 		fatal_error()
+
+	# Cleanup
+	print("Shutting down...")
+	cleanup()
 
 
 def prep():
@@ -579,7 +585,7 @@ def get_sc4_path() -> Optional[Path]:
 	# The path specified by the user
 	config_path = Path(sc4mp_config['SC4']['game_path'])
 
-	# Common SC4 dirs (alternate path used by GOG, and maybe others)
+	# Common SC4 dirs (alternate path used by GOG and Origin)
 	sc4_dirs = Path("SimCity 4 Deluxe") / "Apps" / "SimCity 4.exe"
 	sc4_dirs_alt = Path("SimCity 4 Deluxe Edition") / "Apps" / "SimCity 4.exe"
 
@@ -617,8 +623,8 @@ def get_sc4_path() -> Optional[Path]:
 		home_drive / "SteamLibrary" / steam_dirs / sc4_dirs,
 
 		# Origin (maybe patched? Origin is crap)
-		home_drive / "Program Files" / "Origin Games" / sc4_dirs,
-		home_drive / "Program Files (x86)" / "Origin Games" / sc4_dirs,
+		home_drive / "Program Files" / "Origin Games" / sc4_dirs_alt,
+		home_drive / "Program Files (x86)" / "Origin Games" / sc4_dirs_alt,
 
 		# Maxis (probably not patched, so this goes at the bottom)
 		home_drive / "Program Files" / "Maxis" / sc4_dirs,
@@ -660,18 +666,27 @@ def get_sc4_path() -> Optional[Path]:
 def start_sc4():
 	"""Attempts to find the install path of SimCity 4 and launches the game with custom launch parameters if found."""
 
+	# Variables related to game monitor exit, etc. etc.
 	global sc4mp_allow_game_monitor_exit_if_error, sc4mp_game_exit_ovveride
 	sc4mp_allow_game_monitor_exit_if_error = False
 	sc4mp_game_exit_ovveride = False
 
+	# Check if SC4 is already running
+	if process_exists("simcity 4.exe"):
+		show_error("SimCity 4 is already running!")
+		return
+
 	print("Starting SimCity 4...")
 
+	# Get path to SC4 using a list of possible paths
 	path = get_sc4_path()
 
+	# Cancel launch if path to SC4 not found
 	if not path:
 		show_error("Path to SimCity 4 not found. Specify the correct path in settings.")
 		return
 
+	# Arguments set based on config settings
 	arguments = [str(path),
 			  f'-UserDir:"{SC4MP_LAUNCHPATH}{os.sep}"', # add trailing slash here because SC4 expects it
 			  '-intro:off',
@@ -680,28 +695,55 @@ def start_sc4():
 			  f'-CPUCount:{sc4mp_config["SC4"]["cpu_count"]}',
 			  f'-CPUPriority:{sc4mp_config["SC4"]["cpu_priority"]}'
 			  ]
-
 	if sc4mp_config["SC4"]["fullscreen"] == True:
 		arguments.append('-f')
 	else:
 		arguments.append('-w')
-
 	arguments.extend(sc4mp_config["SC4"]["additional_properties"].strip().split(' '))  # assumes that properties do not have spaces
 
-	command = ' '.join(arguments)
-	print(f"'{command}'")
+	# Set to true when the game is launched successfully with the Steam browser protocol
+	steam_launch = False
 
-	try:
-		if platform.system() == "Windows":
-			subprocess.run(command) # `subprocess.run(arguments)` won't work on Windows for some unknowable reason
-		else:
-			subprocess.run(arguments)  # on Linux, the first String passed as argument must be a file that exists
-	except PermissionError as e:
-		show_error(f"The launcher does not have the necessary privileges to launch SimCity 4. Try running the SC4MP Launcher as administrator.\n\n{e}")
+	# If SC4 is installed through Steam, try to launch it using the Steam browser protocol
+	if sc4mp_config["SC4"]["use_steam_browser_protocol"] == 2  or (sc4mp_config["SC4"]["use_steam_browser_protocol"] == 1 and is_steam_sc4(path)):
+
+		# Steam browser protocol command
+		command = "steam://run/24780//" + ' '.join(arguments[1:]).replace("\\", "\\\\").replace('"', '\\"') + "/"
+		
+		# Notify the user about the Steam dialog box that will popup
+		#messagebox.showinfo(title=SC4MP_TITLE, message="Steam will now ask your permission to launch SC4 with custom arguments.\n\nClick \"Continue\" on the Steam dialog box to launch SC4.\n\nConnection will be cancelled in 30 seconds if the game does not launch.")
+
+		# Launch the game
+		print(f"- using Steam browser protocol ('{command}').")
+		try:
+			webbrowser.open(command)
+			count = 0
+			while process_exists("Steam.exe") and not process_exists("simcity 4.exe") and count < 30:
+				time.sleep(1)
+				count += 1
+			steam_launch = True
+		except Exception as e:
+			show_error(f"Unable to launch SimCity 4 using the Steam browser protocol.\n\n{e}")
+
+	# If SC4 isn't installed through Steam, or if launching it through the Steam browser protocol didn't work, launch the SC4 exe directly
+	if not steam_launch:
+
+		# Regular command
+		command = ' '.join(arguments)
+
+		# Launch the game
+		print(f"- launching directly ('{command}').")
+		try:
+			if platform.system() == "Windows":
+				subprocess.run(command) 			# `subprocess.run(arguments)` won't work on Windows for some unknowable reason
+			else:
+				subprocess.run(arguments)  			# on Linux, the first String passed as argument must be a file that exists
+		except PermissionError as e:
+			show_error(f"The launcher does not have the necessary privileges to launch SimCity 4. Try running the SC4MP Launcher as administrator.")
 
 	# For compatability with the steam version of SC4
 	sc4mp_allow_game_monitor_exit_if_error = True
-	time.sleep(3)
+	time.sleep(5)
 	while True:
 		if sc4mp_game_exit_ovveride:
 			print("Exiting without checking whether SC4 is still running...")
@@ -714,6 +756,20 @@ def start_sc4():
 		except Exception as e:
 			show_error("An error occured while checking if SC4 had exited yet.", no_ui=True)
 			time.sleep(10)
+
+
+def is_steam_sc4(path: Path):
+
+	#COMMON_STEAM_FILES = ["Steam.dll", "steam_api.dll", "steam_api64.dll", "steam_appid.txt", "steamclient.dll", "steamclient64.dll"]
+
+	#exec_dir = path.parent.parent
+	#exec_dir_filenames = os.listdir(exec_dir)
+
+	#for steam_filename in COMMON_STEAM_FILES:
+	#	if steam_filename in exec_dir_filenames:
+	#		return True
+
+	return "steamapps" in [directory.name for directory in path.parents]
 
 
 def process_exists(process_name): #TODO add MacOS compatability / deprecate in favor of `process_count`?
@@ -2112,6 +2168,8 @@ class ServerLoader(th.Thread):
 					path = filedialog.askdirectory(parent=self.ui)
 					if len(path) > 0:
 						sc4mp_config["SC4"]["game_path"] = path
+						if sc4mp_config["SC4"]["use_steam_browser_protocol"] in [0, 1]:
+							sc4mp_config["SC4"]["use_steam_browser_protocol"] = (1 if is_steam_sc4(Path(path)) else 0)
 						sc4mp_config.update()
 					else:
 						self.ui.destroy()
@@ -2369,9 +2427,9 @@ class ServerLoader(th.Thread):
 					try:
 						self.ui.progress_label["text"] = relpath.name
 						if linking:
-							self.ui.duration_label["text"] = "(linking)"
+							self.ui.duration_label["text"] = "Link 🡒 SC4" #"(linking)"
 						else:
-							self.ui.duration_label["text"] = "(copying)"
+							self.ui.duration_label["text"] = "Disk 🡒 SC4" #"(copying)"
 					except Exception:
 						pass
 
@@ -2506,7 +2564,7 @@ class ServerLoader(th.Thread):
 						# Display current file in UI
 						try:
 							self.ui.progress_label["text"] = d.name #.relative_to(destination)
-							self.ui.duration_label["text"] = "(cached)"
+							self.ui.duration_label["text"] = "Cache 🡒 SC4" #"(cached)"
 						except Exception:
 							pass
 
@@ -2535,7 +2593,7 @@ class ServerLoader(th.Thread):
 				file_table = ft
 
 				if sc4mp_ui:
-					self.ui.duration_label["text"] = "(downloading)"
+					self.ui.duration_label["text"] = "Server 🡒 SC4" #"(downloading)"
 
 				download_start_time = time.time() + 2
 
@@ -3490,7 +3548,7 @@ class GameLauncher(th.Thread):
 
 		except Exception as e:
 
-			show_error(f"An unexpected error occurred in the game launcher thread.\n\n{e}")
+			show_error(f"An unexpected error occurred while launching SimCity 4.\n\n{e}")
 
 
 class RegionsRefresher(th.Thread):
@@ -3573,7 +3631,7 @@ class RegionsRefresher(th.Thread):
 						# Display current file in UI
 						try:
 							self.ui.progress_label["text"] = d.name #.relative_to(destination)
-							self.ui.duration_label["text"] = "(cached)"
+							self.ui.duration_label["text"] = "Cache 🡒 SC4" #"(cached)"
 						except Exception:
 							pass
 
@@ -3620,7 +3678,7 @@ class RegionsRefresher(th.Thread):
 					# Display current file in UI
 					try:
 						self.ui.progress_label["text"] = d.name #.relative_to(destination)
-						self.ui.duration_label["text"] = "(downloading)"
+						self.ui.duration_label["text"] = "Server 🡒 SC4" #"(downloading)"
 					except Exception:
 						pass
 
@@ -3758,6 +3816,7 @@ class DatabaseManager(th.Thread):
 		self.end = False
 
 		self.filename = filename
+		self.backup_filename = Path(f"{filename}.bak")
 		self.data = self.load_json()
 
 
@@ -3789,27 +3848,44 @@ class DatabaseManager(th.Thread):
 
 	def load_json(self):
 		
-		return load_json(self.filename)
+		try:
+			return load_json(self.filename)
+		except Exception as e:
+			show_error(e, no_ui=True)
+			print(f"[WARNING] Falied to load \"{self.filename}\". Attempting to load backup...")
+			try:
+				return load_json(self.backup_filename)
+			except Exception as e:
+				raise ClientException(f"Failed to load \"{self.filename}\". Loading the backup at \"{self.backup_filename}\" also failed.") from e
 
 
 	def update_json(self):
 		
+		if self.filename.exists():
+			if self.backup_filename.exists():
+				os.unlink(self.backup_filename)
+			shutil.copy(self.filename, self.backup_filename)
+
 		return update_json(self.filename, self.data)
 
 
 	def keys(self):
+
 		return self.data.keys()
 
 
 	def get(self, key, default):
+
 		return self.data.get(key, default)
 
 
 	def __getitem__(self, key):
+
 		return self.data.__getitem__(key)
 
 
 	def __setitem__(self, key, value):
+
 		return self.data.__setitem__(key, value)
 
 
@@ -4487,6 +4563,9 @@ class SC4SettingsUI(tk.Toplevel):
 		for item in self.config_update:
 			data = item[0].get()
 			key = item[1]
+			if key == "game_path":
+				if sc4mp_config["SC4"]["use_steam_browser_protocol"] in [0, 1]:
+					update_config_value("SC4", "use_steam_browser_protocol", (1 if is_steam_sc4(Path(data)) else 0))
 			if key == "res":
 				res = data.split(' ')[0]
 				resw, resh = res.split('x')
@@ -5628,28 +5707,35 @@ class GameOverlayUI(tk.Toplevel):
 
 	def overlay(self):
 		
+		try:
 
-		if sc4mp_ui.focus_get() is self.game_monitor_ui:
+			if sc4mp_ui.focus_get() is self.game_monitor_ui:
 
-			self.withdraw()
+				self.withdraw()
 
-		else:
-			
-			WIDTH = 115
-			HEIGHT = 20
+			else:
+				
+				WIDTH = 115
+				HEIGHT = 20
 
-			screen_height = self.winfo_screenheight()
-			screen_width = self.winfo_screenwidth()
+				screen_height = self.winfo_screenheight()
+				screen_width = self.winfo_screenwidth()
 
-			self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, screen_width - WIDTH, screen_height - HEIGHT))
+				self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, screen_width - WIDTH, screen_height - HEIGHT))
 
-			self.overrideredirect(True)
+				self.overrideredirect(True)
 
-			self.lift()
+				self.lift()
 
-			self.deiconify()
+				self.deiconify()
 
-		self.after(100, self.overlay)
+			self.after(100, self.overlay)
+
+		except Exception as e:
+
+			if type(e) is not tk.TclError or "bad window path name" not in str(e):
+				
+				show_error(f"Cannot overlay the game overlay.\n\n{e}", no_ui=True)
 
 
 	def set_state(self, state):
