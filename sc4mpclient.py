@@ -2164,6 +2164,8 @@ class ServerLoader(th.Thread):
 					path = filedialog.askdirectory(parent=self.ui)
 					if len(path) > 0:
 						sc4mp_config["SC4"]["game_path"] = path
+						if sc4mp_config["SC4"]["use_steam_browser_protocol"] in [0, 1]:
+							sc4mp_config["SC4"]["use_steam_browser_protocol"] = (1 if is_steam_sc4(Path(path)) else 0)
 						sc4mp_config.update()
 					else:
 						self.ui.destroy()
@@ -4521,7 +4523,7 @@ class SC4SettingsUI(tk.Toplevel):
 			data = item[0].get()
 			key = item[1]
 			if key == "game_path":
-				if not sc4mp_config["SC4"]["use_steam_browser_protocol"] in [-1, 2]:
+				if sc4mp_config["SC4"]["use_steam_browser_protocol"] in [0, 1]:
 					update_config_value("SC4", "use_steam_browser_protocol", (1 if is_steam_sc4(Path(data)) else 0))
 			if key == "res":
 				res = data.split(' ')[0]
