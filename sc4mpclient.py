@@ -666,18 +666,21 @@ def get_sc4_path() -> Optional[Path]:
 def start_sc4():
 	"""Attempts to find the install path of SimCity 4 and launches the game with custom launch parameters if found."""
 
+	print("Starting SimCity 4...")
+
 	# Variables related to game monitor exit, etc. etc.
 	global sc4mp_allow_game_monitor_exit_if_error, sc4mp_game_exit_ovveride
 	sc4mp_allow_game_monitor_exit_if_error = False
 	sc4mp_game_exit_ovveride = False
 
 	# Check if SC4 is already running
-	if process_exists("simcity 4.exe"):
-		show_error("SimCity 4 is already running!")
-		return
-	else:
-		print("Starting SimCity 4...")
-
+	try:
+		if process_exists("simcity 4.exe"):
+			show_error("SimCity 4 is already running!")
+			return
+	except Exception as e:
+		show_error(e, no_ui=True)
+		
 	# Get path to SC4 using a list of possible paths
 	path = get_sc4_path()
 
@@ -748,11 +751,15 @@ def start_sc4():
 
 	# Wait an extra 30 seconds if running the Steam version of SC4 (needed for Steam browser protocol, also sometimes Steam isn't started yet)
 	if steam_sc4:
-		time.sleep(1)
-		count = 0
-		while process_exists("Steam.exe") and not process_exists("simcity 4.exe") and count < 30:
+		try:
 			time.sleep(1)
-			count += 1
+			count = 0
+			while process_exists("Steam.exe") and not process_exists("simcity 4.exe") and count < 30:
+				time.sleep(1)
+				count += 1
+		except Exception as e:
+			show_error(e, no_ui=True)
+			time.sleep(30)
 
 	# Wait for SC4 to close if running the Steam version of SC4 (the Steam version of SC4 spawns a separate process)
 	if steam_sc4:
