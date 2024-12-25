@@ -5780,26 +5780,20 @@ class ServerDetailsUI(tk.Toplevel):
 			self.files_frame = StatisticsTreeUI(self.notebook, columns=[
 				(
 					"#0",
-					"",
-					350,
+					"Name",
+					250,
 					"w"
 				),
 				(
 					"#1",
-					"Cached",
-					100,
-					"center"
-				),
-				(
-					"#2",
-					"Size",
+					"Download",
 					100,
 					"center"
 				)
 			])
 
-			self.files_frame.tree.tag_configure('green', foreground='green')
-			self.files_frame.tree.tag_configure('red', foreground='red')
+			self.files_frame.tree.tag_configure('cached', foreground='green')
+			#self.files_frame.tree.tag_configure('red', foreground='red')
 
 			files = {}
 
@@ -5832,9 +5826,15 @@ class ServerDetailsUI(tk.Toplevel):
 						entry = entry[d]
 
 					d = path.pop(0)
+
+					download_size = size
+					cached_file = SC4MP_LAUNCHPATH / "_Cache" / md5
+
+					if cached_file.exists():
+						download_size -= cached_file.stat().st_size
+
 					entry[d] = [
-						("Yes" if os.path.exists(SC4MP_LAUNCHPATH / "_Cache" / md5) else "No"),
-						format_filesize(size)
+						format_download_size(download_size)
 					]
 
 			update_json("test.json", files)
@@ -5863,7 +5863,7 @@ class ServerDetailsUI(tk.Toplevel):
 			elif isinstance(value, list):
 
 				# Insert leaf node
-				tree.insert(parent, 'end', text=key, values=value, tags=[("green" if value[0] == "Yes" else "red")])
+				tree.insert(parent, 'end', text=key, values=value, tags=["cached"])
 
 
 class StatisticsTreeUI(tk.Frame):
