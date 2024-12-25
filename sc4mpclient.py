@@ -5601,26 +5601,32 @@ class ServerDetailsUI(tk.Toplevel):
 
 	def update_window_size(self):
 
-		sc4mp_ui.update()
+		try:
 
-		inner_frame = self.notebook.nametowidget(self.notebook.select())
+			sc4mp_ui.update()
 
-		width = inner_frame.winfo_width()
-		height = inner_frame.winfo_height()
+			inner_frame = self.notebook.nametowidget(self.notebook.select())
 
-		self.notebook.configure(width=width, height=height)
-		
-		#if width < 353:
-		#	width = 353
-		#f height < 327:
-		#	height = 327
+			width = inner_frame.winfo_width()
+			height = inner_frame.winfo_height()
 
-		self.maxsize(width + 20, height + 90)
-		self.minsize(width + 20, height + 90)
+			self.notebook.configure(width=width, height=height)
+			
+			#if width < 353:
+			#	width = 353
+			#f height < 327:
+			#	height = 327
 
-		#print(f"Resized to {width}x{height}.")
+			self.maxsize(width + 20, height + 90)
+			self.minsize(width + 20, height + 90)
 
-		self.after(100, self.update_window_size)
+			#print(f"Resized to {width}x{height}.")
+
+			self.after(100, self.update_window_size)
+
+		except Exception as e:
+
+			show_error(e, no_ui=True)
 
 
 	def destroy(self):
@@ -5698,7 +5704,7 @@ class ServerDetailsUI(tk.Toplevel):
     		),
 			(
 				"#8",
-				"Overflow",
+				"⠀",
 				1000,
 				"center"
 			)
@@ -5800,7 +5806,7 @@ class ServerDetailsUI(tk.Toplevel):
 				),
 				(
 					"#2",
-					"Overflow",
+					"⠀",
 					1000,
 					"center"
 				)
@@ -5853,7 +5859,9 @@ class ServerDetailsUI(tk.Toplevel):
 
 			update_json("test.json", files)
 
-			self.create_files_frame_populate_treeview(self.files_frame.tree, data=files)
+			self.populate_files_treeview(self.files_frame.tree, data=files)
+
+			self.files_frame.aux_button.configure(command=self.expand_files_treeview)
 
 			self.notebook.add(self.files_frame, text="Files")
 
@@ -5862,7 +5870,7 @@ class ServerDetailsUI(tk.Toplevel):
 			show_error(e, no_ui=True)
 
 
-	def create_files_frame_populate_treeview(self, tree=None, parent="", data={}):
+	def populate_files_treeview(self, tree=None, parent="", data={}):
 		
 		for key, value in data.items():
 
@@ -5872,12 +5880,28 @@ class ServerDetailsUI(tk.Toplevel):
 				node = tree.insert(parent, 'end', text=key, values=("", ""))
 
 				# Recursively add children
-				self.create_files_frame_populate_treeview(tree, node, value)
+				self.populate_files_treeview(tree, node, value)
 
 			elif isinstance(value, list):
 
 				# Insert leaf node
 				tree.insert(parent, 'end', text=key, values=value, tags=["cached"])
+
+
+	def expand_files_treeview(self):
+
+		self.expand_files_treeview_helper(self.files_frame.tree)
+
+		self.files_frame.aux_button.configure(text="Collapse") #, command=self.collapse_files_treeview) #TODO
+
+
+	def expand_files_treeview_helper(self, tree, parent=""):
+
+		tree.item(parent, open=True)
+
+		children = tree.get_children(parent)
+		for child in children:
+			self.expand_files_treeview_helper(tree, child)
 
 
 class StatisticsTreeUI(tk.Frame):
@@ -5890,7 +5914,7 @@ class StatisticsTreeUI(tk.Frame):
 		# Tree frame
 
 		self.tree_frame = tk.Frame(self)
-		self.tree_frame.grid(row=0, column=0)
+		self.tree_frame.grid(row=0, column=0, columnspan=99)
 
 		# Tree canvas
 
@@ -5922,11 +5946,18 @@ class StatisticsTreeUI(tk.Frame):
 		except:
 			fatal_error()
 
+
 		# Scrollbar
 
 		self.scrollbar = ttk.Scrollbar(self.tree_frame, orient ="vertical", command=self.tree.yview)
 		self.scrollbar.pack(side="right", fill="y")
 		self.tree.configure(yscrollcommand=self.scrollbar.set)
+
+
+		# Auxiliary button
+
+		self.aux_button = ttk.Button(self, text="Expand")
+		self.aux_button.grid(row=1, column=0, sticky="nw", padx=(0,10), pady=(10,0))
 
 
 	def get_tree_width(self):
@@ -5935,7 +5966,7 @@ class StatisticsTreeUI(tk.Frame):
 
 		for column in self.tree["columns"]:
 			try:
-				if self.tree.heading(column, "text") != "Overflow":
+				if self.tree.heading(column, "text") != "⠀":
 					width += self.tree.column(column, option="width")
 			except:
 				pass
@@ -5958,7 +5989,7 @@ class StatisticsTreeUI(tk.Frame):
 
 	def winfo_height(self):
 
-		return 377
+		return 361
 
 
 
