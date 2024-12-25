@@ -5539,8 +5539,8 @@ class ServerDetailsUI(tk.Toplevel):
 		# Geometry
 
 		self.geometry('400x400')
-		self.maxsize(450, 425)
-		self.minsize(450, 425)
+		#self.maxsize(450, 425)
+		self.minsize(865, 425)
 		self.grid()
 		center_window(self)
 		
@@ -5574,37 +5574,37 @@ class ServerDetailsUI(tk.Toplevel):
 		    (
 				"#1",
 				"Residential",
-				0,
+				100,
 				"center"
     		),
 			(
 				"#2",
 				"Commercial",
-				0,
+				100,
 				"center"
     		),
 			(
 				"#3",
 				"Industrial",
-				0,
+				100,
 				"center"
     		),
 			(
 				"#4",
 				"Rating",
-				0,
+				100,
 				"center"
     		),
 			(
 				"#5",
 				"Tiles",
-				0,
+				100,
 				"center"
     		),
 			(
 				"#6",
 				"Area",
-				0,
+				100,
 				"center"
     		),
 			(
@@ -5721,6 +5721,7 @@ class StatisticsTreeUI(tk.Frame):
 			self.tree.column(column_id, width=column_width, anchor=column_anchor, stretch=False)
 			self.tree.heading(column_id, text=column_name, command=lambda column_name=column_name: self.handle_header_click(column_name))
 
+		self.master.configure(width=sum([column[2] for column in columns]))
 		self.tree.grid(row=0, column=0)
 
 
