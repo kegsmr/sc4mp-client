@@ -5564,7 +5564,7 @@ class ServerDetailsUI(tk.Toplevel):
 		# Notebook
 
 		self.notebook = ttk.Notebook(self, width=353, height=327)
-		self.notebook.bind("<<NotebookTabChanged>>", self.on_notebook_tab_changed)
+		#self.notebook.bind("<<NotebookTabChanged>>", self.on_notebook_tab_changed)
 		self.notebook.grid(row=0, column=0, padx=10, pady=5)
 
 
@@ -5591,12 +5591,12 @@ class ServerDetailsUI(tk.Toplevel):
 
 		# Update window size periodically
 
-		#self.after(100, self.update_window_size)
+		self.after(100, self.update_window_size)
 
 
-	def on_notebook_tab_changed(self, event):
+	#def on_notebook_tab_changed(self, event):
 
-		self.update_window_size()
+	#	self.update_window_size()
 
 
 	def update_window_size(self):
@@ -5610,15 +5610,17 @@ class ServerDetailsUI(tk.Toplevel):
 
 		self.notebook.configure(width=width, height=height)
 		
-		if width < 353:
-			width = 353
-		if height < 327:
-			height = 327
+		#if width < 353:
+		#	width = 353
+		#f height < 327:
+		#	height = 327
 
 		self.maxsize(width + 20, height + 90)
 		self.minsize(width + 20, height + 90)
 
 		#print(f"Resized to {width}x{height}.")
+
+		self.after(100, self.update_window_size)
 
 
 	def destroy(self):
@@ -5649,7 +5651,7 @@ class ServerDetailsUI(tk.Toplevel):
 			(
 				"#0",
 				"Name",
-				150,
+				250,
 				"w"
     		),
 			(
@@ -5693,7 +5695,13 @@ class ServerDetailsUI(tk.Toplevel):
 				"Online",
 				100,
 				"center"
-    		)
+    		),
+			(
+				"#8",
+				"Overflow",
+				1000,
+				"center"
+			)
 		])
 
 		regions_directory: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server.server_id / "Regions"
@@ -5762,7 +5770,7 @@ class ServerDetailsUI(tk.Toplevel):
 				format_time_ago(datetime.strptime(entry['last_online'], "%Y-%m-%d %H:%M:%S")),
 			])
 
-		self.mayors_frame.tree["displaycolumns"] = ["#6", "#7"]
+		self.mayors_frame.tree["displaycolumns"] = ["#7", "#8"]
 
 		self.notebook.add(self.mayors_frame, text="Mayors")
 		
@@ -5788,6 +5796,12 @@ class ServerDetailsUI(tk.Toplevel):
 					"#1",
 					"Download",
 					100,
+					"center"
+				),
+				(
+					"#2",
+					"Overflow",
+					1000,
 					"center"
 				)
 			])
@@ -5872,12 +5886,21 @@ class StatisticsTreeUI(tk.Frame):
 		
 		super().__init__(*args, **kwargs)
 
+
+		# Tree frame
+
+		self.tree_frame = tk.Frame(self)
+		self.tree_frame.grid(row=0, column=0)
+
+
+		# Tree
+
 		column_ids = []
 		for column in columns:
 			column_ids.append(column[0])
 		column_ids = tuple(column_ids[1:])
 
-		self.tree = ttk.Treeview(self, columns=column_ids, selectmode="browse", height=15)
+		self.tree = ttk.Treeview(self.tree_frame, columns=column_ids, selectmode="browse", height=15)
 
 		for column in columns:
 			column_id = column[0]
@@ -5888,12 +5911,42 @@ class StatisticsTreeUI(tk.Frame):
 			self.tree.heading(column_id, text=column_name, command=lambda column_name=column_name: self.handle_header_click(column_name))
 
 		#self.master.configure(width=sum([column[2] for column in columns]))
-		self.tree.grid(row=0, column=0)
+		self.tree.pack(side="left")
+
+
+		# Scrollbar
+
+		try:
+			self.scrollbar = ttk.Scrollbar(self.tree_frame, orient ="vertical", command = self.tree.yview)
+			self.scrollbar.pack(side="right", fill="y")
+			self.tree.configure(yscrollcommand=self.scrollbar.set)
+		except:
+			fatal_error()
+
+
+	def get_tree_width(self):
+
+		width = self.tree.column("#0", "width")
+
+		for column in self.tree["columns"]:
+			try:
+				if self.tree.heading(column, "text") != "Overflow":
+					width += self.tree.column(column, option="width")
+			except:
+				pass
+			
+		return width
+
 
 
 	def winfo_width(self):
 
-		return self.tree.winfo_width()
+		return self.get_tree_width() + 20
+	
+
+	def winfo_height(self):
+
+		return 377
 
 
 
