@@ -5518,13 +5518,20 @@ class ServerDetailsUI(tk.Toplevel):
 	def __init__(self, server: Server):
 		"""TODO"""
 
+
 		#print("Initializing...")
+
 
 		# Init
 
 		super().__init__()
 
+
+		# Properties
+
 		self.server = server
+		self.destroyed = False
+
 
 		# Title
 
@@ -5551,7 +5558,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 
 		# Key bindings
-		
+
 		self.bind("<Return>", lambda event:self.destroy())
 		self.bind("<Escape>", lambda event:self.destroy())
 
@@ -5562,8 +5569,51 @@ class ServerDetailsUI(tk.Toplevel):
 		self.notebook.grid(row=0, column=0, padx=(5,0), pady=5)
 
 
-		# Mayors frame
+		# Info frame
 
+		self.info_frame = tk.Frame(self.notebook)
+		self.notebook.add(self.info_frame, text="Info")
+
+
+		# Ok button
+
+		self.ok_button = ttk.Button(self, text="Ok", command=self.destroy, default="active")
+		self.ok_button.grid(row=1, column=0, padx=0, pady=5, sticky="se")
+
+
+		# Create notebook frames asynchronously
+
+		self.chain_functions([
+			self.create_mayors_frame, 
+			self.create_cities_frame, 
+			self.create_files_frame
+		])
+
+
+	def destroy(self):
+
+		self.destroyed = True
+
+		return super().destroy()
+
+
+	def chain_functions(self, functions, delay=100):
+
+		if self.destroyed:
+			return
+		else:
+			try:
+				functions[0]()
+			except Exception:
+				self.after(delay, lambda: self.chain_functions(functions, delay=delay))
+			else:
+				functions.pop(0)
+				if len(functions) > 0:
+					self.after(delay, lambda: self.chain_functions(functions, delay=delay))
+
+
+	def create_mayors_frame(self):
+	
 		self.mayors_frame = StatisticsTreeUI(self.notebook, columns=[
 			(
 				"#0",
@@ -5571,39 +5621,39 @@ class ServerDetailsUI(tk.Toplevel):
 				150,
 				"w"
     		),
-		    (
+			(
 				"#1",
+				"Funds",
+				100,
+				"center"
+    		),
+		    (
+				"#2",
 				"Residential",
 				100,
 				"center"
     		),
 			(
-				"#2",
+				"#3",
 				"Commercial",
 				100,
 				"center"
     		),
 			(
-				"#3",
+				"#4",
 				"Industrial",
 				100,
 				"center"
     		),
 			(
-				"#4",
+				"#5",
 				"Rating",
 				100,
 				"center"
     		),
 			(
-				"#5",
-				"Tiles",
-				100,
-				"center"
-    		),
-			(
 				"#6",
-				"Area",
+				"Claimed",
 				100,
 				"center"
     		),
@@ -5614,90 +5664,111 @@ class ServerDetailsUI(tk.Toplevel):
 				"center"
     		)
 		])
-		#self.mayors_frame.tree = ttk.Treeview(self.mayors_frame, columns=[], selectmode="browse", height=15)
 
-		#for i in range(20):
-		#	self.mayors_frame.tree.insert("", 0, f"{i}", text=f"{i}")
+		regions_directory: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server.server_id / "Regions"
+		
+		mayors = {}
+		for region in os.listdir(regions_directory):
+			region_database: dict = load_json(regions_directory / region / "_Database" / "region.json")
+			for entry in region_database.values():
+				if entry is not None:
+					user_id = entry.get("owner", None)
+					if user_id is not None:
+						
+						mayors.setdefault(user_id, {})
+						
+						mayors[user_id].setdefault("name", "Defacto")
+
+						mayors[user_id].setdefault("last_online", None)
+						if mayors[user_id]["last_online"] is None or datetime.strptime(entry["modified"], "%Y-%m-%d %H:%M:%S") > datetime.strptime(mayors[user_id]["last_online"], "%Y-%m-%d %H:%M:%S"):
+							if entry["mayor_name"] != entry.get("last_mayor_name", None):
+								mayors[user_id]["name"] = entry["mayor_name"]
+							mayors[user_id]["last_online"] = entry["modified"]
+
+						mayors[user_id].setdefault("residential_population", 0)
+						mayors[user_id]["residential_population"] += entry["residential_population"]
+
+						mayors[user_id].setdefault("commercial_population", 0)
+						mayors[user_id]["commercial_population"] += entry["commercial_population"]
+
+						mayors[user_id].setdefault("industrial_population", 0)
+						mayors[user_id]["industrial_population"] += entry["industrial_population"]
+
+						mayors[user_id].setdefault("total_population", 0)
+						mayors[user_id]["total_population"] += entry["population"]
+
+						mayors[user_id].setdefault("mayor_rating", 0)
+						mayors[user_id]["mayor_rating"] += entry["residential_population"] * entry["mayor_rating"]
+
+						mayors[user_id].setdefault("tiles_claimed", 0)
+						mayors[user_id]["tiles_claimed"] += 1
+
+						mayors[user_id].setdefault("area_claimed", 0)
+						mayors[user_id]["area_claimed"] += entry["size"] ** 2
+
+						mayors[user_id].setdefault("funds", 0)
+						mayors[user_id]["funds"] += entry.get("funds", 0)
+
+		for entry in mayors.values():
+			if entry["residential_population"] > 0:
+				entry["mayor_rating"] = round(entry["mayor_rating"] / entry["residential_population"])
+			else:
+				entry["mayor_rating"] = 0
+
+		#update_json("test.json", mayors)
+
+		if len(mayors.values()) < self.server.stat_mayors:
+			raise ClientException("Wrong number of mayors.")
+
+		for user_id, entry in sorted(mayors.items(), key=lambda item: item[1]["last_online"], reverse=True):
+			self.mayors_frame.tree.insert("", "end", f"{user_id}", text=f"{entry['name']}", values=[
+				f"§{entry['funds']:,}",
+				f"{entry['residential_population']:,}", 
+				f"{entry['commercial_population']:,}",
+				f"{entry['industrial_population']:,}",
+				entry['mayor_rating'], 
+				f"{entry['area_claimed']}km²", 
+				format_time_ago(datetime.strptime(entry['last_online'], "%Y-%m-%d %H:%M:%S")),
+			])
+
+		self.notebook.add(self.mayors_frame, text="Mayors")
+		
+
+	def create_cities_frame(self):
+	
+		self.cities_frame = StatisticsTreeUI(self.notebook)
+		self.notebook.add(self.cities_frame, text="Cities")
+	
+
+	def create_files_frame(self):
+
+		self.files_frame = StatisticsTreeUI(self.notebook)
+
+		files = {}
 
 		try:
 
-			regions_directory: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server.server_id / "Regions"
-			
-			mayors = {}
-			for region in os.listdir(regions_directory):
-				region_database: dict = load_json(regions_directory / region / "_Database" / "region.json")
-				for entry in region_database.values():
-					if entry is not None:
-						user_id = entry.get("owner", None)
-						if user_id is not None:
-							
-							mayors.setdefault(user_id, {})
-							
-							mayors[user_id].setdefault("name", "Defacto")
+			for request in ["Plugins", "Regions"]:
 
-							mayors[user_id].setdefault("last_online", None)
-							if mayors[user_id]["last_online"] is None or datetime.strptime(entry["modified"], "%Y-%m-%d %H:%M:%S") > datetime.strptime(mayors[user_id]["last_online"], "%Y-%m-%d %H:%M:%S"):
-								if entry["mayor_name"] != entry.get("last_mayor_name", None):
-									mayors[user_id]["name"] = entry["mayor_name"]
-								mayors[user_id]["last_online"] = entry["modified"]
+				s = socket.socket()
+				s.settimeout(30)
+				s.connect((self.server.host, self.server.port))
 
-							mayors[user_id].setdefault("residential_population", 0)
-							mayors[user_id]["residential_population"] += entry["residential_population"]
-
-							mayors[user_id].setdefault("commercial_population", 0)
-							mayors[user_id]["commercial_population"] += entry["commercial_population"]
-
-							mayors[user_id].setdefault("industrial_population", 0)
-							mayors[user_id]["industrial_population"] += entry["industrial_population"]
-
-							mayors[user_id].setdefault("total_population", 0)
-							mayors[user_id]["total_population"] += entry["population"]
-
-							mayors[user_id].setdefault("mayor_rating", 0)
-							mayors[user_id]["mayor_rating"] += entry["residential_population"] * entry["mayor_rating"]
-
-							mayors[user_id].setdefault("tiles_claimed", 0)
-							mayors[user_id]["tiles_claimed"] += 1
-
-							mayors[user_id].setdefault("area_claimed", 0)
-							mayors[user_id]["area_claimed"] += entry["size"] ** 2
-
-			for entry in mayors.values():
-				if entry["residential_population"] > 0:
-					entry["mayor_rating"] = round(entry["mayor_rating"] / entry["residential_population"])
+				if not self.server.private:
+					s.send(request.lower().encode())
 				else:
-					entry["mayor_rating"] = 0
+					s.send(f"{request.lower()} {SC4MP_VERSION} {self.user_id} {self.password}".encode())
 
-			update_json("test.json", mayors) #TODO REMOVE THIS
+				files[request] = recv_json(s)
 
-			for user_id, entry in sorted(mayors.items(), key=lambda item: item[1]["last_online"], reverse=True):
-				self.mayors_frame.tree.insert("", "end", f"{user_id}", text=f"{entry['name']}", values=[
-					f"{entry['residential_population']:,}", 
-					f"{entry['commercial_population']:,}",
-					f"{entry['industrial_population']:,}",
-					entry['mayor_rating'], 
-					entry['tiles_claimed'], 
-					f"{entry['area_claimed']}km²", 
-					format_time_ago(datetime.strptime(entry['last_online'], "%Y-%m-%d %H:%M:%S")),
-				])
+			#update_json("test.json", files)
+
 
 		except Exception as e:
+	
+			show_error(e)
 
-			show_error(e, no_ui=True)
-
-		self.notebook.add(self.mayors_frame, text="Mayors")
-
-
-		# Files frame
-
-		#self.files_frame = tk.Frame(self.notebook)
-		#self.notebook.add(self.files_frame, text="Files")
-
-
-		# Ok button
-
-		self.ok_button = ttk.Button(self, text="Ok", command=self.destroy, default="active")
-		self.ok_button.grid(row=1, column=0, padx=0, pady=5, sticky="se")
+		self.notebook.add(self.files_frame, text="Files")
 
 
 class StatisticsTreeUI(tk.Frame):
