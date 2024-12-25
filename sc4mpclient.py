@@ -5892,6 +5892,11 @@ class StatisticsTreeUI(tk.Frame):
 		self.tree_frame = tk.Frame(self)
 		self.tree_frame.grid(row=0, column=0)
 
+		# Tree canvas
+
+		self.tree_canvas = tk.Canvas(self.tree_frame, width=350, height=323, bg="black")
+		self.tree_canvas.pack(side="left")
+
 
 		# Tree
 
@@ -5900,7 +5905,7 @@ class StatisticsTreeUI(tk.Frame):
 			column_ids.append(column[0])
 		column_ids = tuple(column_ids[1:])
 
-		self.tree = ttk.Treeview(self.tree_frame, columns=column_ids, selectmode="browse", height=15)
+		self.tree = ttk.Treeview(self.tree_canvas, columns=column_ids, selectmode="browse", height=15)
 
 		for column in columns:
 			column_id = column[0]
@@ -5911,17 +5916,17 @@ class StatisticsTreeUI(tk.Frame):
 			self.tree.heading(column_id, text=column_name, command=lambda column_name=column_name: self.handle_header_click(column_name))
 
 		#self.master.configure(width=sum([column[2] for column in columns]))
-		self.tree.pack(side="left")
-
+		self.tree.pack()
+		try:
+			self.tree_canvas.create_window(0, 0, window=self.tree, anchor="nw")
+		except:
+			fatal_error()
 
 		# Scrollbar
 
-		try:
-			self.scrollbar = ttk.Scrollbar(self.tree_frame, orient ="vertical", command = self.tree.yview)
-			self.scrollbar.pack(side="right", fill="y")
-			self.tree.configure(yscrollcommand=self.scrollbar.set)
-		except:
-			fatal_error()
+		self.scrollbar = ttk.Scrollbar(self.tree_frame, orient ="vertical", command=self.tree.yview)
+		self.scrollbar.pack(side="right", fill="y")
+		self.tree.configure(yscrollcommand=self.scrollbar.set)
 
 
 	def get_tree_width(self):
@@ -5941,7 +5946,14 @@ class StatisticsTreeUI(tk.Frame):
 
 	def winfo_width(self):
 
-		return self.get_tree_width() + 20
+		#print(self.tree_canvas.configure("width"))
+		#self.scrollbar.lift()
+
+		tree_width = self.get_tree_width()
+
+		self.tree_canvas.configure(width=tree_width - 2)
+
+		return tree_width + 20
 	
 
 	def winfo_height(self):
