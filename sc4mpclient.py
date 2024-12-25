@@ -5778,8 +5778,28 @@ class ServerDetailsUI(tk.Toplevel):
 
 		self.mayors_frame.tree["displaycolumns"] = ["#7", "#8"]
 
+		self.mayors_frame.aux_button.configure(command=self.expand_mayors_treeview)
+
 		self.notebook.add(self.mayors_frame, text="Mayors")
 		
+
+	def expand_mayors_treeview(self):
+
+		self.mayors_frame.tree["displaycolumns"] = "#all"
+
+		self.mayors_frame.aux_button.configure(command=self.collapse_mayors_treeview, text="Collapse")
+
+		#self.after(200, lambda: center_window(self))
+
+
+	def collapse_mayors_treeview(self):
+
+		self.mayors_frame.tree["displaycolumns"] = ["#7"]
+
+		self.mayors_frame.aux_button.configure(command=self.expand_mayors_treeview, text="Expand")
+
+		#self.after(200, lambda: center_window(self))
+
 
 	def create_cities_frame(self):
 	
@@ -5892,7 +5912,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 		self.expand_files_treeview_helper(self.files_frame.tree)
 
-		self.files_frame.aux_button.configure(text="Collapse") #, command=self.collapse_files_treeview) #TODO
+		self.files_frame.aux_button.configure(text="Collapse", command=self.collapse_files_treeview)
 
 
 	def expand_files_treeview_helper(self, tree, parent=""):
@@ -5902,6 +5922,22 @@ class ServerDetailsUI(tk.Toplevel):
 		children = tree.get_children(parent)
 		for child in children:
 			self.expand_files_treeview_helper(tree, child)
+
+
+	def collapse_files_treeview(self):
+
+		self.collapse_files_treeview_helper(self.files_frame.tree)
+
+		self.files_frame.aux_button.configure(text="Expand", command=self.expand_files_treeview)
+
+
+	def collapse_files_treeview_helper(self, tree, parent=""):
+
+		tree.item(parent, open=False)
+
+		children = tree.get_children(parent)
+		for child in children:
+			self.collapse_files_treeview_helper(tree, child)
 
 
 class StatisticsTreeUI(tk.Frame):
