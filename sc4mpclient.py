@@ -5546,8 +5546,6 @@ class ServerDetailsUI(tk.Toplevel):
 		# Geometry
 
 		self.geometry('400x400')
-		#self.maxsize(450, 425)
-		self.minsize(865, 425)
 		self.grid()
 		center_window(self)
 		
@@ -5565,8 +5563,9 @@ class ServerDetailsUI(tk.Toplevel):
 
 		# Notebook
 
-		self.notebook = ttk.Notebook(self, width=400, height=327)
-		self.notebook.grid(row=0, column=0, padx=(5,0), pady=5)
+		self.notebook = ttk.Notebook(self, width=353, height=327)
+		self.notebook.bind("<<NotebookTabChanged>>", self.on_notebook_tab_changed)
+		self.notebook.grid(row=0, column=0, padx=10, pady=5)
 
 
 		# Info frame
@@ -5578,7 +5577,7 @@ class ServerDetailsUI(tk.Toplevel):
 		# Ok button
 
 		self.ok_button = ttk.Button(self, text="Ok", command=self.destroy, default="active")
-		self.ok_button.grid(row=1, column=0, padx=0, pady=5, sticky="se")
+		self.ok_button.grid(row=1, column=0, padx=10, pady=5, sticky="se")
 
 
 		# Create notebook frames asynchronously
@@ -5586,8 +5585,40 @@ class ServerDetailsUI(tk.Toplevel):
 		self.chain_functions([
 			self.create_mayors_frame, 
 			self.create_cities_frame, 
-			self.create_files_frame
+			lambda: th.Thread(target=self.create_files_frame).start()
 		])
+
+
+		# Update window size periodically
+
+		#self.after(100, self.update_window_size)
+
+
+	def on_notebook_tab_changed(self, event):
+
+		self.update_window_size()
+
+
+	def update_window_size(self):
+
+		sc4mp_ui.update()
+
+		inner_frame = self.notebook.nametowidget(self.notebook.select())
+
+		width = inner_frame.winfo_width()
+		height = inner_frame.winfo_height()
+
+		self.notebook.configure(width=width, height=height)
+		
+		if width < 353:
+			width = 353
+		if height < 327:
+			height = 327
+
+		self.maxsize(width + 20, height + 90)
+		self.minsize(width + 20, height + 90)
+
+		#print(f"Resized to {width}x{height}.")
 
 
 	def destroy(self):
@@ -5731,6 +5762,8 @@ class ServerDetailsUI(tk.Toplevel):
 				format_time_ago(datetime.strptime(entry['last_online'], "%Y-%m-%d %H:%M:%S")),
 			])
 
+		self.mayors_frame.tree["displaycolumns"] = ["#6", "#7"]
+
 		self.notebook.add(self.mayors_frame, text="Mayors")
 		
 
@@ -5742,11 +5775,33 @@ class ServerDetailsUI(tk.Toplevel):
 
 	def create_files_frame(self):
 
-		self.files_frame = StatisticsTreeUI(self.notebook)
-
-		files = {}
-
 		try:
+
+			self.files_frame = StatisticsTreeUI(self.notebook, columns=[
+				(
+					"#0",
+					"",
+					350,
+					"w"
+				),
+				(
+					"#1",
+					"Cached",
+					100,
+					"center"
+				),
+				(
+					"#2",
+					"Size",
+					100,
+					"center"
+				)
+			])
+
+			self.files_frame.tree.tag_configure('green', foreground='green')
+			self.files_frame.tree.tag_configure('red', foreground='red')
+
+			files = {}
 
 			for request in ["Plugins", "Regions"]:
 
@@ -5759,16 +5814,56 @@ class ServerDetailsUI(tk.Toplevel):
 				else:
 					s.send(f"{request.lower()} {SC4MP_VERSION} {self.user_id} {self.password}".encode())
 
-				files[request] = recv_json(s)
+				file_table = recv_json(s)
 
-			#update_json("test.json", files)
+				for entry in file_table:
 
+					md5 = entry[0]
+					size = entry[1]
+					path = entry[2]
+
+					path = list(Path(path).parts)
+					path.insert(0, request)
+
+					entry = files
+					while len(path) > 1:
+						d = path.pop(0)
+						entry.setdefault(d, {})
+						entry = entry[d]
+
+					d = path.pop(0)
+					entry[d] = [
+						("Yes" if os.path.exists(SC4MP_LAUNCHPATH / "_Cache" / md5) else "No"),
+						format_filesize(size)
+					]
+
+			update_json("test.json", files)
+
+			self.create_files_frame_populate_treeview(self.files_frame.tree, data=files)
+
+			self.notebook.add(self.files_frame, text="Files")
 
 		except Exception as e:
 	
-			show_error(e)
+			show_error(e, no_ui=True)
 
-		self.notebook.add(self.files_frame, text="Files")
+
+	def create_files_frame_populate_treeview(self, tree=None, parent="", data={}):
+		
+		for key, value in data.items():
+
+			if isinstance(value, dict):
+
+				# Insert parent node
+				node = tree.insert(parent, 'end', text=key, values=("", ""))
+
+				# Recursively add children
+				self.create_files_frame_populate_treeview(tree, node, value)
+
+			elif isinstance(value, list):
+
+				# Insert leaf node
+				tree.insert(parent, 'end', text=key, values=value, tags=[("green" if value[0] == "Yes" else "red")])
 
 
 class StatisticsTreeUI(tk.Frame):
@@ -5792,8 +5887,14 @@ class StatisticsTreeUI(tk.Frame):
 			self.tree.column(column_id, width=column_width, anchor=column_anchor, stretch=False)
 			self.tree.heading(column_id, text=column_name, command=lambda column_name=column_name: self.handle_header_click(column_name))
 
-		self.master.configure(width=sum([column[2] for column in columns]))
+		#self.master.configure(width=sum([column[2] for column in columns]))
 		self.tree.grid(row=0, column=0)
+
+
+	def winfo_width(self):
+
+		return self.tree.winfo_width()
+
 
 
 class GameMonitorUI(tk.Toplevel):
