@@ -5837,7 +5837,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 		self.mayors_frame.tree["displaycolumns"] = ["#7", "#8"]
 
-		self.mayors_frame.aux_button.configure(command=self.expand_mayors_treeview)
+		self.mayors_frame.aux_button.configure(command=self.expand_mayors_treeview, text="Expand")
 
 		self.notebook.add(self.mayors_frame, text="Mayors")
 		
@@ -5940,7 +5940,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 			self.populate_files_treeview(self.files_frame.tree, data=files)
 
-			self.files_frame.aux_button.configure(command=self.expand_files_treeview)
+			self.files_frame.aux_button.configure(command=self.expand_files_treeview, text="Expand")
 
 			self.notebook.add(self.files_frame, text="Files")
 
@@ -6051,7 +6051,7 @@ class StatisticsTreeUI(tk.Frame):
 
 		# Auxiliary button
 
-		self.aux_button = ttk.Button(self, text="Expand")
+		self.aux_button = ttk.Button(self, text="Button")
 		self.aux_button.grid(row=1, column=0, sticky="nw", padx=(0,10), pady=(10,0))
 
 
