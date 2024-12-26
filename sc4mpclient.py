@@ -5559,7 +5559,10 @@ class ServerDetailsUI(tk.Toplevel):
 
 		self.bind("<Return>", lambda event:self.destroy())
 		self.bind("<Escape>", lambda event:self.destroy())
-
+		self.bind("<Up>", self.up_down)
+		self.bind("<Down>", self.up_down)
+		self.bind("<Left>", lambda event: self.switch_tab(left=True))
+		self.bind("<Right>", lambda event: self.switch_tab())
 
 		# Notebook
 
@@ -5597,6 +5600,53 @@ class ServerDetailsUI(tk.Toplevel):
 	#def on_notebook_tab_changed(self, event):
 
 	#	self.update_window_size()
+
+	def up_down(self, event):
+
+		try:
+			tree = self.notebook.nametowidget(self.notebook.select()).tree
+			if tree.focus() == "":
+				children = tree.get_children()
+				tree.focus(children[0])
+				tree.selection_add([children[0]])
+			tree.focus_set()
+		except (AttributeError, IndexError):
+			pass
+
+
+	def switch_tab(self, left=False):
+
+		try:
+
+			current_focus = self.focus_get()
+
+			if type(current_focus) is ttk.Treeview:
+				current_selection = current_focus.selection()[0]
+				if len(current_focus.get_children(current_selection)) > 0:
+					#right = not left
+					#expanded = current_focus.item(current_selection, "open")
+					#collapsed = not expanded
+					#if collapsed and right or expanded and left:
+					return
+
+			self.notebook.focus_set()
+
+			all_tabs = list(self.notebook.tabs())
+			all_tabs.extend(all_tabs)		
+			current_tab = self.notebook.select()
+			current_tab_index = all_tabs.index(current_tab)
+			next_tab = all_tabs[current_tab_index + (-1 if left else 1)]
+
+			self.notebook.select(next_tab)
+
+		except IndexError:
+
+			pass
+
+		except Exception as e:
+		
+			show_error(e, no_ui=True)
+
 
 
 	def update_window_size(self):
