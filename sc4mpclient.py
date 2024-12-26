@@ -5545,7 +5545,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 		# Geometry
 
-		self.geometry('400x400')
+		self.geometry('370x361')
 		self.grid()
 		center_window(self)
 		
@@ -5563,7 +5563,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 		# Notebook
 
-		self.notebook = ttk.Notebook(self, width=353, height=327)
+		self.notebook = ttk.Notebook(self, width=370, height=361)
 		#self.notebook.bind("<<NotebookTabChanged>>", self.on_notebook_tab_changed)
 		self.notebook.grid(row=0, column=0, padx=10, pady=5)
 
@@ -5603,22 +5603,31 @@ class ServerDetailsUI(tk.Toplevel):
 
 		try:
 
+			# Update the UI to make sure `winfo` calls are correct
 			sc4mp_ui.update()
 
+			# Resize notebook
 			inner_frame = self.notebook.nametowidget(self.notebook.select())
+			notebook_width = inner_frame.winfo_width()
+			notebook_height = inner_frame.winfo_height()
+			self.notebook.configure(width=notebook_width, height=notebook_height)
 
-			width = inner_frame.winfo_width()
-			height = inner_frame.winfo_height()
+			# Get old window width, height, x, y
+			old_window_width = self.winfo_width()
+			old_window_height = self.winfo_height()
+			old_window_x = self.winfo_x()
+			old_window_y = self.winfo_y()
 
-			self.notebook.configure(width=width, height=height)
-			
-			#if width < 353:
-			#	width = 353
-			#f height < 327:
-			#	height = 327
+			# Set new window width, height, x, y
+			new_window_width = notebook_width + 20
+			new_window_height = notebook_height + 80
+			new_window_x = old_window_x + int((old_window_width - new_window_width) / 2)
+			new_window_y = old_window_y + int((old_window_height - new_window_height) / 2)
 
-			self.maxsize(width + 20, height + 90)
-			self.minsize(width + 20, height + 90)
+			# Resize the window
+			self.maxsize(new_window_width, new_window_height)
+			self.minsize(new_window_width, new_window_height)
+			self.geometry(f"{new_window_width}x{new_window_height}+{new_window_x}+{new_window_y}")
 
 			#print(f"Resized to {width}x{height}.")
 
