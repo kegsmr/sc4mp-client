@@ -23,6 +23,7 @@ import webbrowser
 from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
+from tkinter import font as tkfont
 from typing import Optional
 import urllib.request
 
@@ -5531,6 +5532,8 @@ class ServerDetailsUI(tk.Toplevel):
 
 		self.server = server
 		self.destroyed = False
+		self.folder_icon = tk.PhotoImage(file=get_sc4mp_path("folder-icon.png"))
+		self.file_icon = tk.PhotoImage(file=get_sc4mp_path("file-icon.png"))
 
 
 		# Title
@@ -5559,8 +5562,8 @@ class ServerDetailsUI(tk.Toplevel):
 
 		self.bind("<Return>", lambda event:self.destroy())
 		self.bind("<Escape>", lambda event:self.destroy())
-		self.bind("<Up>", self.up_down)
-		self.bind("<Down>", self.up_down)
+		self.bind("<Up>", self.up)
+		self.bind("<Down>", self.down)
 		self.bind("<Left>", lambda event: self.switch_tab(left=True))
 		self.bind("<Right>", lambda event: self.switch_tab())
 
@@ -5601,18 +5604,42 @@ class ServerDetailsUI(tk.Toplevel):
 
 	#	self.update_window_size()
 
-	def up_down(self, event):
+
+	def up(self, event):
+		self.focus_tree(move_up=True)
+
+
+	def down(self, event):
+		self.focus_tree(move_down=True)
+		
+
+	def focus_tree(self, move_up=False, move_down=False):
 
 		try:
-			tree = self.notebook.nametowidget(self.notebook.select()).tree
+
+			tree: ttk.Treeview = self.notebook.nametowidget(self.notebook.select()).tree
+			children = tree.get_children()
 			if tree.focus() == "":
-				children = tree.get_children()
 				tree.focus(children[0])
 				tree.selection_add([children[0]])
+			elif self.focus_get() is not tree:
+				current_selection = tree.selection()[0]
+				current_selection_index = children.index(current_selection)
+				tree.selection_remove([current_selection])
+				next_selection = None
+				if move_up:
+					next_selection = [children[current_selection_index - 1]]
+				elif move_down:
+					next_selection = [children[current_selection_index + 1]]
+				if next_selection:
+					tree.selection_add(next_selection)
+					tree.focus(next_selection)
 			tree.focus_set()
-		except (AttributeError, IndexError):
-			pass
 
+		except (AttributeError, IndexError):
+	
+			pass
+		
 
 	def switch_tab(self, left=False):
 
@@ -5646,7 +5673,6 @@ class ServerDetailsUI(tk.Toplevel):
 		except Exception as e:
 		
 			show_error(e, no_ui=True)
-
 
 
 	def update_window_size(self):
@@ -5862,7 +5888,69 @@ class ServerDetailsUI(tk.Toplevel):
 
 	def create_cities_frame(self):
 	
-		self.cities_frame = StatisticsTreeUI(self.notebook)
+		self.cities_frame = StatisticsTreeUI(self.notebook, columns=[
+			(
+				"#0",
+				"Name",
+				250,
+				"w"
+    		),
+			(
+				"#1",
+				"Mayor",
+				100,
+				"center"
+    		),
+			(
+				"#1",
+				"Funds",
+				100,
+				"center"
+    		),
+		    (
+				"#2",
+				"Residential",
+				100,
+				"center"
+    		),
+			(
+				"#3",
+				"Commercial",
+				100,
+				"center"
+    		),
+			(
+				"#4",
+				"Industrial",
+				100,
+				"center"
+    		),
+			(
+				"#5",
+				"Rating",
+				100,
+				"center"
+    		),
+			(
+				"#6",
+				"Claimed",
+				100,
+				"center"
+    		),
+			(
+				"#7",
+				"Online",
+				100,
+				"center"
+    		),
+			(
+				"#8",
+				"⠀",
+				1000,
+				"center"
+			)
+		])
+
 		self.notebook.add(self.cities_frame, text="Cities")
 	
 
@@ -5933,10 +6021,10 @@ class ServerDetailsUI(tk.Toplevel):
 						download_size -= cached_file.stat().st_size
 
 					entry[d] = [
-						format_download_size(download_size)
+						download_size
 					]
 
-			update_json("test.json", files)
+			#update_json("test.json", files)
 
 			self.populate_files_treeview(self.files_frame.tree, data=files)
 
@@ -5951,25 +6039,44 @@ class ServerDetailsUI(tk.Toplevel):
 
 	def populate_files_treeview(self, tree=None, parent="", data={}):
 		
-		for key, value in data.items():
+		total_download_size = 0
+
+		for key in sorted(data.keys()):
+
+			value = data[key]
+
+			download_size = 0
 
 			if isinstance(value, dict):
 
 				# Insert parent node
-				node = tree.insert(parent, 'end', text=key, values=("", ""))
+				node = tree.insert(parent, 'end', text=key, values=[""], image=self.folder_icon)
 
 				# Recursively add children
-				self.populate_files_treeview(tree, node, value)
+				download_size = self.populate_files_treeview(tree, node, value)
+
+				#tree.item(parent, values=[format_download_size(download_size)])
 
 			elif isinstance(value, list):
 
+				download_size = value[0]
+
 				# Insert leaf node
-				tree.insert(parent, 'end', text=key, values=value, tags=["cached"])
+				tree.insert(parent, 'end', text=key, values=[format_download_size(download_size)], image=self.file_icon)
+
+			total_download_size += download_size
+
+		if parent:
+			tree.item(parent, values=[format_download_size(total_download_size)])
+
+		return total_download_size
 
 
 	def expand_files_treeview(self):
 
 		self.expand_files_treeview_helper(self.files_frame.tree)
+
+		self.files_frame.adjust_tree_column_widths()
 
 		self.files_frame.aux_button.configure(text="Collapse", command=self.collapse_files_treeview)
 
@@ -5986,6 +6093,8 @@ class ServerDetailsUI(tk.Toplevel):
 	def collapse_files_treeview(self):
 
 		self.collapse_files_treeview_helper(self.files_frame.tree)
+
+		self.files_frame.tree.column("#0", width=250)
 
 		self.files_frame.aux_button.configure(text="Expand", command=self.expand_files_treeview)
 
@@ -6011,6 +6120,7 @@ class StatisticsTreeUI(tk.Frame):
 		self.tree_frame = tk.Frame(self)
 		self.tree_frame.grid(row=0, column=0, columnspan=99)
 
+
 		# Tree canvas
 
 		self.tree_canvas = tk.Canvas(self.tree_frame, width=350, height=323, bg="white")
@@ -6025,6 +6135,10 @@ class StatisticsTreeUI(tk.Frame):
 		column_ids = tuple(column_ids[1:])
 
 		self.tree = ttk.Treeview(self.tree_canvas, columns=column_ids, selectmode="browse", height=15)
+		self.tree.bind("<<TreeviewOpen>>", self.on_item_expand)
+		self.tree.bind("<<TreeviewClose>>", self.on_item_expand)
+		self.tree.bind("<Double-1>", self.on_click)
+		self.tree.bind("<Button-1>", self.on_click)
 
 		for column in columns:
 			column_id = column[0]
@@ -6032,14 +6146,11 @@ class StatisticsTreeUI(tk.Frame):
 			column_width = column[2]
 			column_anchor = column[3]
 			self.tree.column(column_id, width=column_width, anchor=column_anchor, stretch=False)
-			self.tree.heading(column_id, text=column_name, command=lambda column_name=column_name: self.handle_header_click(column_name))
+			self.tree.heading(column_id, text=column_name, command=lambda column_name=column_name: self.on_header_click(column_name))
 
 		#self.master.configure(width=sum([column[2] for column in columns]))
 		self.tree.pack()
-		try:
-			self.tree_canvas.create_window(0, 0, window=self.tree, anchor="nw")
-		except:
-			fatal_error()
+		self.tree_canvas.create_window(0, 0, window=self.tree, anchor="nw")
 
 
 		# Scrollbar
@@ -6053,6 +6164,101 @@ class StatisticsTreeUI(tk.Frame):
 
 		self.aux_button = ttk.Button(self, text="Button")
 		self.aux_button.grid(row=1, column=0, sticky="nw", padx=(0,10), pady=(10,0))
+
+
+	def on_click(self, event):
+		
+		region = self.tree.identify_region(event.x, event.y)
+		if region == "separator":
+			return "break"
+
+
+	def on_item_expand(self, event):
+
+		th.Thread(target=self.adjust_tree_column_widths).start()
+
+
+	def on_header_click(self, column_name):
+
+		#TODO sort
+
+		return
+
+
+	def adjust_tree_column_widths(self):
+		"""
+		Adjusts column widths on the TreeView to fit contents.
+		
+		Trash code written by Chat-GPT
+		"""
+
+		try:
+
+			time.sleep(.2) # Give time for the item to actually expand
+
+			tree = self.tree
+
+			# Get the style used in the Treeview
+			font_name = "TkDefaultFont"
+			font = tkfont.nametofont(font_name)
+			
+			indent = 40  # Default indentation for Treeview items (can be customized)
+    
+			# Adjust the #0 column (tree column)
+			max_width = tree.column("#0", option="width") #font.measure(tree.heading("#0")["text"])  # Start with header width
+
+			def calculate_width(item, level=0):
+
+				nonlocal max_width
+
+				children = tree.get_children(item)
+
+				# Calculate the width of the item's text in the #0 column
+				cell_content = tree.item(item, "text")
+				item_width = font.measure(cell_content) + (level * indent)
+				max_width = max(max_width, item_width)
+
+				# Recursively calculate widths for child items
+				if tree.item(item, "open"):
+					for child in children:
+						calculate_width(child, level + 1)
+
+			# Process root-level items and their children for #0 column
+			for root_item in tree.get_children(""):
+				calculate_width(root_item)
+
+			# Set the #0 column width to the calculated maximum
+			tree.column("#0", width=min(1000, max_width))
+
+			# Adjust other columns
+			#for col in tree["columns"]:
+
+			#	max_width = tree.column(col, option="width") #font.measure(col)  # Start with column header width
+
+			#	def calculate_column_width(item, level=0):
+
+			#		nonlocal max_width
+
+			#		# Calculate the width of the current item's content in this column
+			#		cell_content = tree.set(item, col)
+			#		item_width = font.measure(cell_content)
+			#		max_width = max(max_width, item_width)
+
+			#		# Recursively calculate widths for child items
+			#		if tree.item(item, "open"):
+			#			for child in tree.get_children(item):
+			#				calculate_column_width(child, level + 1)
+
+			#	# Process root-level items and their children for each column
+			#	for root_item in tree.get_children(""):
+			#		calculate_column_width(root_item)
+
+			#	# Set the column width to the calculated maximum
+			#	tree.column(col, width=max_width)
+
+		except Exception as e:
+	
+			show_error(f"Failed to adjust column widths.\n\n{e}", no_ui=True)
 
 
 	def get_tree_width(self):
@@ -6085,7 +6291,6 @@ class StatisticsTreeUI(tk.Frame):
 	def winfo_height(self):
 
 		return 361
-
 
 
 class GameMonitorUI(tk.Toplevel):
