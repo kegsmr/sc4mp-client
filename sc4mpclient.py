@@ -1617,10 +1617,10 @@ class ServerList(th.Thread):
 					time.sleep(SC4MP_DELAY)
 				self.clear_tree()
 
-			try:
-				purge_directory(self.temp_path)
-			except Exception as e:
-				show_error("Error deleting temporary server list files.", no_ui=True)
+			#try: #TODO is this needed?
+			#	purge_directory(self.temp_path)
+			#except Exception as e:
+			#	show_error("Error deleting temporary server list files.", no_ui=True)
 
 			print("Fetching servers...")
 
@@ -5681,7 +5681,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 			#print(f"Resized to {width}x{height}.")
 
-			self.after(100, self.update_window_size)
+			self.after(10, self.update_window_size)
 
 		except Exception as e:
 
@@ -5899,7 +5899,7 @@ class ServerDetailsUI(tk.Toplevel):
 			for request in ["Plugins", "Regions"]:
 
 				s = socket.socket()
-				s.settimeout(30)
+				s.settimeout(10)
 				s.connect((self.server.host, self.server.port))
 
 				if not self.server.private:
