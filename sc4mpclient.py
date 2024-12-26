@@ -5634,11 +5634,12 @@ class ServerDetailsUI(tk.Toplevel):
 				if next_selection:
 					tree.selection_add(next_selection)
 					tree.focus(next_selection)
-			tree.focus_set()
 
-		except (AttributeError, IndexError):
+		except (AttributeError, ValueError, IndexError) as e:
 	
-			pass
+			show_error(e, no_ui=True)
+
+		tree.focus_set()
 		
 
 	def switch_tab(self, left=False):
@@ -5668,10 +5669,6 @@ class ServerDetailsUI(tk.Toplevel):
 
 		except IndexError:
 
-			pass
-
-		except Exception as e:
-		
 			show_error(e, no_ui=True)
 
 
