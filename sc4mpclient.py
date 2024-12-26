@@ -6013,7 +6013,7 @@ class StatisticsTreeUI(tk.Frame):
 
 		# Tree canvas
 
-		self.tree_canvas = tk.Canvas(self.tree_frame, width=350, height=323, bg="black")
+		self.tree_canvas = tk.Canvas(self.tree_frame, width=350, height=323, bg="white")
 		self.tree_canvas.pack(side="left")
 
 
