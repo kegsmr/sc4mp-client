@@ -5667,7 +5667,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 			self.notebook.select(next_tab)
 
-		except IndexError:
+		except IndexError as e:
 
 			show_error(e, no_ui=True)
 
