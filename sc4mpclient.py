@@ -5954,6 +5954,51 @@ class ServerDetailsUI(tk.Toplevel):
 			)
 		])
 
+		regions_directory: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server.server_id / "Regions"
+		
+		cities = {}
+		for region in os.listdir(regions_directory):
+
+			region_database: dict = load_json(regions_directory / region / "_Database" / "region.json")
+
+			for entry in region_database.values():
+
+				if entry is not None:
+
+					city_name = entry.get("city_name", "New City")
+					mayor_name = entry.get("mayor_name", "Defacto")
+
+					name = f"{city_name}  -  {mayor_name}"
+
+					s = entry.get("size")
+					if s == 1:
+						size = "Small"
+					elif s == 2:
+						size = "Medium"
+					elif s == 4:
+						size = "Large"
+					else:
+						size = "None"
+
+					modified = entry.get('modified', None)
+					if modified:
+						modified = format_time_ago(datetime.strptime(modified, "%Y-%m-%d %H:%M:%S"))
+					else:
+						modified = "Never"
+
+					cities[name] = [
+						size,
+						f"{entry.get('mayor_rating', 0)}",
+						f"§{entry.get('funds', 0):,}",
+						f"{entry.get('residential_population', 0):,}",
+						f"{entry.get('commercial_population', 0):,}",
+						f"{entry.get('industrial_population', 0):,}",
+						modified,
+					]
+
+		for name, values in sorted(cities.items(), key=lambda item: item[1][-1], reverse=True):
+			self.cities_frame.tree.insert("", "end", text=name, values=values)
+
 		self.cities_frame.tree["displaycolumns"] = ["#7"]
 
 		self.notebook.add(self.cities_frame, text="Cities")
