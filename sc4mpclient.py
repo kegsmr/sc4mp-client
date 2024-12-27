@@ -5334,8 +5334,8 @@ class ServerListUI(tk.Frame):
 		
 		try:
 			self.tree.focus_set()
-			if self.tree.focus() == "":
-				children = self.tree.get_children()
+			children = self.tree.get_children()
+			if self.tree.focus() == "" and len(children) > 0:
 				self.tree.focus(children[0])
 				self.tree.selection_add([children[0]])
 		except Exception as e:
@@ -5570,7 +5570,7 @@ class ServerDetailsUI(tk.Toplevel):
 		# Notebook
 
 		self.notebook = ttk.Notebook(self, width=370, height=361)
-		#self.notebook.bind("<<NotebookTabChanged>>", self.on_notebook_tab_changed)
+		self.notebook.bind("<<NotebookTabChanged>>", self.on_notebook_tab_changed)
 		self.notebook.grid(row=0, column=0, padx=10, pady=5)
 
 
@@ -5600,9 +5600,19 @@ class ServerDetailsUI(tk.Toplevel):
 		self.after(100, self.update_window_size)
 
 
-	#def on_notebook_tab_changed(self, event):
+	def on_notebook_tab_changed(self, function: function):
 
-	#	self.update_window_size()
+		try:
+			self.collapse_mayors_treeview()
+			self.collapse_cities_treeview()
+			self.collapse_files_treeview()
+		except Exception as e:
+			show_error(e, no_ui=True)
+
+
+		#function()
+
+		#self.notebook.unbind("<<NotebookTabChanged>>")
 
 
 	def up(self, event):
@@ -5649,13 +5659,15 @@ class ServerDetailsUI(tk.Toplevel):
 			current_focus = self.focus_get()
 
 			if type(current_focus) is ttk.Treeview:
-				current_selection = current_focus.selection()[0]
-				if len(current_focus.get_children(current_selection)) > 0:
-					#right = not left
-					#expanded = current_focus.item(current_selection, "open")
-					#collapsed = not expanded
-					#if collapsed and right or expanded and left:
-					return
+				current_selection = current_focus.selection()
+				if len(current_selection) > 0:
+					current_selection = current_selection[0]
+					if len(current_focus.get_children(current_selection)) > 0:
+						#right = not left
+						#expanded = current_focus.item(current_selection, "open")
+						#collapsed = not expanded
+						#if collapsed and right or expanded and left:
+						return
 
 			self.notebook.focus_set()
 
@@ -5744,37 +5756,37 @@ class ServerDetailsUI(tk.Toplevel):
     		),
 			(
 				"#1",
-				"Funds",
+				"Claimed",
 				100,
 				"center"
     		),
 		    (
 				"#2",
-				"Residential",
-				100,
-				"center"
-    		),
-			(
-				"#3",
-				"Commercial",
-				100,
-				"center"
-    		),
-			(
-				"#4",
-				"Industrial",
-				100,
-				"center"
-    		),
-			(
-				"#5",
 				"Rating",
 				100,
 				"center"
     		),
 			(
+				"#3",
+				"Funds",
+				100,
+				"center"
+    		),
+			(
+				"#4",
+				"Residential",
+				100,
+				"center"
+    		),
+			(
+				"#5",
+				"Commercial",
+				100,
+				"center"
+    		),
+			(
 				"#6",
-				"Claimed",
+				"Industrial",
 				100,
 				"center"
     		),
@@ -5849,12 +5861,12 @@ class ServerDetailsUI(tk.Toplevel):
 
 		for user_id, entry in sorted(mayors.items(), key=lambda item: item[1]["last_online"], reverse=True):
 			self.mayors_frame.tree.insert("", "end", f"{user_id}", text=f"{entry['name']}", values=[
+				f"{entry['area_claimed']}km²",
+				entry['mayor_rating'], 
 				f"§{entry['funds']:,}",
 				f"{entry['residential_population']:,}", 
 				f"{entry['commercial_population']:,}",
 				f"{entry['industrial_population']:,}",
-				entry['mayor_rating'], 
-				f"{entry['area_claimed']}km²", 
 				format_time_ago(datetime.strptime(entry['last_online'], "%Y-%m-%d %H:%M:%S")),
 			])
 
@@ -5868,8 +5880,9 @@ class ServerDetailsUI(tk.Toplevel):
 	def expand_mayors_treeview(self):
 
 		self.mayors_frame.tree["displaycolumns"] = "#all"
-
 		self.mayors_frame.aux_button.configure(command=self.collapse_mayors_treeview, text="Collapse")
+
+		#self.notebook.bind("<<NotebookTabChanged>>", lambda event: self.on_notebook_tab_changed(self.collapse_mayors_treeview))
 
 		#self.after(200, lambda: center_window(self))
 
@@ -5877,7 +5890,6 @@ class ServerDetailsUI(tk.Toplevel):
 	def collapse_mayors_treeview(self):
 
 		self.mayors_frame.tree["displaycolumns"] = ["#7"]
-
 		self.mayors_frame.aux_button.configure(command=self.expand_mayors_treeview, text="Expand")
 
 		#self.after(200, lambda: center_window(self))
@@ -5894,49 +5906,43 @@ class ServerDetailsUI(tk.Toplevel):
     		),
 			(
 				"#1",
-				"Mayor",
-				100,
-				"center"
-    		),
-			(
-				"#1",
-				"Funds",
+				"Size",
 				100,
 				"center"
     		),
 		    (
 				"#2",
-				"Residential",
-				100,
-				"center"
-    		),
-			(
-				"#3",
-				"Commercial",
-				100,
-				"center"
-    		),
-			(
-				"#4",
-				"Industrial",
-				100,
-				"center"
-    		),
-			(
-				"#5",
 				"Rating",
 				100,
 				"center"
     		),
 			(
+				"#3",
+				"Funds",
+				100,
+				"center"
+    		),
+			(
+				"#4",
+				"Residential",
+				100,
+				"center"
+    		),
+			(
+				"#5",
+				"Commercial",
+				100,
+				"center"
+    		),
+			(
 				"#6",
-				"Claimed",
+				"Industrial",
 				100,
 				"center"
     		),
 			(
 				"#7",
-				"Online",
+				"Modified",
 				100,
 				"center"
     		),
@@ -5948,8 +5954,24 @@ class ServerDetailsUI(tk.Toplevel):
 			)
 		])
 
+		self.cities_frame.tree["displaycolumns"] = ["#7"]
+
 		self.notebook.add(self.cities_frame, text="Cities")
-	
+
+		self.cities_frame.aux_button.configure(command=self.expand_cities_treeview, text="Expand")
+
+
+	def expand_cities_treeview(self):
+
+		self.cities_frame.tree["displaycolumns"] = "#all"
+		self.cities_frame.aux_button.configure(command=self.collapse_cities_treeview, text="Collapse")
+
+
+	def collapse_cities_treeview(self):
+
+		self.cities_frame.tree["displaycolumns"] = ["#7"]
+		self.cities_frame.aux_button.configure(command=self.expand_cities_treeview, text="Expand")
+
 
 	def create_files_frame(self):
 
@@ -6106,6 +6128,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 
 class StatisticsTreeUI(tk.Frame):
+
 
 	def __init__(self, *args, columns=[], **kwargs):
 		
@@ -6270,7 +6293,6 @@ class StatisticsTreeUI(tk.Frame):
 				pass
 			
 		return width
-
 
 
 	def winfo_width(self):
