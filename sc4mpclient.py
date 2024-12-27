@@ -5968,7 +5968,10 @@ class ServerDetailsUI(tk.Toplevel):
 					city_name = entry.get("city_name", "New City")
 					mayor_name = entry.get("mayor_name", "Defacto")
 
-					name = f"{city_name}  -  {mayor_name}"
+					if len(mayor_name) < 1:
+						continue
+
+					name = f"{city_name}"#  -  {mayor_name}"
 
 					s = entry.get("size")
 					if s == 1:
@@ -5980,24 +5983,26 @@ class ServerDetailsUI(tk.Toplevel):
 					else:
 						size = "None"
 
-					modified = entry.get('modified', None)
-					if modified:
-						modified = format_time_ago(datetime.strptime(modified, "%Y-%m-%d %H:%M:%S"))
-					else:
-						modified = "Never"
-
 					cities[name] = [
 						size,
-						f"{entry.get('mayor_rating', 0)}",
-						f"§{entry.get('funds', 0):,}",
-						f"{entry.get('residential_population', 0):,}",
-						f"{entry.get('commercial_population', 0):,}",
-						f"{entry.get('industrial_population', 0):,}",
-						modified,
+						entry.get('mayor_rating', 0),
+						entry.get('funds', 0),
+						entry.get('residential_population', 0),
+						entry.get('commercial_population', 0),
+						entry.get('industrial_population', 0),
+						entry.get('modified', None),
 					]
 
 		for name, values in sorted(cities.items(), key=lambda item: item[1][-1], reverse=True):
-			self.cities_frame.tree.insert("", "end", text=name, values=values)
+			self.cities_frame.tree.insert("", "end", text=name, values=[
+				values[0],
+				f"{values[1]}",
+				f"§{values[2]:,}",
+				f"{values[3]:,}",
+				f"{values[4]:,}",
+				f"{values[5]:,}",
+				format_time_ago(datetime.strptime(values[6], "%Y-%m-%d %H:%M:%S")),
+			])
 
 		self.cities_frame.tree["displaycolumns"] = ["#7"]
 

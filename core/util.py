@@ -161,6 +161,9 @@ def format_time_ago(time):
 
 	from datetime import datetime, timedelta
 
+	if time is None:
+		return "Never"
+
 	now = datetime.now()
 
 	if time + timedelta(days=30) > now:
