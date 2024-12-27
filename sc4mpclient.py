@@ -5956,6 +5956,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 		regions_directory: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server.server_id / "Regions"
 		
+
 		cities = {}
 		for region in os.listdir(regions_directory):
 
@@ -5983,6 +5984,12 @@ class ServerDetailsUI(tk.Toplevel):
 					else:
 						size = "None"
 
+					modified = entry.get('modified', None)
+					if modified:
+						modified = datetime.strptime(modified, "%Y-%m-%d %H:%M:%S")
+					else:
+						modified = datetime.now() - timedelta(days=400000)
+
 					cities[name] = [
 						size,
 						entry.get('mayor_rating', 0),
@@ -5990,7 +5997,7 @@ class ServerDetailsUI(tk.Toplevel):
 						entry.get('residential_population', 0),
 						entry.get('commercial_population', 0),
 						entry.get('industrial_population', 0),
-						entry.get('modified', None),
+						modified,
 					]
 
 		for name, values in sorted(cities.items(), key=lambda item: item[1][-1], reverse=True):
@@ -6001,7 +6008,7 @@ class ServerDetailsUI(tk.Toplevel):
 				f"{values[3]:,}",
 				f"{values[4]:,}",
 				f"{values[5]:,}",
-				format_time_ago(datetime.strptime(values[6], "%Y-%m-%d %H:%M:%S")),
+				format_time_ago(values[6]),
 			])
 
 		self.cities_frame.tree["displaycolumns"] = ["#7"]

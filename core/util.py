@@ -190,4 +190,7 @@ def format_time_ago(time):
 			return f"{int(months)}mo ago"
 		else:
 			years = months / 12
-			return f"{int(years)}y ago"
+			if years < 1000:
+				return f"{int(years)}y ago"
+			else:
+				return "Never"
