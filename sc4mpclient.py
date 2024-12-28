@@ -5833,12 +5833,24 @@ class ServerDetailsUI(tk.Toplevel):
 			else:
 				entry["mayor_rating"] = 0
 
-		#update_json("test.json", mayors)
+		m = {}
+		for user_id, entry in sorted(mayors.items(), key=lambda item: item[1]["last_online"], reverse=True):
+			m[user_id] = [
+				entry["name"],
+				entry["area_claimed"],
+				entry["mayor_rating"],
+				entry['funds'],
+				entry['residential_population'],
+				entry['commercial_population'],
+				entry['industrial_population'],
+				entry['last_online'],
+			]
+		mayors = m
 
 		if len(mayors.values()) < self.server.stat_mayors:
 			raise ClientException("Wrong number of mayors.")
 
-		self.mayors_frame = StatisticsTreeUI(self.notebook, data=mayors, columns=[
+		columns = [
 			(
 				"#0",
 				"Name",
@@ -5893,21 +5905,33 @@ class ServerDetailsUI(tk.Toplevel):
 				1000,
 				"center"
 			)
-		])
+		]
 
-		for user_id, entry in sorted(mayors.items(), key=lambda item: item[1]["last_online"], reverse=True):
-			self.mayors_frame.tree.insert("", "end", f"{user_id}", text=f"{entry['name']}", values=[
-				f"{entry['area_claimed']}km²",
-				entry['mayor_rating'], 
-				f"§{entry['funds']:,}",
-				f"{entry['residential_population']:,}", 
-				f"{entry['commercial_population']:,}",
-				f"{entry['industrial_population']:,}",
-				format_time_ago(datetime.strptime(entry['last_online'], "%Y-%m-%d %H:%M:%S")),
-			])
+		formats = [
+			lambda data: data,
+			lambda data: f"{data}km²",
+			lambda data: data, 
+			lambda data: f"§{data}",
+			lambda data: f"{data:,}", 
+			lambda data: f"{data:,}",
+			lambda data: f"{data:,}",
+			lambda data: format_time_ago(datetime.strptime(data, "%Y-%m-%d %H:%M:%S")),
+		]
+
+		self.mayors_frame = StatisticsTreeUI(self.notebook, data=mayors, columns=columns, formats=formats)
+
+		#for user_id, entry in sorted(mayors.items(), key=lambda item: item[1]["last_online"], reverse=True):
+		#	self.mayors_frame.tree.insert("", "end", f"{user_id}", text=f"{entry['name']}", values=[
+		#		f"{entry['area_claimed']}km²",
+		#		entry['mayor_rating'], 
+		#		f"§{entry['funds']:,}",
+		#		f"{entry['residential_population']:,}", 
+		#		f"{entry['commercial_population']:,}",
+		#		f"{entry['industrial_population']:,}",
+		#		format_time_ago(datetime.strptime(entry['last_online'], "%Y-%m-%d %H:%M:%S")),
+		#	])
 
 		self.mayors_frame.tree["displaycolumns"] = ["#7", "#8"]
-
 		self.mayors_frame.button.configure(command=self.expand_mayors_treeview, text="Expand")
 
 		self.notebook.add(self.mayors_frame, text="Mayors")
@@ -6223,10 +6247,14 @@ class ServerDetailsUI(tk.Toplevel):
 class StatisticsTreeUI(tk.Frame):
 
 
-	def __init__(self, *args, columns=[], data={}, **kwargs):
+	def __init__(self, *args, columns=[], formats=[], data={}, **kwargs):
 		
 		
 		super().__init__(*args, **kwargs)
+
+		self.columns = columns
+		self.formats = formats
+		self.data = data
 
 
 		# Tree frame
@@ -6261,6 +6289,17 @@ class StatisticsTreeUI(tk.Frame):
 			column_anchor = column[3]
 			self.tree.column(column_id, width=column_width, anchor=column_anchor, stretch=False)
 			self.tree.heading(column_id, text=column_name, command=lambda column_name=column_name: self.on_header_click(column_name))
+
+		for key, entry in data.items():
+
+			for index in range(len(entry)):
+				entry[index] = formats[index](entry[index])
+			
+			text = entry[0]
+
+			values = entry[1:]
+			
+			self.tree.insert("", "end", id=key, text=text, values=values)
 
 		#self.master.configure(width=sum([column[2] for column in columns]))
 		self.tree.pack()
