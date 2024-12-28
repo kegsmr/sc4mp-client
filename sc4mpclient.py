@@ -5588,11 +5588,13 @@ class ServerDetailsUI(tk.Toplevel):
 
 		# Create notebook frames asynchronously
 
-		self.chain_functions([
-			self.create_mayors_frame, 
-			self.create_cities_frame, 
-			lambda: th.Thread(target=self.create_files_frame).start()
-		])
+		th.Thread(target=self.create_notebook_frames).start()
+
+		#self.chain_functions([
+		#	self.create_mayors_frame, 
+		#	self.create_cities_frame, 
+		#	lambda: th.Thread(target=self.create_files_frame).start()
+		#])
 
 
 		# Update window size periodically
@@ -5603,10 +5605,18 @@ class ServerDetailsUI(tk.Toplevel):
 	def on_notebook_tab_changed(self, function: function):
 
 		try:
-			self.collapse_mayors_treeview()
-			self.collapse_cities_treeview()
-			self.collapse_files_treeview()
+
+			functions = [
+				self.collapse_mayors_treeview,
+				self.collapse_cities_treeview,
+				self.collapse_files_treeview,
+			]
+
+			for index in range(len(self.notebook.tabs()) - 1):
+				functions[index]()
+
 		except Exception as e:
+
 			show_error(e, no_ui=True)
 
 
@@ -5629,45 +5639,57 @@ class ServerDetailsUI(tk.Toplevel):
 
 			tree: ttk.Treeview = self.notebook.nametowidget(self.notebook.select()).tree
 			children = tree.get_children()
-			if tree.focus() == "":
+			if tree.focus() == "" or len(tree.selection()) < 1:
 				tree.focus(children[0])
 				tree.selection_add([children[0]])
 			elif self.focus_get() is not tree:
 				current_selection = tree.selection()[0]
-				current_selection_index = children.index(current_selection)
-				tree.selection_remove([current_selection])
-				next_selection = None
-				if move_up:
-					next_selection = [children[current_selection_index - 1]]
-				elif move_down:
-					next_selection = [children[current_selection_index + 1]]
-				if next_selection:
-					tree.selection_add(next_selection)
-					tree.focus(next_selection)
+				if current_selection in children:
+					current_selection_index = children.index(current_selection)
+					tree.selection_remove([current_selection])
+					next_selection = None
+					if move_up:
+						next_selection = [children[current_selection_index - 1]]
+					elif move_down:
+						next_selection = [children[current_selection_index + 1]]
+					if next_selection:
+						tree.selection_add(next_selection)
+						tree.focus(next_selection)
+			tree.focus_set()
 
 		except (AttributeError, ValueError, IndexError) as e:
 	
 			show_error(e, no_ui=True)
-
-		tree.focus_set()
 		
 
 	def switch_tab(self, left=False):
 
 		try:
 
+			right = not left
+
 			current_focus = self.focus_get()
 
-			if type(current_focus) is ttk.Treeview:
-				current_selection = current_focus.selection()
-				if len(current_selection) > 0:
-					current_selection = current_selection[0]
-					if len(current_focus.get_children(current_selection)) > 0:
+			if type(current_focus) is ttk.Treeview and self.notebook.tab(self.notebook.select(), "text") == "Files":
+				tree: ttk.Treeview = current_focus
+				selection = tree.selection()
+				if len(selection) > 0:
+					selection = selection[0]
+					if left and not (selection in tree.get_children("") and not tree.item(selection, "open")):
+						return
+					elif right and len(tree.get_children(selection)) > 0:
+						return
+				#current_selection = current_focus.selection()
+				#if len(current_selection) > 0:
+				#	current_selection = current_selection[0]
+				#	if current_selection not in current_focus.get_children("") or right:
+				#		return
+					#if len(current_focus.get_children(current_selection)) > 0:
 						#right = not left
 						#expanded = current_focus.item(current_selection, "open")
 						#collapsed = not expanded
 						#if collapsed and right or expanded and left:
-						return
+					#	return
 
 			self.notebook.focus_set()
 
@@ -5745,64 +5767,21 @@ class ServerDetailsUI(tk.Toplevel):
 					self.after(delay, lambda: self.chain_functions(functions, delay=delay))
 
 
+	def create_notebook_frames(self):
+
+		try:
+
+			self.create_mayors_frame()
+			self.create_cities_frame()
+			self.create_files_frame()
+
+		except Exception as e:
+
+			show_error(f"An error occurred while creating notebook frames.\n\n{e}", no_ui=True)
+
+
 	def create_mayors_frame(self):
-	
-		self.mayors_frame = StatisticsTreeUI(self.notebook, columns=[
-			(
-				"#0",
-				"Name",
-				250,
-				"w"
-    		),
-			(
-				"#1",
-				"Claimed",
-				100,
-				"center"
-    		),
-		    (
-				"#2",
-				"Rating",
-				100,
-				"center"
-    		),
-			(
-				"#3",
-				"Funds",
-				100,
-				"center"
-    		),
-			(
-				"#4",
-				"Residential",
-				100,
-				"center"
-    		),
-			(
-				"#5",
-				"Commercial",
-				100,
-				"center"
-    		),
-			(
-				"#6",
-				"Industrial",
-				100,
-				"center"
-    		),
-			(
-				"#7",
-				"Online",
-				100,
-				"center"
-    		),
-			(
-				"#8",
-				"⠀",
-				1000,
-				"center"
-			)
-		])
+
 
 		regions_directory: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server.server_id / "Regions"
 		
@@ -5859,6 +5838,63 @@ class ServerDetailsUI(tk.Toplevel):
 		if len(mayors.values()) < self.server.stat_mayors:
 			raise ClientException("Wrong number of mayors.")
 
+		self.mayors_frame = StatisticsTreeUI(self.notebook, data=mayors, columns=[
+			(
+				"#0",
+				"Name",
+				250,
+				"w"
+			),
+			(
+				"#1",
+				"Claimed",
+				100,
+				"center"
+			),
+			(
+				"#2",
+				"Rating",
+				100,
+				"center"
+			),
+			(
+				"#3",
+				"Funds",
+				100,
+				"center"
+			),
+			(
+				"#4",
+				"Residential",
+				100,
+				"center"
+			),
+			(
+				"#5",
+				"Commercial",
+				100,
+				"center"
+			),
+			(
+				"#6",
+				"Industrial",
+				100,
+				"center"
+			),
+			(
+				"#7",
+				"Online",
+				100,
+				"center"
+			),
+			(
+				"#8",
+				"⠀",
+				1000,
+				"center"
+			)
+		])
+
 		for user_id, entry in sorted(mayors.items(), key=lambda item: item[1]["last_online"], reverse=True):
 			self.mayors_frame.tree.insert("", "end", f"{user_id}", text=f"{entry['name']}", values=[
 				f"{entry['area_claimed']}km²",
@@ -5872,7 +5908,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 		self.mayors_frame.tree["displaycolumns"] = ["#7", "#8"]
 
-		self.mayors_frame.aux_button.configure(command=self.expand_mayors_treeview, text="Expand")
+		self.mayors_frame.button.configure(command=self.expand_mayors_treeview, text="Expand")
 
 		self.notebook.add(self.mayors_frame, text="Mayors")
 		
@@ -5880,7 +5916,7 @@ class ServerDetailsUI(tk.Toplevel):
 	def expand_mayors_treeview(self):
 
 		self.mayors_frame.tree["displaycolumns"] = "#all"
-		self.mayors_frame.aux_button.configure(command=self.collapse_mayors_treeview, text="Collapse")
+		self.mayors_frame.button.configure(command=self.collapse_mayors_treeview, text="Collapse")
 
 		#self.notebook.bind("<<NotebookTabChanged>>", lambda event: self.on_notebook_tab_changed(self.collapse_mayors_treeview))
 
@@ -5890,7 +5926,7 @@ class ServerDetailsUI(tk.Toplevel):
 	def collapse_mayors_treeview(self):
 
 		self.mayors_frame.tree["displaycolumns"] = ["#7"]
-		self.mayors_frame.aux_button.configure(command=self.expand_mayors_treeview, text="Expand")
+		self.mayors_frame.button.configure(command=self.expand_mayors_treeview, text="Expand")
 
 		#self.after(200, lambda: center_window(self))
 
@@ -6015,19 +6051,19 @@ class ServerDetailsUI(tk.Toplevel):
 
 		self.notebook.add(self.cities_frame, text="Cities")
 
-		self.cities_frame.aux_button.configure(command=self.expand_cities_treeview, text="Expand")
+		self.cities_frame.button.configure(command=self.expand_cities_treeview, text="Expand")
 
 
 	def expand_cities_treeview(self):
 
 		self.cities_frame.tree["displaycolumns"] = "#all"
-		self.cities_frame.aux_button.configure(command=self.collapse_cities_treeview, text="Collapse")
+		self.cities_frame.button.configure(command=self.collapse_cities_treeview, text="Collapse")
 
 
 	def collapse_cities_treeview(self):
 
 		self.cities_frame.tree["displaycolumns"] = ["#7"]
-		self.cities_frame.aux_button.configure(command=self.expand_cities_treeview, text="Expand")
+		self.cities_frame.button.configure(command=self.expand_cities_treeview, text="Expand")
 
 
 	def create_files_frame(self):
@@ -6104,7 +6140,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 			self.populate_files_treeview(self.files_frame.tree, data=files)
 
-			self.files_frame.aux_button.configure(command=self.expand_files_treeview, text="Expand")
+			self.files_frame.button.configure(command=self.expand_files_treeview, text="Expand")
 
 			self.notebook.add(self.files_frame, text="Files")
 
@@ -6154,7 +6190,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 		self.files_frame.adjust_tree_column_widths()
 
-		self.files_frame.aux_button.configure(text="Collapse", command=self.collapse_files_treeview)
+		self.files_frame.button.configure(text="Collapse", command=self.collapse_files_treeview)
 
 
 	def expand_files_treeview_helper(self, tree, parent=""):
@@ -6172,7 +6208,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 		self.files_frame.tree.column("#0", width=250)
 
-		self.files_frame.aux_button.configure(text="Expand", command=self.expand_files_treeview)
+		self.files_frame.button.configure(text="Expand", command=self.expand_files_treeview)
 
 
 	def collapse_files_treeview_helper(self, tree, parent=""):
@@ -6187,7 +6223,8 @@ class ServerDetailsUI(tk.Toplevel):
 class StatisticsTreeUI(tk.Frame):
 
 
-	def __init__(self, *args, columns=[], **kwargs):
+	def __init__(self, *args, columns=[], data={}, **kwargs):
+		
 		
 		super().__init__(*args, **kwargs)
 
@@ -6195,7 +6232,7 @@ class StatisticsTreeUI(tk.Frame):
 		# Tree frame
 
 		self.tree_frame = tk.Frame(self)
-		self.tree_frame.grid(row=0, column=0, columnspan=99)
+		self.tree_frame.grid(row=0, column=0, columnspan=2)
 
 
 		# Tree canvas
@@ -6229,6 +6266,8 @@ class StatisticsTreeUI(tk.Frame):
 		self.tree.pack()
 		self.tree_canvas.create_window(0, 0, window=self.tree, anchor="nw")
 
+		self.after(100, self.filter_treeview)
+
 
 		# Scrollbar
 
@@ -6237,10 +6276,17 @@ class StatisticsTreeUI(tk.Frame):
 		self.tree.configure(yscrollcommand=self.scrollbar.set)
 
 
-		# Auxiliary button
+		# Button
 
-		self.aux_button = ttk.Button(self, text="Button")
-		self.aux_button.grid(row=1, column=0, sticky="nw", padx=(0,10), pady=(10,0))
+		self.button = ttk.Button(self, text="Button")
+		self.button.grid(row=1, column=0, sticky="nw", padx=(0,10), pady=(10,0))
+
+
+		# Entry
+
+		self.entry = ttk.Entry(self)
+		self.entry.grid(row=1, column=1, sticky="ne", padx=(10,15), pady=(12, 0))
+		self.query = ""
 
 
 	def on_click(self, event):
@@ -6368,6 +6414,74 @@ class StatisticsTreeUI(tk.Frame):
 
 		return 361
 
+
+	def filter_treeview(self):
+		query = self.entry.get().lower()
+		tree = self.tree
+
+		if query != self.query:
+			self.query = query
+
+			# Cache the tree structure if not already cached
+			if not hasattr(self, "original_tree"):
+				self.original_tree = {}
+				self.original_indices = {}
+
+				def cache_tree_structure(parent):
+					"""Recursively cache the tree structure and indices."""
+					children = tree.get_children(parent)
+					self.original_tree[parent] = children
+					self.original_indices[parent] = {child: idx for idx, child in enumerate(children)}
+					for child in children:
+						cache_tree_structure(child)
+
+				cache_tree_structure("")
+
+			def recursive_filter(parent, query):
+				"""Recursively filter the items in the tree."""
+				match_found = False  # Tracks if any child matches the query
+
+				visible_children = []
+
+				for child in self.original_tree.get(parent, []):
+					# Get the text of the current item
+					item_text = tree.item(child, "text").lower()
+					child_match = query in item_text if query else True  # Match all if query is empty
+
+					# Recursively filter the children of this child
+					child_visible = recursive_filter(child, query)
+
+					# Show this item if it or any of its descendants match
+					if child_match or child_visible:
+						visible_children.append(child)
+						match_found = True
+					else:
+						if child in tree.get_children(parent):
+							tree.detach(child)  # Detach the item
+
+				# Reattach children in original order
+				for child in visible_children:
+					tree.reattach(child, parent, "end")
+
+				return match_found
+
+			if not query:
+				# Reset the tree to its original structure
+				def reset_tree(parent):
+					children = self.original_tree.get(parent, [])
+					for child in children:
+						if child not in tree.get_children(parent):
+							tree.reattach(child, parent, "end")
+						reset_tree(child)
+
+				reset_tree("")
+			else:
+				# Start recursive filtering from the root
+				recursive_filter("", query)
+
+		# Continue filtering periodically
+		self.after(100, self.filter_treeview)
+		
 
 class GameMonitorUI(tk.Toplevel):
 	
