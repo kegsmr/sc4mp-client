@@ -5949,7 +5949,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 	def collapse_mayors_treeview(self):
 
-		self.mayors_frame.tree["displaycolumns"] = ["#7"]
+		self.mayors_frame.tree["displaycolumns"] = ["#7", "#8"]
 		self.mayors_frame.button.configure(command=self.expand_mayors_treeview, text="Expand")
 
 		#self.after(200, lambda: center_window(self))
@@ -5957,62 +5957,6 @@ class ServerDetailsUI(tk.Toplevel):
 
 	def create_cities_frame(self):
 	
-		self.cities_frame = StatisticsTreeUI(self.notebook, columns=[
-			(
-				"#0",
-				"Name",
-				250,
-				"w"
-    		),
-			(
-				"#1",
-				"Size",
-				100,
-				"center"
-    		),
-		    (
-				"#2",
-				"Rating",
-				100,
-				"center"
-    		),
-			(
-				"#3",
-				"Funds",
-				100,
-				"center"
-    		),
-			(
-				"#4",
-				"Residential",
-				100,
-				"center"
-    		),
-			(
-				"#5",
-				"Commercial",
-				100,
-				"center"
-    		),
-			(
-				"#6",
-				"Industrial",
-				100,
-				"center"
-    		),
-			(
-				"#7",
-				"Modified",
-				100,
-				"center"
-    		),
-			(
-				"#8",
-				"⠀",
-				1000,
-				"center"
-			)
-		])
 
 		regions_directory: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server.server_id / "Regions"
 		
@@ -6021,17 +5965,17 @@ class ServerDetailsUI(tk.Toplevel):
 
 			region_database: dict = load_json(regions_directory / region / "_Database" / "region.json")
 
-			for entry in region_database.values():
+			for coords, entry in region_database.items():
 
 				if entry is not None:
+
+					city_id = f"{region.replace(' ', '_')}_{coords}"
 
 					city_name = entry.get("city_name", "New City")
 					mayor_name = entry.get("mayor_name", "Defacto")
 
 					if len(mayor_name) < 1:
 						continue
-
-					name = f"{city_name}"#  -  {mayor_name}"
 
 					s = entry.get("size")
 					if s == 1:
@@ -6049,7 +5993,9 @@ class ServerDetailsUI(tk.Toplevel):
 					else:
 						modified = datetime.now() - timedelta(days=400000)
 
-					cities[name] = [
+					cities[city_id] = [
+						city_name,
+						mayor_name,
 						size,
 						entry.get('mayor_rating', 0),
 						entry.get('funds', 0),
@@ -6059,22 +6005,99 @@ class ServerDetailsUI(tk.Toplevel):
 						modified,
 					]
 
-		for name, values in sorted(cities.items(), key=lambda item: item[1][-1], reverse=True):
-			self.cities_frame.tree.insert("", "end", text=name, values=[
-				values[0],
-				f"{values[1]}",
-				f"§{values[2]:,}",
-				f"{values[3]:,}",
-				f"{values[4]:,}",
-				f"{values[5]:,}",
-				format_time_ago(values[6]),
-			])
+		columns = [
+			(
+				"#0",
+				"Name",
+				250,
+				"w"
+    		),
+			(
+				"#1",
+				"Mayor",
+				150,
+				"center"
+    		),
+			(
+				"#2",
+				"Size",
+				100,
+				"center"
+    		),
+		    (
+				"#3",
+				"Rating",
+				100,
+				"center"
+    		),
+			(
+				"#4",
+				"Funds",
+				100,
+				"center"
+    		),
+			(
+				"#5",
+				"Residential",
+				100,
+				"center"
+    		),
+			(
+				"#6",
+				"Commercial",
+				100,
+				"center"
+    		),
+			(
+				"#7",
+				"Industrial",
+				100,
+				"center"
+    		),
+			(
+				"#8",
+				"Modified",
+				100,
+				"center"
+    		),
+			(
+				"#9",
+				"⠀",
+				1000,
+				"center"
+			)
+		]
 
-		self.cities_frame.tree["displaycolumns"] = ["#7"]
+		formats = [
+			lambda data: data,
+			lambda data: data,
+			lambda data: data,
+			lambda data: f"{data}",
+			lambda data: f"§{data:,}",
+			lambda data: f"{data:,}",
+			lambda data: f"{data:,}",
+			lambda data: f"{data:,}",
+			format_time_ago,
+		]
 
-		self.notebook.add(self.cities_frame, text="Cities")
+		self.cities_frame = StatisticsTreeUI(self.notebook, columns=columns, formats=formats, data=cities)
+
+		#for name, values in sorted(cities.items(), key=lambda item: item[1][-1], reverse=True):
+		#	self.cities_frame.tree.insert("", "end", text=name, values=[
+		#		values[0],
+		#		f"{values[1]}",
+		#		f"§{values[2]:,}",
+		#		f"{values[3]:,}",
+		#		f"{values[4]:,}",
+		#		f"{values[5]:,}",
+		#		format_time_ago(values[6]),
+		#	])
+
+		self.cities_frame.tree["displaycolumns"] = ["#8", "#9"]
 
 		self.cities_frame.button.configure(command=self.expand_cities_treeview, text="Expand")
+
+		self.notebook.add(self.cities_frame, text="Cities")
 
 
 	def expand_cities_treeview(self):
@@ -6085,7 +6108,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 	def collapse_cities_treeview(self):
 
-		self.cities_frame.tree["displaycolumns"] = ["#7"]
+		self.cities_frame.tree["displaycolumns"] = ["#8", "#9"]
 		self.cities_frame.button.configure(command=self.expand_cities_treeview, text="Expand")
 
 
@@ -6337,6 +6360,12 @@ class StatisticsTreeUI(tk.Frame):
 		# Loop through each item, format it, and add it to the tree
 		for item, entry in self.data.items():
 
+			# Generate search field for query
+			field = ""
+			for value in entry:
+				if type(value) is str:
+					field += value
+
 			# Format the data
 			entry = entry.copy()
 			for i in range(len(entry)):
@@ -6350,7 +6379,7 @@ class StatisticsTreeUI(tk.Frame):
 			values = entry[1:]
 
 			# If item satisfies the query
-			if len(self.query) < 1 or self.query.lower() in text.lower():
+			if len(self.query) < 1 or self.query.lower() in field.lower():
 
 				# If item in tree
 				if item not in children:
@@ -6467,7 +6496,7 @@ class StatisticsTreeUI(tk.Frame):
 		if index == self.sort:
 			self.reverse = not self.reverse
 		else:
-			if self.columns[index][1] == "Name":
+			if self.columns[index][1] in ["Name", "Mayor"]:
 				self.reverse = False
 			else:
 				self.reverse = True
