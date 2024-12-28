@@ -5794,6 +5794,9 @@ class ServerDetailsUI(tk.Toplevel):
 
 		regions_directory: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server.server_id / "Regions"
 		
+		if not regions_directory.exists():
+			return
+
 		mayors = {}
 		for region in os.listdir(regions_directory):
 			region_database: dict = self.load_json(regions_directory / region / "_Database" / "region.json")
@@ -5834,7 +5837,7 @@ class ServerDetailsUI(tk.Toplevel):
 						mayors[user_id]["area_claimed"] += entry["size"] ** 2
 
 						mayors[user_id].setdefault("funds", 0)
-						mayors[user_id]["funds"] += entry.get("funds", 0)
+						mayors[user_id]["funds"] += entry.get("total_funds", 0)
 
 		for entry in mayors.values():
 			if entry["residential_population"] > 0:
@@ -5920,7 +5923,7 @@ class ServerDetailsUI(tk.Toplevel):
 			lambda data: data,
 			lambda data: f"{data}km²",
 			lambda data: data, 
-			lambda data: f"§{data}",
+			lambda data: f"§{data:,}",
 			lambda data: f"{data:,}", 
 			lambda data: f"{data:,}",
 			lambda data: f"{data:,}",
@@ -5969,6 +5972,9 @@ class ServerDetailsUI(tk.Toplevel):
 
 		regions_directory: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server.server_id / "Regions"
 		
+		if not regions_directory.exists():
+			return
+
 		cities = {}
 		for region in os.listdir(regions_directory):
 
@@ -6007,7 +6013,7 @@ class ServerDetailsUI(tk.Toplevel):
 						mayor_name,
 						size,
 						entry.get('mayor_rating', 0),
-						entry.get('funds', 0),
+						entry.get('total_funds', 0),
 						entry.get('residential_population', 0),
 						entry.get('commercial_population', 0),
 						entry.get('industrial_population', 0),
@@ -6160,7 +6166,7 @@ class ServerDetailsUI(tk.Toplevel):
 				if not self.server.private:
 					s.send(request.lower().encode())
 				else:
-					s.send(f"{request.lower()} {SC4MP_VERSION} {self.user_id} {self.password}".encode())
+					s.send(f"{request.lower()} {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
 
 				file_table = recv_json(s)
 
