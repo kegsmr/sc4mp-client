@@ -5548,7 +5548,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 		# Geometry
 
-		self.geometry('370x361')
+		self.geometry('390x441')
 		self.grid()
 		center_window(self)
 		
@@ -5736,7 +5736,7 @@ class ServerDetailsUI(tk.Toplevel):
 			self.minsize(new_window_width, new_window_height)
 			self.geometry(f"{new_window_width}x{new_window_height}+{new_window_x}+{new_window_y}")
 
-			#print(f"Resized to {width}x{height}.")
+			#print(f"Resized to {new_window_width}x{new_window_height}.")
 
 			self.after(10, self.update_window_size)
 
@@ -6016,7 +6016,6 @@ class ServerDetailsUI(tk.Toplevel):
 
 		regions_directory: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server.server_id / "Regions"
 		
-
 		cities = {}
 		for region in os.listdir(regions_directory):
 
@@ -6257,6 +6256,7 @@ class StatisticsTreeUI(tk.Frame):
 		self.data = data
 		self.sort = sort
 		self.reverse = reverse
+		self.query = ""
 
 
 		# Tree frame
@@ -6292,7 +6292,8 @@ class StatisticsTreeUI(tk.Frame):
 			self.tree.column(column_id, width=column_width, anchor=column_anchor, stretch=False)
 			self.tree.heading(column_id, text=column_name, command=lambda index=columns.index(column): self.on_header_click(index))
 
-		self.populate_treeview(sort=sort, reverse=reverse)
+		self.sort_data()
+		self.populate_treeview()
 
 		#self.master.configure(width=sum([column[2] for column in columns]))
 		self.tree.pack()
@@ -6318,26 +6319,132 @@ class StatisticsTreeUI(tk.Frame):
 
 		self.entry = ttk.Entry(self)
 		self.entry.grid(row=1, column=1, sticky="ne", padx=(10,15), pady=(12, 0))
-		self.query = ""
 
 
-	def populate_treeview(self, sort=-1, reverse=True):
+	def sort_data(self):
 
-		for key, entry in sorted(self.data.items(), key=lambda item: item[1][sort], reverse=reverse):
+		self.data = {key:entry for key, entry in sorted(self.data.items(), key=lambda item: item[1][self.sort], reverse=self.reverse)}
 
+
+	def populate_treeview(self, parent=""):
+
+		# Get all child items of the parent item
+		children: list[str] = list(self.tree.get_children(parent))
+
+		# Set index for insertion
+		index = 0
+
+		# Loop through each item, format it, and add it to the tree
+		for item, entry in self.data.items():
+
+			# Format the data
 			entry = entry.copy()
-			for index in range(len(entry)):
+			for i in range(len(entry)):
 				try:
-					entry[index] = self.formats[index](entry[index])
+					entry[i] = self.formats[i](entry[i])
 				except Exception as e:
-					entry[index] = str(e)
+					entry[i] = f"ERROR: {e}"
 
-			text = entry[0]
-
+			# Divide the entry into text (column #0) and values (columns #1)
+			text: str = entry[0]
 			values = entry[1:]
-			
-			self.tree.insert("", "end", id=key, text=text, values=values)
 
+			# If item satisfies the query
+			if len(self.query) < 1 or self.query.lower() in text.lower():
+
+				# If item in tree
+				if item not in children:
+
+					# Insert the item into the tree
+					self.tree.insert("", index, id=item, text=text, values=values)
+					children.insert(index, item)
+
+				# Increment the index for insertion
+				index += 1
+
+			# If item does not satisfy query
+			else:
+
+				# If item in tree
+				if item in children:
+
+					# Remove the item
+					self.tree.delete(item)
+					children.remove(item)
+
+
+	def filter_treeview(self):
+
+		query = self.entry.get()
+
+		if query != self.query:
+			
+			self.query = query
+
+			self.populate_treeview()
+
+			#self.query = query
+
+			# Cache the tree structure if not already cached
+			#if not hasattr(self, "original_tree"):
+			#	self.original_tree = {}
+			#	self.original_indices = {}
+
+			#	def cache_tree_structure(parent):
+			#		"""Recursively cache the tree structure and indices."""
+			#		children = tree.get_children(parent)
+			#		self.original_tree[parent] = children
+			#		self.original_indices[parent] = {child: idx for idx, child in enumerate(children)}
+			#		for child in children:
+			#			cache_tree_structure(child)
+			#
+			#	cache_tree_structure("")
+
+			#def recursive_filter(parent, query):
+			#	"""Recursively filter the items in the tree."""
+			#	match_found = False  # Tracks if any child matches the query
+
+			#	visible_children = []
+
+			#	for child in self.original_tree.get(parent, []):
+			#		# Get the text of the current item
+			#		item_text = tree.item(child, "text").lower()
+			#		child_match = query in item_text if query else True  # Match all if query is empty
+
+			#		# Recursively filter the children of this child
+			#		child_visible = recursive_filter(child, query)
+
+			#		# Show this item if it or any of its descendants match
+			#		if child_match or child_visible:
+			#			visible_children.append(child)
+			#			match_found = True
+			#		else:
+			#			if child in tree.get_children(parent):
+			#				tree.detach(child)  # Detach the item
+
+				# Reattach children in original order
+			#	for child in visible_children:
+			#		tree.reattach(child, parent, "end")
+
+			#	return match_found
+
+			#if not query:
+				# Reset the tree to its original structure
+			#	def reset_tree(parent):
+			#		children = self.original_tree.get(parent, [])
+			#		for child in children:
+			#			if child not in tree.get_children(parent):
+			#				tree.reattach(child, parent, "end")
+			#			reset_tree(child)
+
+			#	reset_tree("")
+			#else:
+			#	# Start recursive filtering from the root
+			#	recursive_filter("", query)
+
+		# Continue filtering periodically
+		self.after(100, self.filter_treeview)
+		
 
 	def on_click(self, event):
 		
@@ -6353,8 +6460,10 @@ class StatisticsTreeUI(tk.Frame):
 
 	def on_header_click(self, index):
 
+		# Get current selection (to be reselected after sorting)
 		selection = self.tree.selection()
 
+		# Set sort mode
 		if index == self.sort:
 			self.reverse = not self.reverse
 		else:
@@ -6364,11 +6473,17 @@ class StatisticsTreeUI(tk.Frame):
 				self.reverse = True
 		self.sort = index
 
+		# Clear the tree
 		for item in self.tree.get_children(""):
 			self.tree.delete(item)
 
-		self.populate_treeview(sort=self.sort, reverse=self.reverse)
+		# Sort the data
+		self.sort_data()
 
+		# Populate the tree
+		self.populate_treeview()
+
+		# Re-add the selection (if any)
 		if len(selection) > 0:
 			self.tree.selection_add(selection)
 			self.tree.focus(selection[0])	
@@ -6480,74 +6595,6 @@ class StatisticsTreeUI(tk.Frame):
 
 		return 361
 
-
-	def filter_treeview(self):
-		query = self.entry.get().lower()
-		tree = self.tree
-
-		if query != self.query:
-			self.query = query
-
-			# Cache the tree structure if not already cached
-			if not hasattr(self, "original_tree"):
-				self.original_tree = {}
-				self.original_indices = {}
-
-				def cache_tree_structure(parent):
-					"""Recursively cache the tree structure and indices."""
-					children = tree.get_children(parent)
-					self.original_tree[parent] = children
-					self.original_indices[parent] = {child: idx for idx, child in enumerate(children)}
-					for child in children:
-						cache_tree_structure(child)
-
-				cache_tree_structure("")
-
-			def recursive_filter(parent, query):
-				"""Recursively filter the items in the tree."""
-				match_found = False  # Tracks if any child matches the query
-
-				visible_children = []
-
-				for child in self.original_tree.get(parent, []):
-					# Get the text of the current item
-					item_text = tree.item(child, "text").lower()
-					child_match = query in item_text if query else True  # Match all if query is empty
-
-					# Recursively filter the children of this child
-					child_visible = recursive_filter(child, query)
-
-					# Show this item if it or any of its descendants match
-					if child_match or child_visible:
-						visible_children.append(child)
-						match_found = True
-					else:
-						if child in tree.get_children(parent):
-							tree.detach(child)  # Detach the item
-
-				# Reattach children in original order
-				for child in visible_children:
-					tree.reattach(child, parent, "end")
-
-				return match_found
-
-			if not query:
-				# Reset the tree to its original structure
-				def reset_tree(parent):
-					children = self.original_tree.get(parent, [])
-					for child in children:
-						if child not in tree.get_children(parent):
-							tree.reattach(child, parent, "end")
-						reset_tree(child)
-
-				reset_tree("")
-			else:
-				# Start recursive filtering from the root
-				recursive_filter("", query)
-
-		# Continue filtering periodically
-		self.after(100, self.filter_treeview)
-		
 
 class GameMonitorUI(tk.Toplevel):
 	
