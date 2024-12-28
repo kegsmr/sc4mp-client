@@ -5767,6 +5767,15 @@ class ServerDetailsUI(tk.Toplevel):
 					self.after(delay, lambda: self.chain_functions(functions, delay=delay))
 
 
+	def load_json(self, *args, **kwargs):
+
+		while not self.destroyed:
+			try:
+				return load_json(*args, *kwargs)
+			except json.decoder.JSONDecodeError:
+				time.sleep(1)
+
+
 	def create_notebook_frames(self):
 
 		try:
@@ -5787,7 +5796,7 @@ class ServerDetailsUI(tk.Toplevel):
 		
 		mayors = {}
 		for region in os.listdir(regions_directory):
-			region_database: dict = load_json(regions_directory / region / "_Database" / "region.json")
+			region_database: dict = self.load_json(regions_directory / region / "_Database" / "region.json")
 			for entry in region_database.values():
 				if entry is not None:
 					user_id = entry.get("owner", None)
@@ -5963,7 +5972,7 @@ class ServerDetailsUI(tk.Toplevel):
 		cities = {}
 		for region in os.listdir(regions_directory):
 
-			region_database: dict = load_json(regions_directory / region / "_Database" / "region.json")
+			region_database: dict = self.load_json(regions_directory / region / "_Database" / "region.json")
 
 			for coords, entry in region_database.items():
 
@@ -6404,13 +6413,19 @@ class StatisticsTreeUI(tk.Frame):
 
 	def filter_treeview(self):
 
-		query = self.entry.get()
+		try:
 
-		if query != self.query:
-			
-			self.query = query
+			query = self.entry.get()
 
-			self.populate_treeview()
+			if query != self.query:
+				
+				self.query = query
+
+				self.populate_treeview()
+
+		except Exception as e:
+
+			show_error(f"An error occurred while filtering.\n\n{e}", no_ui=True)
 
 			#self.query = query
 
