@@ -1153,6 +1153,12 @@ def sanitize_relpath(basepath: Path, relpath: str) -> Path:
 		raise ValueError(f"Invalid relative path: \"{relpath}\".")
 
 
+def copy_to_clipboard(text: str):
+
+	sc4mp_ui.clipboard_clear()
+	sc4mp_ui.clipboard_append(text)
+
+
 # Objects
 
 class Server:
@@ -5428,12 +5434,12 @@ class ServerLoaderUI(tk.Toplevel):
 		self.progress_bar.start(2)
 
 		# Progress label
-		self.progress_label = tk.Label(self, fg="gray", font=("Arial", 8))
+		self.progress_label = tk.Label(self, fg="gray", font=("Segoe UI", 8))
 		self.progress_label['text'] = ""
 		self.progress_label.grid(column=0, row=2, columnspan=1, padx=10, pady=0, sticky="w")
 
 		# Duration label
-		self.duration_label = tk.Label(self, fg="gray", font=("Arial", 8))
+		self.duration_label = tk.Label(self, fg="gray", font=("Segoe UI", 8))
 		self.duration_label['text'] = ""
 		self.duration_label.grid(column=1, row=2, columnspan=1, padx=10, pady=0, sticky="e")
 
@@ -5577,6 +5583,85 @@ class ServerDetailsUI(tk.Toplevel):
 		# Info frame
 
 		self.info_frame = tk.Frame(self.notebook)
+		
+		canvas = tk.Canvas(self.info_frame, width=350, height=303)
+		canvas.grid(row=0, column=0, padx=10, pady=10, sticky="n")
+		inner_frame = tk.Frame(canvas)
+		canvas.create_window(0, 0, window=inner_frame, anchor="nw")
+
+		server_id_label_left = ttk.Label(inner_frame, text="ID:", font=("Segoe UI", 9, "bold"))
+		server_id_label_left.grid(row=0, column=0, sticky="e", padx=10, pady=10)
+
+		server_id = self.server.server_id
+		if len(server_id) > 25:
+			server_id = server_id[:23] + "..."
+
+		server_id_label_right = ttk.Label(inner_frame, text=server_id)
+		server_id_label_right.grid(row=0, column=1, sticky="w", padx=10, pady=10)
+
+		version_label_left = ttk.Label(inner_frame, text="Version:", font=("Segoe UI", 9, "bold"))
+		version_label_left.grid(row=2, column=0, sticky="e", padx=10, pady=(0,10))
+
+		version_label_right = ttk.Label(inner_frame, text=self.server.server_version, foreground=("red" if unformat_version(self.server.server_version)[:2] != unformat_version(SC4MP_VERSION)[:2] else "black"))
+		version_label_right.grid(row=2, column=1, sticky="w", padx=10, pady=(0,10))
+
+		password_enabled_label_left = ttk.Label(inner_frame, text="Public:", font=("Segoe UI", 9, "bold"))
+		password_enabled_label_left.grid(row=3, column=0, sticky="e", padx=10, pady=(0,10))
+
+		password_enabled_label_right = ttk.Label(inner_frame, text=("No" if self.server.password_enabled else "Yes"), foreground=("red" if self.server.password_enabled else "green"))
+		password_enabled_label_right.grid(row=3, column=1, sticky="w", padx=10, pady=(0,10))
+
+		if self.server.password_enabled:
+
+			private_label_left = ttk.Label(inner_frame, text="Guests:", font=("Segoe UI", 9, "bold"))
+			private_label_left.grid(row=4, column=0, sticky="e", padx=10, pady=(0,10))
+
+			private_label_right = ttk.Label(inner_frame, text=("No" if self.server.private else "Yes"), foreground=("red" if self.server.private else "green"))
+			private_label_right.grid(row=4, column=1, sticky="w", padx=10, pady=(0,10))
+
+		custom_plugins_label_left = ttk.Label(inner_frame, text="Custom plugins:", font=("Segoe UI", 9, "bold"))
+		custom_plugins_label_left.grid(row=5, column=0, sticky="e", padx=10, pady=(0,10))
+
+		custom_plugins_label_right = ttk.Label(inner_frame, text=("Yes" if self.server.user_plugins_enabled else "No"), foreground=("green" if self.server.user_plugins_enabled else "red"))
+		custom_plugins_label_right.grid(row=5, column=1, sticky="w", padx=10, pady=(0,10))
+
+		claim_limit_label_left = ttk.Label(inner_frame, text="Claim limit:", font=("Segoe UI", 9, "bold"))
+		claim_limit_label_left.grid(row=6, column=0, sticky="e", padx=10, pady=(0,10))
+
+		claim_limit_label_right = ttk.Label(inner_frame, text=f"TODO per region")
+		claim_limit_label_right.grid(row=6, column=1, sticky="w", padx=10, pady=(0,10))
+
+		claim_duration_label_left = ttk.Label(inner_frame, text="Claim duration:", font=("Segoe UI", 9, "bold"))
+		claim_duration_label_left.grid(row=7, column=0, sticky="e", padx=10, pady=(0,10))
+
+		claim_duration_label_right = ttk.Label(inner_frame, text=f"TODO days")
+		claim_duration_label_right.grid(row=7, column=1, sticky="w", padx=10, pady=(0,10))
+
+		godmode_claims_label_left = ttk.Label(inner_frame, text="Godmode claims:", font=("Segoe UI", 9, "bold"))
+		godmode_claims_label_left.grid(row=8, column=0, sticky="e", padx=10, pady=(0,10))
+
+		godmode_claims_label_right = ttk.Label(inner_frame, text=f"TODO")
+		godmode_claims_label_right.grid(row=8, column=1, sticky="w", padx=10, pady=(0,10))
+
+		options_frame = tk.Frame(self.info_frame)
+		options_frame.grid(row=1, column=0, sticky="sw")
+
+		copy_link_button = ttk.Button(options_frame, text="Copy link", command=lambda: copy_to_clipboard(f"sc4mp://{self.server.host}:{self.server.port}"))
+		copy_link_button.grid(row=0, column=0, padx=(0,10), pady=(10,0))
+
+		#invite_link_label = ttk.Label(self.info_frame, text="Link: ")
+		#invite_link_label.grid(row=1, column=0)
+
+		#invite_link_entry = ttk.Entry(self.info_frame)
+		#invite_link_entry.insert(0, f"sc4mp://{self.server.host}:{self.server.port}")
+		#invite_link_entry.grid(row=1, column=1)
+
+		#self.info_frame.rules_frame: ttk.LabelFrame = ttk.Labelframe(self.info_frame, text="Rules")
+		#self.info_frame.rules_frame.grid(row=0, column=0)
+
+		#self.info_frame.rules_frame.label = ttk.Label(self.info_frame.rules_frame, text="TEST")
+		#self.info_frame.rules_frame.label.grid(row=0, column=0)
+
 		self.notebook.add(self.info_frame, text="Info")
 
 
@@ -5715,8 +5800,12 @@ class ServerDetailsUI(tk.Toplevel):
 
 			# Resize notebook
 			inner_frame = self.notebook.nametowidget(self.notebook.select())
-			notebook_width = inner_frame.winfo_width()
-			notebook_height = inner_frame.winfo_height()
+			if type(inner_frame) is tk.Frame:
+				notebook_width = 370
+				notebook_height = 361
+			else:
+				notebook_width = inner_frame.winfo_width()
+				notebook_height = inner_frame.winfo_height()
 			self.notebook.configure(width=notebook_width, height=notebook_height)
 
 			# Get old window width, height, x, y
@@ -7039,7 +7128,7 @@ class UpdaterUI(tk.Toplevel):
 		self.progress_bar.start(2)
 
 		# Small label
-		self.label_small = tk.Label(self, fg="gray", font=("Arial", 8), text="Press <ESC> to cancel")
+		self.label_small = tk.Label(self, fg="gray", font=("Segoe UI", 8), text="Press <ESC> to cancel")
 		self.label_small.grid(column=0, row=2, columnspan=2, padx=10, pady=(0,5))
 
 		# Pause underlying thread
@@ -7118,7 +7207,7 @@ class ReleaseNotesUI(tk.Toplevel):
 			self.body.grid_propagate(0)
 
 			# Body title
-			self.body.title = ttk.Label(self.body, text=title, wraplength=(int(self.body["width"]) - 20), background="white", font=("Arial", 8, "bold"))
+			self.body.title = ttk.Label(self.body, text=title, wraplength=(int(self.body["width"]) - 20), background="white", font=("Segoe UI", 8, "bold"))
 			self.body.title.grid(row=0, column=0, columnspan=99, padx=10, pady=10, sticky="nw")
 
 			# Body text
@@ -7128,7 +7217,7 @@ class ReleaseNotesUI(tk.Toplevel):
 				if len(lines) > 0 and len(lines[-1]) == 0:
 					lines.pop(-1)
 			if len(lines) < 1:
-				ttk.Label(self.body, text="No description provided.", background="white", font=("Arial", 8, "italic")).grid(row=1, column=0, columnspan=99, padx=10, pady=2, sticky="nw")
+				ttk.Label(self.body, text="No description provided.", background="white", font=("Segoe UI", 8, "italic")).grid(row=1, column=0, columnspan=99, padx=10, pady=2, sticky="nw")
 			else:
 				for line_number in range(len(lines)):
 					line = lines[line_number]
