@@ -5777,7 +5777,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 		except Exception as e:
 
-			show_error(f"An error occurred while creating notebook frames.\n\n{e}", no_ui=True)
+			show_error(f"An error occurred while creating notebook frames.\n\n{e}") #, no_ui=True)
 
 
 	def create_mayors_frame(self):
@@ -5834,7 +5834,7 @@ class ServerDetailsUI(tk.Toplevel):
 				entry["mayor_rating"] = 0
 
 		m = {}
-		for user_id, entry in sorted(mayors.items(), key=lambda item: item[1]["last_online"], reverse=True):
+		for user_id, entry in mayors.items():
 			m[user_id] = [
 				entry["name"],
 				entry["area_claimed"],
@@ -6247,7 +6247,7 @@ class ServerDetailsUI(tk.Toplevel):
 class StatisticsTreeUI(tk.Frame):
 
 
-	def __init__(self, *args, columns=[], formats=[], data={}, **kwargs):
+	def __init__(self, *args, columns=[], formats=[], data={}, sort=-1, reverse=True, **kwargs):
 		
 		
 		super().__init__(*args, **kwargs)
@@ -6255,6 +6255,8 @@ class StatisticsTreeUI(tk.Frame):
 		self.columns = columns
 		self.formats = formats
 		self.data = data
+		self.sort = sort
+		self.reverse = reverse
 
 
 		# Tree frame
@@ -6288,18 +6290,9 @@ class StatisticsTreeUI(tk.Frame):
 			column_width = column[2]
 			column_anchor = column[3]
 			self.tree.column(column_id, width=column_width, anchor=column_anchor, stretch=False)
-			self.tree.heading(column_id, text=column_name, command=lambda column_name=column_name: self.on_header_click(column_name))
+			self.tree.heading(column_id, text=column_name, command=lambda index=columns.index(column): self.on_header_click(index))
 
-		for key, entry in data.items():
-
-			for index in range(len(entry)):
-				entry[index] = formats[index](entry[index])
-			
-			text = entry[0]
-
-			values = entry[1:]
-			
-			self.tree.insert("", "end", id=key, text=text, values=values)
+		self.populate_treeview(sort=sort, reverse=reverse)
 
 		#self.master.configure(width=sum([column[2] for column in columns]))
 		self.tree.pack()
@@ -6328,6 +6321,24 @@ class StatisticsTreeUI(tk.Frame):
 		self.query = ""
 
 
+	def populate_treeview(self, sort=-1, reverse=True):
+
+		for key, entry in sorted(self.data.items(), key=lambda item: item[1][sort], reverse=reverse):
+
+			entry = entry.copy()
+			for index in range(len(entry)):
+				try:
+					entry[index] = self.formats[index](entry[index])
+				except Exception as e:
+					entry[index] = str(e)
+
+			text = entry[0]
+
+			values = entry[1:]
+			
+			self.tree.insert("", "end", id=key, text=text, values=values)
+
+
 	def on_click(self, event):
 		
 		region = self.tree.identify_region(event.x, event.y)
@@ -6340,11 +6351,27 @@ class StatisticsTreeUI(tk.Frame):
 		th.Thread(target=self.adjust_tree_column_widths).start()
 
 
-	def on_header_click(self, column_name):
+	def on_header_click(self, index):
 
-		#TODO sort
+		selection = self.tree.selection()
 
-		return
+		if index == self.sort:
+			self.reverse = not self.reverse
+		else:
+			if self.columns[index][1] == "Name":
+				self.reverse = False
+			else:
+				self.reverse = True
+		self.sort = index
+
+		for item in self.tree.get_children(""):
+			self.tree.delete(item)
+
+		self.populate_treeview(sort=self.sort, reverse=self.reverse)
+
+		if len(selection) > 0:
+			self.tree.selection_add(selection)
+			self.tree.focus(selection[0])	
 
 
 	def adjust_tree_column_widths(self):
