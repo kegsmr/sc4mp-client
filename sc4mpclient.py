@@ -5602,7 +5602,8 @@ class ServerDetailsUI(tk.Toplevel):
 
 		invite_link_entry = ttk.Entry(inner_frame, width=40)
 		invite_link_entry.insert(0, invite_link)
-		invite_link_entry.configure(state="disabled")
+		invite_link_entry.after(100, lambda: self.reset_entrybox(invite_link_entry, invite_link))
+		#invite_link_entry.configure(state="disabled")
 		invite_link_entry.grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=0)
 
 		invite_link_copy_button = ttk.Button(inner_frame, text="Copy", command=lambda: copy_to_clipboard(invite_link))
@@ -5613,7 +5614,8 @@ class ServerDetailsUI(tk.Toplevel):
 
 		server_id_entry = ttk.Entry(inner_frame, width=40)
 		server_id_entry.insert(0, self.server.server_id)
-		server_id_entry.configure(state="disabled")
+		server_id_entry.after(100, lambda: self.reset_entrybox(server_id_entry, self.server.server_id))
+		#server_id_entry.configure(state="disabled")
 		server_id_entry.grid(row=3, column=0, columnspan=2, sticky="w", padx=10, pady=0)
 
 		server_id_copy_button = ttk.Button(inner_frame, text="Copy", command=lambda: copy_to_clipboard(self.server.server_id))
@@ -5812,6 +5814,8 @@ class ServerDetailsUI(tk.Toplevel):
 						return
 					elif right and len(tree.get_children(selection)) > 0:
 						return
+			elif type(current_focus) is ttk.Entry:
+				return
 				#current_selection = current_focus.selection()
 				#if len(current_selection) > 0:
 				#	current_selection = current_selection[0]
@@ -5876,6 +5880,21 @@ class ServerDetailsUI(tk.Toplevel):
 			#print(f"Resized to {new_window_width}x{new_window_height}.")
 
 			self.after(10, self.update_window_size)
+
+		except Exception as e:
+
+			show_error(e, no_ui=True)
+
+
+	def reset_entrybox(self, entrybox: ttk.Entry, text: str):
+
+		try:
+
+			if entrybox.get() != text:
+				entrybox.delete(0, "end")
+				entrybox.insert(0, text)
+
+			self.after(1, lambda: self.reset_entrybox(entrybox, text))
 
 		except Exception as e:
 
