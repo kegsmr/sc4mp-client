@@ -1212,8 +1212,14 @@ class Server:
 		self.server_url = server_info["server_url"] #self.request("server_url")
 		self.server_version = server_info["server_version"] #self.request("server_version")
 		self.password_enabled = server_info["password_enabled"] #self.request("password_enabled") == "y"
-		self.user_plugins_enabled = server_info["user_plugins_enabled"] #self.request("user_plugins_enabled") == "y"
 		self.private = server_info["private"] #self.request("private") == "y"
+		self.user_plugins_enabled = server_info["user_plugins_enabled"] #self.request("user_plugins_enabled") == "y"
+		try:
+			self.claim_duration = server_info["claim_duration"]
+			self.max_region_claims = server_info["max_region_claims"]
+			self.godmode_filter = server_info["godmode_filter"]
+		except KeyError:
+			pass
 
 		if self.server_id in sc4mp_servers_database.keys():
 			self.password = sc4mp_servers_database[self.server_id].get("password", None) # Needed for stat fetching private servers
@@ -5045,7 +5051,7 @@ class AboutUI(tk.Toplevel):
 		self.canvas = tk.Canvas(self, width=256, height=256)
 		self.canvas.image = tk.PhotoImage(file=get_sc4mp_path("icon.png"))
 		self.canvas.create_image(128, 128, anchor="center", image=self.canvas.image)    
-		self.canvas.grid(row=0, column=0, rowspan=5, columnspan=1, padx=10, pady=(10,0), sticky="n")
+		self.canvas.grid(row=0, column=0, rowspan=5, columnspan=1, padx=10, pady=(20,0), sticky="n")
 
 		# Title label 1
 		self.title_label_1 = ttk.Label(self, text="Title:")
@@ -5589,59 +5595,83 @@ class ServerDetailsUI(tk.Toplevel):
 		inner_frame = tk.Frame(canvas)
 		canvas.create_window(0, 0, window=inner_frame, anchor="nw")
 
-		server_id_label_left = ttk.Label(inner_frame, text="ID:", font=("Segoe UI", 9, "bold"))
-		server_id_label_left.grid(row=0, column=0, sticky="e", padx=10, pady=10)
+		server_id_label_1 = ttk.Label(inner_frame, text="Server ID", font=("Segoe UI", 9, "bold"))
+		server_id_label_1.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(10,0))
 
-		server_id = self.server.server_id
-		if len(server_id) > 25:
-			server_id = server_id[:23] + "..."
+		server_id_label_2 = ttk.Label(inner_frame, text=self.server.server_id)
+		server_id_label_2.grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=0)
 
-		server_id_label_right = ttk.Label(inner_frame, text=server_id)
-		server_id_label_right.grid(row=0, column=1, sticky="w", padx=10, pady=10)
+		left_frame = ttk.Frame(inner_frame)
+		left_frame.grid(row=2, column=0, sticky="n")
 
-		version_label_left = ttk.Label(inner_frame, text="Version:", font=("Segoe UI", 9, "bold"))
-		version_label_left.grid(row=2, column=0, sticky="e", padx=10, pady=(0,10))
+		version_label_1 = ttk.Label(left_frame, text="Version", font=("Segoe UI", 9, "bold"))
+		version_label_1.grid(row=1, column=0, sticky="w", padx=(10,100), pady=(10,0))
 
-		version_label_right = ttk.Label(inner_frame, text=self.server.server_version, foreground=("red" if unformat_version(self.server.server_version)[:2] != unformat_version(SC4MP_VERSION)[:2] else "black"))
-		version_label_right.grid(row=2, column=1, sticky="w", padx=10, pady=(0,10))
+		version_label_2 = ttk.Label(left_frame, text=self.server.server_version, foreground=("red" if unformat_version(self.server.server_version)[:2] != unformat_version(SC4MP_VERSION)[:2] else "black"))
+		version_label_2.grid(row=2, column=0, sticky="w", padx=10, pady=0)
 
-		password_enabled_label_left = ttk.Label(inner_frame, text="Public:", font=("Segoe UI", 9, "bold"))
-		password_enabled_label_left.grid(row=3, column=0, sticky="e", padx=10, pady=(0,10))
+		password_enabled_label_1 = ttk.Label(left_frame, text="Public", font=("Segoe UI", 9, "bold"))
+		password_enabled_label_1.grid(row=3, column=0, sticky="w", padx=10, pady=(10,0))
 
-		password_enabled_label_right = ttk.Label(inner_frame, text=("No" if self.server.password_enabled else "Yes"), foreground=("red" if self.server.password_enabled else "green"))
-		password_enabled_label_right.grid(row=3, column=1, sticky="w", padx=10, pady=(0,10))
+		password_enabled_label_2 = ttk.Label(left_frame, text=("No" if self.server.password_enabled else "Yes"), foreground=("red" if self.server.password_enabled else "green"))
+		password_enabled_label_2.grid(row=4, column=0, sticky="w", padx=10, pady=0)
 
 		if self.server.password_enabled:
 
-			private_label_left = ttk.Label(inner_frame, text="Guests:", font=("Segoe UI", 9, "bold"))
-			private_label_left.grid(row=4, column=0, sticky="e", padx=10, pady=(0,10))
+			private_label_1 = ttk.Label(left_frame, text="Guests", font=("Segoe UI", 9, "bold"))
+			private_label_1.grid(row=5, column=0, sticky="w", padx=10, pady=(10,0))
 
-			private_label_right = ttk.Label(inner_frame, text=("No" if self.server.private else "Yes"), foreground=("red" if self.server.private else "green"))
-			private_label_right.grid(row=4, column=1, sticky="w", padx=10, pady=(0,10))
+			private_label_2 = ttk.Label(left_frame, text=("No" if self.server.private else "Yes"), foreground=("red" if self.server.private else "green"))
+			private_label_2.grid(row=6, column=0, sticky="w", padx=10, pady=0)
+		
+		right_frame = ttk.Frame(inner_frame)
+		right_frame.grid(row=2, column=1, sticky="n")
 
-		custom_plugins_label_left = ttk.Label(inner_frame, text="Custom plugins:", font=("Segoe UI", 9, "bold"))
-		custom_plugins_label_left.grid(row=5, column=0, sticky="e", padx=10, pady=(0,10))
+		custom_plugins_label_1 = ttk.Label(right_frame, text="Custom plugins", font=("Segoe UI", 9, "bold"))
+		custom_plugins_label_1.grid(row=1, column=0, sticky="w", padx=10, pady=(10,0))
 
-		custom_plugins_label_right = ttk.Label(inner_frame, text=("Yes" if self.server.user_plugins_enabled else "No"), foreground=("green" if self.server.user_plugins_enabled else "red"))
-		custom_plugins_label_right.grid(row=5, column=1, sticky="w", padx=10, pady=(0,10))
+		custom_plugins_label_2 = ttk.Label(right_frame, text=("Yes" if self.server.user_plugins_enabled else "No"), foreground=("green" if self.server.user_plugins_enabled else "red"))
+		custom_plugins_label_2.grid(row=2, column=0, sticky="w", padx=10, pady=0)
 
-		claim_limit_label_left = ttk.Label(inner_frame, text="Claim limit:", font=("Segoe UI", 9, "bold"))
-		claim_limit_label_left.grid(row=6, column=0, sticky="e", padx=10, pady=(0,10))
+		try:
+		
+			claim_duration = self.server.claim_duration
+			max_region_claims = self.server.max_region_claims
+			godmode_filter = self.server.godmode_filter
 
-		claim_limit_label_right = ttk.Label(inner_frame, text=f"TODO per region")
-		claim_limit_label_right.grid(row=6, column=1, sticky="w", padx=10, pady=(0,10))
+			if claim_duration is None:
+				claim_duration = "Forever"
+			else:
+				claim_duration = f"{claim_duration} days"
 
-		claim_duration_label_left = ttk.Label(inner_frame, text="Claim duration:", font=("Segoe UI", 9, "bold"))
-		claim_duration_label_left.grid(row=7, column=0, sticky="e", padx=10, pady=(0,10))
+			if max_region_claims is None:
+				max_region_claims = "None"
+			else:
+				max_region_claims = f"{max_region_claims} per region"
 
-		claim_duration_label_right = ttk.Label(inner_frame, text=f"TODO days")
-		claim_duration_label_right.grid(row=7, column=1, sticky="w", padx=10, pady=(0,10))
+			claim_duration_label_1 = ttk.Label(right_frame, text="Claim duration", font=("Segoe UI", 9, "bold"))
+			claim_duration_label_1.grid(row=3, column=0, sticky="w", padx=10, pady=(10,0))
 
-		godmode_claims_label_left = ttk.Label(inner_frame, text="Godmode claims:", font=("Segoe UI", 9, "bold"))
-		godmode_claims_label_left.grid(row=8, column=0, sticky="e", padx=10, pady=(0,10))
+			claim_duration_label_2 = ttk.Label(right_frame, text=claim_duration, foreground=("green" if claim_duration == "Forever" else "black"))
+			claim_duration_label_2.grid(row=4, column=0, sticky="w", padx=10, pady=0)
 
-		godmode_claims_label_right = ttk.Label(inner_frame, text=f"TODO")
-		godmode_claims_label_right.grid(row=8, column=1, sticky="w", padx=10, pady=(0,10))
+			claim_limit_label_1 = ttk.Label(right_frame, text="Claim limit", font=("Segoe UI", 9, "bold"))
+			claim_limit_label_1.grid(row=5, column=0, sticky="w", padx=10, pady=(10,0))
+
+			claim_limit_label_2 = ttk.Label(right_frame, text=max_region_claims, foreground=("green" if max_region_claims == "None" else "black"))
+			claim_limit_label_2.grid(row=6, column=0, sticky="w", padx=10, pady=0)
+
+			if not godmode_filter:
+
+				godmode_claims_label_1 = ttk.Label(right_frame, text="Godmode claims", font=("Segoe UI", 9, "bold"))
+				godmode_claims_label_1.grid(row=7, column=0, sticky="w", padx=10, pady=(10,0))
+
+				godmode_claims_label_2 = ttk.Label(right_frame, text=("No" if godmode_filter else "Yes"), foreground=("red" if godmode_filter else "green"))
+				godmode_claims_label_2.grid(row=8, column=0, sticky="w", padx=10, pady=0)
+
+		except AttributeError:
+
+			pass
 
 		options_frame = tk.Frame(self.info_frame)
 		options_frame.grid(row=1, column=0, sticky="sw")
