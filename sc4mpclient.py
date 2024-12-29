@@ -5590,7 +5590,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 		self.info_frame = tk.Frame(self.notebook)
 		
-		canvas = tk.Canvas(self.info_frame, width=350, height=303)
+		canvas = tk.Canvas(self.info_frame, width=350, height=293)
 		canvas.grid(row=0, column=0, padx=10, pady=10, sticky="n")
 		inner_frame = tk.Frame(canvas)
 		canvas.create_window(0, 0, window=inner_frame, anchor="nw")
@@ -5677,7 +5677,7 @@ class ServerDetailsUI(tk.Toplevel):
 		options_frame.grid(row=1, column=0, sticky="sw")
 
 		copy_link_button = ttk.Button(options_frame, text="Copy link", command=lambda: copy_to_clipboard(f"sc4mp://{self.server.host}:{self.server.port}"))
-		copy_link_button.grid(row=0, column=0, padx=(0,10), pady=(10,0))
+		copy_link_button.grid(row=0, column=0, padx=20, pady=10)
 
 		#invite_link_label = ttk.Label(self.info_frame, text="Link: ")
 		#invite_link_label.grid(row=1, column=0)
