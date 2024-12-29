@@ -6307,6 +6307,8 @@ class ServerDetailsUI(tk.Toplevel):
 
 				file_table = recv_json(s)
 
+				s.close()
+
 				for entry in file_table:
 
 					md5 = entry[0]
