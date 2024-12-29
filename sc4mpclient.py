@@ -1818,11 +1818,11 @@ class ServerList(th.Thread):
 			return None
 
 
-	def filter(self, server, filters):
+	def filter(self, server: Server, filters):
 		
 		category = filters[0]
 		search_terms = filters[1]
-		search_fields = [server.server_name, server.server_description, server.server_url]
+		search_fields = [server.server_name, server.server_description, server.server_url, server.server_id, server.host]
 		if len(search_terms) > 0:
 			for search_field in search_fields:
 				search_field = search_field.lower()
@@ -5590,22 +5590,40 @@ class ServerDetailsUI(tk.Toplevel):
 
 		self.info_frame = tk.Frame(self.notebook)
 		
-		canvas = tk.Canvas(self.info_frame, width=350, height=293)
+		canvas = tk.Canvas(self.info_frame, width=350, height=341, highlightthickness=0)
 		canvas.grid(row=0, column=0, padx=10, pady=10, sticky="n")
 		inner_frame = tk.Frame(canvas)
 		canvas.create_window(0, 0, window=inner_frame, anchor="nw")
 
-		server_id_label_1 = ttk.Label(inner_frame, text="Server ID", font=("Segoe UI", 9, "bold"))
-		server_id_label_1.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(10,0))
+		invite_link = f"sc4mp://{self.server.host}:{self.server.port}"
 
-		server_id_label_2 = ttk.Label(inner_frame, text=self.server.server_id)
-		server_id_label_2.grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=0)
+		invite_link_label = ttk.Label(inner_frame, text="Invite link", font=("Segoe UI", 9, "bold"))
+		invite_link_label.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(10,0))
+
+		invite_link_entry = ttk.Entry(inner_frame, width=40)
+		invite_link_entry.insert(0, invite_link)
+		invite_link_entry.configure(state="disabled")
+		invite_link_entry.grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=0)
+
+		invite_link_copy_button = ttk.Button(inner_frame, text="Copy", command=lambda: copy_to_clipboard(invite_link))
+		invite_link_copy_button.grid(row=1, column=2)
+
+		server_id_label = ttk.Label(inner_frame, text="ID", font=("Segoe UI", 9, "bold"))
+		server_id_label.grid(row=2, column=0, columnspan=2, sticky="w", padx=10, pady=(10,0))
+
+		server_id_entry = ttk.Entry(inner_frame, width=40)
+		server_id_entry.insert(0, self.server.server_id)
+		server_id_entry.configure(state="disabled")
+		server_id_entry.grid(row=3, column=0, columnspan=2, sticky="w", padx=10, pady=0)
+
+		server_id_copy_button = ttk.Button(inner_frame, text="Copy", command=lambda: copy_to_clipboard(self.server.server_id))
+		server_id_copy_button.grid(row=3, column=2)
 
 		left_frame = ttk.Frame(inner_frame)
-		left_frame.grid(row=2, column=0, sticky="n")
+		left_frame.grid(row=10, column=0, pady=20, sticky="nw")
 
 		version_label_1 = ttk.Label(left_frame, text="Version", font=("Segoe UI", 9, "bold"))
-		version_label_1.grid(row=1, column=0, sticky="w", padx=(10,100), pady=(10,0))
+		version_label_1.grid(row=1, column=0, sticky="w", padx=10, pady=(10,0))
 
 		version_label_2 = ttk.Label(left_frame, text=self.server.server_version, foreground=("red" if unformat_version(self.server.server_version)[:2] != unformat_version(SC4MP_VERSION)[:2] else "black"))
 		version_label_2.grid(row=2, column=0, sticky="w", padx=10, pady=0)
@@ -5625,7 +5643,7 @@ class ServerDetailsUI(tk.Toplevel):
 			private_label_2.grid(row=6, column=0, sticky="w", padx=10, pady=0)
 		
 		right_frame = ttk.Frame(inner_frame)
-		right_frame.grid(row=2, column=1, sticky="n")
+		right_frame.grid(row=10, column=1, columnspan=2, pady=20, sticky="nw")
 
 		custom_plugins_label_1 = ttk.Label(right_frame, text="Custom plugins", font=("Segoe UI", 9, "bold"))
 		custom_plugins_label_1.grid(row=1, column=0, sticky="w", padx=10, pady=(10,0))
@@ -5673,11 +5691,11 @@ class ServerDetailsUI(tk.Toplevel):
 
 			pass
 
-		options_frame = tk.Frame(self.info_frame)
-		options_frame.grid(row=1, column=0, sticky="sw")
+		#options_frame = tk.Frame(self.info_frame)
+		#options_frame.grid(row=1, column=0, sticky="sw")
 
-		copy_link_button = ttk.Button(options_frame, text="Copy link", command=lambda: copy_to_clipboard(f"sc4mp://{self.server.host}:{self.server.port}"))
-		copy_link_button.grid(row=0, column=0, padx=20, pady=10)
+		#copy_link_button = ttk.Button(options_frame, text="Copy link", command=lambda: copy_to_clipboard(f"sc4mp://{self.server.host}:{self.server.port}"))
+		#copy_link_button.grid(row=0, column=0, padx=20, pady=10)
 
 		#invite_link_label = ttk.Label(self.info_frame, text="Link: ")
 		#invite_link_label.grid(row=1, column=0)
@@ -6150,7 +6168,7 @@ class ServerDetailsUI(tk.Toplevel):
 				"#1",
 				"Mayor",
 				150,
-				"center"
+				"w"
     		),
 			(
 				"#2",
