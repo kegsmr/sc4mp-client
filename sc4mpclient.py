@@ -225,6 +225,8 @@ def main():
 			try:
 				url = sc4mp_args[1]
 				url = url.replace(URL_PREFIX, "", 1)
+				if url.endswith("/"):
+					url = url[:-1]
 				url = url.split(":")
 				if len(url) > 1:
 					sc4mp_host = ":".join(url[:-1])
