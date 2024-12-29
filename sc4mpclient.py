@@ -5847,6 +5847,10 @@ class ServerDetailsUI(tk.Toplevel):
 
 		try:
 
+			# Check if UI is destoyed and stop updating window size if so
+			if self.destroyed:
+				return
+
 			# Update the UI to make sure `winfo` calls are correct
 			sc4mp_ui.update()
 
@@ -5879,7 +5883,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 			#print(f"Resized to {new_window_width}x{new_window_height}.")
 
-			self.after(10, self.update_window_size)
+			self.after(1, self.update_window_size)
 
 		except Exception as e:
 
