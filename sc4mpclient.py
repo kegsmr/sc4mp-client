@@ -98,7 +98,7 @@ SC4MP_CONFIG_DEFAULTS = [
 	]),
 	("STORAGE", [
 
-		("storage_path", Path("~/Documents/SimCity 4/SC4MP Launcher/_SC4MP").expanduser()),
+		("storage_path", Path("_SC4MP").absolute()),
 		("cache_size", 8000)
 
 	]),
@@ -226,6 +226,8 @@ def main():
 			try:
 				url = sc4mp_args[1]
 				url = url.replace(URL_PREFIX, "", 1)
+				if url.endswith("/"):
+					url = url[:-1]
 				url = url.split(":")
 				if len(url) > 1:
 					sc4mp_host = ":".join(url[:-1])
@@ -235,7 +237,7 @@ def main():
 					sc4mp_port = 7240
 				sc4mp_exit_after = True
 			except Exception:
-				show_error("Invalid URL.\n\nURLs must adhere to:\nsc4mp://<host>:<port>")
+				show_error(f"Invalid URL.\n\nURLs must adhere to:\nsc4mp://<host>:<port>\n\nURL given:\n{sc4mp_args[1]}")
 				return
 
 		# Prep
