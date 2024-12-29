@@ -234,7 +234,7 @@ def main():
 					sc4mp_port = 7240
 				sc4mp_exit_after = True
 			except Exception:
-				show_error("Invalid URL.\n\nURLs must adhere to:\nsc4mp://<host>:<port>")
+				show_error(f"Invalid URL.\n\nURLs must adhere to:\nsc4mp://<host>:<port>\n\nURL given:\n{sc4mp_args[1]}")
 				return
 
 		# Prep
