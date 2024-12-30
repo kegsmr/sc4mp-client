@@ -178,7 +178,7 @@ def main():
 									if our_pid in pids:
 										pids.remove(our_pid)
 									for pid in pids:
-										if subprocess.call(f"TASKKILL /PID {pid}", shell=True) != 0:
+										if subprocess.call(f"TASKKILL /F /PID {pid}", shell=True) != 0:
 											return
 							except Exception:
 								return
