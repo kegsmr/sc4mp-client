@@ -133,6 +133,8 @@ SC4MP_RISKY_FILE_EXTENSIONS = [".bat", ".bin", ".cmd", ".com", ".cpl", ".dll", "
 								".paf", ".pif", ".py", ".ps1", ".reg", ".rgs", ".scr", ".sct", ".sh", ".shb",
 								".shs", ".u3p", ".vb", ".vbe", ".vbs", ".vbscript", ".ws", ".wsf", ".wsh"]
 
+URL_PREFIX = "sc4mp://"
+
 sc4mp_args = sys.argv
 
 sc4mp_ui = None
@@ -154,14 +156,33 @@ def main():
 
 	try:
 
-		# Exit if already running
+		# `True` when launching using a URL
+		url_launch = len(sc4mp_args) > 1 and sc4mp_args[1].startswith(URL_PREFIX)
+
+		# Exit if already runnning (unless launching using URL)
 		if not "-allow-multiple" in sc4mp_args:
 			try:
 				count = process_count("sc4mpclient.exe")
 				if count is not None and count > 1:
-					tk.Tk().withdraw()
-					messagebox.showerror(title=SC4MP_TITLE, message="SC4MP Launcher is already running!")
-					return
+					if url_launch:
+						if process_exists("simcity 4.exe"):
+							return
+						else:
+							try:
+								our_pid: int = os.getpid()
+								pids: list[int] = get_image_pids("sc4mpclient.exe")
+								if pids is not None:
+									if our_pid in pids:
+										pids.remove(our_pid)
+									for pid in pids:
+										if subprocess.call(f"TASKKILL /PID {pid}") != 0:
+											return
+							except Exception:
+								return
+					else:
+						tk.Tk().withdraw()
+						messagebox.showerror(title=SC4MP_TITLE, message="SC4MP Launcher is already running!")
+						return
 			except Exception:
 				pass
 
@@ -219,9 +240,8 @@ def main():
 			except Exception as e:
 				raise ClientException("Invalid arguments.") from e
 
-		# URL scheme
-		URL_PREFIX = "sc4mp://"
-		if len(sc4mp_args) > 1 and sc4mp_args[1].startswith(URL_PREFIX):
+		# Launch using URL
+		if url_launch:
 			try:
 				url = sc4mp_args[1]
 				url = url.replace(URL_PREFIX, "", 1)
@@ -1152,6 +1172,40 @@ def sanitize_relpath(basepath: Path, relpath: str) -> Path:
 		return fullpath
 	else:
 		raise ValueError(f"Invalid relative path: \"{relpath}\".")
+
+
+def get_image_pids(image_name) -> list[int] | None:
+	"""
+	Find the PIDs of processes with the given image name on Windows.
+
+	Args:
+		image_name (str): The name of the process image (e.g., "notepad.exe").
+
+	Returns:
+	    list: A list of PIDs for processes matching the given image name.
+	"""
+	if platform.system() == "Windows":
+		pids = []
+		try:
+			# Use tasklist to get the list of processes
+			result = subprocess.run(["tasklist"], capture_output=True, text=True, check=True)
+			# Split the result into lines
+			lines = result.stdout.splitlines()
+			# Parse each line for matching processes
+			for line in lines:
+				if image_name.lower() in line.lower():
+					parts = line.split()
+					if parts[0].lower() == image_name.lower():
+						try:
+							pids.append(int(parts[1]))  # The second column is the PID
+						except ValueError:
+							pass
+			return pids
+		except subprocess.CalledProcessError as e:
+			print(f"An error occurred while getting image PIDs.\n\n{e}")
+			return None
+	else:
+		return None
 
 
 # Objects
