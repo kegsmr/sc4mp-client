@@ -156,15 +156,17 @@ def main():
 
 	try:
 
-		# `True` when launching using a URL
+		# URL launch behavior
 		url_launch = len(sc4mp_args) > 1 and sc4mp_args[1].startswith(URL_PREFIX)
-
+		url_launch_exit_after = True
+	
 		# Exit if already runnning (unless launching using URL)
 		if not "-allow-multiple" in sc4mp_args:
 			try:
 				count = process_count("sc4mpclient.exe")
 				if count is not None and count > 1:
 					if url_launch:
+						url_launch_exit_after = False
 						if process_exists("simcity 4.exe"):
 							return
 						else:
@@ -175,7 +177,7 @@ def main():
 									if our_pid in pids:
 										pids.remove(our_pid)
 									for pid in pids:
-										if subprocess.call(f"TASKKILL /PID {pid}") != 0:
+										if subprocess.call(f"TASKKILL /PID {pid}", shell=True) != 0:
 											return
 							except Exception:
 								return
@@ -254,7 +256,7 @@ def main():
 				else:
 					sc4mp_host = url[0]
 					sc4mp_port = 7240
-				sc4mp_exit_after = True
+				sc4mp_exit_after = url_launch_exit_after
 			except Exception:
 				show_error(f"Invalid URL.\n\nURLs must adhere to:\nsc4mp://<host>:<port>\n\nURL given:\n{sc4mp_args[1]}")
 				return
@@ -1188,7 +1190,7 @@ def get_image_pids(image_name) -> list[int] | None:
 		pids = []
 		try:
 			# Use tasklist to get the list of processes
-			result = subprocess.run(["tasklist"], capture_output=True, text=True, check=True)
+			result = subprocess.run(["tasklist"], capture_output=True, text=True, check=True, shell=True)
 			# Split the result into lines
 			lines = result.stdout.splitlines()
 			# Parse each line for matching processes
