@@ -277,6 +277,7 @@ def main():
 				ServerLoaderUI(server)
 			else:
 				sc4mp_ui = UI()
+			close_splash()
 			sc4mp_ui.mainloop()
 		else:
 			sc4mp_ui = None
@@ -502,6 +503,7 @@ def check_updates():
 						th.Thread(target=update, kwargs={"ui": updater_ui}, daemon=True).start()
 
 						# Run the UI main loop
+						close_splash()
 						sc4mp_ui.mainloop()
 
 						# Exit when complete
@@ -1208,6 +1210,15 @@ def get_image_pids(image_name) -> list[int] | None:
 			return None
 	else:
 		return None
+
+
+def close_splash():
+
+	try:
+		import pyi_splash
+		pyi_splash.close()
+	except ImportError:
+		pass
 
 
 # Objects
