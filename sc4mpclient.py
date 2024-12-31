@@ -183,6 +183,7 @@ def main():
 								return
 					else:
 						tk.Tk().withdraw()
+						close_splash()
 						messagebox.showerror(title=SC4MP_TITLE, message="SC4MP Launcher is already running!")
 						return
 			except Exception:
@@ -914,6 +915,7 @@ def show_error(e, no_ui=False):
 		if sc4mp_ui != None:
 			if sc4mp_ui == True:
 				tk.Tk().withdraw()
+				close_splash()
 			messagebox.showerror(SC4MP_TITLE, message)
 
 
@@ -943,6 +945,7 @@ def fatal_error():
 	if sc4mp_ui != None:
 		if sc4mp_ui == True:
 			tk.Tk().withdraw()
+			close_splash()
 		messagebox.showerror(SC4MP_TITLE, message)
 		open_logs()
 
@@ -967,6 +970,7 @@ def show_warning(e):
 	if sc4mp_ui != None:
 		if sc4mp_ui == True:
 			tk.Tk().withdraw()
+			close_splash()
 		messagebox.showwarning(SC4MP_TITLE, message)
 
 
