@@ -27,7 +27,7 @@ from typing import Optional
 import urllib.request
 
 try:
-	from PIL import Image, ImageTk
+	from PIL import Image, ImageTk, UnidentifiedImageError
 	sc4mp_has_pil = True
 except ImportError:
 	sc4mp_has_pil = False
@@ -5520,7 +5520,7 @@ class ServerBackgroundUI(tk.Toplevel):
 		# Init
 		super().__init__()
 		self.server = server
-		self.destroyed = get_fullpaths_recursively
+		self.destroyed = False
 
 		# Title
 		self.title(SC4MP_TITLE)
@@ -5572,9 +5572,13 @@ class ServerBackgroundUI(tk.Toplevel):
 			self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image_resized_tk)
 			self.canvas.image = self.image_resized_tk
 
+			return
+
 		except Exception as e:
 
 			show_error("An error occurred while displaying the server background.\n\n{e}", no_ui=True)
+
+		finally:
 
 			if self.server_image:
 				self.retry_fetch_background()
@@ -5594,7 +5598,7 @@ class ServerBackgroundUI(tk.Toplevel):
 		
 			s.send(b"background")
 
-			destination = SC4MP_LAUNCHPATH / "background.png"
+			destination: Path = SC4MP_LAUNCHPATH / "_Temp" / "background.png"
 
 			if destination.exists():
 				os.unlink(destination)
@@ -5604,15 +5608,27 @@ class ServerBackgroundUI(tk.Toplevel):
 					data = s.recv(SC4MP_BUFFER_SIZE)
 					if not data:
 						break
+					if self.destroyed:
+						return
 					file.write(data)
 
-			self.server_image = Image.open(destination)
+			if destination.stat().st_size > 0:
 
-			self.reload_image()
+				self.server_image = Image.open(destination)
+
+				self.reload_image()
+
+			return
+
+		except (UnidentifiedImageError, PermissionError):
+
+			pass
 
 		except Exception as e:
 
 			show_error(f"An error occurred while fetching server background.\n\n{e}", no_ui=True)
+
+		finally:
 
 			self.retry_fetch_background()
 
@@ -5628,13 +5644,11 @@ class ServerBackgroundUI(tk.Toplevel):
 
 	def loop(self):
 
-		if self.destroyed:
-			return
-
 		if sc4mp_ui.winfo_viewable():
 			self.destroy()
 
-		self.after(100, self.loop)
+		if not self.destroyed:
+			self.after(100, self.loop)
 
 	
 	def destroy(self):
