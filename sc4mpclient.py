@@ -5529,7 +5529,8 @@ class ServerBackgroundUI(tk.Toplevel):
 		#self.attributes("-fullscreen", True)
 
 		# Load the image
-		self.image = Image.open(get_sc4mp_path("background.png"))
+		self.default_image = Image.open(get_sc4mp_path("background.png"))
+		self.server_image = None
 
 		# Canvas
 		self.canvas = tk.Canvas(self, bg="black", highlightthickness=0)
@@ -5555,19 +5556,34 @@ class ServerBackgroundUI(tk.Toplevel):
 			new_width = event.width
 			new_height = event.height
 
-		# Resize the image
-		self.image_resized = self.image.resize((new_width, new_height))
+		if self.server_image is None:
+			image = self.default_image
+		else:
+			image = self.server_image
 
-		# Convert to PhotoImage and update the canvas
-		self.image_resized_tk = ImageTk.PhotoImage(self.image_resized)
-		self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image_resized_tk)
-		self.canvas.image = self.image_resized_tk
+		try:
 
-	
+			# Resize the image
+			self.image_resized = image.resize((new_width, new_height))
+
+			# Convert to PhotoImage and update the canvas
+			self.image_resized_tk = ImageTk.PhotoImage(self.image_resized)
+			self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image_resized_tk)
+			self.canvas.image = self.image_resized_tk
+
+		except Exception as e:
+
+			show_error("An error occurred while displaying the server background.\n\n{e}", no_ui=True)
+
+			if self.server_image:
+				self.server_image = None
+				self.after(3000, lambda: th.Thread(target=self.fetch_background).start())
+
+
 	def fetch_background(self):
 
 		try:
-		
+
 			s = socket.socket()
 			s.settimeout(10)
 			s.connect((self.server.host, self.server.port))
@@ -5586,7 +5602,7 @@ class ServerBackgroundUI(tk.Toplevel):
 						break
 					file.write(data)
 
-			self.image = Image.open(destination)
+			self.server_image = Image.open(destination)
 
 			self.reload_image()
 
