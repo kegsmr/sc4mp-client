@@ -5576,8 +5576,7 @@ class ServerBackgroundUI(tk.Toplevel):
 			show_error("An error occurred while displaying the server background.\n\n{e}", no_ui=True)
 
 			if self.server_image:
-				self.server_image = None
-				self.after(3000, lambda: th.Thread(target=self.fetch_background).start())
+				self.retry_fetch_background()
 
 
 	def fetch_background(self):
@@ -5609,6 +5608,14 @@ class ServerBackgroundUI(tk.Toplevel):
 		except Exception as e:
 
 			show_error(f"An error occurred while fetching server background.\n\n{e}", no_ui=True)
+
+			self.retry_fetch_background()
+
+
+	def retry_fetch_background(self):
+
+		self.server_image = None
+		self.after(3000, lambda: th.Thread(target=self.fetch_background).start())
 
 
 	def loop(self):
