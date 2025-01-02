@@ -4089,7 +4089,7 @@ class UI(tk.Tk):
 
 		# Release notes
 			
-		th.Thread(target=self.release_notes).start()
+		th.Thread(target=self.release_notes, daemon=True).start()
 
 
 		# Server browser
@@ -5520,6 +5520,7 @@ class ServerBackgroundUI(tk.Toplevel):
 		# Init
 		super().__init__()
 		self.server = server
+		self.destroyed = get_fullpaths_recursively
 
 		# Title
 		self.title(SC4MP_TITLE)
@@ -5540,7 +5541,7 @@ class ServerBackgroundUI(tk.Toplevel):
 		self.bind("<Configure>", self.reload_image)
 
 		# Fetch loading screen image
-		th.Thread(target=self.fetch_background).start()
+		th.Thread(target=self.fetch_background, daemon=True).start()
 
 		# Loop
 		self.after(100, self.loop)
@@ -5581,6 +5582,10 @@ class ServerBackgroundUI(tk.Toplevel):
 
 	def fetch_background(self):
 
+		if self.destroyed:
+
+			return
+
 		try:
 
 			s = socket.socket()
@@ -5614,16 +5619,29 @@ class ServerBackgroundUI(tk.Toplevel):
 
 	def retry_fetch_background(self):
 
+		if self.destroyed:
+			return
+
 		self.server_image = None
-		self.after(3000, lambda: th.Thread(target=self.fetch_background).start())
+		self.after(3000, lambda: th.Thread(target=self.fetch_background, daemon=True).start())
 
 
 	def loop(self):
+
+		if self.destroyed:
+			return
 
 		if sc4mp_ui.winfo_viewable():
 			self.destroy()
 
 		self.after(100, self.loop)
+
+	
+	def destroy(self):
+
+		self.destroyed = True
+
+		return super().destroy()
 
 
 class GameMonitorUI(tk.Toplevel):
