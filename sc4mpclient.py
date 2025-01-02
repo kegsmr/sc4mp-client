@@ -86,6 +86,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("scan_lan", True),
 		("stat_mayors_online_cutoff", 60),
 		("show_actual_download", True),
+		("use_fullscreen_background", True),
 		("use_launcher_map", True),
 		("use_game_overlay", 1),
 		("allow_game_monitor_exit", True),
@@ -4259,11 +4260,11 @@ class GeneralSettingsUI(tk.Toplevel):
 		#self.ui_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
 		#self.config_update.append((self.ui_frame.checkbutton_variable, "use_launcher_map"))
 
-		# Allow manual disconnect
-		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["allow_game_monitor_exit"])
-		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Allow manual disconnect", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		# Use fullscreen background
+		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_fullscreen_background"])
+		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use fullscreen background", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
 		self.ui_frame.checkbutton.grid(row=2, column=0, columnspan=1, padx=10, pady=(5,10), sticky="w")
-		self.config_update.append((self.ui_frame.checkbutton_variable, "allow_game_monitor_exit"))
+		self.config_update.append((self.ui_frame.checkbutton_variable, "use_fullscreen_background"))
 
 		# Mayors online cutoff label
 		#self.ui_frame.mayors_online_cutoff_label = tk.Label(self.ui_frame, text="Show mayors online in the past")
@@ -5448,7 +5449,7 @@ class ServerLoaderUI(tk.Toplevel):
 		super().__init__()
 
 		# Loading Background
-		if sc4mp_has_pil:
+		if sc4mp_has_pil and sc4mp_config["GENERAL"]["use_fullscreen_background"]:
 			self.background = ServerBackgroundUI()
 		else:
 			self.background = None
@@ -5538,7 +5539,7 @@ class ServerBackgroundUI(tk.Toplevel):
 
 
     def on_resize(self, event):
-		
+
         # Get the new size of the window
         new_width = event.width
         new_height = event.height
