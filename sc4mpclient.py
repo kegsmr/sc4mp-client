@@ -26,6 +26,12 @@ from tkinter import Menu, filedialog, messagebox, ttk
 from typing import Optional
 import urllib.request
 
+try:
+	from PIL import Image, ImageTk
+	sc4mp_has_pil = True
+except ImportError:
+	sc4mp_has_pil = False
+
 #pylint: disable=wildcard-import
 #pylint: disable=unused-wildcard-import
 from core.config import *
@@ -5442,7 +5448,10 @@ class ServerLoaderUI(tk.Toplevel):
 		super().__init__()
 
 		# Loading Background
-		#self.loading_background = ServerLoaderBackgoundUI()
+		if sc4mp_has_pil:
+			self.background = ServerBackgroundUI()
+		else:
+			self.background = None
 
 		# Title
 		self.title(server.host + ":" + str(server.port))
@@ -5498,71 +5507,49 @@ class ServerLoaderUI(tk.Toplevel):
 
 		super().destroy()
 
-		#try:
-		#	self.loading_background.destroy()
-		#except Exception:
-		#	pass
+		if self.background is not None:
+			self.background.destroy()
 
 
-class ServerLoaderBackgoundUI(tk.Toplevel):
+class ServerBackgroundUI(tk.Toplevel):
 
 
-	def __init__(self):
+    def __init__(self):
+
+        # Init
+        super().__init__()
+
+        # Title
+        self.title(SC4MP_TITLE)
+
+        # Geometry
+        self.state('zoomed')
+        #self.attributes("-fullscreen", True)
+
+        # Load the image
+        self.image = Image.open(get_sc4mp_path("background.png"))
+
+        # Canvas
+        self.canvas = tk.Canvas(self, bg="black", highlightthickness=0)
+        self.canvas.pack(fill=tk.BOTH, expand=True)
+
+        # Bind resizing event
+        self.bind("<Configure>", self.on_resize)
+
+
+    def on_resize(self, event):
 		
+        # Get the new size of the window
+        new_width = event.width
+        new_height = event.height
 
-		#print("Initializing...")
+        # Resize the image
+        self.image_resized = self.image.resize((new_width, new_height))
 
-		# Init
-		super().__init__()
-
-		# Title
-		self.title("Loading background")
-
-		# Icon
-		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
-
-		# Geometry
-		#self.grid()
-		self.attributes("-fullscreen", True)
-
-		# Image
-		self.image = tk.PhotoImage(file=get_sc4mp_path("loading_background.png"))
-		self.image_resized = self.image
-
-		# Canvas
-		self.canvas = tk.Canvas(self, bg="black", highlightthickness=0)
-		self.canvas.image = self.canvas.create_image(0, 0, anchor="center", image=self.image_resized)
-		self.canvas.pack()
-
-		# Loop
-		self.loop()
-
-
-	def loop(self):
-		width = self.winfo_screenwidth()
-		height = self.winfo_screenheight()
-		self.image_resized = self.resize_image(self.image, int((height / self.image.height()) * width), int(height))
-		image_width = self.image_resized.width()
-		image_height = self.image_resized.height()
-		self.canvas.config(width=width, height=height)
-		self.canvas.moveto(self.canvas.image, (width / 2) - (image_width / 2), (height / 2) - (image_height / 2))
-		self.after(100, self.loop)
-
-
-	def resize_image(self, image, new_width, new_height):
-		img = image
-		newWidth = new_width
-		newHeight = new_height
-		oldWidth = img.width()
-		oldHeight = img.height()
-		newPhotoImage = tk.PhotoImage(width=newWidth, height=newHeight)
-		for x in range(newWidth):
-			for y in range(newHeight):
-				xOld = int(x*oldWidth/newWidth)
-				yOld = int(y*oldHeight/newHeight)
-				rgb = '#%02x%02x%02x' % img.get(xOld, yOld)
-				newPhotoImage.put(rgb, (x, y))
-		return newPhotoImage
+        # Convert to PhotoImage and update the canvas
+        self.image_resized_tk = ImageTk.PhotoImage(self.image_resized)
+        self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image_resized_tk)
+        self.canvas.image = self.image_resized_tk
 
 
 class GameMonitorUI(tk.Toplevel):
