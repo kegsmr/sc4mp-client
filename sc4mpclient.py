@@ -5450,7 +5450,7 @@ class ServerLoaderUI(tk.Toplevel):
 
 		# Loading Background
 		if sc4mp_has_pil and sc4mp_config["GENERAL"]["use_fullscreen_background"]:
-			self.background = ServerBackgroundUI()
+			self.background = ServerBackgroundUI(server)
 		else:
 			self.background = None
 
@@ -5515,53 +5515,92 @@ class ServerLoaderUI(tk.Toplevel):
 class ServerBackgroundUI(tk.Toplevel):
 
 
-    def __init__(self):
+	def __init__(self, server):
 
-        # Init
-        super().__init__()
+		# Init
+		super().__init__()
+		self.server = server
 
-        # Title
-        self.title(SC4MP_TITLE)
+		# Title
+		self.title(SC4MP_TITLE)
 
-        # Geometry
-        self.state('zoomed')
-        #self.attributes("-fullscreen", True)
+		# Geometry
+		self.state('zoomed')
+		#self.attributes("-fullscreen", True)
 
-        # Load the image
-        self.image = Image.open(get_sc4mp_path("background.png"))
+		# Load the image
+		self.image = Image.open(get_sc4mp_path("background.png"))
 
-        # Canvas
-        self.canvas = tk.Canvas(self, bg="black", highlightthickness=0)
-        self.canvas.pack(fill=tk.BOTH, expand=True)
+		# Canvas
+		self.canvas = tk.Canvas(self, bg="black", highlightthickness=0)
+		self.canvas.pack(fill=tk.BOTH, expand=True)
 
-        # Bind resizing event
-        self.bind("<Configure>", self.on_resize)
+		# Bind resizing event
+		self.bind("<Configure>", self.reload_image)
+
+		# Fetch loading screen image
+		th.Thread(target=self.fetch_background).start()
 
 		# Loop
-        self.after(100, self.loop)
+		self.after(100, self.loop)
 
 
-    def on_resize(self, event):
+	def reload_image(self, event=None):
 
-        # Get the new size of the window
-        new_width = event.width
-        new_height = event.height
+		# Get the new size of the window
+		if event is None:
+			new_width = self.winfo_width()
+			new_height = self.winfo_height()
+		else:
+			new_width = event.width
+			new_height = event.height
 
-        # Resize the image
-        self.image_resized = self.image.resize((new_width, new_height))
+		# Resize the image
+		self.image_resized = self.image.resize((new_width, new_height))
 
-        # Convert to PhotoImage and update the canvas
-        self.image_resized_tk = ImageTk.PhotoImage(self.image_resized)
-        self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image_resized_tk)
-        self.canvas.image = self.image_resized_tk
+		# Convert to PhotoImage and update the canvas
+		self.image_resized_tk = ImageTk.PhotoImage(self.image_resized)
+		self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image_resized_tk)
+		self.canvas.image = self.image_resized_tk
 
 	
-    def loop(self):
+	def fetch_background(self):
 
-        if sc4mp_ui.winfo_viewable():
-            self.destroy()
+		try:
+		
+			s = socket.socket()
+			s.settimeout(10)
+			s.connect((self.server.host, self.server.port))
+		
+			s.send(b"background")
 
-        self.after(100, self.loop)
+			destination = SC4MP_LAUNCHPATH / "background.png"
+
+			if destination.exists():
+				os.unlink(destination)
+
+			with open(destination, "wb") as file:
+				while True:
+					data = s.recv(SC4MP_BUFFER_SIZE)
+					if not data:
+						break
+					file.write(data)
+
+			self.image = Image.open(destination)
+
+			self.reload_image()
+
+		except Exception as e:
+
+			show_error(f"An error occurred while fetching server background.\n\n{e}", no_ui=True)
+
+
+	def loop(self):
+
+		if sc4mp_ui.winfo_viewable():
+			self.destroy()
+
+		self.after(100, self.loop)
 
 
 class GameMonitorUI(tk.Toplevel):
