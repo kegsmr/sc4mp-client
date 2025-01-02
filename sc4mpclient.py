@@ -5572,16 +5572,9 @@ class ServerBackgroundUI(tk.Toplevel):
 			self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image_resized_tk)
 			self.canvas.image = self.image_resized_tk
 
-			return
-
 		except Exception as e:
 
 			show_error("An error occurred while displaying the server background.\n\n{e}", no_ui=True)
-
-		finally:
-
-			if self.server_image:
-				self.retry_fetch_background()
 
 
 	def fetch_background(self):
@@ -5620,9 +5613,9 @@ class ServerBackgroundUI(tk.Toplevel):
 
 			return
 
-		except (UnidentifiedImageError, PermissionError):
+		#except (UnidentifiedImageError, PermissionError):
 
-			pass
+		#	pass
 
 		except Exception as e:
 
@@ -5639,7 +5632,7 @@ class ServerBackgroundUI(tk.Toplevel):
 			return
 
 		self.server_image = None
-		self.after(3000, lambda: th.Thread(target=self.fetch_background, daemon=True).start())
+		self.after(5000, lambda: th.Thread(target=self.fetch_background, daemon=True).start())
 
 
 	def loop(self):
