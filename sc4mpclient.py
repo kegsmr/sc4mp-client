@@ -5508,8 +5508,8 @@ class ServerLoaderUI(tk.Toplevel):
 
 		super().destroy()
 
-		if self.background is not None:
-			self.background.destroy()
+		#if self.background is not None:
+		#	self.background.destroy()
 
 
 class ServerBackgroundUI(tk.Toplevel):
@@ -5537,6 +5537,9 @@ class ServerBackgroundUI(tk.Toplevel):
         # Bind resizing event
         self.bind("<Configure>", self.on_resize)
 
+		# Loop
+        self.after(100, self.loop)
+
 
     def on_resize(self, event):
 
@@ -5551,6 +5554,14 @@ class ServerBackgroundUI(tk.Toplevel):
         self.image_resized_tk = ImageTk.PhotoImage(self.image_resized)
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image_resized_tk)
         self.canvas.image = self.image_resized_tk
+
+	
+    def loop(self):
+
+        if sc4mp_ui.winfo_viewable():
+            self.destroy()
+
+        self.after(100, self.loop)
 
 
 class GameMonitorUI(tk.Toplevel):
@@ -5579,6 +5590,9 @@ class GameMonitorUI(tk.Toplevel):
 		self.minsize(420, 280)
 		self.maxsize(420, 280)
 		self.grid()
+
+		# Priority
+		self.grab_set()
 
 		# Protocol
 		self.protocol("WM_DELETE_WINDOW", self.delete_window)
