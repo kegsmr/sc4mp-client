@@ -5637,8 +5637,9 @@ class ServerBackgroundUI(tk.Toplevel):
 
 		if sc4mp_ui.winfo_viewable():
 			self.destroy()
-		elif process_exists("simcity 4.exe"):
-			self.after(10000, self.destroy)
+		#elif process_exists("simcity 4.exe"):
+		#	self.destroy()
+		#	#self.after(10000, self.destroy)
 		elif not self.destroyed:
 			self.after(100, self.loop)
 
