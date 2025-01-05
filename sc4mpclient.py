@@ -5754,7 +5754,7 @@ class ServerDetailsUI(tk.Toplevel):
 		inner_frame = tk.Frame(canvas)
 		canvas.create_window(0, 0, window=inner_frame, anchor="nw")
 
-		invite_link = f"sc4mp://{self.server.host}:{self.server.port}"
+		invite_link = f"https://invite.sc4mp.org/{self.server.server_id}"
 
 		invite_link_label = ttk.Label(inner_frame, text="Invite link", font=("Segoe UI", 9, "bold"))
 		invite_link_label.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(10,0))
@@ -5768,17 +5768,17 @@ class ServerDetailsUI(tk.Toplevel):
 		invite_link_copy_button = ttk.Button(inner_frame, text="Copy", command=lambda: copy_to_clipboard(invite_link))
 		invite_link_copy_button.grid(row=1, column=2)
 
-		server_id_label = ttk.Label(inner_frame, text="ID", font=("Segoe UI", 9, "bold"))
-		server_id_label.grid(row=2, column=0, columnspan=2, sticky="w", padx=10, pady=(10,0))
+		#server_id_label = ttk.Label(inner_frame, text="ID", font=("Segoe UI", 9, "bold"))
+		#server_id_label.grid(row=2, column=0, columnspan=2, sticky="w", padx=10, pady=(10,0))
 
-		server_id_entry = ttk.Entry(inner_frame, width=40)
-		server_id_entry.insert(0, self.server.server_id)
-		server_id_entry.after(100, lambda: self.reset_entrybox(server_id_entry, self.server.server_id))
-		#server_id_entry.configure(state="disabled")
-		server_id_entry.grid(row=3, column=0, columnspan=2, sticky="w", padx=10, pady=0)
+		#server_id_entry = ttk.Entry(inner_frame, width=40)
+		#server_id_entry.insert(0, self.server.server_id)
+		#server_id_entry.after(100, lambda: self.reset_entrybox(server_id_entry, self.server.server_id))
+		##server_id_entry.configure(state="disabled")
+		#server_id_entry.grid(row=3, column=0, columnspan=2, sticky="w", padx=10, pady=0)
 
-		server_id_copy_button = ttk.Button(inner_frame, text="Copy", command=lambda: copy_to_clipboard(self.server.server_id))
-		server_id_copy_button.grid(row=3, column=2)
+		#server_id_copy_button = ttk.Button(inner_frame, text="Copy", command=lambda: copy_to_clipboard(self.server.server_id))
+		#server_id_copy_button.grid(row=3, column=2)
 
 		left_frame = ttk.Frame(inner_frame)
 		left_frame.grid(row=10, column=0, pady=20, sticky="nw")
