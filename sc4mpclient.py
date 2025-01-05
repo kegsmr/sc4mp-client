@@ -26,6 +26,12 @@ from tkinter import Menu, filedialog, messagebox, ttk
 from typing import Optional
 import urllib.request
 
+try:
+	from PIL import Image, ImageTk, UnidentifiedImageError
+	sc4mp_has_pil = True
+except ImportError:
+	sc4mp_has_pil = False
+
 #pylint: disable=wildcard-import
 #pylint: disable=unused-wildcard-import
 from core.config import *
@@ -36,7 +42,7 @@ from core.util import *
 
 # Header
 
-SC4MP_VERSION = "0.7.3"
+SC4MP_VERSION = "0.7.5"
 
 SC4MP_SERVERS = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
 
@@ -73,11 +79,14 @@ SC4MP_CONFIG_DEFAULTS = [
 		("default_port", SC4MP_PORT),
 
 		("auto_update", True),
+		("release_notes_version", SC4MP_VERSION),
+		("show_release_notes", True),
 
 		("use_server_browser", True),
 		("scan_lan", True),
 		("stat_mayors_online_cutoff", 60),
 		("show_actual_download", True),
+		("use_fullscreen_background", True),
 		("use_launcher_map", True),
 		("use_game_overlay", 1),
 		("allow_game_monitor_exit", True),
@@ -95,14 +104,15 @@ SC4MP_CONFIG_DEFAULTS = [
 	]),
 	("STORAGE", [
 
-		("storage_path", Path("~/Documents/SimCity 4/SC4MP Launcher/_SC4MP").expanduser()),
+		("storage_path", Path("_SC4MP").absolute()),
 		("cache_size", 8000)
 
 	]),
 	("SC4", [
 
 		("game_path", ""),
-
+		("use_steam_browser_protocol", 0),
+		
 		("resw", 1280),
 		("resh", 800),
 		("fullscreen", False),
@@ -130,6 +140,8 @@ SC4MP_RISKY_FILE_EXTENSIONS = [".bat", ".bin", ".cmd", ".com", ".cpl", ".dll", "
 								".paf", ".pif", ".py", ".ps1", ".reg", ".rgs", ".scr", ".sct", ".sh", ".shb",
 								".shs", ".u3p", ".vb", ".vbe", ".vbs", ".vbscript", ".ws", ".wsf", ".wsh"]
 
+URL_PREFIX = "sc4mp://"
+
 sc4mp_args = sys.argv
 
 sc4mp_ui = None
@@ -140,7 +152,7 @@ sc4mp_current_server = None
 # Functions
 
 def main():
-	"""The main method.
+	"""The main function.
 
 	Arguments:
 		None
@@ -151,14 +163,36 @@ def main():
 
 	try:
 
-		# Exit if already running
+		# URL launch behavior
+		url_launch = len(sc4mp_args) > 1 and sc4mp_args[1].startswith(URL_PREFIX)
+		url_launch_exit_after = True
+	
+		# Exit if already runnning (unless launching using URL)
 		if not "-allow-multiple" in sc4mp_args:
 			try:
 				count = process_count("sc4mpclient.exe")
 				if count is not None and count > 1:
-					tk.Tk().withdraw()
-					messagebox.showerror(title=SC4MP_TITLE, message="SC4MP Launcher is already running!")
-					return
+					if url_launch:
+						url_launch_exit_after = False
+						if process_exists("simcity 4.exe"):
+							return
+						else:
+							try:
+								our_pid: int = os.getpid()
+								pids: list[int] = get_image_pids("sc4mpclient.exe")
+								if pids is not None:
+									if our_pid in pids:
+										pids.remove(our_pid)
+									for pid in pids:
+										if subprocess.call(f"TASKKILL /F /PID {pid}", shell=True) != 0:
+											return
+							except Exception:
+								return
+					else:
+						tk.Tk().withdraw()
+						close_splash()
+						messagebox.showerror(title=SC4MP_TITLE, message="SC4MP Launcher is already running!")
+						return
 			except Exception:
 				pass
 
@@ -216,12 +250,13 @@ def main():
 			except Exception as e:
 				raise ClientException("Invalid arguments.") from e
 
-		# URL scheme
-		URL_PREFIX = "sc4mp://"
-		if len(sc4mp_args) > 1 and sc4mp_args[1].startswith(URL_PREFIX):
+		# Launch using URL
+		if url_launch:
 			try:
 				url = sc4mp_args[1]
 				url = url.replace(URL_PREFIX, "", 1)
+				if url.endswith("/"):
+					url = url[:-1]
 				url = url.split(":")
 				if len(url) > 1:
 					sc4mp_host = ":".join(url[:-1])
@@ -229,9 +264,9 @@ def main():
 				else:
 					sc4mp_host = url[0]
 					sc4mp_port = 7240
-				sc4mp_exit_after = True
+				sc4mp_exit_after = url_launch_exit_after
 			except Exception:
-				show_error("Invalid URL.\n\nURLs must adhere to:\nsc4mp://<host>:<port>")
+				show_error(f"Invalid URL.\n\nURLs must adhere to:\nsc4mp://<host>:<port>\n\nURL given:\n{sc4mp_args[1]}")
 				return
 
 		# Prep
@@ -250,6 +285,7 @@ def main():
 				ServerLoaderUI(server)
 			else:
 				sc4mp_ui = UI()
+			close_splash()
 			sc4mp_ui.mainloop()
 		else:
 			sc4mp_ui = None
@@ -265,14 +301,19 @@ def main():
 				sc4mp_password = input("[PROMPT] - Enter server password... ")
 			server.password = sc4mp_password
 			ServerLoader(None, server).run()
-		
-		# Cleanup
-		cleanup()
+
+	except KeyboardInterrupt:
+
+		pass
 
 	except Exception as e:
 
 		# Fatal error 
 		fatal_error()
+
+	# Cleanup
+	print("Shutting down...")
+	cleanup()
 
 
 def prep():
@@ -318,11 +359,7 @@ def check_updates():
 			if sc4mp_force_update or exec_file == "sc4mpclient.exe":
 
 				# Get latest release info
-				try:
-					with urllib.request.urlopen("https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest", timeout=10) as url:
-						latest_release_info = json.load(url)
-				except urllib.error.URLError as e:
-					raise ClientException("GitHub API call timed out.") from e
+				latest_release_info = get_release_info()
 
 				# Download the update if the version doesn't match
 				if sc4mp_force_update or latest_release_info["tag_name"] != f"v{SC4MP_VERSION}":
@@ -474,6 +511,7 @@ def check_updates():
 						th.Thread(target=update, kwargs={"ui": updater_ui}, daemon=True).start()
 
 						# Run the UI main loop
+						close_splash()
 						sc4mp_ui.mainloop()
 
 						# Exit when complete
@@ -488,6 +526,21 @@ def check_updates():
 
 			# Show error silently and continue as usual
 			show_error(f"An error occurred while updating.\n\n{e}", no_ui=True)
+
+
+def get_release_info(version="latest", timeout=10):
+
+	if version == "latest":
+		github_api_call = "https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest"
+	else:
+		github_api_call = f"https://api.github.com/repos/kegsmr/sc4mp-client/releases/tags/v{version}"
+
+	try:
+		with urllib.request.urlopen(url=github_api_call, timeout=timeout) as url:
+			return json.load(url)
+	except urllib.error.URLError as e:
+		raise ClientException("GitHub API call timed out.") from e
+	
 
 	
 def update_config_constants(config):
@@ -566,7 +619,7 @@ def get_sc4_path() -> Optional[Path]:
 	# The path specified by the user
 	config_path = Path(sc4mp_config['SC4']['game_path'])
 
-	# Common SC4 dirs (alternate path used by GOG, and maybe others)
+	# Common SC4 dirs (alternate path used by GOG and Origin)
 	sc4_dirs = Path("SimCity 4 Deluxe") / "Apps" / "SimCity 4.exe"
 	sc4_dirs_alt = Path("SimCity 4 Deluxe Edition") / "Apps" / "SimCity 4.exe"
 
@@ -604,8 +657,8 @@ def get_sc4_path() -> Optional[Path]:
 		home_drive / "SteamLibrary" / steam_dirs / sc4_dirs,
 
 		# Origin (maybe patched? Origin is crap)
-		home_drive / "Program Files" / "Origin Games" / sc4_dirs,
-		home_drive / "Program Files (x86)" / "Origin Games" / sc4_dirs,
+		home_drive / "Program Files" / "Origin Games" / sc4_dirs_alt,
+		home_drive / "Program Files (x86)" / "Origin Games" / sc4_dirs_alt,
 
 		# Maxis (probably not patched, so this goes at the bottom)
 		home_drive / "Program Files" / "Maxis" / sc4_dirs,
@@ -647,18 +700,30 @@ def get_sc4_path() -> Optional[Path]:
 def start_sc4():
 	"""Attempts to find the install path of SimCity 4 and launches the game with custom launch parameters if found."""
 
+	print("Starting SimCity 4...")
+
+	# Variables related to game monitor exit, etc. etc.
 	global sc4mp_allow_game_monitor_exit_if_error, sc4mp_game_exit_ovveride
 	sc4mp_allow_game_monitor_exit_if_error = False
 	sc4mp_game_exit_ovveride = False
 
-	print("Starting SimCity 4...")
-
+	# Check if SC4 is already running
+	try:
+		if process_exists("simcity 4.exe"):
+			show_error("SimCity 4 is already running!")
+			return
+	except Exception as e:
+		show_error(e, no_ui=True)
+		
+	# Get path to SC4 using a list of possible paths
 	path = get_sc4_path()
 
+	# Cancel launch if path to SC4 not found
 	if not path:
 		show_error("Path to SimCity 4 not found. Specify the correct path in settings.")
 		return
 
+	# Arguments set based on config settings
 	arguments = [str(path),
 			  f'-UserDir:"{SC4MP_LAUNCHPATH}{os.sep}"', # add trailing slash here because SC4 expects it
 			  '-intro:off',
@@ -667,40 +732,101 @@ def start_sc4():
 			  f'-CPUCount:{sc4mp_config["SC4"]["cpu_count"]}',
 			  f'-CPUPriority:{sc4mp_config["SC4"]["cpu_priority"]}'
 			  ]
-
 	if sc4mp_config["SC4"]["fullscreen"] == True:
 		arguments.append('-f')
 	else:
 		arguments.append('-w')
-
 	arguments.extend(sc4mp_config["SC4"]["additional_properties"].strip().split(' '))  # assumes that properties do not have spaces
 
-	command = ' '.join(arguments)
-	print(f"'{command}'")
+	# `True` if the game is installed using Steam
+	steam_sc4 = is_steam_sc4(path)
 
-	try:
-		if platform.system() == "Windows":
-			subprocess.run(command) # `subprocess.run(arguments)` won't work on Windows for some unknowable reason
-		else:
-			subprocess.run(arguments)  # on Linux, the first String passed as argument must be a file that exists
-	except PermissionError as e:
-		show_error(f"The launcher does not have the necessary privileges to launch SimCity 4. Try running the SC4MP Launcher as administrator.\n\n{e}")
+	# Set to `True` once the game is launched successfully with the Steam browser protocol
+	steam_launch = False
 
-	# For compatability with the steam version of SC4
-	sc4mp_allow_game_monitor_exit_if_error = True
-	time.sleep(3)
-	while True:
-		if sc4mp_game_exit_ovveride:
-			print("Exiting without checking whether SC4 is still running...")
-			return
+	# If SC4 is installed through Steam, try to launch it using the Steam browser protocol
+	if sc4mp_config["SC4"]["use_steam_browser_protocol"] == 2  or (sc4mp_config["SC4"]["use_steam_browser_protocol"] == 1 and steam_sc4):
+
+		# Steam browser protocol command
+		command = "steam://run/24780//" + ' '.join(arguments[1:]).replace("\\", "\\\\").replace('"', '\\"') + "/"
+		
+		# Notify the user about the Steam dialog box that will popup
+		#messagebox.showinfo(title=SC4MP_TITLE, message="Steam will now ask your permission to launch SC4 with custom arguments.\n\nClick \"Continue\" on the Steam dialog box to launch SC4.\n\nConnection will be cancelled in 30 seconds if the game does not launch.")
+
+		# Launch the game
+		print(f"- using Steam browser protocol ('{command}').")
 		try:
-			while process_exists("simcity 4.exe"):
-				time.sleep(1)
-			print("SimCity 4 closed.")
-			break
+			steam_launch = webbrowser.open(command)
+			if not steam_launch:
+				print("[WARNING] Unable to launch SimCity 4 using the Steam browser protocol (`webbrowser.open` returned `False`).")
 		except Exception as e:
-			show_error("An error occured while checking if SC4 had exited yet.", no_ui=True)
-			time.sleep(10)
+			show_error(f"Unable to launch SimCity 4 using the Steam browser protocol.\n\n{e}", no_ui=True)
+
+	# If SC4 isn't installed through Steam, or if launching it through the Steam browser protocol didn't work, launch the SC4 exe directly
+	if not steam_launch:
+
+		# Regular command
+		command = ' '.join(arguments)
+
+		# Launch the game
+		print(f"- launching directly ('{command}').")
+		try:
+			if platform.system() == "Windows":
+				subprocess.run(command) 			# `subprocess.run(arguments)` won't work on Windows for some unknowable reason
+			else:
+				subprocess.run(arguments)  			# on Linux, the first String passed as argument must be a file that exists
+		except PermissionError as e:
+			show_error(f"The launcher does not have the necessary privileges to launch SimCity 4. Try running the SC4MP Launcher as administrator.")
+
+	else:
+
+		# Using Steam SC4 otherwise
+		steam_sc4 = True
+
+	# Wait an extra 30 seconds if running the Steam version of SC4 (needed for Steam browser protocol, also sometimes Steam isn't started yet)
+	if steam_sc4:
+		try:
+			time.sleep(1)
+			count = 0
+			while process_exists("Steam.exe") and not process_exists("simcity 4.exe") and count < 30:
+				time.sleep(1)
+				count += 1
+		except Exception as e:
+			show_error(e, no_ui=True)
+			time.sleep(30)
+
+	# Wait for SC4 to close if running the Steam version of SC4 (the Steam version of SC4 spawns a separate process)
+	if steam_sc4:
+		sc4mp_allow_game_monitor_exit_if_error = True
+		time.sleep(5)
+		while True:
+			if sc4mp_game_exit_ovveride:
+				print("Exiting without checking whether SC4 is still running...")
+				return
+			try:
+				while process_exists("simcity 4.exe"):
+					time.sleep(1)
+				break
+			except Exception as e:
+				show_error("An error occured while checking if SC4 had exited yet.", no_ui=True)
+				time.sleep(10)
+	
+	# SimCity 4 has closed
+	print("SimCity 4 closed.")
+
+
+def is_steam_sc4(path: Path):
+
+	#COMMON_STEAM_FILES = ["Steam.dll", "steam_api.dll", "steam_api64.dll", "steam_appid.txt", "steamclient.dll", "steamclient64.dll"]
+
+	#exec_dir = path.parent.parent
+	#exec_dir_filenames = os.listdir(exec_dir)
+
+	#for steam_filename in COMMON_STEAM_FILES:
+	#	if steam_filename in exec_dir_filenames:
+	#		return True
+
+	return "steamapps" in [directory.name for directory in path.parents]
 
 
 def process_exists(process_name): #TODO add MacOS compatability / deprecate in favor of `process_count`?
@@ -796,6 +922,7 @@ def show_error(e, no_ui=False):
 		if sc4mp_ui != None:
 			if sc4mp_ui == True:
 				tk.Tk().withdraw()
+				close_splash()
 			messagebox.showerror(SC4MP_TITLE, message)
 
 
@@ -825,6 +952,7 @@ def fatal_error():
 	if sc4mp_ui != None:
 		if sc4mp_ui == True:
 			tk.Tk().withdraw()
+			close_splash()
 		messagebox.showerror(SC4MP_TITLE, message)
 		open_logs()
 
@@ -849,6 +977,7 @@ def show_warning(e):
 	if sc4mp_ui != None:
 		if sc4mp_ui == True:
 			tk.Tk().withdraw()
+			close_splash()
 		messagebox.showwarning(SC4MP_TITLE, message)
 
 
@@ -1058,6 +1187,49 @@ def sanitize_relpath(basepath: Path, relpath: str) -> Path:
 		return fullpath
 	else:
 		raise ValueError(f"Invalid relative path: \"{relpath}\".")
+
+
+def get_image_pids(image_name) -> list[int] | None:
+	"""
+	Find the PIDs of processes with the given image name on Windows.
+
+	Args:
+		image_name (str): The name of the process image (e.g., "notepad.exe").
+
+	Returns:
+	    list: A list of PIDs for processes matching the given image name.
+	"""
+	if platform.system() == "Windows":
+		pids = []
+		try:
+			# Use tasklist to get the list of processes
+			result = subprocess.run(["tasklist"], capture_output=True, text=True, check=True, shell=True)
+			# Split the result into lines
+			lines = result.stdout.splitlines()
+			# Parse each line for matching processes
+			for line in lines:
+				if image_name.lower() in line.lower():
+					parts = line.split()
+					if parts[0].lower() == image_name.lower():
+						try:
+							pids.append(int(parts[1]))  # The second column is the PID
+						except ValueError:
+							pass
+			return pids
+		except subprocess.CalledProcessError as e:
+			print(f"An error occurred while getting image PIDs.\n\n{e}")
+			return None
+	else:
+		return None
+
+
+def close_splash():
+
+	try:
+		import pyi_splash
+		pyi_splash.close()
+	except ImportError:
+		pass
 
 
 # Objects
@@ -2099,6 +2271,8 @@ class ServerLoader(th.Thread):
 					path = filedialog.askdirectory(parent=self.ui)
 					if len(path) > 0:
 						sc4mp_config["SC4"]["game_path"] = path
+						if sc4mp_config["SC4"]["use_steam_browser_protocol"] in [0, 1]:
+							sc4mp_config["SC4"]["use_steam_browser_protocol"] = (1 if is_steam_sc4(Path(path)) else 0)
 						sc4mp_config.update()
 					else:
 						self.ui.destroy()
@@ -2282,8 +2456,8 @@ class ServerLoader(th.Thread):
 				if sc4mp_config["GENERAL"]["save_server_passwords"]:
 					try:
 						sc4mp_servers_database[self.server.server_id]["password"] = self.server.password
-					except Exception:
-						pass
+					except Exception as e:
+						show_error(e, no_ui=True)
 				return True
 			else:
 				return False
@@ -2356,9 +2530,9 @@ class ServerLoader(th.Thread):
 					try:
 						self.ui.progress_label["text"] = relpath.name
 						if linking:
-							self.ui.duration_label["text"] = "(linking)"
+							self.ui.duration_label["text"] = "Link 🡒 SC4" #"(linking)"
 						else:
-							self.ui.duration_label["text"] = "(copying)"
+							self.ui.duration_label["text"] = "Disk 🡒 SC4" #"(copying)"
 					except Exception:
 						pass
 
@@ -2493,7 +2667,7 @@ class ServerLoader(th.Thread):
 						# Display current file in UI
 						try:
 							self.ui.progress_label["text"] = d.name #.relative_to(destination)
-							self.ui.duration_label["text"] = "(cached)"
+							self.ui.duration_label["text"] = "Cache 🡒 SC4" #"(cached)"
 						except Exception:
 							pass
 
@@ -2522,7 +2696,7 @@ class ServerLoader(th.Thread):
 				file_table = ft
 
 				if sc4mp_ui:
-					self.ui.duration_label["text"] = "(downloading)"
+					self.ui.duration_label["text"] = "Server 🡒 SC4" #"(downloading)"
 
 				download_start_time = time.time() + 2
 
@@ -2637,30 +2811,30 @@ class ServerLoader(th.Thread):
 
 		s.settimeout(10)
 
-		tries_left = 5
+		#tries_left = 5
 
-		while True:
+		#while True:
 
-			try:
+		#	try:
 
-				self.report("", "Connecting...")
-				s.connect((host, port))
+		self.report("", "Connecting...")
+		s.connect((host, port))
 
-				self.report("", "Connected.")
+		self.report("", "Connected.")
 
-				break
+		#		break
 
-			except socket.error as e:
+		#	except socket.error as e:
 				
-				if tries_left > 0:
+		#		if tries_left > 0:
 				
-					self.connection_failed_retrying(e)
+		#			self.connection_failed_retrying(e)
 
-					tries_left -= 1
+		#			tries_left -= 1
 
-				else:
+		#		else:
 
-					raise ClientException("Maximum connection attempts exceeded. Check your internet connection and firewall settings, then try again.") from e
+		#			raise ClientException("Maximum connection attempts exceeded. Check your internet connection and firewall settings, then try again.") from e
 
 		return s
 
@@ -3477,7 +3651,7 @@ class GameLauncher(th.Thread):
 
 		except Exception as e:
 
-			show_error(f"An unexpected error occurred in the game launcher thread.\n\n{e}")
+			show_error(f"An unexpected error occurred while launching SimCity 4.\n\n{e}")
 
 
 class RegionsRefresher(th.Thread):
@@ -3560,7 +3734,7 @@ class RegionsRefresher(th.Thread):
 						# Display current file in UI
 						try:
 							self.ui.progress_label["text"] = d.name #.relative_to(destination)
-							self.ui.duration_label["text"] = "(cached)"
+							self.ui.duration_label["text"] = "Cache 🡒 SC4" #"(cached)"
 						except Exception:
 							pass
 
@@ -3607,7 +3781,7 @@ class RegionsRefresher(th.Thread):
 					# Display current file in UI
 					try:
 						self.ui.progress_label["text"] = d.name #.relative_to(destination)
-						self.ui.duration_label["text"] = "(downloading)"
+						self.ui.duration_label["text"] = "Server 🡒 SC4" #"(downloading)"
 					except Exception:
 						pass
 
@@ -3745,6 +3919,7 @@ class DatabaseManager(th.Thread):
 		self.end = False
 
 		self.filename = filename
+		self.backup_filename = Path(f"{filename}.bak")
 		self.data = self.load_json()
 
 
@@ -3776,27 +3951,44 @@ class DatabaseManager(th.Thread):
 
 	def load_json(self):
 		
-		return load_json(self.filename)
+		try:
+			return load_json(self.filename)
+		except Exception as e:
+			show_error(e, no_ui=True)
+			print(f"[WARNING] Falied to load \"{self.filename}\". Attempting to load backup...")
+			try:
+				return load_json(self.backup_filename)
+			except Exception as e:
+				raise ClientException(f"Failed to load \"{self.filename}\". Loading the backup at \"{self.backup_filename}\" also failed.") from e
 
 
 	def update_json(self):
 		
+		if self.filename.exists():
+			if self.backup_filename.exists():
+				os.unlink(self.backup_filename)
+			shutil.copy(self.filename, self.backup_filename)
+
 		return update_json(self.filename, self.data)
 
 
 	def keys(self):
+
 		return self.data.keys()
 
 
 	def get(self, key, default):
+
 		return self.data.get(key, default)
 
 
 	def __getitem__(self, key):
+
 		return self.data.__getitem__(key)
 
 
 	def __setitem__(self, key, value):
+
 		return self.data.__setitem__(key, value)
 
 
@@ -3895,7 +4087,12 @@ class UI(tk.Tk):
 		self.config(menu=menu)  
 
 
-		# Server List
+		# Release notes
+			
+		th.Thread(target=self.release_notes, daemon=True).start()
+
+
+		# Server browser
 
 		if sc4mp_config["GENERAL"]["use_server_browser"]:
 			self.server_list = ServerListUI(self)
@@ -3905,7 +4102,27 @@ class UI(tk.Tk):
 			self.label.pack(anchor="center", pady=250)
 			#self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Connect..." in the menu bar and enter the hostname and port of the server you wish to connect to.')
 			#self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+
+
+	def release_notes(self):
+
+		if sc4mp_config["GENERAL"]["show_release_notes"] and sc4mp_config["GENERAL"]["release_notes_version"] != SC4MP_VERSION:
+
+			try:
+
+				# Set version for release info
+				version = SC4MP_VERSION
+
+				# Get latest release info
+				release_info = get_release_info(version=version)
+
+				# Create release notes UI
+				ReleaseNotesUI(version, release_info["name"], release_info["body"])
+
+			except Exception as e:
 	
+				show_error(f"Unable to show release notes.\n\n{e}", no_ui=True)
+
 
 	def show_error(self, *args):
 		
@@ -4043,11 +4260,11 @@ class GeneralSettingsUI(tk.Toplevel):
 		#self.ui_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
 		#self.config_update.append((self.ui_frame.checkbutton_variable, "use_launcher_map"))
 
-		# Allow manual disconnect
-		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["allow_game_monitor_exit"])
-		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Allow manual disconnect", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		# Use fullscreen background
+		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_fullscreen_background"])
+		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use fullscreen background", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
 		self.ui_frame.checkbutton.grid(row=2, column=0, columnspan=1, padx=10, pady=(5,10), sticky="w")
-		self.config_update.append((self.ui_frame.checkbutton_variable, "allow_game_monitor_exit"))
+		self.config_update.append((self.ui_frame.checkbutton_variable, "use_fullscreen_background"))
 
 		# Mayors online cutoff label
 		#self.ui_frame.mayors_online_cutoff_label = tk.Label(self.ui_frame, text="Show mayors online in the past")
@@ -4216,7 +4433,7 @@ class StorageSettingsUI(tk.Toplevel):
 
 		# Cache size entry
 		self.cache_size_frame.entry = ttk.Entry(self.cache_size_frame, width=10)
-		self.cache_size_frame.entry.insert(0, format_filesize(sc4mp_config["STORAGE"]["cache_size"] * 1000))
+		self.cache_size_frame.entry.insert(0, format_filesize(sc4mp_config["STORAGE"]["cache_size"] * 1000000))
 		self.cache_size_frame.entry.grid(row=0, column=0, columnspan=1, padx=(10,0), pady=10, sticky="w")
 		self.config_update.append((self.cache_size_frame.entry, "cache_size"))
 
@@ -4274,7 +4491,7 @@ class StorageSettingsUI(tk.Toplevel):
 				restart = True
 			if key == "cache_size":
 				try:
-					data = parse_filesize(data) / 1000
+					data = parse_filesize(data) / 1000000
 				except ValueError:
 					try:
 						data = int(data)
@@ -4449,6 +4666,9 @@ class SC4SettingsUI(tk.Toplevel):
 		for item in self.config_update:
 			data = item[0].get()
 			key = item[1]
+			if key == "game_path":
+				if sc4mp_config["SC4"]["use_steam_browser_protocol"] in [0, 1]:
+					update_config_value("SC4", "use_steam_browser_protocol", (1 if is_steam_sc4(Path(data)) else 0))
 			if key == "res":
 				res = data.split(' ')[0]
 				resw, resh = res.split('x')
@@ -5229,7 +5449,10 @@ class ServerLoaderUI(tk.Toplevel):
 		super().__init__()
 
 		# Loading Background
-		#self.loading_background = ServerLoaderBackgoundUI()
+		if sc4mp_has_pil and sc4mp_config["GENERAL"]["use_fullscreen_background"]:
+			self.background = ServerBackgroundUI(server)
+		else:
+			self.background = None
 
 		# Title
 		self.title(server.host + ":" + str(server.port))
@@ -5285,71 +5508,147 @@ class ServerLoaderUI(tk.Toplevel):
 
 		super().destroy()
 
-		#try:
-		#	self.loading_background.destroy()
-		#except Exception:
-		#	pass
+		#if self.background is not None:
+		#	self.background.destroy()
 
 
-class ServerLoaderBackgoundUI(tk.Toplevel):
+class ServerBackgroundUI(tk.Toplevel):
 
 
-	def __init__(self):
-		
-
-		#print("Initializing...")
+	def __init__(self, server):
 
 		# Init
 		super().__init__()
+		self.server = server
+		self.destroyed = False
 
 		# Title
-		self.title("Loading background")
-
-		# Icon
-		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+		self.title(SC4MP_TITLE)
 
 		# Geometry
-		#self.grid()
-		self.attributes("-fullscreen", True)
+		self.state('zoomed')
+		#self.attributes("-fullscreen", True)
 
-		# Image
-		self.image = tk.PhotoImage(file=get_sc4mp_path("loading_background.png"))
-		self.image_resized = self.image
+		# Load the image
+		self.default_image = Image.open(get_sc4mp_path("background.png"))
+		self.server_image = None
 
 		# Canvas
 		self.canvas = tk.Canvas(self, bg="black", highlightthickness=0)
-		self.canvas.image = self.canvas.create_image(0, 0, anchor="center", image=self.image_resized)
-		self.canvas.pack()
+		self.canvas.pack(fill=tk.BOTH, expand=True)
+
+		# Bind resizing event
+		self.bind("<Configure>", self.reload_image)
+
+		# Fetch loading screen image
+		th.Thread(target=self.fetch_background, daemon=True).start()
 
 		# Loop
-		self.loop()
-
-
-	def loop(self):
-		width = self.winfo_screenwidth()
-		height = self.winfo_screenheight()
-		self.image_resized = self.resize_image(self.image, int((height / self.image.height()) * width), int(height))
-		image_width = self.image_resized.width()
-		image_height = self.image_resized.height()
-		self.canvas.config(width=width, height=height)
-		self.canvas.moveto(self.canvas.image, (width / 2) - (image_width / 2), (height / 2) - (image_height / 2))
 		self.after(100, self.loop)
 
 
-	def resize_image(self, image, new_width, new_height):
-		img = image
-		newWidth = new_width
-		newHeight = new_height
-		oldWidth = img.width()
-		oldHeight = img.height()
-		newPhotoImage = tk.PhotoImage(width=newWidth, height=newHeight)
-		for x in range(newWidth):
-			for y in range(newHeight):
-				xOld = int(x*oldWidth/newWidth)
-				yOld = int(y*oldHeight/newHeight)
-				rgb = '#%02x%02x%02x' % img.get(xOld, yOld)
-				newPhotoImage.put(rgb, (x, y))
-		return newPhotoImage
+	def reload_image(self, event=None):
+
+		# Get the new size of the window
+		if event is None:
+			new_width = self.winfo_width()
+			new_height = self.winfo_height()
+		else:
+			new_width = event.width
+			new_height = event.height
+
+		if self.server_image is None:
+			image = self.default_image
+		else:
+			image = self.server_image
+
+		try:
+
+			# Resize the image
+			self.image_resized = image.resize((new_width, new_height))
+
+			# Convert to PhotoImage and update the canvas
+			self.image_resized_tk = ImageTk.PhotoImage(self.image_resized)
+			self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image_resized_tk)
+			self.canvas.image = self.image_resized_tk
+
+		except Exception as e:
+
+			show_error(f"An error occurred while displaying the server background.\n\n{e}", no_ui=True)
+
+
+	def fetch_background(self):
+
+		if self.destroyed:
+
+			return
+
+		try:
+
+			s = socket.socket()
+			s.settimeout(10)
+			s.connect((self.server.host, self.server.port))
+		
+			s.send(b"background")
+
+			destination: Path = SC4MP_LAUNCHPATH / "_Temp" / "background.png"
+
+			if destination.exists():
+				os.unlink(destination)
+
+			with open(destination, "wb") as file:
+				while True:
+					data = s.recv(SC4MP_BUFFER_SIZE)
+					if not data:
+						break
+					if self.destroyed:
+						return
+					file.write(data)
+
+			if destination.stat().st_size > 0:
+
+				self.server_image = Image.open(destination)
+
+				self.reload_image()
+
+			return
+
+		#except (UnidentifiedImageError, PermissionError):
+
+		#	pass
+
+		except Exception as e:
+
+			show_error(f"An error occurred while fetching server background.\n\n{e}", no_ui=True)
+
+			self.retry_fetch_background()
+
+
+	def retry_fetch_background(self):
+
+		if self.destroyed:
+			return
+
+		self.server_image = None
+		self.after(3000, lambda: th.Thread(target=self.fetch_background, daemon=True).start())
+
+
+	def loop(self):
+
+		if sc4mp_ui.winfo_viewable():
+			self.destroy()
+		#elif process_exists("simcity 4.exe"):
+		#	self.destroy()
+		#	#self.after(10000, self.destroy)
+		elif not self.destroyed:
+			self.after(100, self.loop)
+
+	
+	def destroy(self):
+
+		self.destroyed = True
+
+		return super().destroy()
 
 
 class GameMonitorUI(tk.Toplevel):
@@ -5374,10 +5673,13 @@ class GameMonitorUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.geometry("400x400+30+30")
+		self.geometry("400x400+10+40")
 		self.minsize(420, 280)
 		self.maxsize(420, 280)
 		self.grid()
+
+		# Priority
+		self.grab_set()
 
 		# Protocol
 		self.protocol("WM_DELETE_WINDOW", self.delete_window)
@@ -5590,28 +5892,35 @@ class GameOverlayUI(tk.Toplevel):
 
 	def overlay(self):
 		
+		try:
 
-		if sc4mp_ui.focus_get() is self.game_monitor_ui:
+			if sc4mp_ui.focus_get() is self.game_monitor_ui:
 
-			self.withdraw()
+				self.withdraw()
 
-		else:
-			
-			WIDTH = 115
-			HEIGHT = 20
+			else:
+				
+				WIDTH = 115
+				HEIGHT = 20
 
-			screen_height = self.winfo_screenheight()
-			screen_width = self.winfo_screenwidth()
+				screen_height = self.winfo_screenheight()
+				screen_width = self.winfo_screenwidth()
 
-			self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, screen_width - WIDTH, screen_height - HEIGHT))
+				self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, screen_width - WIDTH, screen_height - HEIGHT))
 
-			self.overrideredirect(True)
+				self.overrideredirect(True)
 
-			self.lift()
+				self.lift()
 
-			self.deiconify()
+				self.deiconify()
 
-		self.after(100, self.overlay)
+			self.after(100, self.overlay)
+
+		except Exception as e:
+
+			if type(e) is not tk.TclError or "bad window path name" not in str(e):
+				
+				show_error(f"Cannot overlay the game overlay.\n\n{e}", no_ui=True)
 
 
 	def set_state(self, state):
@@ -5765,6 +6074,121 @@ class UpdaterUI(tk.Toplevel):
 		super().destroy()
 
 		self.parent.destroy()
+
+
+class ReleaseNotesUI(tk.Toplevel):
+	
+	def __init__(self, version: str, title: str, body: str):
+	
+
+		#print("Initializing...")
+
+		# Init
+		super().__init__()
+		self.version = version
+
+		# Title
+		self.title(f"Version {version}")
+
+		# Icon
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+
+		# Geometry
+		self.geometry('400x400')
+		#self.maxsize(420, 375)
+		#self.minsize(420, 375)
+		self.grid()
+		
+		# Priority
+		self.grab_set()
+
+		# Key bindings
+		self.bind("<Return>", lambda event:self.destroy())
+		self.bind("<Escape>", lambda event:self.destroy())
+
+		try:
+
+			# Title
+			#self.title = ttk.Label(self, text=SC4MP_TITLE, font=("Arial", 16))
+			#self.title.grid(row=10, column=0, padx=10, pady=10)
+
+			# Description
+			#self.description = ttk.Label(self, text="Thank you for using the SC4MP launcher.")
+			#self.description.grid(row=11, column=0, sticky="n", padx=10, pady=10)
+
+			# Release notes label
+			self.subtitle = ttk.Label(self, text="Release notes")
+			self.subtitle.grid(row=19, column=0, columnspan=99, sticky="w", padx=10, pady=5)
+
+			# Body
+			self.body = tk.Frame(self, width=400, height=100, background="white", highlightbackground="gray", highlightthickness=1)
+			self.body.grid(row=20, column=0, padx=(10,0), pady=0, sticky="nw")
+			self.body.grid_propagate(0)
+
+			# Body title
+			self.body.title = ttk.Label(self.body, text=title, wraplength=(int(self.body["width"]) - 20), background="white", font=("Arial", 8, "bold"))
+			self.body.title.grid(row=0, column=0, columnspan=99, padx=10, pady=10, sticky="nw")
+
+			# Body text
+			lines = body.splitlines()
+			if len(lines) > 0 and lines[-1].startswith("**Full Changelog**"):
+				lines.pop(-1)
+				if len(lines) > 0 and len(lines[-1]) == 0:
+					lines.pop(-1)
+			if len(lines) < 1:
+				ttk.Label(self.body, text="No description provided.", background="white", font=("Arial", 8, "italic")).grid(row=1, column=0, columnspan=99, padx=10, pady=2, sticky="nw")
+			else:
+				for line_number in range(len(lines)):
+					line = lines[line_number]
+					bold = "**" in line
+					bulleted = line.startswith("- ")
+					for sequence in ["**", "- "]:
+						line = line.replace(sequence, "")
+					if bulleted:
+						ttk.Label(self.body, text="\u2022", background="white").grid(row=line_number + 1, column=0, columnspan=1, padx=(10,0), pady=2, sticky ="nw")
+						ttk.Label(self.body, text=line, wraplength=(int(self.body["width"]) - 40), background="white").grid(row=line_number + 1, column=1, columnspan=1, padx=10, pady=2, sticky="nw")
+					else:
+						ttk.Label(self.body, text=line, wraplength=(int(self.body["width"]) - 20), background="white").grid(row=line_number + 1, column=0, columnspan=99, padx=10, pady=2, sticky="nw")
+
+			# Body link
+			self.body.link = ttk.Label(self.body, text="View all releases...", foreground="blue", background="white", cursor="hand2")
+			self.body.link.grid(row=99, column=0, columnspan=99, padx=10, pady=10, sticky="nw")
+			self.body.link.bind("<Button-1>", lambda e:webbrowser.open_new_tab(SC4MP_RELEASES_URL))
+
+			# Resize body and window to fit content
+			sc4mp_ui.update()
+			body_height = self.body.link.winfo_y() + 30
+			window_height = body_height + 75
+			self.body.configure(height=body_height)
+			self.maxsize(420, window_height)
+			self.minsize(420, window_height)
+
+			# Scrollbar
+			#scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.body.yview)
+			#self.body.configure(yscrollcommand=self.scrollbar.set)
+			#self.scrollbar.grid(row=20, column=1, padx=0, pady=10)
+
+			# Ok button
+			self.ok_button = ttk.Button(self, text="Ok", command=self.destroy, default="active")
+			self.ok_button.grid(row=99, column=0, columnspan=99, padx=0, pady=10, sticky="s")
+
+			# Center window
+			center_window(self)
+
+		except Exception as e:
+
+			self.destroy()
+
+			raise e
+
+
+	def destroy(self):
+
+		sc4mp_config["GENERAL"]["release_notes_version"] = self.version
+
+		sc4mp_config.update()
+
+		return super().destroy()
 
 
 # Exceptions

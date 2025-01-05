@@ -66,7 +66,9 @@ def main():
         f"-i",
 		f"{os.path.abspath(os.path.join('resources', 'icon.ico'))}",
 		f"--version-file",
-		f"{os.path.abspath('version.rc')}"
+		f"{os.path.abspath('version.rc')}",
+		f"--splash",
+		f"{os.path.abspath(os.path.join('resources', 'splash.png'))}"
 	])
 
 	# Copy binary files to distribution directory
