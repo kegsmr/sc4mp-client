@@ -155,3 +155,42 @@ def parse_filesize(filesize_str) -> int:
         raise ValueError(f"Unsupported unit '{unit}'. Supported units are: {', '.join(size_multipliers.keys())}.")
 
     return int(size * size_multipliers[unit])
+
+
+def format_time_ago(time):
+
+	from datetime import datetime, timedelta
+
+	if time is None:
+		return "Never"
+
+	now = datetime.now()
+
+	if time + timedelta(days=30) > now:
+
+		seconds = (now - time).total_seconds()
+
+		if seconds < 60:
+			return f"{int(seconds)}s ago"
+		elif seconds < 3600:
+			minutes = seconds // 60
+			return f"{int(minutes)}m ago"
+		elif seconds < 86400:
+			hours = seconds // 3600
+			return f"{int(hours)}h ago"
+		else:
+			days = seconds // 86400
+			return f"{int(days)}d ago"
+
+	else:
+
+		months = (now.year - time.year) * 12 + now.month - time.month
+		
+		if months < 12:
+			return f"{int(months)}mo ago"
+		else:
+			years = months / 12
+			if years < 1000:
+				return f"{int(years)}y ago"
+			else:
+				return "Never"

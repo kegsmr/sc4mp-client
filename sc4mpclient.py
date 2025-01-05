@@ -26,6 +26,12 @@ from tkinter import Menu, filedialog, messagebox, ttk
 from typing import Optional
 import urllib.request
 
+try:
+	from PIL import Image, ImageTk, UnidentifiedImageError
+	sc4mp_has_pil = True
+except ImportError:
+	sc4mp_has_pil = False
+
 #pylint: disable=wildcard-import
 #pylint: disable=unused-wildcard-import
 from core.config import *
@@ -36,7 +42,7 @@ from core.util import *
 
 # Header
 
-SC4MP_VERSION = "0.7.4"
+SC4MP_VERSION = "0.7.5"
 
 SC4MP_SERVERS = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
 
@@ -80,6 +86,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("scan_lan", True),
 		("stat_mayors_online_cutoff", 60),
 		("show_actual_download", True),
+		("use_fullscreen_background", True),
 		("use_launcher_map", True),
 		("use_game_overlay", 1),
 		("allow_game_monitor_exit", True),
@@ -97,7 +104,7 @@ SC4MP_CONFIG_DEFAULTS = [
 	]),
 	("STORAGE", [
 
-		("storage_path", Path("~/Documents/SimCity 4/SC4MP Launcher/_SC4MP").expanduser()),
+		("storage_path", Path("_SC4MP").absolute()),
 		("cache_size", 8000)
 
 	]),
@@ -133,6 +140,8 @@ SC4MP_RISKY_FILE_EXTENSIONS = [".bat", ".bin", ".cmd", ".com", ".cpl", ".dll", "
 								".paf", ".pif", ".py", ".ps1", ".reg", ".rgs", ".scr", ".sct", ".sh", ".shb",
 								".shs", ".u3p", ".vb", ".vbe", ".vbs", ".vbscript", ".ws", ".wsf", ".wsh"]
 
+URL_PREFIX = "sc4mp://"
+
 sc4mp_args = sys.argv
 
 sc4mp_ui = None
@@ -154,14 +163,36 @@ def main():
 
 	try:
 
-		# Exit if already running
+		# URL launch behavior
+		url_launch = len(sc4mp_args) > 1 and sc4mp_args[1].startswith(URL_PREFIX)
+		url_launch_exit_after = True
+	
+		# Exit if already runnning (unless launching using URL)
 		if not "-allow-multiple" in sc4mp_args:
 			try:
 				count = process_count("sc4mpclient.exe")
 				if count is not None and count > 1:
-					tk.Tk().withdraw()
-					messagebox.showerror(title=SC4MP_TITLE, message="SC4MP Launcher is already running!")
-					return
+					if url_launch:
+						url_launch_exit_after = False
+						if process_exists("simcity 4.exe"):
+							return
+						else:
+							try:
+								our_pid: int = os.getpid()
+								pids: list[int] = get_image_pids("sc4mpclient.exe")
+								if pids is not None:
+									if our_pid in pids:
+										pids.remove(our_pid)
+									for pid in pids:
+										if subprocess.call(f"TASKKILL /F /PID {pid}", shell=True) != 0:
+											return
+							except Exception:
+								return
+					else:
+						tk.Tk().withdraw()
+						close_splash()
+						messagebox.showerror(title=SC4MP_TITLE, message="SC4MP Launcher is already running!")
+						return
 			except Exception:
 				pass
 
@@ -219,12 +250,13 @@ def main():
 			except Exception as e:
 				raise ClientException("Invalid arguments.") from e
 
-		# URL scheme
-		URL_PREFIX = "sc4mp://"
-		if len(sc4mp_args) > 1 and sc4mp_args[1].startswith(URL_PREFIX):
+		# Launch using URL
+		if url_launch:
 			try:
 				url = sc4mp_args[1]
 				url = url.replace(URL_PREFIX, "", 1)
+				if url.endswith("/"):
+					url = url[:-1]
 				url = url.split(":")
 				if len(url) > 1:
 					sc4mp_host = ":".join(url[:-1])
@@ -232,9 +264,9 @@ def main():
 				else:
 					sc4mp_host = url[0]
 					sc4mp_port = 7240
-				sc4mp_exit_after = True
+				sc4mp_exit_after = url_launch_exit_after
 			except Exception:
-				show_error("Invalid URL.\n\nURLs must adhere to:\nsc4mp://<host>:<port>")
+				show_error(f"Invalid URL.\n\nURLs must adhere to:\nsc4mp://<host>:<port>\n\nURL given:\n{sc4mp_args[1]}")
 				return
 
 		# Prep
@@ -253,6 +285,7 @@ def main():
 				ServerLoaderUI(server)
 			else:
 				sc4mp_ui = UI()
+			close_splash()
 			sc4mp_ui.mainloop()
 		else:
 			sc4mp_ui = None
@@ -478,6 +511,7 @@ def check_updates():
 						th.Thread(target=update, kwargs={"ui": updater_ui}, daemon=True).start()
 
 						# Run the UI main loop
+						close_splash()
 						sc4mp_ui.mainloop()
 
 						# Exit when complete
@@ -888,6 +922,7 @@ def show_error(e, no_ui=False):
 		if sc4mp_ui != None:
 			if sc4mp_ui == True:
 				tk.Tk().withdraw()
+				close_splash()
 			messagebox.showerror(SC4MP_TITLE, message)
 
 
@@ -917,6 +952,7 @@ def fatal_error():
 	if sc4mp_ui != None:
 		if sc4mp_ui == True:
 			tk.Tk().withdraw()
+			close_splash()
 		messagebox.showerror(SC4MP_TITLE, message)
 		open_logs()
 
@@ -941,6 +977,7 @@ def show_warning(e):
 	if sc4mp_ui != None:
 		if sc4mp_ui == True:
 			tk.Tk().withdraw()
+			close_splash()
 		messagebox.showwarning(SC4MP_TITLE, message)
 
 
@@ -1150,6 +1187,49 @@ def sanitize_relpath(basepath: Path, relpath: str) -> Path:
 		return fullpath
 	else:
 		raise ValueError(f"Invalid relative path: \"{relpath}\".")
+
+
+def get_image_pids(image_name) -> list[int] | None:
+	"""
+	Find the PIDs of processes with the given image name on Windows.
+
+	Args:
+		image_name (str): The name of the process image (e.g., "notepad.exe").
+
+	Returns:
+	    list: A list of PIDs for processes matching the given image name.
+	"""
+	if platform.system() == "Windows":
+		pids = []
+		try:
+			# Use tasklist to get the list of processes
+			result = subprocess.run(["tasklist"], capture_output=True, text=True, check=True, shell=True)
+			# Split the result into lines
+			lines = result.stdout.splitlines()
+			# Parse each line for matching processes
+			for line in lines:
+				if image_name.lower() in line.lower():
+					parts = line.split()
+					if parts[0].lower() == image_name.lower():
+						try:
+							pids.append(int(parts[1]))  # The second column is the PID
+						except ValueError:
+							pass
+			return pids
+		except subprocess.CalledProcessError as e:
+			print(f"An error occurred while getting image PIDs.\n\n{e}")
+			return None
+	else:
+		return None
+
+
+def close_splash():
+
+	try:
+		import pyi_splash
+		pyi_splash.close()
+	except ImportError:
+		pass
 
 
 # Objects
@@ -4009,7 +4089,7 @@ class UI(tk.Tk):
 
 		# Release notes
 			
-		th.Thread(target=self.release_notes).start()
+		th.Thread(target=self.release_notes, daemon=True).start()
 
 
 		# Server browser
@@ -4205,11 +4285,11 @@ class GeneralSettingsUI(tk.Toplevel):
 		#self.ui_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
 		#self.config_update.append((self.ui_frame.checkbutton_variable, "use_launcher_map"))
 
-		# Allow manual disconnect
-		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["allow_game_monitor_exit"])
-		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Allow manual disconnect", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		# Use fullscreen background
+		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_fullscreen_background"])
+		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use fullscreen background", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
 		self.ui_frame.checkbutton.grid(row=2, column=0, columnspan=1, padx=10, pady=(5,10), sticky="w")
-		self.config_update.append((self.ui_frame.checkbutton_variable, "allow_game_monitor_exit"))
+		self.config_update.append((self.ui_frame.checkbutton_variable, "use_fullscreen_background"))
 
 		# Mayors online cutoff label
 		#self.ui_frame.mayors_online_cutoff_label = tk.Label(self.ui_frame, text="Show mayors online in the past")
@@ -5394,7 +5474,10 @@ class ServerLoaderUI(tk.Toplevel):
 		super().__init__()
 
 		# Loading Background
-		#self.loading_background = ServerLoaderBackgoundUI()
+		if sc4mp_has_pil and sc4mp_config["GENERAL"]["use_fullscreen_background"]:
+			self.background = ServerBackgroundUI(server)
+		else:
+			self.background = None
 
 		# Title
 		self.title(server.host + ":" + str(server.port))
@@ -5450,71 +5533,147 @@ class ServerLoaderUI(tk.Toplevel):
 
 		super().destroy()
 
-		#try:
-		#	self.loading_background.destroy()
-		#except Exception:
-		#	pass
+		#if self.background is not None:
+		#	self.background.destroy()
 
 
-class ServerLoaderBackgoundUI(tk.Toplevel):
+class ServerBackgroundUI(tk.Toplevel):
 
 
-	def __init__(self):
-		
-
-		#print("Initializing...")
+	def __init__(self, server):
 
 		# Init
 		super().__init__()
+		self.server = server
+		self.destroyed = False
 
 		# Title
-		self.title("Loading background")
-
-		# Icon
-		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+		self.title(SC4MP_TITLE)
 
 		# Geometry
-		#self.grid()
-		self.attributes("-fullscreen", True)
+		self.state('zoomed')
+		#self.attributes("-fullscreen", True)
 
-		# Image
-		self.image = tk.PhotoImage(file=get_sc4mp_path("loading_background.png"))
-		self.image_resized = self.image
+		# Load the image
+		self.default_image = Image.open(get_sc4mp_path("background.png"))
+		self.server_image = None
 
 		# Canvas
 		self.canvas = tk.Canvas(self, bg="black", highlightthickness=0)
-		self.canvas.image = self.canvas.create_image(0, 0, anchor="center", image=self.image_resized)
-		self.canvas.pack()
+		self.canvas.pack(fill=tk.BOTH, expand=True)
+
+		# Bind resizing event
+		self.bind("<Configure>", self.reload_image)
+
+		# Fetch loading screen image
+		th.Thread(target=self.fetch_background, daemon=True).start()
 
 		# Loop
-		self.loop()
-
-
-	def loop(self):
-		width = self.winfo_screenwidth()
-		height = self.winfo_screenheight()
-		self.image_resized = self.resize_image(self.image, int((height / self.image.height()) * width), int(height))
-		image_width = self.image_resized.width()
-		image_height = self.image_resized.height()
-		self.canvas.config(width=width, height=height)
-		self.canvas.moveto(self.canvas.image, (width / 2) - (image_width / 2), (height / 2) - (image_height / 2))
 		self.after(100, self.loop)
 
 
-	def resize_image(self, image, new_width, new_height):
-		img = image
-		newWidth = new_width
-		newHeight = new_height
-		oldWidth = img.width()
-		oldHeight = img.height()
-		newPhotoImage = tk.PhotoImage(width=newWidth, height=newHeight)
-		for x in range(newWidth):
-			for y in range(newHeight):
-				xOld = int(x*oldWidth/newWidth)
-				yOld = int(y*oldHeight/newHeight)
-				rgb = '#%02x%02x%02x' % img.get(xOld, yOld)
-				newPhotoImage.put(rgb, (x, y))
-		return newPhotoImage
+	def reload_image(self, event=None):
+
+		# Get the new size of the window
+		if event is None:
+			new_width = self.winfo_width()
+			new_height = self.winfo_height()
+		else:
+			new_width = event.width
+			new_height = event.height
+
+		if self.server_image is None:
+			image = self.default_image
+		else:
+			image = self.server_image
+
+		try:
+
+			# Resize the image
+			self.image_resized = image.resize((new_width, new_height))
+
+			# Convert to PhotoImage and update the canvas
+			self.image_resized_tk = ImageTk.PhotoImage(self.image_resized)
+			self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image_resized_tk)
+			self.canvas.image = self.image_resized_tk
+
+		except Exception as e:
+
+			show_error(f"An error occurred while displaying the server background.\n\n{e}", no_ui=True)
+
+
+	def fetch_background(self):
+
+		if self.destroyed:
+
+			return
+
+		try:
+
+			s = socket.socket()
+			s.settimeout(10)
+			s.connect((self.server.host, self.server.port))
+		
+			s.send(b"background")
+
+			destination: Path = SC4MP_LAUNCHPATH / "_Temp" / "background.png"
+
+			if destination.exists():
+				os.unlink(destination)
+
+			with open(destination, "wb") as file:
+				while True:
+					data = s.recv(SC4MP_BUFFER_SIZE)
+					if not data:
+						break
+					if self.destroyed:
+						return
+					file.write(data)
+
+			if destination.stat().st_size > 0:
+
+				self.server_image = Image.open(destination)
+
+				self.reload_image()
+
+			return
+
+		#except (UnidentifiedImageError, PermissionError):
+
+		#	pass
+
+		except Exception as e:
+
+			show_error(f"An error occurred while fetching server background.\n\n{e}", no_ui=True)
+
+			self.retry_fetch_background()
+
+
+	def retry_fetch_background(self):
+
+		if self.destroyed:
+			return
+
+		self.server_image = None
+		self.after(3000, lambda: th.Thread(target=self.fetch_background, daemon=True).start())
+
+
+	def loop(self):
+
+		if sc4mp_ui.winfo_viewable():
+			self.destroy()
+		#elif process_exists("simcity 4.exe"):
+		#	self.destroy()
+		#	#self.after(10000, self.destroy)
+		elif not self.destroyed:
+			self.after(100, self.loop)
+
+	
+	def destroy(self):
+
+		self.destroyed = True
+
+		return super().destroy()
 
 
 class GameMonitorUI(tk.Toplevel):
@@ -5539,10 +5698,13 @@ class GameMonitorUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.geometry("400x400+30+30")
+		self.geometry("400x400+10+40")
 		self.minsize(420, 280)
 		self.maxsize(420, 280)
 		self.grid()
+
+		# Priority
+		self.grab_set()
 
 		# Protocol
 		self.protocol("WM_DELETE_WINDOW", self.delete_window)
