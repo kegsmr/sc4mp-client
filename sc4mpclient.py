@@ -5641,7 +5641,7 @@ class ServerBackgroundUI(tk.Toplevel):
 			self.destroy()
 			#self.after(10000, self.destroy)
 		elif not self.destroyed:
-			self.after(100, self.loop)
+			self.after(1000, self.loop)
 
 	
 	def destroy(self):
