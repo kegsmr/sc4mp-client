@@ -2332,7 +2332,7 @@ class ServerLoader(th.Thread):
 					self.report("", "Preparing config...")
 					self.prep_config()
 
-				self.report("", "Done")
+				self.report("", "Launching SC4...")
 
 				loading_end = time.time()
 
@@ -2355,9 +2355,6 @@ class ServerLoader(th.Thread):
 
 			#time.sleep(1)
 
-			if self.ui != None:
-				self.ui.destroy()
-			
 			if sc4mp_current_server != None:
 				sc4mp_config["GENERAL"]["default_host"] = self.server.host
 				sc4mp_config["GENERAL"]["default_port"] = self.server.port
@@ -2365,12 +2362,17 @@ class ServerLoader(th.Thread):
 				self.server.categories.append("History")
 				game_monitor = GameMonitor(self.server)
 				game_monitor.start()
+				while process_exists("simcity 4.exe") is False:
+					time.sleep(.1)
 			else:
 				if sc4mp_ui is not None:
 					if sc4mp_exit_after:
 						sc4mp_ui.destroy()
 					else:
 						sc4mp_ui.deiconify()
+
+			if self.ui != None:
+				self.ui.destroy()
 
 		except Exception as e:
 
@@ -5508,8 +5510,8 @@ class ServerLoaderUI(tk.Toplevel):
 
 		super().destroy()
 
-		#if self.background is not None:
-		#	self.background.destroy()
+		if self.background is not None:
+			self.background.destroy()
 
 
 class ServerBackgroundUI(tk.Toplevel):
@@ -5633,15 +5635,15 @@ class ServerBackgroundUI(tk.Toplevel):
 		self.after(3000, lambda: th.Thread(target=self.fetch_background, daemon=True).start())
 
 
-	def loop(self):
+	# def loop(self):
 
-		if sc4mp_ui.winfo_viewable():
-			self.destroy()
-		elif process_exists("simcity 4.exe"):
-			self.destroy()
-			#self.after(10000, self.destroy)
-		elif not self.destroyed:
-			self.after(1000, self.loop)
+	# 	if sc4mp_ui.winfo_viewable():
+	# 		self.destroy()
+	# 	#elif process_exists("simcity 4.exe"):
+	# 	#	self.destroy()
+	# 		#self.after(10000, self.destroy)
+	# 	elif not self.destroyed:
+	# 		self.after(100, self.loop)
 
 	
 	def destroy(self):
