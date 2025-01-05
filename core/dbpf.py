@@ -193,6 +193,12 @@ class DBPF:
 		if file is None:
 			file = self.file
 		return struct.unpack('<L', file.read(4))[0]
+	
+	
+	#def read_UL8(self, file=None):
+	#	if file is None:
+	#		file = self.file
+	#	return struct.unpack("<q", file.read(8))[0]
 
 
 	def read_unistr(self, file=None, length=None):
@@ -354,6 +360,23 @@ class SC4Savegame(DBPF):
 		return self.SC4ReadRegionalCity
 
 
+	def get_cSC4BudgetSimulator(self):
+
+		# Decompress the subfile and get the data as a bytes stream
+		data = self.decompress_subfile("e990be01")
+
+		# Dictionary to return
+		self.cSC4BudgetSimulator = {}
+
+		# Not decoded yet
+		data.read(14)
+
+		# Total funds
+		self.cSC4BudgetSimulator["totalFunds"] = struct.unpack("<q", data.read(8))[0]
+
+		return self.cSC4BudgetSimulator
+
+
 if __name__ == "__main__":
 
 	import sys
@@ -374,7 +397,11 @@ if __name__ == "__main__":
 		with open("SC4ReadRegionalCity.sc4", "wb") as file:
 			file.write(savegame.decompress_subfile("ca027edb").read())
 
+		with open("cSC4BudgetSimulator.sc4", "wb") as file:
+			file.write(savegame.decompress_subfile("e990be01").read())
+
 		print(savegame.get_SC4ReadRegionalCity())
+		print(savegame.get_cSC4BudgetSimulator())
 
 	elif filename.endswith(".cfg"):
 
