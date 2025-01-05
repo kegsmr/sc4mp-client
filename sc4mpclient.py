@@ -19,12 +19,12 @@ import threading as th
 import time
 import tkinter as tk
 import traceback
+import urllib.request
 import webbrowser
 from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
 from typing import Optional
-import urllib.request
 
 #pylint: disable=wildcard-import
 #pylint: disable=unused-wildcard-import
