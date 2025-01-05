@@ -2362,8 +2362,6 @@ class ServerLoader(th.Thread):
 				self.server.categories.append("History")
 				game_monitor = GameMonitor(self.server)
 				game_monitor.start()
-				while process_exists("simcity 4.exe") is False:
-					time.sleep(.1)
 			else:
 				if sc4mp_ui is not None:
 					if sc4mp_exit_after:
@@ -3639,21 +3637,22 @@ class GameLauncher(th.Thread):
 
 	def run(self):
 		
-
 		try:
 
 			set_thread_name("GlThread", enumerate=False)
 
 			start_sc4()
-			
-			self.game_running = False
-
-			global sc4mp_current_server
-			sc4mp_current_server = None
 
 		except Exception as e:
 
 			show_error(f"An unexpected error occurred while launching SimCity 4.\n\n{e}")
+
+		finally:
+
+			self.game_running = False
+
+			global sc4mp_current_server
+			sc4mp_current_server = None
 
 
 class RegionsRefresher(th.Thread):
@@ -5546,7 +5545,7 @@ class ServerBackgroundUI(tk.Toplevel):
 		th.Thread(target=self.fetch_background, daemon=True).start()
 
 		# Loop
-		self.after(100, self.loop)
+		#self.after(100, self.loop)
 
 
 	def reload_image(self, event=None):
