@@ -2098,19 +2098,17 @@ class ServerFetcher(th.Thread):
 
 						self.server.server_id = self.parent.saved_servers.pop((self.server.host, self.server.port))
 
-						server_entry = sc4mp_servers_database[self.server.server_id]
+						server_entry: dict = sc4mp_servers_database[self.server.server_id]
 
-						self.server.categories.append("Offline")
 						if "user_id" in server_entry.keys():
-							self.server.categories.append("History")
-						if "Official" in self.server.categories:
-							self.server.categories.remove("Official")
 
-						self.server.server_name = server_entry.get("server_name", f"{self.server.host}:{self.server.port}")
-						self.server.server_description = server_entry.get("server_description", "")
-						self.server.server_url = server_entry.get("server_url", "")
+							self.server.categories.extend(["Offline", "History"])
 
-						self.parent.fetched_servers.append(self.server)
+							self.server.server_name = server_entry.get("server_name", f"{self.server.host}:{self.server.port}")
+							self.server.server_description = server_entry.get("server_description", "")
+							self.server.server_url = server_entry.get("server_url", "")
+
+							self.parent.fetched_servers.append(self.server)
 
 					raise ClientException("Server not found.") from e
 
