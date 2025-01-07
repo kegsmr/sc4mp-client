@@ -1250,7 +1250,7 @@ class Server:
 		self.user_id = None
 
 		self.categories = ["All"]
-		if host == "servers.sc4mp.org":
+		if self.host == "servers.sc4mp.org":
 			self.categories.append("Official")
 
 
@@ -1785,7 +1785,7 @@ class ServerList(th.Thread):
 								image = self.error_icon
 							elif server.password_enabled:
 								image = self.lock_icon
-							elif (server.host, server.port) in SC4MP_SERVERS:
+							elif "Official" in server.categories:
 								image = self.official_icon
 							else:
 								image = self.blank_icon
