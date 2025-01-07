@@ -1955,11 +1955,11 @@ class ServerList(th.Thread):
 		
 		server_a_sort_value = self.get_sort_value(server_a)
 		server_b_sort_value = self.get_sort_value(server_b)
-		if server_a_sort_value == None and server_b_sort_value == None:
+		if server_a_sort_value is None and server_b_sort_value is None:
 			return True
-		elif server_a_sort_value == None:
+		elif server_a_sort_value is None:
 			return False
-		elif server_b_sort_value == None:
+		elif server_b_sort_value is None:
 			return True
 		else:
 			if not self.ui.tree.reverse_sort:
@@ -1970,12 +1970,13 @@ class ServerList(th.Thread):
 
 	def in_order_index(self, server):
 		
-		existing_server_ids = self.ui.tree.get_children()
-		for index in range(len(existing_server_ids)):
-			existing_server_id = existing_server_ids[index]
-			existing_server = self.servers[existing_server_id]
-			if self.in_order(server, existing_server):
-				return index
+		if self.get_sort_value(server):
+			existing_server_ids = self.ui.tree.get_children()
+			for index in range(len(existing_server_ids)):
+				existing_server_id = existing_server_ids[index]
+				existing_server = self.servers[existing_server_id]
+				if self.in_order(server, existing_server):
+					return index
 		return "end"
 
 	
