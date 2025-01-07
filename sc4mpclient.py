@@ -1631,7 +1631,7 @@ class ServerList(th.Thread):
 
 		th.Thread.__init__(self)
 
-		self.ui = ui
+		self.ui: ServerListUI = ui
 
 		if self.ui is not None and kill is None:
 			self.ui.label["text"] = 'Getting server list...'
@@ -1797,11 +1797,11 @@ class ServerList(th.Thread):
 								image = self.blank_icon
 							self.ui.tree.insert("", self.in_order_index(server), server_id, text=server.server_name, values=self.format_server(server), image=image, tags=tuple(tags))
 								
-							x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
-							canvas = tk.Canvas(width=w, height=h, borderwidth=0, bg="white")
-							canvas.image = tk.PhotoImage(file=get_sc4mp_path("rank-template.png"))
-							canvas.create_image(0, 0, anchor="nw", image=canvas.image)
-							canvas.place(x=15+x, y=155+y)							
+							#x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
+							#canvas = tk.Canvas(width=w, height=h, borderwidth=0, bg="white")
+							#canvas.image = tk.PhotoImage(file=get_sc4mp_path("rank-template.png"))
+							#canvas.create_image(0, 0, anchor="nw", image=canvas.image)
+							#canvas.place(x=15+x, y=155+y)							
 
 					# Filter the tree
 					filter = self.ui.combo_box.get()
@@ -1862,6 +1862,27 @@ class ServerList(th.Thread):
 							self.ui.label["text"] = 'Getting server list...'
 						else:
 							self.ui.label["text"] = 'No servers found' #Select "Servers" then "Connect..." in the menu bar to connect to a server.'
+
+					# Update rank bars
+					if self.ui:
+						self.rank_bars = []
+						self.rank_bar_images = [tk.PhotoImage(file=get_sc4mp_path(f"rank-{i}.png")) for i in range(6)]
+						for server_id in self.ui.tree.get_children():
+							try:
+								try:
+									rank = self.servers[server_id].rating
+								except Exception:
+									rank = 0
+								x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
+								canvas = tk.Canvas(width=w, height=h, borderwidth=0, bg="white")
+								canvas.image = self.rank_bar_images[round(rank)]
+								canvas.create_image(0, 0, anchor="nw", image=canvas.image)
+								canvas.place(x=15+x, y=155+y)	
+								self.rank_bars.append(canvas)
+							except ValueError:
+								pass
+							except Exception:
+								show_error(e, no_ui=True)
 
 				# Delay
 				time.sleep(SC4MP_DELAY)
