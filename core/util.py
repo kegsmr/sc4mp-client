@@ -194,3 +194,70 @@ def format_time_ago(time):
 				return f"{int(years)}y ago"
 			else:
 				return "Never"
+			
+
+def get_server_list() -> list[tuple]:
+	"""Returns a list of `(<host>, <port>)` tuples extracted from the `servers.txt` file."""
+
+	from pathlib import Path
+
+	servers = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
+
+	s = [(line.split()[0], int(line.split()[1])) for line in open(Path("resources") / "servers.txt") if line.strip()]
+	s.reverse()
+
+	for server in s:
+		if server not in servers:
+			servers.append(server)
+
+	return servers
+
+
+def update_server_list(maximum=100):
+	"""Updates the `servers.txt` file with servers fetched from the SC4MP API. To be used in release workflows only!"""
+
+	from pathlib import Path
+	import requests
+
+	URL = "https://api.sc4mp.org/servers"
+	
+	response = requests.get(URL)
+	response.raise_for_status()
+	
+	servers = {(entry["host"], entry["port"]) for entry in response.json()}
+	
+	server_file = Path("resources") / "servers.txt"
+	
+	if server_file.exists():
+		with server_file.open("r") as file:
+			existing_servers = {
+				tuple(line.strip().split("\t")) for line in file if line.strip()
+			}
+			existing_servers = {(host, int(port)) for host, port in existing_servers}
+	else:
+		existing_servers = set()
+	
+	# Identify new servers to append
+	servers = servers - existing_servers
+	
+	# Append new servers to the file
+	with server_file.open("a") as file:
+		for server in servers:
+			file.write(f"{server[0]}\t{server[1]}\n")
+
+	# Open the file and read all lines
+	with server_file.open("r") as file:
+		lines = file.readlines()
+	
+	# If the file has more than `maxiumum`, slice the list to keep only the last `maxiumum` lines
+	if len(lines) > maximum:
+
+		lines = lines[-maximum:]
+	
+		# Write the remaining lines back to the file
+		with server_file.open("w") as file:
+			file.writelines(lines)
+
+
+if __name__ == "__main__":
+	update_server_list()
