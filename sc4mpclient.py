@@ -1652,6 +1652,8 @@ class ServerList(th.Thread):
 		self.tried_servers: list[tuple] = []
 		self.hidden_servers: list[tuple] = []
 
+		self.offline_server_count = 0
+
 		self.server_fetchers = 0
 
 		self.stat_mayors = dict()
@@ -1850,7 +1852,7 @@ class ServerList(th.Thread):
 						self.ui.tree.item(server_id, values=self.format_server(server))
 
 					# Update primary label
-					if len(self.servers) > 0:
+					if len(self.servers) > self.offline_server_count:
 						self.ui.label["text"] = 'To get started, select a server below and click "Connect"'
 					else:
 						self.ui.address_label["text"] = ""
@@ -2115,6 +2117,8 @@ class ServerFetcher(th.Thread):
 							self.server.server_url = server_entry.get("server_url", "")
 
 							self.parent.fetched_servers.append(self.server)
+
+							self.parent.offline_server_count += 1
 
 					raise ClientException("Server not found.") from e
 
