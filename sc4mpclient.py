@@ -1726,10 +1726,11 @@ class ServerList(th.Thread):
 						self.ui.url_label["text"] = ""
 					else:
 						self.ui.connect_button['state'] = tk.NORMAL
-						self.ui.address_label["text"] = self.servers[server_id].host + ":" + str(self.servers[server_id].port)
 						if "Offline" in self.servers[server_id].categories:
+							self.ui.address_label["text"] = "Offline"
 							self.ui.address_label["fg"] = "red"
 						else:
+							self.ui.address_label["text"] = self.servers[server_id].host + ":" + str(self.servers[server_id].port)
 							self.ui.address_label["fg"] = "gray"
 						self.ui.description_label["text"] = self.servers[server_id].server_description
 						self.ui.url_label["text"] = self.servers[server_id].server_url
@@ -2019,7 +2020,7 @@ class ServerList(th.Thread):
 				cells.append(function())
 			except Exception: #Exception as e:
 				#show_error(e)
-				cells.append("...")
+				cells.append("") #cells.append("...")
 		return cells
 
 	
