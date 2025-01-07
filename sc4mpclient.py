@@ -18,6 +18,7 @@ import sys
 import threading as th
 import time
 import tkinter as tk
+import tkinter.font as tkfont
 import traceback
 import webbrowser
 from datetime import datetime, timedelta
@@ -1781,15 +1782,18 @@ class ServerList(th.Thread):
 							#while len(self.ui.tree.get_children()) >= 50:
 							#	self.ui.tree.delete(self.ui.tree.get_children()[-1])
 							server = self.servers[server_id]
+							tags = []
 							if "Offline" in server.categories:
 								image = self.error_icon
+								tags.append("red")
 							elif server.password_enabled:
 								image = self.lock_icon
 							elif "Official" in server.categories:
 								image = self.official_icon
 							else:
 								image = self.blank_icon
-							self.ui.tree.insert("", self.in_order_index(server), server_id, text=server.server_name, values=self.format_server(server), image=image)
+							self.ui.tree.insert("", self.in_order_index(server), server_id, text=server.server_name, values=self.format_server(server), image=image, tags=tuple(tags))
+								
 							#x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
 							#canvas = tk.Canvas(width=w, height=h, borderwidth=0)
 							#canvas.image = tk.PhotoImage(file=get_sc4mp_path("rating-template.png"))
@@ -5328,6 +5332,9 @@ class ServerListUI(tk.Frame):
 
 		self.tree.sort = "Rating"
 		self.tree.reverse_sort = False
+
+		self.tree.tag_configure("strike", font=tkfont.Font(family="Segoe UI", size=9, weight="normal", overstrike=1))
+		self.tree.tag_configure("red", foreground="red")
 
 		self.tree.focus_set()
 
