@@ -201,14 +201,16 @@ def get_server_list() -> list[tuple]:
 
 	from pathlib import Path
 
-	servers = {("servers.sc4mp.org", port) for port in range(7240, 7250)}
+	servers = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
 
 	s = [(line.split()[0], int(line.split()[1])) for line in open(Path("resources") / "servers.txt") if line.strip()]
 	s.reverse()
 
-	servers.update(s)
+	for server in s:
+		if server not in servers:
+			servers.append(server)
 
-	return list(servers)
+	return servers
 
 
 def update_server_list(maximum=100):
