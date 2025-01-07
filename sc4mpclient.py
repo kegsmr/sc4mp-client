@@ -2110,7 +2110,7 @@ class ServerFetcher(th.Thread):
 
 						if "user_id" in server_entry.keys():
 
-							self.server.categories.extend(["Offline", "History"])
+							self.server.categories = ["All", "Offline", "History"]
 
 							self.server.server_name = server_entry.get("server_name", f"{self.server.host}:{self.server.port}")
 							self.server.server_description = server_entry.get("server_description", "")
@@ -5378,7 +5378,7 @@ class ServerListUI(tk.Frame):
 		# Combo box
 
 		self.combo_box = ttk.Combobox(self, width=20)
-		self.combo_box["values"] = ("category: All", "category: Official", "category: Public", "category: Private", "category: History") #"category: Bookmarked"
+		self.combo_box["values"] = ("category: All", "category: Online", "category: Official", "category: Public", "category: Private", "category: History") #"category: Bookmarked"
 		self.combo_box.grid(row=3, column=1, rowspan=1, columnspan=1, padx=(0,15), pady=(5,10), sticky="ne")
 		
 
