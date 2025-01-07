@@ -201,29 +201,31 @@ def get_server_list() -> list[tuple]:
 
 	from pathlib import Path
 
-	return [(line.split()[0], int(line.split()[1])) for line in open(Path("resources") / "servers.txt") if line.strip()]
+	servers = {("servers.sc4mp.org", port) for port in range(7240, 7250)}
+
+	s = [(line.split()[0], int(line.split()[1])) for line in open(Path("resources") / "servers.txt") if line.strip()]
+	s.reverse()
+
+	servers.update(s)
+
+	return list(servers)
 
 
-def update_server_list():
+def update_server_list(maximum=100):
 	"""Updates the `servers.txt` file with servers fetched from the SC4MP API. To be used in release workflows only!"""
 
 	from pathlib import Path
 	import requests
 
-	official_servers = {("servers.sc4mp.org", port) for port in range(7240, 7250)}
-	
 	URL = "https://api.sc4mp.org/servers"
 	
 	response = requests.get(URL)
 	response.raise_for_status()
 	
-	fetched_servers = {(entry["host"], entry["port"]) for entry in response.json()}
-	all_servers = official_servers.union(fetched_servers)
+	servers = {(entry["host"], entry["port"]) for entry in response.json()}
 	
 	server_file = Path("resources") / "servers.txt"
-	server_file.parent.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
 	
-	# Read existing servers from the file if it exists
 	if server_file.exists():
 		with server_file.open("r") as file:
 			existing_servers = {
@@ -234,16 +236,25 @@ def update_server_list():
 		existing_servers = set()
 	
 	# Identify new servers to append
-	new_servers = all_servers - existing_servers
-	
-	# Format lines for the new servers
-	official = sorted(server for server in new_servers if server[0] == "servers.sc4mp.org")
-	others = sorted(server for server in new_servers if server[0] != "servers.sc4mp.org")
+	servers = servers - existing_servers
 	
 	# Append new servers to the file
 	with server_file.open("a") as file:
-		for server in official + others:
+		for server in servers:
 			file.write(f"{server[0]}\t{server[1]}\n")
+
+	# Open the file and read all lines
+	with server_file.open("r") as file:
+		lines = file.readlines()
+	
+	# If the file has more than `maxiumum`, slice the list to keep only the last `maxiumum` lines
+	if len(lines) > maximum:
+
+		lines = lines[-maximum:]
+	
+		# Write the remaining lines back to the file
+		with server_file.open("w") as file:
+			file.writelines(lines)
 
 
 if __name__ == "__main__":
