@@ -213,18 +213,38 @@ def update_server_list():
 	official_servers = {("servers.sc4mp.org", port) for port in range(7240, 7250)}
 	
 	URL = "https://api.sc4mp.org/servers"
-
+	
 	response = requests.get(URL)
 	response.raise_for_status()
-
-	all_servers = official_servers.union(
-		{(entry["host"], entry["port"]) for entry in response.json()}
-	)
-
-	official = sorted(server for server in all_servers if server[0] == "servers.sc4mp.org")
-	others = sorted(server for server in all_servers if server[0] != "servers.sc4mp.org")
 	
-	lines = [f"{server[0]}\t{server[1]}\n" for server in official + others]
+	fetched_servers = {(entry["host"], entry["port"]) for entry in response.json()}
+	all_servers = official_servers.union(fetched_servers)
 	
-	with open(Path("resources") / "servers.txt", "w") as file:
-		file.writelines(lines)
+	server_file = Path("resources") / "servers.txt"
+	server_file.parent.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
+	
+	# Read existing servers from the file if it exists
+	if server_file.exists():
+		with server_file.open("r") as file:
+			existing_servers = {
+				tuple(line.strip().split("\t")) for line in file if line.strip()
+			}
+			existing_servers = {(host, int(port)) for host, port in existing_servers}
+	else:
+		existing_servers = set()
+	
+	# Identify new servers to append
+	new_servers = all_servers - existing_servers
+	
+	# Format lines for the new servers
+	official = sorted(server for server in new_servers if server[0] == "servers.sc4mp.org")
+	others = sorted(server for server in new_servers if server[0] != "servers.sc4mp.org")
+	
+	# Append new servers to the file
+	with server_file.open("a") as file:
+		for server in official + others:
+			file.write(f"{server[0]}\t{server[1]}\n")
+
+
+if __name__ == "__main__":
+	update_server_list()
