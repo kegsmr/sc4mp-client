@@ -44,7 +44,7 @@ from core.util import *
 
 SC4MP_VERSION = "0.7.5"
 
-SC4MP_SERVERS = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
+SC4MP_SERVERS = get_server_list()
 
 SC4MP_URL = "www.sc4mp.org"
 SC4MP_CONTRIBUTORS_URL = "https://github.com/kegsmr/sc4mp-client/contributors/"
@@ -1250,7 +1250,7 @@ class Server:
 		self.user_id = None
 
 		self.categories = ["All"]
-		if (host, port) in SC4MP_SERVERS:
+		if host == "servers.sc4mp.org":
 			self.categories.append("Official")
 
 

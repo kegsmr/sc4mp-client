@@ -194,3 +194,37 @@ def format_time_ago(time):
 				return f"{int(years)}y ago"
 			else:
 				return "Never"
+			
+
+def get_server_list() -> list[tuple]:
+	"""Returns a list of `(<host>, <port>)` tuples extracted from the `servers.txt` file."""
+
+	from pathlib import Path
+
+	return [(line.split()[0], int(line.split()[1])) for line in open(Path("resources") / "servers.txt") if line.strip()]
+
+
+def update_server_list():
+	"""Updates the `servers.txt` file with servers fetched from the SC4MP API. To be used in release workflows only!"""
+
+	from pathlib import Path
+	import requests
+
+	official_servers = {("servers.sc4mp.org", port) for port in range(7240, 7250)}
+	
+	URL = "https://api.sc4mp.org/servers"
+
+	response = requests.get(URL)
+	response.raise_for_status()
+
+	all_servers = official_servers.union(
+		{(entry["host"], entry["port"]) for entry in response.json()}
+	)
+
+	official = sorted(server for server in all_servers if server[0] == "servers.sc4mp.org")
+	others = sorted(server for server in all_servers if server[0] != "servers.sc4mp.org")
+	
+	lines = [f"{server[0]}\t{server[1]}\n" for server in official + others]
+	
+	with open(Path("resources") / "servers.txt", "w") as file:
+		file.writelines(lines)
