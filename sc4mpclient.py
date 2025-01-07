@@ -1693,7 +1693,7 @@ class ServerList(th.Thread):
 					port = server_entry["port"]
 					self.unfetched_servers.append((host, port))
 					if sc4mp_config["GENERAL"]["show_offline_servers"]:
-						self.saved_servers[(host, port)] = server_id
+						self.saved_servers.setdefault((host, port), server_id)
 				else:
 					delete_server_ids.append(server_id)
 			for delete_server_id in delete_server_ids:
