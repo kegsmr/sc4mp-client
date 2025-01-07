@@ -86,6 +86,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("scan_lan", True),
 		("stat_mayors_online_cutoff", 60),
 		("show_actual_download", True),
+		("show_offline_servers", True),
 		("use_fullscreen_background", True),
 		("use_launcher_map", True),
 		("use_game_overlay", 1),
@@ -1487,8 +1488,8 @@ class Server:
 		# Set server categories
 		if "user_id" in entry.keys():
 			self.categories.append("History")
-		if entry.get("favorite", False):
-			self.categories.append("Favorites")
+		if entry.get("bookmarked", False):
+			self.categories.append("Bookmarked")
 
 		# Set values in database entry
 		set_server_data(entry, self)
@@ -1640,13 +1641,15 @@ class ServerList(th.Thread):
 		self.ended = False
 		self.pause = False
 
-		self.servers = dict()
+		self.servers: dict[str:Server] = {}
 
-		self.unfetched_servers = SC4MP_SERVERS.copy()
+		self.unfetched_servers: list[tuple] = SC4MP_SERVERS.copy()
 
-		self.fetched_servers = []
-		self.tried_servers = []
-		self.hidden_servers = []
+		self.saved_servers: dict[tuple:str] = {}
+
+		self.fetched_servers: list[tuple] = []
+		self.tried_servers: list[tuple] = []
+		self.hidden_servers: list[tuple] = []
 
 		self.server_fetchers = 0
 
@@ -1659,6 +1662,7 @@ class ServerList(th.Thread):
 		self.blank_icon = tk.PhotoImage(file=get_sc4mp_path("blank-icon.png"))
 		self.lock_icon = tk.PhotoImage(file=get_sc4mp_path("lock-icon.png"))
 		self.official_icon = tk.PhotoImage(file=get_sc4mp_path("official-icon.png"))
+		self.error_icon = tk.PhotoImage(file=get_sc4mp_path("error-icon.png"))
 
 		self.temp_path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList"
 
@@ -1685,7 +1689,11 @@ class ServerList(th.Thread):
 			for server_id in reversed(sc4mp_servers_database.keys()):
 				server_entry = sc4mp_servers_database[server_id]
 				if (server_entry.get("user_id", None) != None) or ("last_contact" not in server_entry.keys()) or (datetime.strptime(server_entry["last_contact"], "%Y-%m-%d %H:%M:%S") + timedelta(days=30) > datetime.now()):
-					self.unfetched_servers.append((sc4mp_servers_database[server_id]["host"], sc4mp_servers_database[server_id]["port"]))
+					host = server_entry["host"]
+					port = server_entry["port"]
+					self.unfetched_servers.append((host, port))
+					if sc4mp_config["GENERAL"]["show_offline_servers"]:
+						self.saved_servers[(host, port)] = server_id
 				else:
 					delete_server_ids.append(server_id)
 			for delete_server_id in delete_server_ids:
@@ -1718,13 +1726,17 @@ class ServerList(th.Thread):
 					else:
 						self.ui.connect_button['state'] = tk.NORMAL
 						self.ui.address_label["text"] = self.servers[server_id].host + ":" + str(self.servers[server_id].port)
+						if "Offline" in self.servers[server_id].categories:
+							self.ui.address_label["fg"] = "red"
+						else:
+							self.ui.address_label["fg"] = "gray"
 						self.ui.description_label["text"] = self.servers[server_id].server_description
 						self.ui.url_label["text"] = self.servers[server_id].server_url
 						
 					# Add all fetched servers to the server dictionary if not already present
 					while len(self.fetched_servers) > 0:
 						fetched_server = self.fetched_servers.pop(0)
-						if fetched_server.server_id not in self.servers.keys():
+						if fetched_server.server_id not in self.servers.keys() or not self.servers[fetched_server.server_id].fetched:
 							self.servers[fetched_server.server_id] = fetched_server
 
 					# Fetch the next unfetched server
@@ -1769,7 +1781,9 @@ class ServerList(th.Thread):
 							#while len(self.ui.tree.get_children()) >= 50:
 							#	self.ui.tree.delete(self.ui.tree.get_children()[-1])
 							server = self.servers[server_id]
-							if server.password_enabled:
+							if "Offline" in server.categories:
+								image = self.error_icon
+							elif server.password_enabled:
 								image = self.lock_icon
 							elif (server.host, server.port) in SC4MP_SERVERS:
 								image = self.official_icon
@@ -2049,7 +2063,7 @@ class ServerList(th.Thread):
 class ServerFetcher(th.Thread):
 
 
-	def __init__(self, parent, server):
+	def __init__(self, parent: ServerList, server: Server):
 
 		th.Thread.__init__(self)
 
@@ -2072,14 +2086,38 @@ class ServerFetcher(th.Thread):
 				#print("- fetching server info...")
 
 				try:
+
 					self.server.fetch()
+
+					if not self.server.fetched:
+						raise ClientException("Server is not fetched.")
+
 				except Exception as e:
+
+					if (self.server.host, self.server.port) in self.parent.saved_servers.keys():
+
+						self.server.server_id = self.parent.saved_servers.pop((self.server.host, self.server.port))
+
+						server_entry = sc4mp_servers_database[self.server.server_id]
+
+						self.server.categories.append("Offline")
+						if "user_id" in server_entry.keys():
+							self.server.categories.append("History")
+						if "Official" in self.server.categories:
+							self.server.categories.remove("Official")
+
+						self.server.server_name = server_entry.get("server_name", f"{self.server.host}:{self.server.port}")
+						self.server.server_description = server_entry.get("server_description", "")
+						self.server.server_url = server_entry.get("server_url", "")
+
+						self.parent.fetched_servers.append(self.server)
+
 					raise ClientException("Server not found.") from e
 
 				if self.parent.end:
 					raise ClientException("The parent thread was signaled to end.")
-				elif not self.server.fetched:
-					raise ClientException("Server is not fetched.")
+
+				self.server.categories.append("Online")
 
 				#print("- populating server statistics")
 
@@ -5329,7 +5367,7 @@ class ServerListUI(tk.Frame):
 		# Combo box
 
 		self.combo_box = ttk.Combobox(self, width=20)
-		self.combo_box["values"] = ("category: All", "category: Official", "category: Public", "category: Private", "category: History") #"category: Favorites"
+		self.combo_box["values"] = ("category: All", "category: Official", "category: Public", "category: Private", "category: History") #"category: Bookmarked"
 		self.combo_box.grid(row=3, column=1, rowspan=1, columnspan=1, padx=(0,15), pady=(5,10), sticky="ne")
 		
 
