@@ -1880,7 +1880,7 @@ class ServerList(th.Thread):
 								if y < 260:
 									canvas = tk.Canvas(width=w + 3, height=h - 1, bd=0, bg=("#0078D7" if server_id in self.ui.tree.selection() else "white"), highlightthickness=0, relief='flat')
 									canvas.image = self.rank_bar_images[round(rank)]
-									canvas.create_image(w / 2 + 2, h / 2, anchor="center", image=canvas.image)
+									canvas.create_image(w / 2 + 2, h / 2 - 1, anchor="center", image=canvas.image)
 									canvas.place(x=15+x, y=155+y)	
 									self.rank_bars.append(canvas)
 							except ValueError:
