@@ -1865,7 +1865,7 @@ class ServerList(th.Thread):
 						else:
 							self.ui.label["text"] = 'No servers found' #Select "Servers" then "Connect..." in the menu bar to connect to a server.'
 
-					# Update rank bars
+					# Update rank bars 			#TODO NAIVE IMPLEMENTATION. FIX IT
 					if self.ui:
 						r = self.rank_bars
 						self.rank_bars = []
