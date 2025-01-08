@@ -1874,14 +1874,14 @@ class ServerList(th.Thread):
 								except Exception:
 									rank = 0
 								x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
-								canvas = tk.Canvas(width=w, height=h, borderwidth=0, bg="white")
+								canvas = tk.Canvas(width=w, height=h, bd=0)
 								canvas.image = self.rank_bar_images[round(rank)]
-								canvas.create_image(0, 0, anchor="nw", image=canvas.image)
+								canvas.create_image(w / 2 + 2, h / 2, anchor="center", image=canvas.image)
 								canvas.place(x=15+x, y=155+y)	
 								self.rank_bars.append(canvas)
 							except ValueError:
 								pass
-							except Exception:
+							except Exception as e:
 								show_error(e, no_ui=True)
 
 				# Delay
