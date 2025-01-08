@@ -1673,6 +1673,8 @@ class ServerList(th.Thread):
 
 		self.sort_mode_changed = False
 
+		self.rank_bars = []
+
 
 	def run(self):
 		
@@ -1865,6 +1867,7 @@ class ServerList(th.Thread):
 
 					# Update rank bars
 					if self.ui:
+						r = self.rank_bars
 						self.rank_bars = []
 						self.rank_bar_images = [tk.PhotoImage(file=get_sc4mp_path(f"rank-{i}.png")) for i in range(6)]
 						for server_id in self.ui.tree.get_children():
@@ -1884,6 +1887,8 @@ class ServerList(th.Thread):
 								pass
 							except Exception as e:
 								show_error(e, no_ui=True)
+						for canvas in r:
+							canvas.destroy()
 
 				# Delay
 				time.sleep(SC4MP_DELAY)
