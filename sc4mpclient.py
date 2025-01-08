@@ -1878,7 +1878,7 @@ class ServerList(th.Thread):
 									rank = 0
 								x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
 								if y < 260:
-									canvas = tk.Canvas(width=w, height=h, bd=0, bg="white", highlightthickness=0, relief='flat')
+									canvas = tk.Canvas(width=w + 3, height=h - 1, bd=0, bg=("#0078D7" if server_id in self.ui.tree.selection() else "white"), highlightthickness=0, relief='flat')
 									canvas.image = self.rank_bar_images[round(rank)]
 									canvas.create_image(w / 2 + 2, h / 2, anchor="center", image=canvas.image)
 									canvas.place(x=15+x, y=155+y)	
