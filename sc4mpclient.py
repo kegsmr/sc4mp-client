@@ -1874,11 +1874,12 @@ class ServerList(th.Thread):
 								except Exception:
 									rank = 0
 								x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
-								canvas = tk.Canvas(width=w, height=h, bd=0, bg="white", highlightthickness=0, relief='flat')
-								canvas.image = self.rank_bar_images[round(rank)]
-								canvas.create_image(w / 2 + 2, h / 2, anchor="center", image=canvas.image)
-								canvas.place(x=15+x, y=155+y)	
-								self.rank_bars.append(canvas)
+								if y < 260:
+									canvas = tk.Canvas(width=w, height=h, bd=0, bg="white", highlightthickness=0, relief='flat')
+									canvas.image = self.rank_bar_images[round(rank)]
+									canvas.create_image(w / 2 + 2, h / 2, anchor="center", image=canvas.image)
+									canvas.place(x=15+x, y=155+y)	
+									self.rank_bars.append(canvas)
 							except ValueError:
 								pass
 							except Exception as e:
