@@ -1796,7 +1796,8 @@ class ServerList(th.Thread):
 								image = self.official_icon
 							else:
 								image = self.blank_icon
-							self.ui.tree.insert("", self.in_order_index(server), server_id, text=server.server_name, values=self.format_server(server), image=image, tags=tuple(tags))					
+							values = self.format_server(server)
+							self.ui.tree.insert("", self.in_order_index(server), server_id, text=server.server_name, values=values, image=image, tags=tuple(tags))					
 
 					# Filter the tree
 					filter = self.ui.combo_box.get()
