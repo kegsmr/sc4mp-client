@@ -88,6 +88,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("scan_lan", True),
 		("stat_mayors_online_cutoff", 60),
 		("show_actual_download", True),
+		("show_rank_bars", True),
 		("show_offline_servers", True),
 		("use_fullscreen_background", True),
 		("use_launcher_map", True),
@@ -1669,6 +1670,8 @@ class ServerList(th.Thread):
 		self.official_icon = tk.PhotoImage(file=get_sc4mp_path("official-icon.png"))
 		self.error_icon = tk.PhotoImage(file=get_sc4mp_path("error-icon.png"))
 
+		self.rank_bar_images = [tk.PhotoImage(file=get_sc4mp_path(f"rank-{i}.png")) for i in range(6)]
+
 		self.temp_path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList"
 
 		self.kill = kill
@@ -1879,33 +1882,37 @@ class ServerList(th.Thread):
 						else:
 							self.ui.label["text"] = 'No servers found' #Select "Servers" then "Connect..." in the menu bar to connect to a server.'
 
-					# Update rank bars 			#TODO NAIVE IMPLEMENTATION. FIX IT
-					if self.ui:
+					# Update rank bars
+					#TODO NAIVE IMPLEMENTATION. FIX IT
+					if self.ui and sc4mp_config["GENERAL"]["show_rank_bars"]:
 						r = self.rank_bars
 						self.rank_bars = []
-						self.rank_bar_images = [tk.PhotoImage(file=get_sc4mp_path(f"rank-{i}.png")) for i in range(6)]
-						for server_id in self.ui.tree.get_children():
-							try:
+						if "#5" in self.ui.tree["displaycolumns"]:
+							for server_id in self.ui.tree.get_children():
 								try:
-									rank = self.servers[server_id].rating
-								except Exception:
-									rank = 0
-								x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
-								if y < 260:
-									canvas = tk.Canvas(width=w + 3, height=h - 1, bd=0, bg=("#0078D7" if server_id in self.ui.tree.selection() else "white"), highlightthickness=0, relief='flat')
-									canvas.image = self.rank_bar_images[round(rank)]
-									canvas.create_image(w / 2 + 2, h / 2 - 1, anchor="center", image=canvas.image)
-									canvas.place(x=15+x, y=155+y)	
-									self.rank_bars.append(canvas)
-							except ValueError:
-								pass
-							except Exception as e:
-								show_error(e, no_ui=True)
+									try:
+										rank = self.servers[server_id].rating
+									except Exception:
+										rank = 0
+									x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
+									if y < 260:
+										canvas = tk.Canvas(width=w + 3, height=h - 1, bd=0, bg=("#0078D7" if server_id in self.ui.tree.selection() else "white"), highlightthickness=0, relief='flat')
+										canvas.image = self.rank_bar_images[round(rank)]
+										canvas.create_image(w / 2 + 2, h / 2 - 1, anchor="center", image=canvas.image)
+										canvas.place(x=15+x, y=155+y)	
+										self.rank_bars.append(canvas)
+								except ValueError:
+									pass
+								except Exception as e:
+									show_error(e, no_ui=True)
 						for canvas in r:
 							canvas.destroy()
 
 				# Delay
 				time.sleep(SC4MP_DELAY)
+
+			for canvas in self.rank_bars:
+				canvas.destroy()
 
 			self.ended = True
 
@@ -2057,7 +2064,7 @@ class ServerList(th.Thread):
 	    	lambda: str(int(server.stat_claimed * 100)) + "%",
 		    lambda: format_download_size(server.stat_actual_download) if sc4mp_config["GENERAL"]["show_actual_download"] else format_filesize(server.stat_download),
 		    lambda: str(server.stat_ping) + "ms",
-		    lambda: str(round(server.rating, 1)), # + " ⭐️",
+		    (lambda: "" if sc4mp_config["GENERAL"]["show_rank_bars"] else lambda: str(round(server.rating, 1))), # + " ⭐️",
 			lambda: self.format_server_join_time(server)
 		]
 		cells = []
