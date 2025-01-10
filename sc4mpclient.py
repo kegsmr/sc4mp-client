@@ -5415,10 +5415,10 @@ class ServerListUI(tk.Frame):
 
 		# Combo box
 
-		self.combo_box = ttk.Combobox(self, width=20)
+		self.combo_box = ttk.Combobox(self, width=23)
 		self.combo_box["values"] = ("category: All", "category: Official", "category: Public", "category: Private", "category: History") #"category: Bookmarked" "category: Online"
 		self.combo_box.insert(0, sc4mp_config["GENERAL"]["server_browser_filter"])
-		self.combo_box.grid(row=3, column=1, rowspan=1, columnspan=1, padx=(0,15), pady=(5,10), sticky="ne")
+		self.combo_box.grid(row=3, column=1, rowspan=1, columnspan=1, padx=(0,16), pady=(5,10), sticky="ne")
 		
 
 		# Address label
@@ -5437,7 +5437,7 @@ class ServerListUI(tk.Frame):
 		# Refresh button
 
 		self.refresh_button = ttk.Button(self.refresh_connect, text="Refresh", command=self.root.refresh)
-		self.refresh_button.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="se")
+		self.refresh_button.grid(row=0, column=0, columnspan=1, padx=11, pady=10, sticky="se")
 
 
 		# Connect button
