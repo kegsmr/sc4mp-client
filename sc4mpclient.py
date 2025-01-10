@@ -2036,7 +2036,7 @@ class ServerList(th.Thread):
 				cells.append(function())
 			except Exception as e: #Exception as e:
 				#show_error(e)
-				cells.append("") #cells.append("...")
+				cells.append("...") #cells.append("")
 		return cells
 
 
