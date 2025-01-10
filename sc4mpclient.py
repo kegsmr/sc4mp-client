@@ -1806,14 +1806,16 @@ class ServerList(th.Thread):
 						category, search_terms = self.filters(filter)
 						#print("Filtering by \"" + category + "\" and " + str(search_terms) + "...")
 						if category == "History":
-							self.ui.tree.column("#5", width=0)
-							self.ui.tree.column("#6", width=93)
+							self.ui.tree['displaycolumns'] = ("#1", "#2", "#3", "#4", "#6")
+							#self.ui.tree.column("#5", width=0)
+							#self.ui.tree.column("#6", width=93)
 							if self.ui.tree.sort == "Rank":
 								self.ui.tree.sort = "Joined"
 								self.clear_tree()
 						else:
-							self.ui.tree.column("#5", width=93)
-							self.ui.tree.column("#6", width=0)
+							self.ui.tree['displaycolumns'] = ("#1", "#2", "#3", "#4", "#5")
+							#self.ui.tree.column("#5", width=93)
+							#self.ui.tree.column("#6", width=0)
 							if self.ui.tree.sort == "Joined":
 								self.ui.tree.sort = "Rank"
 								self.clear_tree()
@@ -5345,7 +5347,7 @@ class ServerListUI(tk.Frame):
 			(
 				"#6",
 				"Joined",
-				0,
+				NORMAL_COLUMN_WIDTH,
 				"center"
     		)
 		]
@@ -5366,6 +5368,7 @@ class ServerListUI(tk.Frame):
 			self.tree.heading(column_id, text=column_name, command=lambda column_name=column_name: self.handle_header_click(column_name))
 
 		#self.tree['show'] = 'headings'
+		self.tree['displaycolumns'] = ("#1", "#2", "#3", "#4", "#5")
 
 		self.tree.bind("<Double-1>", self.handle_double_click) #lambda event: self.connect())
 		self.tree.bind("<Button-1>", self.handle_single_click)
