@@ -1803,7 +1803,19 @@ class ServerList(th.Thread):
 					#if len(filter) > 0:
 					try:
 						category, search_terms = self.filters(filter)
-						print("Filtering by \"" + category + "\" and " + str(search_terms) + "...")
+						#print("Filtering by \"" + category + "\" and " + str(search_terms) + "...")
+						if category == "History":
+							self.ui.tree.column("#5", width=0)
+							self.ui.tree.column("#6", width=93)
+							if self.ui.tree.sort == "Rank":
+								self.ui.tree.sort = "Joined"
+								self.clear_tree()
+						else:
+							self.ui.tree.column("#5", width=93)
+							self.ui.tree.column("#6", width=0)
+							if self.ui.tree.sort == "Joined":
+								self.ui.tree.sort = "Rank"
+								self.clear_tree()
 						server_ids = self.ui.tree.get_children()
 						for server_id in server_ids:
 							hide = self.filter(self.servers[server_id], (category, search_terms))
@@ -1999,6 +2011,8 @@ class ServerList(th.Thread):
 				return server.stat_actual_download if sc4mp_config["GENERAL"]["show_actual_download"] else server.stat_download
 			elif sort_mode == "Ping":
 				return server.stat_ping
+			elif sort_mode == "Joined":
+				return server.last_logon
 			else:
 				return server.rating
 		except Exception:
@@ -2012,16 +2026,32 @@ class ServerList(th.Thread):
 	    	lambda: str(int(server.stat_claimed * 100)) + "%",
 		    lambda: format_download_size(server.stat_actual_download) if sc4mp_config["GENERAL"]["show_actual_download"] else format_filesize(server.stat_download),
 		    lambda: str(server.stat_ping) + "ms",
-		    lambda: str(round(server.rating, 1)) # + " ⭐️",
+		    lambda: str(round(server.rating, 1)), # + " ⭐️",
+			lambda: self.format_server_join_time(server)
 		]
 		cells = []
 		for function in functions:
 			try:
 				cells.append(function())
-			except Exception: #Exception as e:
+			except Exception as e: #Exception as e:
 				#show_error(e)
 				cells.append("") #cells.append("...")
 		return cells
+
+
+	def format_server_join_time(self, server: Server):
+
+		try:
+			last_logon = server.last_logon
+		except AttributeError:
+			last_logon = sc4mp_servers_database.get(server.server_id, {}).get("last_logon", None)
+
+		server.last_logon = last_logon
+
+		if last_logon:
+			last_logon = datetime.strptime(last_logon, "%Y-%m-%d %H:%M:%S")
+
+		return format_time_ago(last_logon)
 
 	
 	def calculate_rating(self, server):
@@ -5310,6 +5340,12 @@ class ServerListUI(tk.Frame):
 				"Rank",
 				NORMAL_COLUMN_WIDTH,
 				"center"
+    		),
+			(
+				"#6",
+				"Joined",
+				0,
+				"center"
     		)
 		]
 
@@ -5327,13 +5363,13 @@ class ServerListUI(tk.Frame):
 			column_anchor = column[3]
 			self.tree.column(column_id, width=column_width, anchor=column_anchor, stretch=False)
 			self.tree.heading(column_id, text=column_name, command=lambda column_name=column_name: self.handle_header_click(column_name))
-		
+
 		#self.tree['show'] = 'headings'
 
 		self.tree.bind("<Double-1>", self.handle_double_click) #lambda event: self.connect())
 		self.tree.bind("<Button-1>", self.handle_single_click)
 
-		self.tree.sort = "Rating"
+		self.tree.sort = "Rank"
 		self.tree.reverse_sort = False
 
 		self.tree.tag_configure("strike", font=tkfont.Font(family="Segoe UI", size=9, weight="normal", overstrike=1))
