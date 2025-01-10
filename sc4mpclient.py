@@ -84,6 +84,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("show_release_notes", True),
 
 		("use_server_browser", True),
+		("server_browser_filter", ""),
 		("scan_lan", True),
 		("stat_mayors_online_cutoff", 60),
 		("show_actual_download", True),
@@ -1631,7 +1632,7 @@ class ServerList(th.Thread):
 
 		th.Thread.__init__(self)
 
-		self.ui = ui
+		self.ui: ServerListUI = ui
 
 		if self.ui is not None and kill is None:
 			self.ui.label["text"] = 'Getting server list...'
@@ -1781,7 +1782,7 @@ class ServerList(th.Thread):
 					server_ids = self.servers.keys()
 					filter = self.ui.combo_box.get()
 					for server_id in server_ids:
-						if (not self.ui.tree.exists(server_id)) and (len(filter) < 1 or (not self.filter(self.servers[server_id], self.filters(filter)))):
+						if (not self.ui.tree.exists(server_id)) and (not self.filter(self.servers[server_id], self.filters(filter))): #(len(filter) < 1 or (not self.filter(self.servers[server_id], self.filters(filter)))):
 							#while len(self.ui.tree.get_children()) >= 50:
 							#	self.ui.tree.delete(self.ui.tree.get_children()[-1])
 							server = self.servers[server_id]
@@ -1795,36 +1796,30 @@ class ServerList(th.Thread):
 								image = self.official_icon
 							else:
 								image = self.blank_icon
-							self.ui.tree.insert("", self.in_order_index(server), server_id, text=server.server_name, values=self.format_server(server), image=image, tags=tuple(tags))
-								
-							#x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
-							#canvas = tk.Canvas(width=w, height=h, borderwidth=0)
-							#canvas.image = tk.PhotoImage(file=get_sc4mp_path("rating-template.png"))
-							#canvas.create_image(0, 0, anchor="nw", image=canvas.image)
-							#canvas.place(x=15+x, y=155+y)							
+							self.ui.tree.insert("", self.in_order_index(server), server_id, text=server.server_name, values=self.format_server(server), image=image, tags=tuple(tags))					
 
 					# Filter the tree
 					filter = self.ui.combo_box.get()
-					if len(filter) > 0:
-						try:
-							category, search_terms = self.filters(filter)
-							#print("Filtering by \"" + category + "\" and " + str(search_terms) + "...")
-							server_ids = self.ui.tree.get_children()
-							for server_id in server_ids:
-								hide = self.filter(self.servers[server_id], (category, search_terms))
-								if hide and (server_id in self.ui.tree.get_children()) and (server_id not in self.hidden_servers):
-									self.hidden_servers.append(server_id)
-									self.ui.tree.delete(server_id)
-								elif (not hide) and (server_id in self.hidden_servers):
-									self.hidden_servers.remove(server_id)
-									#self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
-						except Exception as e:
-							show_error("An error occurred while filtering the server list.", no_ui=True)
-					elif len(self.hidden_servers) > 0:
-						server_ids = self.hidden_servers
+					#if len(filter) > 0:
+					try:
+						category, search_terms = self.filters(filter)
+						print("Filtering by \"" + category + "\" and " + str(search_terms) + "...")
+						server_ids = self.ui.tree.get_children()
 						for server_id in server_ids:
-							self.hidden_servers.remove(server_id)
-							#self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
+							hide = self.filter(self.servers[server_id], (category, search_terms))
+							if hide and (server_id in self.ui.tree.get_children()) and (server_id not in self.hidden_servers):
+								self.hidden_servers.append(server_id)
+								self.ui.tree.delete(server_id)
+							elif (not hide) and (server_id in self.hidden_servers):
+								self.hidden_servers.remove(server_id)
+								#self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
+					except Exception as e:
+						show_error("An error occurred while filtering the server list.", no_ui=True)
+					#elif len(self.hidden_servers) > 0:
+					#	server_ids = self.hidden_servers
+					#	for server_id in server_ids:
+					#		self.hidden_servers.remove(server_id)
+					#		#self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
 
 					# Sort the tree
 					if not self.sorted():
@@ -1853,7 +1848,10 @@ class ServerList(th.Thread):
 
 					# Update primary label
 					if len(self.servers) > self.offline_server_count:
+						#if len(self.hidden_servers) < len(self.servers):
 						self.ui.label["text"] = 'To get started, select a server below and click "Connect"'
+						#else:
+						#	self.ui.label["text"] = 'No servers found'
 					else:
 						self.ui.address_label["text"] = ""
 						self.ui.description_label["text"] = ""
@@ -1901,10 +1899,10 @@ class ServerList(th.Thread):
 					search_terms.pop(index)
 			return category, search_terms
 		else:
-			return None
+			return "All", []
 
 
-	def filter(self, server, filters):
+	def filter(self, server: Server, filters: list[str]):
 		
 		category = filters[0]
 		search_terms = filters[1]
@@ -2110,7 +2108,7 @@ class ServerFetcher(th.Thread):
 
 						if "user_id" in server_entry.keys():
 
-							self.server.categories = ["All", "Offline", "History"]
+							self.server.categories = ["Offline", "History"] # "All"
 
 							self.server.server_name = server_entry.get("server_name", f"{self.server.host}:{self.server.port}")
 							self.server.server_description = server_entry.get("server_description", "")
@@ -5378,7 +5376,8 @@ class ServerListUI(tk.Frame):
 		# Combo box
 
 		self.combo_box = ttk.Combobox(self, width=20)
-		self.combo_box["values"] = ("category: All", "category: Online", "category: Official", "category: Public", "category: Private", "category: History") #"category: Bookmarked"
+		self.combo_box["values"] = ("category: All", "category: Official", "category: Public", "category: Private", "category: History") #"category: Bookmarked" "category: Online"
+		self.combo_box.insert(0, sc4mp_config["GENERAL"]["server_browser_filter"])
 		self.combo_box.grid(row=3, column=1, rowspan=1, columnspan=1, padx=(0,15), pady=(5,10), sticky="ne")
 		
 
@@ -5484,6 +5483,17 @@ class ServerListUI(tk.Frame):
 	def open_server_url(self):
 
 		webbrowser.open_new_tab(format_url(self.url_label["text"]))
+
+	
+	def destroy(self):
+
+		server_browser_filter = self.combo_box.get()
+
+		if sc4mp_config["GENERAL"]["server_browser_filter"] != server_browser_filter:
+			sc4mp_config["GENERAL"]["server_browser_filter"] = server_browser_filter
+			sc4mp_config.update()
+
+		return super().destroy()
 
 
 class ServerLoaderUI(tk.Toplevel):
