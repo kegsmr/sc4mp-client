@@ -8,6 +8,7 @@ import PyInstaller.__main__ as pyinstaller
 from pyinstaller_versionfile import create_versionfile
 
 import sc4mpclient
+from core.util import update_server_list
 
 
 TITLE = "SC4MP Launcher"
@@ -21,8 +22,15 @@ DIST = "dist" + str(8 * struct.calcsize("P"))
 
 def main():
 
+	# Update server list
+	print("Updating server list...")
+	try:
+		update_server_list()
+	except Exception as e:
+		print(f"- failed to update server list {e}!")
+
 	# Make distribution directory if it does not yet exist
-	print(f"Preparing distribution directory at \"{DIST}\"")
+	print(f"Preparing distribution directory at \"{DIST}\"...")
 	if not os.path.exists(DIST):
 		os.makedirs(DIST)
 
@@ -67,8 +75,8 @@ def main():
 		f"{os.path.abspath(os.path.join('resources', 'icon.ico'))}",
 		f"--version-file",
 		f"{os.path.abspath('version.rc')}",
-		f"--splash",
-		f"{os.path.abspath(os.path.join('resources', 'splash.png'))}"
+		#f"--splash",
+		#f"{os.path.abspath(os.path.join('resources', 'splash.png'))}"
 	])
 
 	# Copy binary files to distribution directory
