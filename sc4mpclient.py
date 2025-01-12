@@ -47,9 +47,6 @@ SC4MP_VERSION = "0.7.5"
 
 SC4MP_SERVERS = get_server_list()
 
-SC4MP_SERVERS_DOMAIN = "servers.sc4mp.org"
-SC4MP_INVITES_DOMAIN = "invite.sc4mp.org"
-
 SC4MP_GITHUB_REPO = "kegsmr/sc4mp-client"
 
 SC4MP_URL = "https://www.sc4mp.org/"
@@ -149,6 +146,9 @@ SC4MP_RISKY_FILE_EXTENSIONS = [".bat", ".bin", ".cmd", ".com", ".cpl", ".dll", "
 								".shs", ".u3p", ".vb", ".vbe", ".vbs", ".vbscript", ".ws", ".wsf", ".wsh"]
 
 SC4MP_URL_PREFIX = "sc4mp://"
+
+SC4MP_SERVERS_DOMAIN = "servers.sc4mp.org"
+SC4MP_INVITES_DOMAIN = "invite.sc4mp.org"
 
 sc4mp_args = sys.argv
 
