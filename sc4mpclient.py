@@ -47,10 +47,15 @@ SC4MP_VERSION = "0.7.5"
 
 SC4MP_SERVERS = get_server_list()
 
-SC4MP_URL = "www.sc4mp.org"
-SC4MP_CONTRIBUTORS_URL = "https://github.com/kegsmr/sc4mp-client/contributors/"
-SC4MP_ISSUES_URL = "https://github.com/kegsmr/sc4mp-client/issues/"
-SC4MP_RELEASES_URL = "https://github.com/kegsmr/sc4mp-client/releases/"
+SC4MP_SERVERS_DOMAIN = "servers.sc4mp.org"
+SC4MP_INVITES_DOMAIN = "invite.sc4mp.org"
+
+SC4MP_GITHUB_REPO = "kegsmr/sc4mp-client"
+
+SC4MP_URL = "https://www.sc4mp.org/"
+SC4MP_CONTRIBUTORS_URL = f"https://github.com/{SC4MP_GITHUB_REPO}/contributors/"
+SC4MP_ISSUES_URL = f"https://github.com/{SC4MP_GITHUB_REPO}/issues/"
+SC4MP_RELEASES_URL = f"https://github.com/{SC4MP_GITHUB_REPO}/releases/"
 
 SC4MP_AUTHOR_NAME = "SimCity 4 Multiplayer Project"
 SC4MP_WEBSITE_NAME = "www.sc4mp.org"
@@ -143,7 +148,7 @@ SC4MP_RISKY_FILE_EXTENSIONS = [".bat", ".bin", ".cmd", ".com", ".cpl", ".dll", "
 								".paf", ".pif", ".py", ".ps1", ".reg", ".rgs", ".scr", ".sct", ".sh", ".shb",
 								".shs", ".u3p", ".vb", ".vbe", ".vbs", ".vbscript", ".ws", ".wsf", ".wsh"]
 
-URL_PREFIX = "sc4mp://"
+SC4MP_URL_PREFIX = "sc4mp://"
 
 sc4mp_args = sys.argv
 
@@ -167,7 +172,7 @@ def main():
 	try:
 
 		# URL launch behavior
-		url_launch = len(sc4mp_args) > 1 and sc4mp_args[1].startswith(URL_PREFIX)
+		url_launch = len(sc4mp_args) > 1 and sc4mp_args[1].startswith(SC4MP_URL_PREFIX)
 		url_launch_exit_after = True
 	
 		# Exit if already runnning (unless launching using URL)
@@ -257,7 +262,7 @@ def main():
 		if url_launch:
 			try:
 				url = sc4mp_args[1]
-				url = url.replace(URL_PREFIX, "", 1)
+				url = url.replace(SC4MP_URL_PREFIX, "", 1)
 				if url.endswith("/"):
 					url = url[:-1]
 				url = url.split(":")
@@ -534,9 +539,9 @@ def check_updates():
 def get_release_info(version="latest", timeout=10):
 
 	if version == "latest":
-		github_api_call = "https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest"
+		github_api_call = f"https://api.github.com/repos/{SC4MP_GITHUB_REPO}/releases/latest"
 	else:
-		github_api_call = f"https://api.github.com/repos/kegsmr/sc4mp-client/releases/tags/v{version}"
+		github_api_call = f"https://api.github.com/repos/{SC4MP_GITHUB_REPO}/releases/tags/v{version}"
 
 	try:
 		with urllib.request.urlopen(url=github_api_call, timeout=timeout) as url:
@@ -1252,7 +1257,7 @@ class Server:
 		self.user_id = None
 
 		self.categories = ["All"]
-		if self.host == "servers.sc4mp.org":
+		if self.host == SC4MP_SERVERS_DOMAIN:
 			self.categories.append("Official")
 
 
@@ -4226,10 +4231,6 @@ class UI(tk.Tk):
 		
 		print('"SC4 settings..."')
 		SC4SettingsUI()
-
-
-	#def update(self):
-	#	webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-client/releases/")
 
 
 	def host(self):
