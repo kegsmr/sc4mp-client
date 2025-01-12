@@ -5855,7 +5855,7 @@ class ServerDetailsUI(tk.Toplevel):
 		inner_frame = tk.Frame(canvas)
 		canvas.create_window(0, 0, window=inner_frame, anchor="nw")
 
-		invite_link = f"https://invite.sc4mp.org/{self.server.server_id}"
+		invite_link = f"https://{SC4MP_INVITES_DOMAIN}/{self.server.server_id}"
 
 		invite_link_label = ttk.Label(inner_frame, text="Invite link", font=("Segoe UI", 9, "bold"))
 		invite_link_label.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(10,0))
