@@ -5083,7 +5083,7 @@ class ServerConfigUI(tk.Toplevel):
 
 		# Network frame
 		self.network_frame = tk.LabelFrame(self, text="Network", padx=10, pady=10)
-		self.network_frame.grid(row=0, column=0, columnspan=2, sticky="w", padx=10)
+		self.network_frame.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=10)
 
 		# Port label
 		self.network_frame.port_label = ttk.Label(self.network_frame, text="Port")
@@ -5154,7 +5154,7 @@ class ServerConfigUI(tk.Toplevel):
 
 		# URL help label
 		self.info_frame.url_help_label = tk.Label(self.info_frame, text="Link a site for communication (eg. Discord)", fg="gray", justify="left")
-		self.info_frame.url_help_label.grid(row=31, column=1, columnspan=1, padx=10, pady=(0,92), sticky="w")
+		self.info_frame.url_help_label.grid(row=31, column=1, columnspan=1, padx=10, pady=(0,102), sticky="w")
 
 		# Security frame
 		self.security_frame = tk.LabelFrame(self, text="Security", padx=10, pady=10)
@@ -5166,27 +5166,27 @@ class ServerConfigUI(tk.Toplevel):
 		#self.security_frame.private_checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
 		#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
 
-		# Password label
-		self.security_frame.password_label = ttk.Label(self.security_frame, text="Password")
-		self.security_frame.password_label.grid(row=0, column=0, columnspan=1, padx=10, pady=0, sticky="e")
+		# Password checkbutton
+		self.security_frame.password_checkbutton = ttk.Checkbutton(self.security_frame, text="Password")
+		self.security_frame.password_checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=0, sticky="e")
 
 		# Password entry
-		self.security_frame.password_entry = ttk.Entry(self.security_frame, width=40)
-		self.security_frame.password_entry.grid(row=0, column=1, columnspan=1, padx=(20,10), pady=(10,0), sticky="w")
+		self.security_frame.password_entry = ttk.Entry(self.security_frame, width=35)
+		self.security_frame.password_entry.grid(row=0, column=1, columnspan=1, padx=(20,21), pady=(10,10), sticky="w")
 
 		# Password checkbutton
 		#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
-		self.security_frame.password_checkbutton = ttk.Checkbutton(self.security_frame, text="Enabled", onvalue=True, offvalue=False) #, variable=self.updates_frame.checkbutton_variable)
-		self.security_frame.password_checkbutton.grid(row=1, column=1, columnspan=1, padx=20, pady=10, sticky="w")
+		#self.security_frame.password_checkbutton = ttk.Checkbutton(self.security_frame, text="Enabled", onvalue=True, offvalue=False) #, variable=self.updates_frame.checkbutton_variable)
+		#self.security_frame.password_checkbutton.grid(row=1, column=1, columnspan=1, padx=20, pady=10, sticky="w")
 		#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
 
 		# Rules frame
 		self.rules_frame = tk.LabelFrame(self, text="Rules", padx=10, pady=10)
-		self.rules_frame.grid(row=1, column=3, columnspan=2, rowspan=1, sticky="w", padx=10)
+		self.rules_frame.grid(row=1, column=3, columnspan=2, rowspan=1, sticky="w", padx=10, pady=(0,10))
 
-		# Claim duration label 1
-		self.rules_frame.claim_duration_label_1 = ttk.Label(self.rules_frame, text="Claim duration")
-		self.rules_frame.claim_duration_label_1.grid(row=0, column=0, columnspan=1, padx=10, pady=0, sticky="e")
+		# Claim duration checkbutton
+		self.rules_frame.claim_duration_checkbutton = ttk.Checkbutton(self.rules_frame, text="Claim duration")
+		self.rules_frame.claim_duration_checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=0, sticky="w")
 
 		# Claim duration entry
 		self.rules_frame.claim_duration_entry = ttk.Entry(self.rules_frame, width=5)
@@ -5194,13 +5194,13 @@ class ServerConfigUI(tk.Toplevel):
 		self.rules_frame.claim_duration_entry.grid(row=0, column=1, columnspan=1, padx=(10,0), pady=10, sticky="w")
 		#self.config_update.append((self.cache_size_frame.entry, "cache_size"))
 
-		# Claim duration label 2
-		self.rules_frame.claim_duration_label_2 = ttk.Label(self.rules_frame, text="days")
-		self.rules_frame.claim_duration_label_2.grid(row=0, column=2, columnspan=1, padx=(2,171), pady=10, sticky="w")
+		# Claim duration label
+		self.rules_frame.claim_duration_label = ttk.Label(self.rules_frame, text="days")
+		self.rules_frame.claim_duration_label.grid(row=0, column=2, columnspan=1, padx=(2,132), pady=10, sticky="w")
 
-		# Max region claims label 1
-		self.rules_frame.max_region_claims_label_1 = ttk.Label(self.rules_frame, text="Max claims")
-		self.rules_frame.max_region_claims_label_1.grid(row=1, column=0, columnspan=1, padx=10, pady=0, sticky="e")
+		# Max region claims checkbutton
+		self.rules_frame.max_region_claims_checkbutton = ttk.Checkbutton(self.rules_frame, text="Max claims")
+		self.rules_frame.max_region_claims_checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=0, sticky="w")
 
 		# Max region claims entry
 		self.rules_frame.max_region_claims_entry = ttk.Entry(self.rules_frame, width=5)
@@ -5208,20 +5208,20 @@ class ServerConfigUI(tk.Toplevel):
 		self.rules_frame.max_region_claims_entry.grid(row=1, column=1, columnspan=1, padx=(10,0), pady=10, sticky="w")
 		#self.config_update.append((self.cache_size_frame.entry, "cache_size"))
 
-		# Max region claims label 2
-		self.rules_frame.max_region_claims_label_2 = ttk.Label(self.rules_frame, text="per region")
-		self.rules_frame.max_region_claims_label_2.grid(row=1, column=2, columnspan=1, padx=(2,10), pady=10, sticky="w")
+		# Max region claims label
+		self.rules_frame.max_region_claims_label = ttk.Label(self.rules_frame, text="per region")
+		self.rules_frame.max_region_claims_label.grid(row=1, column=2, columnspan=1, padx=(2,10), pady=10, sticky="w")
 
 		# Godmode filter checkbutton
 		#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
 		self.rules_frame.godmode_filter_checkbutton = ttk.Checkbutton(self.rules_frame, text="Allow claims in godmode", onvalue=False, offvalue=True) #, variable=self.updates_frame.checkbutton_variable)
-		self.rules_frame.godmode_filter_checkbutton.grid(row=2, column=1, columnspan=2, padx=20, pady=10, sticky="w")
+		self.rules_frame.godmode_filter_checkbutton.grid(row=2, column=0, columnspan=2, padx=(10,20), pady=10, sticky="w")
 		#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
 
 		# User plugins checkbutton
 		#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
 		self.rules_frame.user_plugins_checkbutton = ttk.Checkbutton(self.rules_frame, text="Allow user plugins", onvalue=True, offvalue=False) #, variable=self.updates_frame.checkbutton_variable)
-		self.rules_frame.user_plugins_checkbutton.grid(row=3, column=1, columnspan=2, padx=20, pady=10, sticky="w")
+		self.rules_frame.user_plugins_checkbutton.grid(row=3, column=0, columnspan=2, padx=(10,20), pady=10, sticky="w")
 		#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
 
 		# Plugins frame
@@ -5251,6 +5251,26 @@ class ServerConfigUI(tk.Toplevel):
 		# Cancel button
 		self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
 		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
+
+		# Loop
+		self.loop()
+
+
+	def loop(self):
+		
+		CHECKBUTTON_ENTRY_MAP: list[tuple[ttk.Checkbutton, ttk.Entry]] = [
+			(self.security_frame.password_checkbutton, self.security_frame.password_entry),
+			(self.rules_frame.claim_duration_checkbutton, self.rules_frame.claim_duration_entry),
+			(self.rules_frame.max_region_claims_checkbutton, self.rules_frame.max_region_claims_entry),
+		]
+
+		for checkbutton, entry in CHECKBUTTON_ENTRY_MAP:
+			if checkbutton.instate(['selected']):
+				entry.state(['!disabled'])
+			else:
+				entry.state(['disabled'])
+
+		self.after(100, self.loop)
 
 
 	def browse_plugins(self):
