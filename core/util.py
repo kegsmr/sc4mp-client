@@ -259,5 +259,44 @@ def update_server_list(maximum=100):
 			file.writelines(lines)
 
 
+def format_title(title: str, version=None) -> str:
+
+	t = title.split(" ")
+
+	if version:
+		t.append(f"v{version}")
+	if is_frozen():
+		if is_32_bit():
+			if is_windows:
+				t.append("(x86)")
+			else:
+				t.append("(32-bit)")
+	else:
+		t.append("(Python)")
+
+	return " ".join(t)
+
+
+def is_32_bit():
+
+	import struct
+
+	return 8 * struct.calcsize('P') == 32
+
+
+def is_frozen():
+
+	import sys
+
+	return getattr(sys, 'frozen', False)
+
+
+def is_windows():
+
+	import platform
+
+	return platform.system() == "Windows"
+
+
 if __name__ == "__main__":
 	update_server_list()
