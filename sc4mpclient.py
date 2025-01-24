@@ -20,12 +20,12 @@ import time
 import tkinter as tk
 import tkinter.font as tkfont
 import traceback
+import urllib.request
 import webbrowser
 from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
 from typing import Optional
-import urllib.request
 
 try:
 	from PIL import Image, ImageTk, UnidentifiedImageError

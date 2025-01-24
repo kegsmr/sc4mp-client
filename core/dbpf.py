@@ -64,6 +64,8 @@ class DBPF:
 			#self.indexData[index]['compressed'] = #TODO
 			#self.indexData[index]['truesize'] = #TODO
 
+		#print(f"DBPF v{self.majorVersion}.{self.minorVersion}")
+
 	
 	def close(self):
 
@@ -79,97 +81,99 @@ class DBPF:
 		numcopy = ""		# TODO what does this do?
 		offset = ""			# TODO what does this do?
 
-		# Read until there's nothing left to read
-		while length > 0:
-			
-			# Read control char
-			try:
-				cc = self.read_UL1(self.file) # This line causes errors sometimes for some reason. End of file?
-				length -= 1
-			except Exception as e:
-				self.show_error(e)
-				return io.BytesIO(answer) # Just return what we've got so far. 
+		try:
 
-			# For development
-			#print(f"Control char is {cc}, length remaining is {length}.")
-
-			if cc >= 252:	#0xFC
-
-				numplain = cc & 3										#3 = 0x03
-				numplain = length if numplain > length else numplain
+			# Read until there's nothing left to read
+			while length > 0:
 				
-				numcopy = 0
-				offset = 0
-
-			elif cc >= 224:	#0xE0
-
-				numplain = (cc - 223) << 2								#223 = 0xdf
-
-				numcopy = 0
-				offset = 0
-
-			elif cc >= 192:	#0xC0
-
-				length -= 3
-
-				byte1 = self.read_UL1(self.file)
-				byte2 = self.read_UL1(self.file)
-				byte3 = self.read_UL1(self.file)
-
-				numplain = cc & 3										#3 = 0x03
-				
-				numcopy = ((cc & 12) << 6) + 5 + byte3 					#12 = 0x0c
-				offset = ((cc & 16) << 12) + (byte1 << 8) + byte2 		#16 = 0x10
-
-			elif cc >= 128: #0x80
-
-				length -= 2
-
-				byte1 = self.read_UL1(self.file)
-				byte2 = self.read_UL1(self.file)
-
-				numplain = (byte1 & 192) >> 6 							#192 = 0xc0
-
-				numcopy = (cc & 63) + 4 								#63 = 0x3f
-				offset = ((byte1 & 63) << 8) + byte2 					#63 = 0x3f
-
-			else:
-
+				# Read control char
+				cc = self.read_UL1(self.file) #TODO Line causes errors on older versions of DBPF but doesn't seem to affect anything. Always fails with 9 bytes remaining.
 				length -= 1
 
-				byte1 = self.read_UL1(self.file)
+				# For development
+				#print(f"Control char is {cc}, length remaining is {length}.")
 
-				numplain = cc & 3 										#3 = 0x03
+				if cc >= 252:	#0xFC
 
-				numcopy = ((cc & 28) >> 2) + 3 							#28 = 0x1c
-				offset = ((cc & 96) << 3) + byte1 						#96 = 0x60
+					numplain = cc & 3										#3 = 0x03
+					numplain = length if numplain > length else numplain
+					
+					numcopy = 0
+					offset = 0
 
-			length -= numplain
+				elif cc >= 224:	#0xE0
 
-			# This section basically copies the parts of the string to the end of the buffer:
-			if numplain > 0:
+					numplain = (cc - 223) << 2								#223 = 0xdf
 
-				buf = self.file.read(numplain)
+					numcopy = 0
+					offset = 0
 
-				answer += buf
+				elif cc >= 192:	#0xC0
 
-			fromoffset = len(answer) - (offset + 1)  # 0 == last char
-			for index in range(numcopy):
+					length -= 3
 
-				#print(str(answer))
-				#print(str(cc))
-				#print(str(offset))
-				#print(str(fromoffset))
-				
-				#TODO remove try and except block. decompression algorithm breaks with a control char of 206. the offset becomes larger than the length of the answer, causing a negative fromindex and an indexing error. for now it does not seem to affect city coordinates
-				try:
-					answer = answer + (answer[fromoffset + index]).to_bytes(1, 'little') #substr(fromoffset + index, 1)
-				except Exception as e:
-					#show_error(e) #TODO
-					return io.BytesIO(answer)
-				
-			answerlen += numplain
-			answerlen += numcopy
+					byte1 = self.read_UL1(self.file)
+					byte2 = self.read_UL1(self.file)
+					byte3 = self.read_UL1(self.file)
+
+					numplain = cc & 3										#3 = 0x03
+					
+					numcopy = ((cc & 12) << 6) + 5 + byte3 					#12 = 0x0c
+					offset = ((cc & 16) << 12) + (byte1 << 8) + byte2 		#16 = 0x10
+
+				elif cc >= 128: #0x80
+
+					length -= 2
+
+					byte1 = self.read_UL1(self.file)
+					byte2 = self.read_UL1(self.file)
+
+					numplain = (byte1 & 192) >> 6 							#192 = 0xc0
+
+					numcopy = (cc & 63) + 4 								#63 = 0x3f
+					offset = ((byte1 & 63) << 8) + byte2 					#63 = 0x3f
+
+				else:
+
+					length -= 1
+
+					byte1 = self.read_UL1(self.file)
+
+					numplain = cc & 3 										#3 = 0x03
+
+					numcopy = ((cc & 28) >> 2) + 3 							#28 = 0x1c
+					offset = ((cc & 96) << 3) + byte1 						#96 = 0x60
+
+				length -= numplain
+
+				# This section basically copies the parts of the string to the end of the buffer:
+				if numplain > 0:
+
+					buf = self.file.read(numplain)
+
+					answer += buf
+
+				fromoffset = len(answer) - (offset + 1)  # 0 == last char
+				for index in range(numcopy):
+
+					#print(str(answer))
+					#print(str(cc))
+					#print(str(offset))
+					#print(str(fromoffset))
+					
+					#TODO remove try and except block. decompression algorithm breaks with a control char of 206. the offset becomes larger than the length of the answer, causing a negative fromindex and an indexing error. for now it does not seem to affect city coordinates
+					try:
+						answer = answer + (answer[fromoffset + index]).to_bytes(1, 'little') #substr(fromoffset + index, 1)
+					except Exception as e:
+						#show_error(e) #TODO
+						return io.BytesIO(answer)
+					
+				answerlen += numplain
+				answerlen += numcopy
+
+		except Exception:
+
+			self.show_error(f"An error occurred while decompressing \"{self.filename}\" with {length} bytes remaining.")
 
 		return io.BytesIO(answer)
 
@@ -257,7 +261,7 @@ class DBPF:
 
 	def decompress_subfile(self, type_id):
 		"""TODO"""
-		#report('Decompressing "' + type_id + '"...', self)
+		#print('Decompressing "' + type_id + '"...')
 		self.goto_subfile(type_id)
 		self.file.read(self.NONSENSE_BYTE_OFFSET)
 		return self.decompress(self.get_subfile_size(type_id))
@@ -307,55 +311,70 @@ class SC4Savegame(DBPF):
 		# Dictionary to return
 		self.SC4ReadRegionalCity = {}
 
-		# DBPF file version
-		self.SC4ReadRegionalCity['majorVersion'] = self.read_UL2(data)
-		self.SC4ReadRegionalCity['minorVersion'] = self.read_UL2(data)
-		
-		# City location
-		self.SC4ReadRegionalCity['tileXLocation'] = self.read_UL4(data)
-		self.SC4ReadRegionalCity['tileYLocation'] = self.read_UL4(data)
-		
-		# City size
-		self.SC4ReadRegionalCity['citySizeX'] = self.read_UL4(data)
-		self.SC4ReadRegionalCity['citySizeY'] = self.read_UL4(data)
-		
-		# City population 
-		self.SC4ReadRegionalCity['residentialPopulation'] = self.read_UL4(data)
-		self.SC4ReadRegionalCity['commercialPopulation'] = self.read_UL4(data)
-		self.SC4ReadRegionalCity['industrialPopulation'] = self.read_UL4(data)
+		try:
 
-		# Unknown
-		data.read(4) #self.SC4ReadRegionalCity['unknown1'] = data.read(4) #TODO read float
+			# DBPF file version
+			self.SC4ReadRegionalCity['majorVersion'] = self.read_UL2(data)
+			self.SC4ReadRegionalCity['minorVersion'] = self.read_UL2(data)
+			version = (self.SC4ReadRegionalCity['majorVersion'], self.SC4ReadRegionalCity['minorVersion'])
 
-		# Mayor rating, difficulty and tutorial mode flag
-		self.SC4ReadRegionalCity['mayorRating'] = self.read_UL1(data)
-		self.SC4ReadRegionalCity['starCount'] = self.read_UL1(data)
-		self.SC4ReadRegionalCity['tutorialFlag'] = self.read_UL1(data)
+			#print(f"Parsing region view subfile (v{self.SC4ReadRegionalCity['majorVersion']}.{self.SC4ReadRegionalCity['minorVersion']}) of {self.filename}.")
 
-		# Not sure what this is for
-		self.SC4ReadRegionalCity['cityGUID'] = self.read_UL4(data)
+			# City location
+			self.SC4ReadRegionalCity['tileXLocation'] = self.read_UL4(data)
+			self.SC4ReadRegionalCity['tileYLocation'] = self.read_UL4(data)
+			
+			# City size
+			self.SC4ReadRegionalCity['citySizeX'] = self.read_UL4(data)
+			self.SC4ReadRegionalCity['citySizeY'] = self.read_UL4(data)
+			
+			# City population 
+			self.SC4ReadRegionalCity['residentialPopulation'] = self.read_UL4(data)
+			self.SC4ReadRegionalCity['commercialPopulation'] = self.read_UL4(data)
+			self.SC4ReadRegionalCity['industrialPopulation'] = self.read_UL4(data)
 
-		# Unknown
-		data.read(20)
-		#self.SC4ReadRegionalCity['unknown5'] = self.read_UL4(data)
-		#self.SC4ReadRegionalCity['unknown6'] = self.read_UL4(data)
-		#self.SC4ReadRegionalCity['unknown7'] = self.read_UL4(data)
-		#self.SC4ReadRegionalCity['unknown8'] = self.read_UL4(data)
-		#self.SC4ReadRegionalCity['unknown9'] = self.read_UL4(data)
+			# Unknown
+			if version > (1,9):
+				data.read(4) #self.SC4ReadRegionalCity['unknown1'] = data.read(4) #TODO read float
 
-		# Gamemode
-		self.SC4ReadRegionalCity['modeFlag'] = self.read_UL1(data)
+			# Mayor rating, difficulty and tutorial mode flag
+			if version > (1,10):
+				self.SC4ReadRegionalCity['mayorRating'] = self.read_UL1(data)
+			self.SC4ReadRegionalCity['starCount'] = self.read_UL1(data)
+			self.SC4ReadRegionalCity['tutorialFlag'] = self.read_UL1(data)
 
-		# City name
-		self.SC4ReadRegionalCity['cityName'] = self.read_unistr(data)
+			# Not sure what this is for
+			self.SC4ReadRegionalCity['cityGUID'] = self.read_UL4(data)
 
-		# Former city name
-		self.SC4ReadRegionalCity['formerCityName'] = self.read_unistr(data)
+			# Unknown
+			data.read(20)
+			#self.SC4ReadRegionalCity['unknown5'] = self.read_UL4(data)
+			#self.SC4ReadRegionalCity['unknown6'] = self.read_UL4(data)
+			#self.SC4ReadRegionalCity['unknown7'] = self.read_UL4(data)
+			#self.SC4ReadRegionalCity['unknown8'] = self.read_UL4(data)
+			#self.SC4ReadRegionalCity['unknown9'] = self.read_UL4(data)
 
-		# Mayor name
-		self.SC4ReadRegionalCity['mayorName'] = self.read_unistr(data)
+			# Gamemode
+			self.SC4ReadRegionalCity['modeFlag'] = self.read_UL1(data)
 
-		#TODO keep reading subfile
+			# City name
+			self.SC4ReadRegionalCity['cityName'] = self.read_unistr(data)
+
+			# Former city name
+			self.SC4ReadRegionalCity['formerCityName'] = self.read_unistr(data)
+
+			# Mayor name
+			self.SC4ReadRegionalCity['mayorName'] = self.read_unistr(data)
+
+			#TODO keep reading subfile
+
+		except Exception:
+
+			self.show_error(f"An error occurred while parsing the region view subfile (v{self.SC4ReadRegionalCity['majorVersion']}.{self.SC4ReadRegionalCity['minorVersion']}) of \"{self.filename}\".")
+
+		self.SC4ReadRegionalCity.setdefault("mayorRating", 0)
+		self.SC4ReadRegionalCity.setdefault("cityName", None)
+		self.SC4ReadRegionalCity.setdefault("mayorName", None)
 
 		return self.SC4ReadRegionalCity
 
