@@ -46,10 +46,10 @@ The use of external modules is discouraged for core functionalities essential to
 
 ```python
 try:
-	from PIL import Image, ImageTk, UnidentifiedImageError
-	sc4mp_has_pil = True
+    from PIL import Image, ImageTk, UnidentifiedImageError
+    sc4mp_has_pil = True
 except ImportError:
-	sc4mp_has_pil = False
+    sc4mp_has_pil = False
 ```
 
 The `LoadingBackgroundUI` then checks if the module is available and handles its absence gracefully.
