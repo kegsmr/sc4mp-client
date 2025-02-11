@@ -2,7 +2,11 @@ import os
 import platform
 import shutil
 import struct
+import subprocess
+import sys
 from datetime import datetime
+
+subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
 import PyInstaller.__main__ as pyinstaller
 from pyinstaller_versionfile import create_versionfile

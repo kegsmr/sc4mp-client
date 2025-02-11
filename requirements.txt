@@ -1,7 +1,19 @@
-# NOTE: The SC4MP Client can run without the modules listed in this file; however, certain 
-# non-essential features will be disabled without them.
+# NOTE: The SC4MP Client can run without the modules listed in this file; however, 
+# certain non-essential features will be disabled without them.
 
 
-# Pillow: for rendering loading screen backgrounds
+# Runtime Dependencies (Used by the application at runtime)
+# ---------------------------------------------------------
+# Pillow: Used for rendering loading screen backgrounds. If unavailable, 
+# this feature will be gracefully disabled.
 
 pillow
+
+
+# Build Dependencies (Only required when building Windows executables)
+# --------------------------------------------------------------------
+# PyInstaller: Required for packaging the application into a Windows executable.
+# Requests: Used for fetching an updated server list when building executables.
+
+PyInstaller
+requests
