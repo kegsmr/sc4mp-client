@@ -1,0 +1,7 @@
+# NOTE: The SC4MP Client can run without the modules listed in this file; however, certain 
+# non-essential features will be disabled without them.
+
+
+# Pillow: for rendering loading screen backgrounds
+
+pillow
