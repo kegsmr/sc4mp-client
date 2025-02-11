@@ -460,3 +460,23 @@ def get_process_creation_time(pid):
 		return datetime(1601, 1, 1) + timedelta(microseconds=time // 10)
 
 	return filetime_to_datetime(creation_time)
+
+
+def get_public_ip_address():
+
+	import urllib
+
+	try:
+
+		# Send a request to a public IP API and read the response
+		with urllib.request.urlopen('https://api.ipify.org') as response:
+
+			# The public IP is returned as a string
+			public_ip = response.read().decode('utf-8')
+
+		return public_ip
+
+	except urllib.error.URLError as e:
+		
+		print(f"Error fetching IP address: {e}")
+		return None
