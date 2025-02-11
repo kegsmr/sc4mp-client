@@ -6,6 +6,9 @@ import subprocess
 import sys
 from datetime import datetime
 
+if sys.version_info[:2] != (3, 8):
+    raise RuntimeError(f"Unsupported Python version: {sys.version}. Please use Python 3.8.")
+
 subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
 import PyInstaller.__main__ as pyinstaller
