@@ -1749,6 +1749,8 @@ class ServerList(th.Thread):
 					# Add missing rows to the tree
 					server_ids = self.servers.keys()
 					filter = self.ui.combo_box.get()
+					if filter == self.ui.combo_box.PLACEHOLDER_TEXT:
+						filter = ""
 					for server_id in server_ids:
 						if (not self.ui.tree.exists(server_id)) and (not self.filter(self.servers[server_id], self.filters(filter))): #(len(filter) < 1 or (not self.filter(self.servers[server_id], self.filters(filter)))):
 							#while len(self.ui.tree.get_children()) >= 50:
@@ -1769,6 +1771,8 @@ class ServerList(th.Thread):
 
 					# Filter the tree
 					filter = self.ui.combo_box.get()
+					if filter == self.ui.combo_box.PLACEHOLDER_TEXT:
+						filter = ""
 					#if len(filter) > 0:
 					try:
 						category, search_terms = self.filters(filter)
@@ -4655,7 +4659,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.cpu_priority_frame.grid(row=1, column=2, columnspan=1, rowspan=1, padx=10, pady=5, sticky="e")
 
 		# CPU priority entry
-		self.cpu_priority_frame.combo_box = ttk.Combobox(self.cpu_priority_frame, width = 8)
+		self.cpu_priority_frame.combo_box = ttk.Combobox(self.cpu_priority_frame, width=8)
 		self.cpu_priority_frame.combo_box.insert(0, sc4mp_config["SC4"]["cpu_priority"])
 		self.cpu_priority_frame.combo_box["values"] = ("low", "normal", "high")
 		self.cpu_priority_frame.combo_box.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
@@ -5381,7 +5385,35 @@ class ServerListUI(tk.Frame):
 
 		self.combo_box = ttk.Combobox(self, width=23)
 		self.combo_box["values"] = ("category: All", "category: Official", "category: Public", "category: Private", "category: History") #"category: Bookmarked" "category: Online"
-		self.combo_box.insert(0, sc4mp_config["GENERAL"]["server_browser_filter"])
+
+		self.combo_box.PLACEHOLDER_TEXT = "Search/Filter servers"
+
+		def on_focus_in(event):
+			if self.combo_box.get() == self.combo_box.PLACEHOLDER_TEXT:
+				self.combo_box.delete(0, tk.END)  # Clear placeholder when clicked
+				self.combo_box.configure(foreground="black")
+
+		def on_focus_out(event):
+			if self.combo_box.get() == "":
+				self.combo_box.set(self.combo_box.PLACEHOLDER_TEXT)  # Restore placeholder if nothing is typed
+				self.combo_box.configure(foreground="gray")
+
+		def on_key_release(event):
+			if self.combo_box.get() == self.combo_box.PLACEHOLDER_TEXT:
+				self.combo_box.delete(0, tk.END)
+				self.combo_box.configure(foreground="black")
+
+		self.combo_box.bind("<FocusIn>", on_focus_in)
+		self.combo_box.bind("<FocusOut>", on_focus_out)
+		self.combo_box.bind("<KeyRelease>", on_key_release)
+
+		if sc4mp_config["GENERAL"]["server_browser_filter"]:
+			self.combo_box.insert(0, sc4mp_config["GENERAL"]["server_browser_filter"])
+			self.combo_box.configure(foreground="black")
+		else:
+			self.combo_box.insert(0, self.combo_box.PLACEHOLDER_TEXT)
+			self.combo_box.configure(foreground="gray")
+		
 		self.combo_box.grid(row=3, column=1, rowspan=1, columnspan=1, padx=(0,16), pady=(5,10), sticky="ne")
 		
 
