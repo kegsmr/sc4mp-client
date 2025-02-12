@@ -4291,21 +4291,20 @@ class UI(tk.Tk):
 				servers.add_separator()
 				for test_server in test_servers:
 					server_submenu = Menu(menu, tearoff=0)
-					connect_submenu = Menu(menu, tearoff=0)
-					connect_submenu.add_command(label="localhost:7240") #TODO
-					connect_submenu.add_command(label="76.45.34.23:7240") #TODO
-					server_submenu.add_cascade(label="Connect", menu=connect_submenu)
+					if True:
+						server_submenu.add_command(label="Connect")
+						server_submenu.add_separator()
+						server_submenu.add_command(label="Restart")
+						server_submenu.add_command(label="Stop")
+					else:
+						server_submenu.add_command(label="Start")
 					server_submenu.add_separator()
-					server_submenu.add_command(label="Restart")
-					server_submenu.add_command(label="Start")
-					server_submenu.add_command(label="Stop")
+					server_submenu.add_command(label="Plugins...")
+					server_submenu.add_command(label="Regions...")
 					server_submenu.add_separator()
-					server_submenu.add_command(label="Add plugins...")
-					server_submenu.add_command(label="Add regions...")
+					server_submenu.add_command(label="Config...")
 					server_submenu.add_separator()
-					server_submenu.add_command(label="Edit config...")
-					server_submenu.add_separator()
-					server_submenu.add_command(label="View logs...")
+					server_submenu.add_command(label="Logs...")
 					servers.add_cascade(label=f"{test_server} (Status)", menu=server_submenu)
 		menu.add_cascade(label="Servers", menu=servers)  
 
