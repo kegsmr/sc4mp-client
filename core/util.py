@@ -462,14 +462,14 @@ def get_process_creation_time(pid):
 	return filetime_to_datetime(creation_time)
 
 
-def get_public_ip_address():
+def get_public_ip_address(timeout=10):
 
 	import urllib
 
 	try:
 
 		# Send a request to a public IP API and read the response
-		with urllib.request.urlopen('https://api.ipify.org') as response:
+		with urllib.request.urlopen('https://api.ipify.org', timeout=timeout) as response:
 
 			# The public IP is returned as a string
 			public_ip = response.read().decode('utf-8')
