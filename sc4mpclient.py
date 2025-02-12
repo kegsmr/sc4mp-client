@@ -91,6 +91,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("scan_lan", True),
 		("stat_mayors_online_cutoff", 60),
 		("show_actual_download", True),
+		("show_rank_bars", True),
 		("show_offline_servers", True),
 		("use_fullscreen_background", True),
 		("use_launcher_map", True),
@@ -1644,10 +1645,16 @@ class ServerList(th.Thread):
 		self.stat_actual_download = dict()
 		self.stat_ping = dict()
 
-		self.blank_icon = tk.PhotoImage(file=get_sc4mp_path("blank-icon.png"))
-		self.lock_icon = tk.PhotoImage(file=get_sc4mp_path("lock-icon.png"))
-		self.official_icon = tk.PhotoImage(file=get_sc4mp_path("official-icon.png"))
-		self.error_icon = tk.PhotoImage(file=get_sc4mp_path("error-icon.png"))
+		if self.ui:
+
+			self.blank_icon = tk.PhotoImage(file=get_sc4mp_path("blank-icon.png"))
+			self.lock_icon = tk.PhotoImage(file=get_sc4mp_path("lock-icon.png"))
+			self.official_icon = tk.PhotoImage(file=get_sc4mp_path("official-icon.png"))
+			self.error_icon = tk.PhotoImage(file=get_sc4mp_path("error-icon.png"))
+
+			self.rank_bars = []
+			self.rank_bar_images = [tk.PhotoImage(file=get_sc4mp_path(f"rank-{i}.png")) for i in range(6)]
+			self.ui.tree.bind("<<TreeviewSelect>>", self.update_rank_bars)
 
 		self.temp_path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList"
 
@@ -1863,8 +1870,14 @@ class ServerList(th.Thread):
 						else:
 							self.ui.label["text"] = 'No servers found' #Select "Servers" then "Connect..." in the menu bar to connect to a server.'
 
+					# Update rank bars
+					self.update_rank_bars()
+
 				# Delay
 				time.sleep(SC4MP_DELAY)
+
+			for canvas in self.rank_bars:
+				canvas.destroy()
 
 			self.ended = True
 
@@ -2016,9 +2029,11 @@ class ServerList(th.Thread):
 	    	lambda: str(int(server.stat_claimed * 100)) + "%",
 		    lambda: format_download_size(server.stat_actual_download) if sc4mp_config["GENERAL"]["show_actual_download"] else format_filesize(server.stat_download),
 		    lambda: str(server.stat_ping) + "ms",
-		    lambda: str(round(server.rating, 1)), # + " ⭐️",
+		    lambda: str(round(server.rating, 1)), # (lambda: "" if sc4mp_config["GENERAL"]["show_rank_bars"] else lambda: str(round(server.rating, 1))), # + " ⭐️",
 			lambda: self.format_server_join_time(server)
 		]
+		if sc4mp_config["GENERAL"]["show_rank_bars"]:
+			functions[4] = lambda: ""
 		cells = []
 		for function in functions:
 			try:
@@ -2084,6 +2099,94 @@ class ServerList(th.Thread):
 			return 1.0 - ((item - min(array)) / (max(array) - min(array)))
 		except Exception:
 			return 1.0
+
+
+	def update_rank_bars(self, event=None):
+
+		# if self.updating_rank_bars:
+		# 	return
+		# self.updating_rank_bars = True
+
+		def handle_single_click(event):
+			canvas = event.widget
+			server_id = canvas.server_id
+			self.ui.tree.selection_set([server_id])
+			self.ui.handle_single_click(event)
+		
+		# def handle_double_click(event):
+		# 	handle_single_click(event)
+		# 	self.ui.connect()
+
+		if self.ui and sc4mp_config["GENERAL"]["show_rank_bars"]:
+			r = self.rank_bars
+			self.rank_bars = []
+			if "#5" in self.ui.tree["displaycolumns"]:
+				for server_id in self.ui.tree.get_children():
+					try:
+						try:
+							rank = self.servers[server_id].rating
+						except Exception:
+							rank = 0
+						x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
+						if y < 260:
+							canvas = tk.Canvas(width=w + 3, height=h - 1, bd=0, bg=("#0078D7" if server_id in self.ui.tree.selection() else "white"), highlightthickness=0, relief='flat')
+							canvas.server_id = server_id
+							canvas.bind("<Button-1>", handle_single_click)
+							# canvas.bind("<Double-1>", handle_double_click)
+							canvas.image = self.rank_bar_images[round(rank)]
+							canvas.create_image(w / 2 + 2, h / 2 - 1, anchor="center", image=canvas.image)
+							canvas.place(x=15+x, y=155+y)
+							self.rank_bars.append(canvas)
+					except ValueError:
+						pass
+					except Exception as e:
+						show_error(e, no_ui=True)
+			for canvas in r:
+				canvas.destroy()
+
+		# self.updating_rank_bars = False
+
+
+	# def update_rank_bars(self, event=None):
+	# 	"""Updates the rank bars when the tree selection changes"""
+	# 	if not self.ui or not sc4mp_config["GENERAL"]["show_rank_bars"]:
+	# 		return
+
+	# 	# Clear previous rank bars
+	# 	for bar in self.rank_bars:
+	# 		bar.destroy()
+	# 	self.rank_bars = []
+
+	# 	if "#5" not in self.ui.tree["displaycolumns"]:
+	# 		return
+
+	# 	for server_id in self.ui.tree.get_children():
+	# 		try:
+	# 			rank = self.servers.get(server_id, None)
+	# 			if rank is None:
+	# 				continue
+
+	# 			rank = self.servers[server_id].rating
+	# 			x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
+
+	# 			# Only render bars for visible rows (avoid unnecessary updates)
+	# 			if y < 260:
+	# 				canvas = tk.Canvas(
+	# 					width=w + 3, height=h - 1,
+	# 					bd=0, bg=("#0078D7" if server_id in self.ui.tree.selection() else "white"),
+	# 					highlightthickness=0, relief='flat'
+	# 				)
+	# 				canvas.image = self.rank_bar_images[round(rank)]
+	# 				canvas.create_image(w / 2 + 2, h / 2 - 1, anchor="center", image=canvas.image)
+	# 				canvas.place(x=15 + x, y=155 + y)
+	# 				self.rank_bars.append(canvas)
+	# 		except ValueError:
+	# 			pass
+	# 		except Exception as e:
+	# 			show_error(f"Error updating rank bars: {e}", no_ui=True)
+		
+	# 	if not event:
+	# 		self.ui.after(100, self.update_rank_bars)
 
 
 class ServerFetcher(th.Thread):
@@ -5353,7 +5456,7 @@ class ServerListUI(tk.Frame):
 		#self.tree['show'] = 'headings'
 		self.tree['displaycolumns'] = ("#1", "#2", "#3", "#4", "#5")
 
-		self.tree.bind("<Double-1>", self.handle_double_click) #lambda event: self.connect())
+		# self.tree.bind("<Double-1>", self.handle_double_click) #lambda event: self.connect())
 		self.tree.bind("<Button-1>", self.handle_single_click)
 
 		self.tree.sort = "Rank"
@@ -5365,6 +5468,9 @@ class ServerListUI(tk.Frame):
 		self.tree.focus_set()
 
 		self.tree.pack(side="left")
+
+		self.tree.last_click = 0
+		self.tree.last_click_coords = (0,0)
 
 
 		# Scrollbar
@@ -5483,13 +5589,22 @@ class ServerListUI(tk.Frame):
 			return "break"
 		elif region == "tree" or region == "cell":
 			self.connect()
+		self.tree.last_click = 0
+		self.tree.last_click_coords = (0, 0)
 
 
 	def handle_single_click(self, event):
-		
-		region = self.tree.identify_region(event.x, event.y)
-		if region == "separator":
-			return "break"
+
+		if time.time() - self.tree.last_click < 500 and math.dist((event.x, event.y), self.tree.last_click_coords) < 1:
+			self.handle_double_click(event)
+		else:
+			region = self.tree.identify_region(event.x, event.y)
+			if region == "separator":
+				return "break"
+			else:
+				self.tree.last_click = time.time()
+				self.tree.last_click_coords = (event.x, event.y)
+			
 		
 
 	def handle_header_click(self, name):
