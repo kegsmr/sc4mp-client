@@ -6466,17 +6466,6 @@ class ServerDetailsUI(tk.Toplevel):
 
 		self.mayors_frame = StatisticsTreeUI(self.notebook, data=mayors, columns=columns, formats=formats)
 
-		#for user_id, entry in sorted(mayors.items(), key=lambda item: item[1]["last_online"], reverse=True):
-		#	self.mayors_frame.tree.insert("", "end", f"{user_id}", text=f"{entry['name']}", values=[
-		#		f"{entry['area_claimed']}km²",
-		#		entry['mayor_rating'], 
-		#		f"§{entry['funds']:,}",
-		#		f"{entry['residential_population']:,}", 
-		#		f"{entry['commercial_population']:,}",
-		#		f"{entry['industrial_population']:,}",
-		#		format_time_ago(datetime.strptime(entry['last_online'], "%Y-%m-%d %H:%M:%S")),
-		#	])
-
 		self.mayors_frame.tree["displaycolumns"] = ["#7", "#8"]
 		self.mayors_frame.button.configure(command=self.expand_mayors_treeview, text="Expand")
 
@@ -6630,17 +6619,6 @@ class ServerDetailsUI(tk.Toplevel):
 		]
 
 		self.cities_frame = StatisticsTreeUI(self.notebook, columns=columns, formats=formats, data=cities)
-
-		#for name, values in sorted(cities.items(), key=lambda item: item[1][-1], reverse=True):
-		#	self.cities_frame.tree.insert("", "end", text=name, values=[
-		#		values[0],
-		#		f"{values[1]}",
-		#		f"§{values[2]:,}",
-		#		f"{values[3]:,}",
-		#		f"{values[4]:,}",
-		#		f"{values[5]:,}",
-		#		format_time_ago(values[6]),
-		#	])
 
 		self.cities_frame.tree["displaycolumns"] = ["#8", "#9"]
 
