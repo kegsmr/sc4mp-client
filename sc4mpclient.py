@@ -1125,55 +1125,6 @@ def format_url(url: str) -> str:
 		return url
 
 
-def get_nssm_path() -> Path:
-	"""Returns the path to the Non-Sucking Service Manager."""
-
-	if 8 * struct.calcsize('P') == 32:
-		return get_sc4mp_path("nssm32.exe")
-	else:
-		return get_sc4mp_path("nssm64.exe")
-
-
-def install_nssm_service(name, program, args):
-	"""Installs an NSSM service."""
-
-	nssm_path = get_nssm_path()
-
-	#TODO
-
-
-def start_nssm_service(name):
-	"""Starts an NSSM service."""
-
-	nssm_path = get_nssm_path()
-
-	#TODO
-
-
-def stop_nssm_service(name):
-	"""Stops an NSSM service."""
-
-	nssm_path = get_nssm_path()
-
-	#TODO
-
-
-def query_nssm_service(name):
-	"""Checks the status of an NSSM service."""
-
-	nssm_path = get_nssm_path()
-
-	#TODO
-
-
-def remove_nssm_service(name):
-	"""Removes an NSSM service."""
-
-	nssm_path = get_nssm_path()
-
-	#TODO
-
-
 def sync_simcity_4_cfg(to_mp=False):
 
 	try:
