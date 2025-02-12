@@ -4130,8 +4130,8 @@ class UI(tk.Tk):
 		
 		servers.add_command(label="Connect...", accelerator="F1", command=self.direct_connect)
 		servers.add_command(label="Refresh", accelerator="F2", command=self.refresh)
-		#servers.add_separator() 
-		#servers.add_command(label="Host...", accelerator="F3", command=self.host) #TODO
+		servers.add_separator() 
+		servers.add_command(label="Host...", accelerator="F3", command=self.host) #TODO
 		menu.add_cascade(label="Servers", menu=servers)  
 
 		help = Menu(menu, tearoff=0)  	
