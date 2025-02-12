@@ -2,7 +2,14 @@ import os
 import platform
 import shutil
 import struct
+import subprocess
+import sys
 from datetime import datetime
+
+if sys.version_info[:2] != (3, 8):
+    raise RuntimeError(f"Unsupported Python version: {sys.version}. Please use Python 3.8.")
+
+subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
 import PyInstaller.__main__ as pyinstaller
 from pyinstaller_versionfile import create_versionfile
@@ -13,7 +20,7 @@ from core.util import update_server_list
 
 TITLE = "SC4MP Launcher"
 NAME = "sc4mpclient.exe"
-VERSION = sc4mpclient.SC4MP_VERSION
+VERSION = sc4mpclient.SC4MP_VERSION + "." + datetime.now().strftime("%Y%m%d%H%M%S")
 PUBLISHER = "SimCity 4 Multiplayer Project"
 DESCRIPTION = "Multiplayer launcher for SimCity 4"
 LICENSE = "MIT-0"
@@ -89,7 +96,7 @@ def main():
 	shutil.copy("Readme.html", DIST)
 
 	# Create a zip archive of the distribution
-	destination = os.path.join(os.path.join("builds", "sc4mp-client-" + platform.system().lower() + "-" + str(8 * struct.calcsize("P")) + "-v" + VERSION + "." + datetime.now().strftime("%Y%m%d%H%M%S")))
+	destination = os.path.join(os.path.join("builds", "sc4mp-client-" + platform.system().lower() + "-" + str(8 * struct.calcsize("P")) + "-v" + VERSION))
 	print('Creating zip archive of "' + DIST + '" at "' + destination + '"')
 	shutil.make_archive(destination, "zip", DIST)
 
