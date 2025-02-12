@@ -6200,7 +6200,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 			self.create_mayors_frame()
 			self.create_cities_frame()
-			self.create_files_frame()
+			# self.create_files_frame()
 
 		except Exception as e:
 
