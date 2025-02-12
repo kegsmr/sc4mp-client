@@ -5558,6 +5558,9 @@ class ServerListUI(tk.Frame):
 
 		server_browser_filter = self.combo_box.get()
 
+		if server_browser_filter == self.combo_box.PLACEHOLDER_TEXT:
+			server_browser_filter = ""
+
 		if sc4mp_config["GENERAL"]["server_browser_filter"] != server_browser_filter:
 			sc4mp_config["GENERAL"]["server_browser_filter"] = server_browser_filter
 			sc4mp_config.update()
