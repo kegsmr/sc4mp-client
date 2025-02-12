@@ -20,13 +20,13 @@ import time
 import tkinter as tk
 import tkinter.font as tkfont
 import traceback
+import urllib.request
 import webbrowser
 from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
 from tkinter import font as tkfont
 from typing import Optional
-import urllib.request
 
 try:
 	from PIL import Image, ImageTk, UnidentifiedImageError
@@ -64,7 +64,7 @@ SC4MP_LOG_PATH = "sc4mpclient.log"
 SC4MP_README_PATH = "readme.html"
 SC4MP_RESOURCES_PATH = "resources"
 
-SC4MP_TITLE = f"SC4MP Launcher v{SC4MP_VERSION}" + (" (x86)" if 8 * struct.calcsize('P') == 32 else "")
+SC4MP_TITLE = format_title("SC4MP Launcher", version=SC4MP_VERSION)
 SC4MP_ICON: Path = Path(SC4MP_RESOURCES_PATH) / "icon.png"
 
 SC4MP_HOST = "localhost" #SC4MP_SERVERS[0][0]
@@ -550,7 +550,6 @@ def get_release_info(version="latest", timeout=10):
 	except urllib.error.URLError as e:
 		raise ClientException("GitHub API call timed out.") from e
 	
-
 	
 def update_config_constants(config):
 	"""For backwards compatibility. Updates the global config constants that are sometimes used internally."""
@@ -682,28 +681,6 @@ def get_sc4_path() -> Optional[Path]:
 
 	# Return `None` if none of the paths exist
 	return None
-
-
-#def is_patched_sc4():
-#	"""Broken"""
-#	
-#	if platform.system() == "Windows":
-#
-#		import win32api
-#
-#		sc4_exe_path = get_sc4_path()
-#
-#		file_version_info = win32api.GetFileVersionInfo(sc4_exe_path, '\\')
-#		file_version_ls = file_version_info["FileVersionLS"]
-#
-#		if win32api.HIWORD(file_version_ls) == 641:
-#			return True
-#		else:
-#			return False
-#
-#	else:
-#
-#		return None
 
 
 def start_sc4():
@@ -852,15 +829,6 @@ def process_exists(process_name): #TODO add MacOS compatability / deprecate in f
 def get_sc4mp_path(filename: str) -> Path:
 	"""Returns the path to a given file in the SC4MP "resources" subdirectory"""
 	return Path(SC4MP_RESOURCES_PATH) / filename
-
-
-#def md5(filename: Path) -> str:
-#	"""Returns an md5 hashcode generated from a given file."""
-#	hash_md5 = hashlib.md5()
-#	with filename.open("rb") as f:
-#		for chunk in iter(lambda: f.read(4096), b""):
-#			hash_md5.update(chunk)
-#	return hash_md5.hexdigest()
 
 
 def random_string(length):
@@ -1096,11 +1064,6 @@ def region_open(region) -> bool:
 def refresh_region_open() -> bool:
 	"""Checks if the refresh region is open in SC4"""
 	return region_open("Refresh...")
-
-
-#def report(message, object):
-#	
-#	print(message)
 
 
 def prep_region_config(path):
@@ -1801,6 +1764,8 @@ class ServerList(th.Thread):
 					# Add missing rows to the tree
 					server_ids = self.servers.keys()
 					filter = self.ui.combo_box.get()
+					if filter == self.ui.combo_box.PLACEHOLDER_TEXT:
+						filter = ""
 					for server_id in server_ids:
 						if (not self.ui.tree.exists(server_id)) and (not self.filter(self.servers[server_id], self.filters(filter))): #(len(filter) < 1 or (not self.filter(self.servers[server_id], self.filters(filter)))):
 							#while len(self.ui.tree.get_children()) >= 50:
@@ -1821,6 +1786,8 @@ class ServerList(th.Thread):
 
 					# Filter the tree
 					filter = self.ui.combo_box.get()
+					if filter == self.ui.combo_box.PLACEHOLDER_TEXT:
+						filter = ""
 					#if len(filter) > 0:
 					try:
 						category, search_terms = self.filters(filter)
@@ -4707,7 +4674,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.cpu_priority_frame.grid(row=1, column=2, columnspan=1, rowspan=1, padx=10, pady=5, sticky="e")
 
 		# CPU priority entry
-		self.cpu_priority_frame.combo_box = ttk.Combobox(self.cpu_priority_frame, width = 8)
+		self.cpu_priority_frame.combo_box = ttk.Combobox(self.cpu_priority_frame, width=8)
 		self.cpu_priority_frame.combo_box.insert(0, sc4mp_config["SC4"]["cpu_priority"])
 		self.cpu_priority_frame.combo_box["values"] = ("low", "normal", "high")
 		self.cpu_priority_frame.combo_box.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
@@ -5433,7 +5400,35 @@ class ServerListUI(tk.Frame):
 
 		self.combo_box = ttk.Combobox(self, width=23)
 		self.combo_box["values"] = ("category: All", "category: Official", "category: Public", "category: Private", "category: History") #"category: Bookmarked" "category: Online"
-		self.combo_box.insert(0, sc4mp_config["GENERAL"]["server_browser_filter"])
+
+		self.combo_box.PLACEHOLDER_TEXT = "Search/Filter servers"
+
+		def on_focus_in(event):
+			if self.combo_box.get() == self.combo_box.PLACEHOLDER_TEXT:
+				self.combo_box.delete(0, tk.END)  # Clear placeholder when clicked
+				self.combo_box.configure(foreground="black")
+
+		def on_focus_out(event):
+			if self.combo_box.get() == "":
+				self.combo_box.set(self.combo_box.PLACEHOLDER_TEXT)  # Restore placeholder if nothing is typed
+				self.combo_box.configure(foreground="gray")
+
+		def on_key_release(event):
+			if self.combo_box.get() == self.combo_box.PLACEHOLDER_TEXT:
+				self.combo_box.delete(0, tk.END)
+				self.combo_box.configure(foreground="black")
+
+		self.combo_box.bind("<FocusIn>", on_focus_in)
+		self.combo_box.bind("<FocusOut>", on_focus_out)
+		self.combo_box.bind("<KeyRelease>", on_key_release)
+
+		if sc4mp_config["GENERAL"]["server_browser_filter"]:
+			self.combo_box.insert(0, sc4mp_config["GENERAL"]["server_browser_filter"])
+			self.combo_box.configure(foreground="black")
+		else:
+			self.combo_box.insert(0, self.combo_box.PLACEHOLDER_TEXT)
+			self.combo_box.configure(foreground="gray")
+		
 		self.combo_box.grid(row=3, column=2, rowspan=1, columnspan=1, padx=(0,16), pady=(5,10), sticky="ne")
 		
 
