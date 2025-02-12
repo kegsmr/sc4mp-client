@@ -549,7 +549,6 @@ def get_release_info(version="latest", timeout=10):
 	except urllib.error.URLError as e:
 		raise ClientException("GitHub API call timed out.") from e
 	
-
 	
 def update_config_constants(config):
 	"""For backwards compatibility. Updates the global config constants that are sometimes used internally."""
@@ -681,28 +680,6 @@ def get_sc4_path() -> Optional[Path]:
 
 	# Return `None` if none of the paths exist
 	return None
-
-
-#def is_patched_sc4():
-#	"""Broken"""
-#	
-#	if platform.system() == "Windows":
-#
-#		import win32api
-#
-#		sc4_exe_path = get_sc4_path()
-#
-#		file_version_info = win32api.GetFileVersionInfo(sc4_exe_path, '\\')
-#		file_version_ls = file_version_info["FileVersionLS"]
-#
-#		if win32api.HIWORD(file_version_ls) == 641:
-#			return True
-#		else:
-#			return False
-#
-#	else:
-#
-#		return None
 
 
 def start_sc4():
@@ -851,15 +828,6 @@ def process_exists(process_name): #TODO add MacOS compatability / deprecate in f
 def get_sc4mp_path(filename: str) -> Path:
 	"""Returns the path to a given file in the SC4MP "resources" subdirectory"""
 	return Path(SC4MP_RESOURCES_PATH) / filename
-
-
-#def md5(filename: Path) -> str:
-#	"""Returns an md5 hashcode generated from a given file."""
-#	hash_md5 = hashlib.md5()
-#	with filename.open("rb") as f:
-#		for chunk in iter(lambda: f.read(4096), b""):
-#			hash_md5.update(chunk)
-#	return hash_md5.hexdigest()
 
 
 def random_string(length):
@@ -1095,11 +1063,6 @@ def region_open(region) -> bool:
 def refresh_region_open() -> bool:
 	"""Checks if the refresh region is open in SC4"""
 	return region_open("Refresh...")
-
-
-#def report(message, object):
-#	
-#	print(message)
 
 
 def prep_region_config(path):
