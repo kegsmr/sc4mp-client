@@ -4283,8 +4283,34 @@ class UI(tk.Tk):
 		
 		servers.add_command(label="Connect...", accelerator="F1", command=self.direct_connect)
 		servers.add_command(label="Refresh", accelerator="F2", command=self.refresh)
-		servers.add_separator() 
-		servers.add_command(label="Host...", accelerator="F3", command=self.host) #TODO
+		servers.add_separator()
+		if is_windows():
+			servers.add_command(label="Host...", accelerator="F3", command=lambda: ServerConfigUI())
+			test_servers = ["TEST1", "TEST2", "TEST3"]
+			if len(test_servers) > 0:
+				servers.add_separator()
+				for test_server in test_servers:
+					server_submenu = Menu(menu, tearoff=0)
+					actions_submenu = Menu(menu, tearoff=0)
+					connect_submenu = Menu(menu, tearoff=0)
+					connect_submenu.add_command(label="Via LAN")
+					connect_submenu.add_command(label="Via internet")
+					actions_submenu.add_cascade(label="Connect...", menu=connect_submenu)
+					actions_submenu.add_command(label="Restart")
+					actions_submenu.add_command(label="Stop")
+					server_submenu.add_cascade(label="Actions...", menu=actions_submenu)
+					manage_submenu = Menu(menu, tearoff=0)
+					manage_submenu.add_command(label="Plugins")
+					manage_submenu.add_command(label="Regions")
+					server_submenu.add_cascade(label="Manage...", menu=manage_submenu)
+					edit_submenu = Menu(menu, tearoff=0)
+					edit_submenu.add_command(label="Config")
+					server_submenu.add_cascade(label="Edit...", menu=edit_submenu)
+					view_submenu = Menu(menu, tearoff=0)
+					view_submenu.add_command(label="Logs")
+					view_submenu.add_command(label="Readme")
+					server_submenu.add_cascade(label="View...", menu=view_submenu)
+					servers.add_cascade(label=f"{test_server} (Status)", menu=server_submenu)
 		menu.add_cascade(label="Servers", menu=servers)  
 
 		help = Menu(menu, tearoff=0)  	
@@ -4372,7 +4398,7 @@ class UI(tk.Tk):
 		
 		print('"Host..."')
 
-		if platform.system() == "Windows":
+		if is_windows():
 			HostUI()
 		else:
 			if messagebox.askyesno(SC4MP_TITLE, "Hosting a server requires installing the SC4MP Server.\n\nWould you like to view the download page?"):
