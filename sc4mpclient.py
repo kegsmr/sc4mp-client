@@ -1718,13 +1718,14 @@ class ServerList(th.Thread):
 						self.ui.url_label["text"] = ""
 					else:
 						self.ui.connect_button['state'] = tk.NORMAL
-						self.ui.details_button['state'] = tk.NORMAL
 						if "Offline" in self.servers[server_id].categories:
 							self.ui.address_label["text"] = "Offline"
 							self.ui.address_label["fg"] = "red"
+							self.ui.details_button['state'] = tk.DISABLED
 						else:
 							self.ui.address_label["text"] = self.servers[server_id].host + ":" + str(self.servers[server_id].port)
 							self.ui.address_label["fg"] = "gray"
+							self.ui.details_button['state'] = tk.NORMAL
 						self.ui.description_label["text"] = self.servers[server_id].server_description
 						self.ui.url_label["text"] = self.servers[server_id].server_url
 						
