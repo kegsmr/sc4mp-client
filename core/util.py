@@ -157,14 +157,15 @@ def parse_filesize(filesize_str) -> int:
     return int(size * size_multipliers[unit])
 
 
-def format_time_ago(time):
+def format_time_ago(time, now=None):
 
 	from datetime import datetime, timedelta
 
 	if time is None:
 		return "Never"
 
-	now = datetime.now()
+	if not now:
+		now = datetime.now()
 
 	if time + timedelta(days=30) > now:
 

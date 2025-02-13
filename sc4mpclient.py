@@ -6461,7 +6461,7 @@ class ServerDetailsUI(tk.Toplevel):
 			lambda data: f"{data:,}", 
 			lambda data: f"{data:,}",
 			lambda data: f"{data:,}",
-			lambda data: format_time_ago(datetime.strptime(data, "%Y-%m-%d %H:%M:%S")),
+			lambda data: format_time_ago(datetime.strptime(data, "%Y-%m-%d %H:%M:%S"), now=self.server.time()),
 		]
 
 		self.mayors_frame = StatisticsTreeUI(self.notebook, data=mayors, columns=columns, formats=formats)
@@ -6615,7 +6615,7 @@ class ServerDetailsUI(tk.Toplevel):
 			lambda data: f"{data:,}",
 			lambda data: f"{data:,}",
 			lambda data: f"{data:,}",
-			format_time_ago,
+			lambda data: format_time_ago(data, now=self.server.time()),
 		]
 
 		self.cities_frame = StatisticsTreeUI(self.notebook, columns=columns, formats=formats, data=cities)
