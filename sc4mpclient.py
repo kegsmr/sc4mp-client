@@ -758,7 +758,7 @@ def start_sc4():
 		# Launch the game
 		print(f"- launching directly ('{command}').")
 		try:
-			if platform.system() == "Windows":
+			if is_windows():
 				subprocess.run(command) 			# `subprocess.run(arguments)` won't work on Windows for some unknowable reason
 			else:
 				subprocess.run(arguments)  			# on Linux, the first String passed as argument must be a file that exists
@@ -818,7 +818,7 @@ def is_steam_sc4(path: Path):
 
 def process_exists(process_name): #TODO add MacOS compatability / deprecate in favor of `process_count`?
 	
-	if platform.system() == "Windows":
+	if is_windows():
 		call = 'TASKLIST', '/FI', 'imagename eq %s' % process_name
 		output = subprocess.check_output(call, shell=True).decode()
 		last_line = output.strip().split('\r\n')[-1]
@@ -1110,7 +1110,7 @@ def get_bitmap_dimensions(filename):
 
 
 def arp():
-	if platform.system() == "Windows":
+	if is_windows():
 		call = 'arp', '-a'
 		output = subprocess.check_output(call, shell=True).decode()
 		return [line for line in re.findall('([-.0-9]+)\s+([-0-9a-f]{17})\s+(\w+)', output)]
@@ -1178,7 +1178,7 @@ def get_image_pids(image_name) -> list[int] | None:
 	Returns:
 	    list: A list of PIDs for processes matching the given image name.
 	"""
-	if platform.system() == "Windows":
+	if is_windows():
 		pids = []
 		try:
 			# Use tasklist to get the list of processes
@@ -2451,7 +2451,7 @@ class ServerLoader(th.Thread):
 						return
 					
 				# Prompt to apply the 4gb patch if not yet applied
-				if platform.system() == "Windows":
+				if is_windows():
 					try:
 						import ctypes
 						sc4_exe_path = get_sc4_path()
