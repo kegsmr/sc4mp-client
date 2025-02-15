@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import configparser
+import ctypes
 import hashlib
 import inspect
 import json
@@ -1178,27 +1179,36 @@ def get_image_pids(image_name) -> list[int] | None:
 	Returns:
 	    list: A list of PIDs for processes matching the given image name.
 	"""
+
 	if is_windows():
+
 		pids = []
+
 		try:
+
 			# Use tasklist to get the list of processes
 			result = subprocess.run(["tasklist"], capture_output=True, text=True, check=True, shell=True)
-			# Split the result into lines
 			lines = result.stdout.splitlines()
-			# Parse each line for matching processes
+
+			# Regex pattern to match process name followed by its PID
+			pattern = re.compile(rf"^{re.escape(image_name)}\s+(\d+)", re.IGNORECASE)
+
 			for line in lines:
-				if image_name.lower() in line.lower():
-					parts = line.split()
-					if parts[0].lower() == image_name.lower():
-						try:
-							pids.append(int(parts[1]))  # The second column is the PID
-						except ValueError:
-							pass
-			return pids
+				match = pattern.match(line)
+				if match:
+					try:
+						pids.append(int(match.group(1)))  # Extract PID
+					except ValueError:
+						pass
+
+			return pids if pids else None
+
 		except subprocess.CalledProcessError as e:
 			print(f"An error occurred while getting image PIDs.\n\n{e}")
 			return None
+		
 	else:
+
 		return None
 
 
@@ -1209,6 +1219,49 @@ def close_splash():
 		pyi_splash.close()
 	except ImportError:
 		pass
+
+
+def window_open(image_name):
+    """
+    Check if a process with the given image name has an open, visible window.
+
+    Args:
+        image_name (str): The name of the process image (e.g., "notepad.exe").
+
+    Returns:
+        bool: True if at least one instance of the process has a visible window, False otherwise.
+    """
+
+    pids = get_image_pids(image_name)
+    # print(f"PIDs for {image_name}: {pids}")  # Debugging
+
+    if not pids:
+        return False  # No matching processes found
+
+    EnumWindows = ctypes.windll.user32.EnumWindows
+    IsWindowVisible = ctypes.windll.user32.IsWindowVisible
+    GetWindowThreadProcessId = ctypes.windll.user32.GetWindowThreadProcessId
+
+    # Properly define the callback function with ctypes
+    def callback(hwnd, lParam):
+        """Callback function to check if a window belongs to the given PID and is visible."""
+        window_pid = ctypes.c_ulong()
+        GetWindowThreadProcessId(hwnd, ctypes.byref(window_pid))
+
+        if window_pid.value in pids and IsWindowVisible(hwnd):
+            ctypes.cast(lParam, ctypes.POINTER(ctypes.c_bool)).contents.value = True
+            return False  # Stop enumeration
+
+        return True  # Continue searching
+
+    # Create a ctypes boolean variable to store result
+    found = ctypes.c_bool(False)
+
+    # Convert callback to proper function pointer type
+    CALLBACK_TYPE = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.c_void_p)
+    EnumWindows(CALLBACK_TYPE(callback), ctypes.byref(found))
+
+    return found.value
 
 
 # Objects
@@ -2550,23 +2603,39 @@ class ServerLoader(th.Thread):
 				else:
 					show_error(e, no_ui=True)
 
-			#time.sleep(1)
+			if sc4mp_current_server:
 
-			if sc4mp_current_server != None:
 				sc4mp_config["GENERAL"]["default_host"] = self.server.host
 				sc4mp_config["GENERAL"]["default_port"] = self.server.port
 				sc4mp_config.update()
+
 				self.server.categories.append("History")
+
 				game_monitor = GameMonitor(self.server)
 				game_monitor.start()
-			else:
-				if sc4mp_ui is not None:
-					if sc4mp_exit_after:
-						sc4mp_ui.destroy()
-					else:
-						sc4mp_ui.deiconify()
+				if self.ui and self.ui.background:
+					if self.ui.background:
+						self.ui.background.lift()
+					self.ui.lift()
+				try:
+					if is_windows():
+						while (not self.ui or self.ui.winfo_exists()) and not window_open("simcity 4.exe"):
+							time.sleep(SC4MP_DELAY)	
+				except Exception as e:
+					show_error(e, no_ui=True)
 
-			if self.ui != None:
+				time.sleep(3)
+
+				if self.ui:
+					self.ui.destroy()
+				return
+
+			if sc4mp_ui:
+				if sc4mp_exit_after:
+					sc4mp_ui.destroy()
+				else:
+					sc4mp_ui.deiconify()
+			if self.ui:
 				self.ui.destroy()
 
 		except Exception as e:
@@ -3242,6 +3311,9 @@ class GameMonitor(th.Thread):
 			# Create game overlay window if the game overlay is enabled (`1` is fullscreen-mode only; `2` is always enabled)
 			if (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
 				self.overlay_ui = GameOverlayUI(self.ui, guest=(server.password == ""))
+				self.ui.withdraw()
+			else:
+				self.ui.deiconify()
 
 			# Set window title to server name
 			self.ui.title(server.server_name)
@@ -3262,6 +3334,10 @@ class GameMonitor(th.Thread):
 
 			# Thead name for logging
 			set_thread_name("GmThread", enumerate=False)
+
+			# if self.ui:
+				# self.ui.deiconify()
+				# self.ui.grab_set()
 
 			# Declare variable to break loop after the game closes
 			end = False
@@ -3415,6 +3491,13 @@ class GameMonitor(th.Thread):
 					# Signal to break the loop when the game is no longer running
 					if not self.game_launcher.game_running:
 						end = True
+						if self.ui:
+							self.ui.deiconify()
+							self.ui.deiconify()
+							self.ui.lift()
+							self.ui.grab_set()
+							self.ui.focus_set()
+							# I tried everything...
 
 					# Wait
 					time.sleep(1) #3 #1 #3
@@ -3487,11 +3570,11 @@ class GameMonitor(th.Thread):
 					show_error(f"An error occurred while restoring the SimCity 4 config backup.\n\n{e}", no_ui=True)
 
 			# Destroy the game monitor ui if running
-			if self.ui != None:
+			if self.ui:
 				self.ui.destroy()
 
 			# Destroy the game overlay ui if running
-			if self.overlay_ui is not None:
+			if self.overlay_ui:
 				self.overlay_ui.destroy()
 
 			# Show the main ui once again	
@@ -5804,6 +5887,7 @@ class ServerBackgroundUI(tk.Toplevel):
 
 		# Geometry
 		self.state('zoomed')
+		self.wm_attributes("-toolwindow", True)
 		#self.attributes("-fullscreen", True)
 
 		# Load the image
@@ -7196,13 +7280,14 @@ class GameMonitorUI(tk.Toplevel):
 	def __init__(self, parent):
 		
 
-		print("Initializing...")
+		# print("Initializing...")
 
 		# Parameters
 		self.parent = parent
 
 		# Init
 		super().__init__()
+		self.withdraw()
 
 		# Title
 		self.title(SC4MP_TITLE)
@@ -7216,8 +7301,12 @@ class GameMonitorUI(tk.Toplevel):
 		self.maxsize(420, 280)
 		self.grid()
 
+		# Iconify
+		# if sc4mp_config["SC4"]["fullscreen"]:
+		# 	self.iconify()
+
 		# Priority
-		self.grab_set()
+		# self.grab_set()
 
 		# Protocol
 		self.protocol("WM_DELETE_WINDOW", self.delete_window)
@@ -7469,6 +7558,7 @@ class GameOverlayUI(tk.Toplevel):
 
 	def click(self, event):
 		try:
+			self.game_monitor_ui.deiconify()
 			self.game_monitor_ui.focus_set()
 		except Exception:
 			pass
