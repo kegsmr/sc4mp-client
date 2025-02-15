@@ -2104,9 +2104,17 @@ class ServerList(th.Thread):
 
 	def update_rank_bars(self, event=None):
 
-		# If no UI or rank bars disabled, return
 		if not (self.ui and sc4mp_config["GENERAL"]["show_rank_bars"]):
 			return
+
+		OFFSET_X = 18
+		OFFSET_Y = 154
+
+		IMAGE_W = 29
+		IMAGE_H = 12
+
+		CELL_W = 93
+		CELL_H = 20
 
 		# For passing clicks from the canvas to the underlying row in the tree
 		def handle_click(event):
@@ -2167,11 +2175,10 @@ class ServerList(th.Thread):
 							# Otherwise, create a new one
 							else:
 
-								# Height, width, etc. here is just from trial and error
 								canvas = tk.Canvas(
-									width=w + 3, 
-									height=h - 1, 
-									bd=0, 
+									width=IMAGE_W, 
+									height=IMAGE_H, 
+									bd=0,
 									bg=("#0078D7" if selected else "white"), 
 									highlightthickness=0, 
 									relief='flat'
@@ -2183,8 +2190,11 @@ class ServerList(th.Thread):
 								
 								# Create the rank bar image associated with the rank value
 								canvas.image = self.rank_bar_images[rank]
-								canvas.create_image(w / 2 + 2, h / 2 - 1, anchor="center", image=canvas.image)
-								canvas.place(x=15+x, y=155+y)
+								canvas.create_image(0, 0, anchor="nw", image=canvas.image)
+								canvas.place(
+									x = x + OFFSET_X + ((CELL_W - IMAGE_W) / 2),
+									y = y + OFFSET_Y + ((CELL_H - IMAGE_H) / 2),
+								)
 								
 								# Store the canvas so it can be deleted later, when needed
 								self.rank_bars[key] = canvas
