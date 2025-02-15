@@ -2149,12 +2149,27 @@ class ServerList(th.Thread):
 
 						# If row is visible
 						if y < 260:
-							canvas = tk.Canvas(width=w + 3, height=h - 1, bd=0, bg=("#0078D7" if server_id in self.ui.tree.selection() else "white"), highlightthickness=0, relief='flat')
+
+							# Height, width, etc. here is just from trial and error
+							canvas = tk.Canvas(
+								width=w + 3, 
+								height=h - 1, 
+								bd=0, 
+								bg=("#0078D7" if server_id in self.ui.tree.selection() else "white"), 
+								highlightthickness=0, 
+								relief='flat'
+							)
+							
+							# For click passthrough to the underlying row
 							canvas.server_id = server_id
 							canvas.bind("<Button-1>", handle_click)
+							
+							# Create the rank bar image associated with the rank value
 							canvas.image = self.rank_bar_images[round(rank)]
 							canvas.create_image(w / 2 + 2, h / 2 - 1, anchor="center", image=canvas.image)
 							canvas.place(x=15+x, y=155+y)
+							
+							# Store the canvas so it can be deleted later, when needed
 							self.rank_bars.append(canvas)
 
 					# Can't remember why I put this here. I guess we don't care about `ValueErrors`
