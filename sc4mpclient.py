@@ -4539,7 +4539,7 @@ class GeneralSettingsUI(tk.Toplevel):
 
 		# Use fullscreen background
 		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_fullscreen_background"])
-		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use fullscreen background", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use loading background", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
 		self.ui_frame.checkbutton.grid(row=2, column=0, columnspan=1, padx=10, pady=(5,10), sticky="w")
 		self.config_update.append((self.ui_frame.checkbutton_variable, "use_fullscreen_background"))
 
@@ -5888,7 +5888,7 @@ class ServerBackgroundUI(tk.Toplevel):
 		# Geometry
 		self.state('zoomed')
 		self.wm_attributes("-toolwindow", True)
-		#self.attributes("-fullscreen", True)
+		self.attributes("-fullscreen", sc4mp_config["SC4"]["fullscreen"])
 
 		# Load the image
 		self.default_image = Image.open(get_sc4mp_path("background.png"))
