@@ -1652,7 +1652,7 @@ class ServerList(th.Thread):
 			self.official_icon = tk.PhotoImage(file=get_sc4mp_path("official-icon.png"))
 			self.error_icon = tk.PhotoImage(file=get_sc4mp_path("error-icon.png"))
 
-			self.rank_bars = []
+			self.rank_bars = {}
 			self.rank_bar_images = [tk.PhotoImage(file=get_sc4mp_path(f"rank-{i}.png")) for i in range(6)]
 			self.ui.tree.bind("<<TreeviewSelect>>", self.update_rank_bars)
 
@@ -1877,7 +1877,7 @@ class ServerList(th.Thread):
 				# Delay
 				time.sleep(SC4MP_DELAY)
 
-			for canvas in self.rank_bars:
+			for canvas in self.rank_bars.values():
 				canvas.destroy()
 
 			self.ended = True
@@ -2124,11 +2124,14 @@ class ServerList(th.Thread):
 
 		def scheduled_update():
 
+			# Allow the function to be scheduled again
+			self.ui.rank_bar_update_scheduled = False
+
 			# Keep the old rank bars so they can be deleted after the new ones are created
 			r = self.rank_bars
 
 			# Reset the list for new rank bars
-			self.rank_bars = []
+			self.rank_bars = {}
 
 			# If "Rank" column is being displayed
 			if "#5" in self.ui.tree["displaycolumns"]:
@@ -2140,9 +2143,12 @@ class ServerList(th.Thread):
 
 						# Try to get the server rank, if it blows up (no stats, probably), use `0`
 						try:
-							rank = self.servers[server_id].rating
+							rank = round(self.servers[server_id].rating)
 						except Exception:
 							rank = 0
+
+						# Needed to choose canvas bgcolor
+						selected = server_id in self.ui.tree.selection()
 
 						# Get the bounding box of the cell in the "Rank" column
 						x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
@@ -2150,27 +2156,38 @@ class ServerList(th.Thread):
 						# If row is visible
 						if y < 260:
 
-							# Height, width, etc. here is just from trial and error
-							canvas = tk.Canvas(
-								width=w + 3, 
-								height=h - 1, 
-								bd=0, 
-								bg=("#0078D7" if server_id in self.ui.tree.selection() else "white"), 
-								highlightthickness=0, 
-								relief='flat'
-							)
-							
-							# For click passthrough to the underlying row
-							canvas.server_id = server_id
-							canvas.bind("<Button-1>", handle_click)
-							
-							# Create the rank bar image associated with the rank value
-							canvas.image = self.rank_bar_images[round(rank)]
-							canvas.create_image(w / 2 + 2, h / 2 - 1, anchor="center", image=canvas.image)
-							canvas.place(x=15+x, y=155+y)
-							
-							# Store the canvas so it can be deleted later, when needed
-							self.rank_bars.append(canvas)
+							# Unique identifier for the canvas
+							key = (x, y, w, h, rank, selected)
+
+							# If the canvas doesn't need to be updated, use the old one
+							if key in r.keys():
+
+								self.rank_bars[key] = r.pop(key)
+
+							# Otherwise, create a new one
+							else:
+
+								# Height, width, etc. here is just from trial and error
+								canvas = tk.Canvas(
+									width=w + 3, 
+									height=h - 1, 
+									bd=0, 
+									bg=("#0078D7" if selected else "white"), 
+									highlightthickness=0, 
+									relief='flat'
+								)
+								
+								# For click passthrough to the underlying row
+								canvas.server_id = server_id
+								canvas.bind("<Button-1>", handle_click)
+								
+								# Create the rank bar image associated with the rank value
+								canvas.image = self.rank_bar_images[rank]
+								canvas.create_image(w / 2 + 2, h / 2 - 1, anchor="center", image=canvas.image)
+								canvas.place(x=15+x, y=155+y)
+								
+								# Store the canvas so it can be deleted later, when needed
+								self.rank_bars[key] = canvas
 
 					# Can't remember why I put this here. I guess we don't care about `ValueErrors`
 					except ValueError:
@@ -2181,11 +2198,13 @@ class ServerList(th.Thread):
 						show_error(e, no_ui=True)
 
 			# Delete all old rank bars
-			for canvas in r:
+			for canvas in r.values():
 				canvas.destroy()
 
 		# Running the function from this thread seems to cause CTDs with 0x0000005 access violations, so we use the `after` method instead
-		self.ui.after(0, scheduled_update)
+		if not hasattr(self.ui, "rank_bar_update_scheduled") or not self.ui.rank_bar_update_scheduled:
+			self.ui.rank_bar_update_scheduled = True
+			self.ui.after(0, scheduled_update)
 
 
 	# def update_rank_bars(self, event=None):
