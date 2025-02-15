@@ -2104,8 +2104,9 @@ class ServerList(th.Thread):
 
 	def update_rank_bars(self, event=None):
 
-		if not (self.ui and sc4mp_config["GENERAL"]["show_rank_bars"]):
-			return
+		RANK_COLUMN_ID = "#5"
+
+		CUTOFF_Y = 260
 
 		OFFSET_X = 18
 		OFFSET_Y = 154
@@ -2142,7 +2143,7 @@ class ServerList(th.Thread):
 			self.rank_bars = {}
 
 			# If "Rank" column is being displayed
-			if "#5" in self.ui.tree["displaycolumns"]:
+			if RANK_COLUMN_ID in self.ui.tree["displaycolumns"]:
 
 				# Loop through rows in the tree by their `server_id`
 				for server_id in self.ui.tree.get_children():
@@ -2159,10 +2160,10 @@ class ServerList(th.Thread):
 						selected = server_id in self.ui.tree.selection()
 
 						# Get the bounding box of the cell in the "Rank" column
-						x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
+						x, y, w, h = self.ui.tree.bbox(server_id, column=RANK_COLUMN_ID)
 
 						# If row is visible
-						if y < 260:
+						if y < CUTOFF_Y:
 
 							# Unique identifier for the canvas
 							key = (x, y, w, h, rank, selected)
@@ -2212,51 +2213,10 @@ class ServerList(th.Thread):
 				canvas.destroy()
 
 		# Running the function from this thread seems to cause CTDs with 0x0000005 access violations, so we use the `after` method instead
-		if not hasattr(self.ui, "rank_bar_update_scheduled") or not self.ui.rank_bar_update_scheduled:
-			self.ui.rank_bar_update_scheduled = True
-			self.ui.after(0, scheduled_update)
-
-
-	# def update_rank_bars(self, event=None):
-	# 	"""Updates the rank bars when the tree selection changes"""
-	# 	if not self.ui or not sc4mp_config["GENERAL"]["show_rank_bars"]:
-	# 		return
-
-	# 	# Clear previous rank bars
-	# 	for bar in self.rank_bars:
-	# 		bar.destroy()
-	# 	self.rank_bars = []
-
-	# 	if "#5" not in self.ui.tree["displaycolumns"]:
-	# 		return
-
-	# 	for server_id in self.ui.tree.get_children():
-	# 		try:
-	# 			rank = self.servers.get(server_id, None)
-	# 			if rank is None:
-	# 				continue
-
-	# 			rank = self.servers[server_id].rating
-	# 			x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
-
-	# 			# Only render bars for visible rows (avoid unnecessary updates)
-	# 			if y < 260:
-	# 				canvas = tk.Canvas(
-	# 					width=w + 3, height=h - 1,
-	# 					bd=0, bg=("#0078D7" if server_id in self.ui.tree.selection() else "white"),
-	# 					highlightthickness=0, relief='flat'
-	# 				)
-	# 				canvas.image = self.rank_bar_images[round(rank)]
-	# 				canvas.create_image(w / 2 + 2, h / 2 - 1, anchor="center", image=canvas.image)
-	# 				canvas.place(x=15 + x, y=155 + y)
-	# 				self.rank_bars.append(canvas)
-	# 		except ValueError:
-	# 			pass
-	# 		except Exception as e:
-	# 			show_error(f"Error updating rank bars: {e}", no_ui=True)
-		
-	# 	if not event:
-	# 		self.ui.after(100, self.update_rank_bars)
+		if self.ui and sc4mp_config["GENERAL"]["show_rank_bars"]:
+			if not hasattr(self.ui, "rank_bar_update_scheduled") or not self.ui.rank_bar_update_scheduled:
+				self.ui.rank_bar_update_scheduled = True
+				self.ui.after(0, scheduled_update)
 
 
 class ServerFetcher(th.Thread):
