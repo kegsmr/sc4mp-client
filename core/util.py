@@ -204,12 +204,16 @@ def get_server_list() -> list[tuple]:
 
 	servers = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
 
-	s = [(line.split()[0], int(line.split()[1])) for line in open(Path("resources") / "servers.txt") if line.strip()]
-	s.reverse()
+	servers_txt_path = Path("resources") / "servers.txt"
 
-	for server in s:
-		if server not in servers:
-			servers.append(server)
+	if servers_txt_path.exists():
+
+		s = [(line.split()[0], int(line.split()[1])) for line in open(servers_txt_path) if line.strip()]
+		s.reverse()
+
+		for server in s:
+			if server not in servers:
+				servers.append(server)
 
 	return servers
 
