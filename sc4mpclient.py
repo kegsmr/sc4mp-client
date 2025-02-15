@@ -2104,26 +2104,50 @@ class ServerList(th.Thread):
 
 	def update_rank_bars(self, event=None):
 
+		# If no UI or rank bars disabled, return
 		if not (self.ui and sc4mp_config["GENERAL"]["show_rank_bars"]):
 			return
 
+		# For passing clicks from the canvas to the underlying row in the tree
 		def handle_click(event):
+
+			# Get the `server_id` associated with the canvas
 			canvas = event.widget
 			server_id = canvas.server_id
+
+			# Select the row which the canvas is placed on
 			self.ui.tree.selection_set([server_id])
+
+			# Call the event handler for a single click in `ServerListUI`
 			self.ui.handle_single_click(event)
 
+
 		def scheduled_update():
+
+			# Keep the old rank bars so they can be deleted after the new ones are created
 			r = self.rank_bars
+
+			# Reset the list for new rank bars
 			self.rank_bars = []
+
+			# If "Rank" column is being displayed
 			if "#5" in self.ui.tree["displaycolumns"]:
+
+				# Loop through rows in the tree by their `server_id`
 				for server_id in self.ui.tree.get_children():
+					
 					try:
+
+						# Try to get the server rank, if it blows up (no stats, probably), use `0`
 						try:
 							rank = self.servers[server_id].rating
 						except Exception:
 							rank = 0
+
+						# Get the bounding box of the cell in the "Rank" column
 						x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
+
+						# If row is visible
 						if y < 260:
 							canvas = tk.Canvas(width=w + 3, height=h - 1, bd=0, bg=("#0078D7" if server_id in self.ui.tree.selection() else "white"), highlightthickness=0, relief='flat')
 							canvas.server_id = server_id
@@ -2132,13 +2156,20 @@ class ServerList(th.Thread):
 							canvas.create_image(w / 2 + 2, h / 2 - 1, anchor="center", image=canvas.image)
 							canvas.place(x=15+x, y=155+y)
 							self.rank_bars.append(canvas)
+
+					# Can't remember why I put this here. I guess we don't care about `ValueErrors`
 					except ValueError:
 						pass
+
+					# Quietly report all errors
 					except Exception as e:
 						show_error(e, no_ui=True)
+
+			# Delete all old rank bars
 			for canvas in r:
 				canvas.destroy()
 
+		# Running the function from this thread seems to cause CTDs with 0x0000005 access violations, so we use the `after` method instead
 		self.ui.after(0, scheduled_update)
 
 
