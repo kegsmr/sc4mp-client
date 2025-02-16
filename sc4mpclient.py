@@ -7564,8 +7564,8 @@ class GameOverlayUI(tk.Toplevel):
 		try:
 			self.game_monitor_ui.deiconify()
 			self.game_monitor_ui.focus_set()
-		except Exception:
-			pass
+		except Exception as e:
+			show_error(e, no_ui=True)
 
 
 class RegionsRefresherUI(tk.Toplevel):
