@@ -3491,13 +3491,13 @@ class GameMonitor(th.Thread):
 					# Signal to break the loop when the game is no longer running
 					if not self.game_launcher.game_running:
 						end = True
-						if self.ui:
-							self.ui.deiconify()
-							self.ui.deiconify()
-							self.ui.lift()
-							self.ui.grab_set()
-							self.ui.focus_set()
-							# I tried everything...
+						# if self.ui:
+						# 	self.ui.deiconify()
+						# 	self.ui.deiconify()
+						# 	self.ui.lift()
+						# 	self.ui.grab_set()
+						# 	self.ui.focus_set()
+						# 	# I tried everything...
 
 					# Wait
 					time.sleep(1) #3 #1 #3
