@@ -7381,8 +7381,11 @@ class GameMonitorUI(tk.Toplevel):
 
 		global sc4mp_game_monitor_x, sc4mp_game_monitor_y
 
-		sc4mp_game_monitor_x = self.winfo_x()
-		sc4mp_game_monitor_y = self.winfo_y()
+		try:
+			sc4mp_game_monitor_x = self.winfo_x()
+			sc4mp_game_monitor_y = self.winfo_y()
+		except Exception:
+			pass
 
 		return super().destroy()
 
