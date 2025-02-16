@@ -159,6 +159,9 @@ sc4mp_ui = None
 
 sc4mp_current_server = None
 
+sc4mp_game_monitor_x = 10
+sc4mp_game_monitor_y = 40
+
 
 # Functions
 
@@ -7300,7 +7303,7 @@ class GameMonitorUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.geometry("400x400+10+40")
+		self.geometry(f"400x400+{sc4mp_game_monitor_x}+{sc4mp_game_monitor_y}")
 		self.minsize(420, 280)
 		self.maxsize(420, 280)
 		self.grid()
@@ -7372,6 +7375,16 @@ class GameMonitorUI(tk.Toplevel):
 			sc4mp_game_exit_ovveride = True
 			self.parent.end = True
 			self.destroy()
+
+	
+	def destroy(self):
+
+		global sc4mp_game_monitor_x, sc4mp_game_monitor_y
+
+		sc4mp_game_monitor_x = self.winfo_x()
+		sc4mp_game_monitor_y = self.winfo_y()
+
+		return super().destroy()
 
 
 class GameMonitorMapUI(tk.Toplevel):
