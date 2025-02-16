@@ -2624,7 +2624,7 @@ class ServerLoader(th.Thread):
 				except Exception as e:
 					show_error(e, no_ui=True)
 
-				time.sleep(5)
+				time.sleep(10)
 
 				if self.ui:
 					self.ui.destroy()
