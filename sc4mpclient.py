@@ -2628,6 +2628,10 @@ class ServerLoader(th.Thread):
 
 				if self.ui:
 					self.ui.destroy()
+
+				if game_monitor.ui:
+					game_monitor.ui.grab_set()
+
 				return
 
 			if sc4mp_ui:
