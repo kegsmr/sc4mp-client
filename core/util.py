@@ -157,14 +157,15 @@ def parse_filesize(filesize_str) -> int:
     return int(size * size_multipliers[unit])
 
 
-def format_time_ago(time):
+def format_time_ago(time, now=None):
 
 	from datetime import datetime, timedelta
 
 	if time is None:
 		return "Never"
 
-	now = datetime.now()
+	if not now:
+		now = datetime.now()
 
 	if time + timedelta(days=30) > now:
 
@@ -203,12 +204,16 @@ def get_server_list() -> list[tuple]:
 
 	servers = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
 
-	s = [(line.split()[0], int(line.split()[1])) for line in open(Path("resources") / "servers.txt") if line.strip()]
-	s.reverse()
+	servers_txt_path = Path("resources") / "servers.txt"
 
-	for server in s:
-		if server not in servers:
-			servers.append(server)
+	if servers_txt_path.exists():
+
+		s = [(line.split()[0], int(line.split()[1])) for line in open(servers_txt_path) if line.strip()]
+		s.reverse()
+
+		for server in s:
+			if server not in servers:
+				servers.append(server)
 
 	return servers
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import configparser
+import ctypes
 import hashlib
 import inspect
 import json
@@ -157,6 +158,9 @@ sc4mp_args = sys.argv
 sc4mp_ui = None
 
 sc4mp_current_server = None
+
+sc4mp_game_monitor_x = 10
+sc4mp_game_monitor_y = 40
 
 
 # Functions
@@ -758,7 +762,7 @@ def start_sc4():
 		# Launch the game
 		print(f"- launching directly ('{command}').")
 		try:
-			if platform.system() == "Windows":
+			if is_windows():
 				subprocess.run(command) 			# `subprocess.run(arguments)` won't work on Windows for some unknowable reason
 			else:
 				subprocess.run(arguments)  			# on Linux, the first String passed as argument must be a file that exists
@@ -818,7 +822,7 @@ def is_steam_sc4(path: Path):
 
 def process_exists(process_name): #TODO add MacOS compatability / deprecate in favor of `process_count`?
 	
-	if platform.system() == "Windows":
+	if is_windows():
 		call = 'TASKLIST', '/FI', 'imagename eq %s' % process_name
 		output = subprocess.check_output(call, shell=True).decode()
 		last_line = output.strip().split('\r\n')[-1]
@@ -1110,7 +1114,7 @@ def get_bitmap_dimensions(filename):
 
 
 def arp():
-	if platform.system() == "Windows":
+	if is_windows():
 		call = 'arp', '-a'
 		output = subprocess.check_output(call, shell=True).decode()
 		return [line for line in re.findall('([-.0-9]+)\s+([-0-9a-f]{17})\s+(\w+)', output)]
@@ -1178,27 +1182,36 @@ def get_image_pids(image_name) -> list[int] | None:
 	Returns:
 	    list: A list of PIDs for processes matching the given image name.
 	"""
-	if platform.system() == "Windows":
+
+	if is_windows():
+
 		pids = []
+
 		try:
+
 			# Use tasklist to get the list of processes
 			result = subprocess.run(["tasklist"], capture_output=True, text=True, check=True, shell=True)
-			# Split the result into lines
 			lines = result.stdout.splitlines()
-			# Parse each line for matching processes
+
+			# Regex pattern to match process name followed by its PID
+			pattern = re.compile(rf"^{re.escape(image_name)}\s+(\d+)", re.IGNORECASE)
+
 			for line in lines:
-				if image_name.lower() in line.lower():
-					parts = line.split()
-					if parts[0].lower() == image_name.lower():
-						try:
-							pids.append(int(parts[1]))  # The second column is the PID
-						except ValueError:
-							pass
-			return pids
+				match = pattern.match(line)
+				if match:
+					try:
+						pids.append(int(match.group(1)))  # Extract PID
+					except ValueError:
+						pass
+
+			return pids if pids else None
+
 		except subprocess.CalledProcessError as e:
 			print(f"An error occurred while getting image PIDs.\n\n{e}")
 			return None
+		
 	else:
+
 		return None
 
 
@@ -1209,6 +1222,49 @@ def close_splash():
 		pyi_splash.close()
 	except ImportError:
 		pass
+
+
+def window_open(image_name):
+    """
+    Check if a process with the given image name has an open, visible window.
+
+    Args:
+        image_name (str): The name of the process image (e.g., "notepad.exe").
+
+    Returns:
+        bool: True if at least one instance of the process has a visible window, False otherwise.
+    """
+
+    pids = get_image_pids(image_name)
+    # print(f"PIDs for {image_name}: {pids}")  # Debugging
+
+    if not pids:
+        return False  # No matching processes found
+
+    EnumWindows = ctypes.windll.user32.EnumWindows
+    IsWindowVisible = ctypes.windll.user32.IsWindowVisible
+    GetWindowThreadProcessId = ctypes.windll.user32.GetWindowThreadProcessId
+
+    # Properly define the callback function with ctypes
+    def callback(hwnd, lParam):
+        """Callback function to check if a window belongs to the given PID and is visible."""
+        window_pid = ctypes.c_ulong()
+        GetWindowThreadProcessId(hwnd, ctypes.byref(window_pid))
+
+        if window_pid.value in pids and IsWindowVisible(hwnd):
+            ctypes.cast(lParam, ctypes.POINTER(ctypes.c_bool)).contents.value = True
+            return False  # Stop enumeration
+
+        return True  # Continue searching
+
+    # Create a ctypes boolean variable to store result
+    found = ctypes.c_bool(False)
+
+    # Convert callback to proper function pointer type
+    CALLBACK_TYPE = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.c_void_p)
+    EnumWindows(CALLBACK_TYPE(callback), ctypes.byref(found))
+
+    return found.value
 
 
 # Objects
@@ -1652,7 +1708,7 @@ class ServerList(th.Thread):
 			self.official_icon = tk.PhotoImage(file=get_sc4mp_path("official-icon.png"))
 			self.error_icon = tk.PhotoImage(file=get_sc4mp_path("error-icon.png"))
 
-			self.rank_bars = []
+			self.rank_bars = {}
 			self.rank_bar_images = [tk.PhotoImage(file=get_sc4mp_path(f"rank-{i}.png")) for i in range(6)]
 			self.ui.tree.bind("<<TreeviewSelect>>", self.update_rank_bars)
 
@@ -1877,7 +1933,7 @@ class ServerList(th.Thread):
 				# Delay
 				time.sleep(SC4MP_DELAY)
 
-			for canvas in self.rank_bars:
+			for canvas in self.rank_bars.values():
 				canvas.destroy()
 
 			self.ended = True
@@ -2104,90 +2160,119 @@ class ServerList(th.Thread):
 
 	def update_rank_bars(self, event=None):
 
-		# if self.updating_rank_bars:
-		# 	return
-		# self.updating_rank_bars = True
+		RANK_COLUMN_ID = "#5"
 
-		def handle_single_click(event):
+		CUTOFF_Y = 260
+
+		OFFSET_X = 18
+		OFFSET_Y = 154
+
+		IMAGE_W = 29
+		IMAGE_H = 12
+
+		CELL_W = 93
+		CELL_H = 20
+
+		# For passing clicks from the canvas to the underlying row in the tree
+		def handle_click(event):
+
+			# Get the `server_id` associated with the canvas
 			canvas = event.widget
 			server_id = canvas.server_id
-			self.ui.tree.selection_set([server_id])
-			self.ui.handle_single_click(event)
-		
-		# def handle_double_click(event):
-		# 	handle_single_click(event)
-		# 	self.ui.connect()
 
-		if self.ui and sc4mp_config["GENERAL"]["show_rank_bars"]:
+			# Select the row which the canvas is placed on
+			self.ui.tree.selection_set([server_id])
+
+			# Call the event handler for a single click in `ServerListUI`
+			self.ui.handle_single_click(event)
+
+
+		def scheduled_update():
+
+			# Allow the function to be scheduled again
+			self.ui.rank_bar_update_scheduled = False
+
+			# Keep the old rank bars so they can be deleted after the new ones are created
 			r = self.rank_bars
-			self.rank_bars = []
-			if "#5" in self.ui.tree["displaycolumns"]:
+
+			# Reset the list for new rank bars
+			self.rank_bars = {}
+
+			# If "Rank" column is being displayed
+			if RANK_COLUMN_ID in self.ui.tree["displaycolumns"]:
+
+				# Loop through rows in the tree by their `server_id`
 				for server_id in self.ui.tree.get_children():
+					
 					try:
+
+						# Try to get the server rank, if it blows up (no stats, probably), use `0`
 						try:
-							rank = self.servers[server_id].rating
+							rank = round(self.servers[server_id].rating)
 						except Exception:
 							rank = 0
-						x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
-						if y < 260:
-							canvas = tk.Canvas(width=w + 3, height=h - 1, bd=0, bg=("#0078D7" if server_id in self.ui.tree.selection() else "white"), highlightthickness=0, relief='flat')
-							canvas.server_id = server_id
-							canvas.bind("<Button-1>", handle_single_click)
-							# canvas.bind("<Double-1>", handle_double_click)
-							canvas.image = self.rank_bar_images[round(rank)]
-							canvas.create_image(w / 2 + 2, h / 2 - 1, anchor="center", image=canvas.image)
-							canvas.place(x=15+x, y=155+y)
-							self.rank_bars.append(canvas)
+
+						# Needed to choose canvas bgcolor
+						selected = server_id in self.ui.tree.selection()
+
+						# Get the bounding box of the cell in the "Rank" column
+						x, y, w, h = self.ui.tree.bbox(server_id, column=RANK_COLUMN_ID)
+
+						# If row is visible
+						if y < CUTOFF_Y:
+
+							# Unique identifier for the canvas
+							key = (x, y, w, h, rank, selected)
+
+							# If the canvas doesn't need to be updated, use the old one
+							if key in r.keys():
+
+								self.rank_bars[key] = r.pop(key)
+
+							# Otherwise, create a new one
+							else:
+
+								canvas = tk.Canvas(
+									width=IMAGE_W, 
+									height=IMAGE_H, 
+									bd=0,
+									bg=("#0078D7" if selected else "white"), 
+									highlightthickness=0, 
+									relief='flat'
+								)
+								
+								# For click passthrough to the underlying row
+								canvas.server_id = server_id
+								canvas.bind("<Button-1>", handle_click)
+								
+								# Create the rank bar image associated with the rank value
+								canvas.image = self.rank_bar_images[rank]
+								canvas.create_image(0, 0, anchor="nw", image=canvas.image)
+								canvas.place(
+									x = x + OFFSET_X + ((CELL_W - IMAGE_W) / 2),
+									y = y + OFFSET_Y + ((CELL_H - IMAGE_H) / 2),
+								)
+								
+								# Store the canvas so it can be deleted later, when needed
+								self.rank_bars[key] = canvas
+
+					# Can't remember why I put this here. I guess we don't care about `ValueErrors`
 					except ValueError:
 						pass
+
+					# Quietly report all errors
 					except Exception as e:
 						show_error(e, no_ui=True)
-			for canvas in r:
+
+			# Delete all old rank bars
+			for canvas in r.values():
 				canvas.destroy()
 
-		# self.updating_rank_bars = False
-
-
-	# def update_rank_bars(self, event=None):
-	# 	"""Updates the rank bars when the tree selection changes"""
-	# 	if not self.ui or not sc4mp_config["GENERAL"]["show_rank_bars"]:
-	# 		return
-
-	# 	# Clear previous rank bars
-	# 	for bar in self.rank_bars:
-	# 		bar.destroy()
-	# 	self.rank_bars = []
-
-	# 	if "#5" not in self.ui.tree["displaycolumns"]:
-	# 		return
-
-	# 	for server_id in self.ui.tree.get_children():
-	# 		try:
-	# 			rank = self.servers.get(server_id, None)
-	# 			if rank is None:
-	# 				continue
-
-	# 			rank = self.servers[server_id].rating
-	# 			x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
-
-	# 			# Only render bars for visible rows (avoid unnecessary updates)
-	# 			if y < 260:
-	# 				canvas = tk.Canvas(
-	# 					width=w + 3, height=h - 1,
-	# 					bd=0, bg=("#0078D7" if server_id in self.ui.tree.selection() else "white"),
-	# 					highlightthickness=0, relief='flat'
-	# 				)
-	# 				canvas.image = self.rank_bar_images[round(rank)]
-	# 				canvas.create_image(w / 2 + 2, h / 2 - 1, anchor="center", image=canvas.image)
-	# 				canvas.place(x=15 + x, y=155 + y)
-	# 				self.rank_bars.append(canvas)
-	# 		except ValueError:
-	# 			pass
-	# 		except Exception as e:
-	# 			show_error(f"Error updating rank bars: {e}", no_ui=True)
-		
-	# 	if not event:
-	# 		self.ui.after(100, self.update_rank_bars)
+		# Running the function from this thread seems to cause CTDs with 0x0000005 access violations, so we use the `after` method instead
+		if self.ui and sc4mp_config["GENERAL"]["show_rank_bars"]:
+			if not hasattr(self.ui, "rank_bar_update_scheduled") or not self.ui.rank_bar_update_scheduled:
+				self.ui.rank_bar_update_scheduled = True
+				self.ui.after(0, scheduled_update)
 
 
 class ServerFetcher(th.Thread):
@@ -2451,7 +2536,7 @@ class ServerLoader(th.Thread):
 						return
 					
 				# Prompt to apply the 4gb patch if not yet applied
-				if platform.system() == "Windows":
+				if is_windows():
 					try:
 						import ctypes
 						sc4_exe_path = get_sc4_path()
@@ -2521,23 +2606,43 @@ class ServerLoader(th.Thread):
 				else:
 					show_error(e, no_ui=True)
 
-			#time.sleep(1)
+			if sc4mp_current_server:
 
-			if sc4mp_current_server != None:
 				sc4mp_config["GENERAL"]["default_host"] = self.server.host
 				sc4mp_config["GENERAL"]["default_port"] = self.server.port
 				sc4mp_config.update()
+
 				self.server.categories.append("History")
+
 				game_monitor = GameMonitor(self.server)
 				game_monitor.start()
-			else:
-				if sc4mp_ui is not None:
-					if sc4mp_exit_after:
-						sc4mp_ui.destroy()
-					else:
-						sc4mp_ui.deiconify()
+				if self.ui and self.ui.background:
+					if self.ui.background:
+						self.ui.background.lift()
+					self.ui.lift()
+				try:
+					if is_windows():
+						while (not self.ui or self.ui.winfo_exists()) and not window_open("simcity 4.exe"):
+							time.sleep(SC4MP_DELAY)	
+				except Exception as e:
+					show_error(e, no_ui=True)
 
-			if self.ui != None:
+				time.sleep(10)
+
+				if self.ui:
+					self.ui.destroy()
+
+				# if game_monitor.ui:
+				# 	game_monitor.ui.grab_set()
+
+				return
+
+			if sc4mp_ui:
+				if sc4mp_exit_after:
+					sc4mp_ui.destroy()
+				else:
+					sc4mp_ui.deiconify()
+			if self.ui:
 				self.ui.destroy()
 
 		except Exception as e:
@@ -3213,6 +3318,9 @@ class GameMonitor(th.Thread):
 			# Create game overlay window if the game overlay is enabled (`1` is fullscreen-mode only; `2` is always enabled)
 			if (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
 				self.overlay_ui = GameOverlayUI(self.ui, guest=(server.password == ""))
+				self.ui.withdraw()
+			else:
+				self.ui.deiconify()
 
 			# Set window title to server name
 			self.ui.title(server.server_name)
@@ -3233,6 +3341,10 @@ class GameMonitor(th.Thread):
 
 			# Thead name for logging
 			set_thread_name("GmThread", enumerate=False)
+
+			# if self.ui:
+				# self.ui.deiconify()
+				# self.ui.grab_set()
 
 			# Declare variable to break loop after the game closes
 			end = False
@@ -3386,6 +3498,13 @@ class GameMonitor(th.Thread):
 					# Signal to break the loop when the game is no longer running
 					if not self.game_launcher.game_running:
 						end = True
+						# if self.ui:
+						# 	self.ui.deiconify()
+						# 	self.ui.deiconify()
+						# 	self.ui.lift()
+						# 	self.ui.grab_set()
+						# 	self.ui.focus_set()
+						# 	# I tried everything...
 
 					# Wait
 					time.sleep(1) #3 #1 #3
@@ -3458,11 +3577,11 @@ class GameMonitor(th.Thread):
 					show_error(f"An error occurred while restoring the SimCity 4 config backup.\n\n{e}", no_ui=True)
 
 			# Destroy the game monitor ui if running
-			if self.ui != None:
+			if self.ui:
 				self.ui.destroy()
 
 			# Destroy the game overlay ui if running
-			if self.overlay_ui is not None:
+			if self.overlay_ui:
 				self.overlay_ui.destroy()
 
 			# Show the main ui once again	
@@ -4453,7 +4572,7 @@ class GeneralSettingsUI(tk.Toplevel):
 
 		# Use fullscreen background
 		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_fullscreen_background"])
-		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use fullscreen background", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use loading background", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
 		self.ui_frame.checkbutton.grid(row=2, column=0, columnspan=1, padx=10, pady=(5,10), sticky="w")
 		self.config_update.append((self.ui_frame.checkbutton_variable, "use_fullscreen_background"))
 
@@ -6084,7 +6203,8 @@ class ServerBackgroundUI(tk.Toplevel):
 
 		# Geometry
 		self.state('zoomed')
-		#self.attributes("-fullscreen", True)
+		self.wm_attributes("-toolwindow", True)
+		self.attributes("-fullscreen", sc4mp_config["SC4"]["fullscreen"])
 
 		# Load the image
 		self.default_image = Image.open(get_sc4mp_path("background.png"))
@@ -6770,21 +6890,10 @@ class ServerDetailsUI(tk.Toplevel):
 			lambda data: f"{data:,}", 
 			lambda data: f"{data:,}",
 			lambda data: f"{data:,}",
-			lambda data: format_time_ago(datetime.strptime(data, "%Y-%m-%d %H:%M:%S")),
+			lambda data: format_time_ago(datetime.strptime(data, "%Y-%m-%d %H:%M:%S"), now=self.server.time()),
 		]
 
 		self.mayors_frame = StatisticsTreeUI(self.notebook, data=mayors, columns=columns, formats=formats)
-
-		#for user_id, entry in sorted(mayors.items(), key=lambda item: item[1]["last_online"], reverse=True):
-		#	self.mayors_frame.tree.insert("", "end", f"{user_id}", text=f"{entry['name']}", values=[
-		#		f"{entry['area_claimed']}km²",
-		#		entry['mayor_rating'], 
-		#		f"§{entry['funds']:,}",
-		#		f"{entry['residential_population']:,}", 
-		#		f"{entry['commercial_population']:,}",
-		#		f"{entry['industrial_population']:,}",
-		#		format_time_ago(datetime.strptime(entry['last_online'], "%Y-%m-%d %H:%M:%S")),
-		#	])
 
 		self.mayors_frame.tree["displaycolumns"] = ["#7", "#8"]
 		self.mayors_frame.button.configure(command=self.expand_mayors_treeview, text="Expand")
@@ -6935,21 +7044,10 @@ class ServerDetailsUI(tk.Toplevel):
 			lambda data: f"{data:,}",
 			lambda data: f"{data:,}",
 			lambda data: f"{data:,}",
-			format_time_ago,
+			lambda data: format_time_ago(data, now=self.server.time()),
 		]
 
 		self.cities_frame = StatisticsTreeUI(self.notebook, columns=columns, formats=formats, data=cities)
-
-		#for name, values in sorted(cities.items(), key=lambda item: item[1][-1], reverse=True):
-		#	self.cities_frame.tree.insert("", "end", text=name, values=[
-		#		values[0],
-		#		f"{values[1]}",
-		#		f"§{values[2]:,}",
-		#		f"{values[3]:,}",
-		#		f"{values[4]:,}",
-		#		f"{values[5]:,}",
-		#		format_time_ago(values[6]),
-		#	])
 
 		self.cities_frame.tree["displaycolumns"] = ["#8", "#9"]
 
@@ -7498,13 +7596,14 @@ class GameMonitorUI(tk.Toplevel):
 	def __init__(self, parent):
 		
 
-		print("Initializing...")
+		# print("Initializing...")
 
 		# Parameters
 		self.parent = parent
 
 		# Init
 		super().__init__()
+		self.withdraw()
 
 		# Title
 		self.title(SC4MP_TITLE)
@@ -7513,13 +7612,17 @@ class GameMonitorUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.geometry("400x400+10+40")
+		self.geometry(f"400x400+{sc4mp_game_monitor_x}+{sc4mp_game_monitor_y}")
 		self.minsize(420, 280)
 		self.maxsize(420, 280)
 		self.grid()
 
+		# Iconify
+		# if sc4mp_config["SC4"]["fullscreen"]:
+		# 	self.iconify()
+
 		# Priority
-		self.grab_set()
+		# self.grab_set()
 
 		# Protocol
 		self.protocol("WM_DELETE_WINDOW", self.delete_window)
@@ -7581,6 +7684,19 @@ class GameMonitorUI(tk.Toplevel):
 			sc4mp_game_exit_ovveride = True
 			self.parent.end = True
 			self.destroy()
+
+	
+	def destroy(self):
+
+		global sc4mp_game_monitor_x, sc4mp_game_monitor_y
+
+		try:
+			sc4mp_game_monitor_x = self.winfo_x()
+			sc4mp_game_monitor_y = self.winfo_y()
+		except Exception:
+			pass
+
+		return super().destroy()
 
 
 class GameMonitorMapUI(tk.Toplevel):
@@ -7771,9 +7887,10 @@ class GameOverlayUI(tk.Toplevel):
 
 	def click(self, event):
 		try:
+			self.game_monitor_ui.deiconify()
 			self.game_monitor_ui.focus_set()
-		except Exception:
-			pass
+		except Exception as e:
+			show_error(e, no_ui=True)
 
 
 class RegionsRefresherUI(tk.Toplevel):
