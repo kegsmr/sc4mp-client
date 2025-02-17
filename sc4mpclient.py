@@ -5239,8 +5239,8 @@ class HostUI(tk.Toplevel):
             
             self.tree = ttk.Treeview(self)
             self.tree.grid(row=0, column=0, padx=10, pady=10, sticky="nswe")
-            
-            # Allow resizing
+
+            # Allow resizing within the frame
             self.columnconfigure(0, weight=1)
             self.rowconfigure(0, weight=1)
 
@@ -5290,8 +5290,12 @@ class HostUI(tk.Toplevel):
         # Icon
         self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
-        # Geometry
+        # Set fixed window size
         self.geometry('600x400')
+        self.resizable(False, False)
+        self.minsize(600, 400)
+        self.maxsize(600, 400)
+
         center_window(self)
         
         # Priority
@@ -5305,14 +5309,14 @@ class HostUI(tk.Toplevel):
         self.rowconfigure(0, weight=1)
 
         left_frame = self.ServerSelectionFrame(self)
-        left_frame.grid(row=0, column=0, sticky="nsw", padx=5, pady=5)
+        left_frame.grid(row=0, column=0, sticky="nsw")
 
         right_frame = self.ServerConfigFrame(self)
-        right_frame.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+        right_frame.grid(row=0, column=1, sticky="nsew")
 
         # Bottom frame
-        bottom_frame = tk.Frame(self, bg="white")
-        bottom_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=5)
+        bottom_frame = tk.Frame(self)
+        bottom_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
 
         ok_button = ttk.Button(bottom_frame, text="Ok", command=self.destroy)
         ok_button.pack(side="right", padx=10, pady=5)
