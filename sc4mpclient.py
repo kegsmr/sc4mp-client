@@ -2182,6 +2182,7 @@ class ServerList(th.Thread):
 
 			# Select the row which the canvas is placed on
 			self.ui.tree.selection_set([server_id])
+			self.ui.tree.focus(server_id)
 
 			# Call the event handler for a single click in `ServerListUI`
 			self.ui.handle_single_click(event)
@@ -2627,13 +2628,14 @@ class ServerLoader(th.Thread):
 				except Exception as e:
 					show_error(e, no_ui=True)
 
-				time.sleep(10)
+				if sc4mp_config["SC4"]["fullscreen"]:
+					time.sleep(10)
 
 				if self.ui:
 					self.ui.destroy()
 
-				# if game_monitor.ui:
-				# 	game_monitor.ui.grab_set()
+				if game_monitor.ui and game_monitor.ui.state() != "withdrawn":
+					game_monitor.ui.grab_set()
 
 				return
 
@@ -3318,7 +3320,8 @@ class GameMonitor(th.Thread):
 			# Create game overlay window if the game overlay is enabled (`1` is fullscreen-mode only; `2` is always enabled)
 			if (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
 				self.overlay_ui = GameOverlayUI(self.ui, guest=(server.password == ""))
-				self.ui.withdraw()
+				if sc4mp_game_monitor_x > 0:
+					self.ui.withdraw()
 			else:
 				self.ui.deiconify()
 
@@ -7889,6 +7892,7 @@ class GameOverlayUI(tk.Toplevel):
 		try:
 			self.game_monitor_ui.deiconify()
 			self.game_monitor_ui.focus_set()
+			self.game_monitor_ui.grab_set()
 		except Exception as e:
 			show_error(e, no_ui=True)
 
