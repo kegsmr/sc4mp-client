@@ -4359,26 +4359,26 @@ class UI(tk.Tk):
 		servers.add_separator()
 		if is_windows():
 			servers.add_command(label="Host...", accelerator="F3", command=lambda: ServerConfigUI())
-			test_servers = ["TEST1", "TEST2", "TEST3"]
-			if len(test_servers) > 0:
-				servers.add_separator()
-				for test_server in test_servers:
-					server_submenu = Menu(menu, tearoff=0)
-					if True:
-						server_submenu.add_command(label="Connect")
-						server_submenu.add_separator()
-						server_submenu.add_command(label="Restart")
-						server_submenu.add_command(label="Stop")
-					else:
-						server_submenu.add_command(label="Start")
-					server_submenu.add_separator()
-					server_submenu.add_command(label="Plugins...")
-					server_submenu.add_command(label="Regions...")
-					server_submenu.add_separator()
-					server_submenu.add_command(label="Config...")
-					server_submenu.add_separator()
-					server_submenu.add_command(label="Logs...")
-					servers.add_cascade(label=f"{test_server} (Status)", menu=server_submenu)
+			# test_servers = ["TEST1", "TEST2", "TEST3"]
+			# if len(test_servers) > 0:
+			# 	servers.add_separator()
+			# 	for test_server in test_servers:
+			# 		server_submenu = Menu(menu, tearoff=0)
+			# 		if True:
+			# 			server_submenu.add_command(label="Connect")
+			# 			server_submenu.add_separator()
+			# 			server_submenu.add_command(label="Restart")
+			# 			server_submenu.add_command(label="Stop")
+			# 		else:
+			# 			server_submenu.add_command(label="Start")
+			# 		server_submenu.add_separator()
+			# 		server_submenu.add_command(label="Plugins...")
+			# 		server_submenu.add_command(label="Regions...")
+			# 		server_submenu.add_separator()
+			# 		server_submenu.add_command(label="Config...")
+			# 		server_submenu.add_separator()
+			# 		server_submenu.add_command(label="Logs...")
+			# 		servers.add_cascade(label=f"{test_server} (Status)", menu=server_submenu)
 		menu.add_cascade(label="Servers", menu=servers)  
 
 		help = Menu(menu, tearoff=0)  	
