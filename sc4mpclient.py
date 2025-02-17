@@ -4358,7 +4358,7 @@ class UI(tk.Tk):
 		servers.add_command(label="Refresh", accelerator="F2", command=self.refresh)
 		servers.add_separator()
 		if is_windows():
-			servers.add_command(label="Host...", accelerator="F3", command=lambda: ServerConfigUI())
+			servers.add_command(label="Host...", accelerator="F3", command=self.host)
 			# test_servers = ["TEST1", "TEST2", "TEST3"]
 			# if len(test_servers) > 0:
 			# 	servers.add_separator()
@@ -5072,7 +5072,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.lift()
 
 
-class HostUI(tk.Toplevel):
+class OldHostUI(tk.Toplevel):
 
 
 	def __init__(self):
@@ -5228,6 +5228,68 @@ class HostUI(tk.Toplevel):
 		super().destroy()
 
 		#sc4mp_ui.deiconify()
+
+
+class HostUI(tk.Toplevel):
+	
+
+	class ServerSelectionFrame(tk.Frame):
+		
+
+		def __init__(self, parent):
+			
+			super().__init__(parent)
+
+			self.grid()
+
+			self.tree = ttk.Treeview(self)
+			self.tree.grid(row=0, column=0, padx=10, pady=10)
+	
+	class ServerConfigFrame(tk.Frame):
+		
+
+		def __init__(self, parent):
+			
+			super().__init__(parent)
+
+			self.grid()
+
+	
+	def __init__(self):
+		
+		super().__init__()
+
+		# Title
+		self.title("Host")
+
+		# Icon
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+
+		# Geometry
+		self.geometry('600x400')
+		#self.maxsize(375, 375)
+		#self.minsize(375, 375)
+		self.grid()
+		center_window(self)
+		
+		# Priority
+		self.grab_set()
+
+		# Key bindings
+		# self.bind("<Return>", lambda event:self.start_stop())
+		self.bind("<Escape>", lambda event:self.destroy())
+
+		left_frame = self.ServerSelectionFrame(self)
+		left_frame.grid(row=0, column=0)
+
+		right_frame = self.ServerConfigFrame(self)
+		right_frame.grid(row=0, column=1)
+
+		bottom_frame = tk.Frame(self, bg="white", width=600, height=50)
+		bottom_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
+
+		ok_button = ttk.Button(bottom_frame, text="Ok", command=self.destroy)
+		ok_button.grid(row=0, column=0, sticky="se", padx=10, pady=10)
 
 
 class ServerConfigUI(tk.Toplevel):
