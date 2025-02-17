@@ -5231,65 +5231,91 @@ class OldHostUI(tk.Toplevel):
 
 
 class HostUI(tk.Toplevel):
-	
 
-	class ServerSelectionFrame(tk.Frame):
-		
+    class ServerSelectionFrame(tk.Frame):
+        def __init__(self, parent):
+            super().__init__(parent)
+            self.grid(sticky="ns")  # Stretch vertically
+            
+            self.tree = ttk.Treeview(self)
+            self.tree.grid(row=0, column=0, padx=10, pady=10, sticky="nswe")
+            
+            # Allow resizing
+            self.columnconfigure(0, weight=1)
+            self.rowconfigure(0, weight=1)
 
-		def __init__(self, parent):
-			
-			super().__init__(parent)
+    class ServerConfigFrame(tk.Frame):
+        def __init__(self, parent):
+            super().__init__(parent)
+            self.grid(sticky="nsew")  # Stretch both directions
+            
+            # Tabbed interface
+            self.tabs = ttk.Notebook(self)
+            self.tabs.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
-			self.grid()
+            # Create tabs
+            self.network_tab = ttk.Frame(self.tabs)
+            self.info_tab = ttk.Frame(self.tabs)
+            self.security_tab = ttk.Frame(self.tabs)
+            self.rules_tab = ttk.Frame(self.tabs)
 
-			self.tree = ttk.Treeview(self)
-			self.tree.grid(row=0, column=0, padx=10, pady=10)
-	
-	class ServerConfigFrame(tk.Frame):
-		
+            self.tabs.add(self.network_tab, text="Network")
+            self.tabs.add(self.info_tab, text="Info")
+            self.tabs.add(self.security_tab, text="Security")
+            self.tabs.add(self.rules_tab, text="Rules")
 
-		def __init__(self, parent):
-			
-			super().__init__(parent)
+            # Buttons at bottom
+            button_frame = tk.Frame(self)
+            button_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
 
-			self.grid()
+            start_button = ttk.Button(button_frame, text="Start")
+            start_button.grid(row=0, column=0, padx=5)
 
-	
-	def __init__(self):
-		
-		super().__init__()
+            logs_button = ttk.Button(button_frame, text="Logs")
+            logs_button.grid(row=0, column=1, padx=5)
 
-		# Title
-		self.title("Host")
+            connect_button = ttk.Button(button_frame, text="Connect")
+            connect_button.grid(row=0, column=2, padx=5)
 
-		# Icon
-		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+            # Configure stretching
+            self.columnconfigure(0, weight=1)
+            self.rowconfigure(0, weight=1)
 
-		# Geometry
-		self.geometry('600x400')
-		#self.maxsize(375, 375)
-		#self.minsize(375, 375)
-		self.grid()
-		center_window(self)
-		
-		# Priority
-		self.grab_set()
+    def __init__(self):
+        super().__init__()
 
-		# Key bindings
-		# self.bind("<Return>", lambda event:self.start_stop())
-		self.bind("<Escape>", lambda event:self.destroy())
+        # Title
+        self.title("Host")
 
-		left_frame = self.ServerSelectionFrame(self)
-		left_frame.grid(row=0, column=0)
+        # Icon
+        self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
-		right_frame = self.ServerConfigFrame(self)
-		right_frame.grid(row=0, column=1)
+        # Geometry
+        self.geometry('600x400')
+        center_window(self)
+        
+        # Priority
+        self.grab_set()
 
-		bottom_frame = tk.Frame(self, bg="white", width=600, height=50)
-		bottom_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
+        # Key bindings
+        self.bind("<Escape>", lambda event: self.destroy())
 
-		ok_button = ttk.Button(bottom_frame, text="Ok", command=self.destroy)
-		ok_button.grid(row=0, column=0, sticky="se", padx=10, pady=10)
+        # Layout
+        self.columnconfigure(1, weight=3)
+        self.rowconfigure(0, weight=1)
+
+        left_frame = self.ServerSelectionFrame(self)
+        left_frame.grid(row=0, column=0, sticky="nsw", padx=5, pady=5)
+
+        right_frame = self.ServerConfigFrame(self)
+        right_frame.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+
+        # Bottom frame
+        bottom_frame = tk.Frame(self, bg="white")
+        bottom_frame.grid(row=1, column=0, columnspan=2, sticky="ew", pady=5)
+
+        ok_button = ttk.Button(bottom_frame, text="Ok", command=self.destroy)
+        ok_button.pack(side="right", padx=10, pady=5)
 
 
 class ServerConfigUI(tk.Toplevel):
