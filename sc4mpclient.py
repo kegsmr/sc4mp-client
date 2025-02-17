@@ -4445,7 +4445,11 @@ class UI(tk.Tk):
 		
 		print('"Host..."')
 
-		if messagebox.askyesno(SC4MP_TITLE, "Hosting a server requires the SC4MP Server.\n\nWould you like to view the GitHub repository?"):
+		message = "One of the next releases of the SC4MP Launcher will be capable of hosting servers " \
+			"from within the launcher, but for now, you can run the SC4MP Server manually. See the Github repository " \
+			"for more information.\n\n" if is_windows() else ""
+
+		if messagebox.askyesno(SC4MP_TITLE, f"Hosting a server requires the SC4MP Server application.\n\n{message}Would you like to view the GitHub repository?"):
 			webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/")
 
 
