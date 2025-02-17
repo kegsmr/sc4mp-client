@@ -3320,7 +3320,8 @@ class GameMonitor(th.Thread):
 			# Create game overlay window if the game overlay is enabled (`1` is fullscreen-mode only; `2` is always enabled)
 			if (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
 				self.overlay_ui = GameOverlayUI(self.ui, guest=(server.password == ""))
-				self.ui.withdraw()
+				if sc4mp_game_monitor_x > 0:
+					self.ui.withdraw()
 			else:
 				self.ui.deiconify()
 
