@@ -5232,94 +5232,184 @@ class OldHostUI(tk.Toplevel):
 
 class HostUI(tk.Toplevel):
 
-    class ServerSelectionFrame(tk.Frame):
-        def __init__(self, parent):
-            super().__init__(parent)
-            self.grid(sticky="ns")  # Stretch vertically
-            
-            self.tree = ttk.Treeview(self)
-            self.tree.grid(row=0, column=0, padx=10, pady=10, sticky="nswe")
+	class ServerSelectionFrame(tk.Frame):
+		def __init__(self, parent):
+			super().__init__(parent)
+			self.grid(sticky="ns")  # Stretch vertically 
+			
+			self.tree = ttk.Treeview(self)
+			self.tree.grid(row=0, column=0, padx=10, pady=10, sticky="nswe")
 
-            # Allow resizing within the frame
-            self.columnconfigure(0, weight=1)
-            self.rowconfigure(0, weight=1)
+			# Allow resizing within the frame
+			self.columnconfigure(0, weight=1)
+			self.rowconfigure(0, weight=1)
 
-    class ServerConfigFrame(tk.Frame):
-        def __init__(self, parent):
-            super().__init__(parent)
-            self.grid(sticky="nsew")  # Stretch both directions
-            
-            # Tabbed interface
-            self.tabs = ttk.Notebook(self)
-            self.tabs.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
-            # Create tabs
-            self.network_tab = ttk.Frame(self.tabs)
-            self.info_tab = ttk.Frame(self.tabs)
-            self.security_tab = ttk.Frame(self.tabs)
-            self.rules_tab = ttk.Frame(self.tabs)
+	class ServerConfigFrame(tk.Frame):
+    
+		def __init__(self, parent, config_file="serverconfig.ini"):
+			super().__init__(parent)
+			self.grid(sticky="nsew")  # Stretch both directions
+			
+			# Load configuration from file
+			self.config = configparser.ConfigParser()
+			self.config.read(config_file)
+			
+			# Tabbed interface
+			self.tabs = ttk.Notebook(self)
+			self.tabs.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
-            self.tabs.add(self.network_tab, text="Network")
-            self.tabs.add(self.info_tab, text="Info")
-            self.tabs.add(self.security_tab, text="Security")
-            self.tabs.add(self.rules_tab, text="Rules")
+			# Create tabs
+			self.network_tab = ttk.Frame(self.tabs)
+			self.info_tab = ttk.Frame(self.tabs)
+			self.security_tab = ttk.Frame(self.tabs)
+			self.rules_tab = ttk.Frame(self.tabs)
 
-            # Buttons at bottom
-            button_frame = tk.Frame(self)
-            button_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
+			self.tabs.add(self.network_tab, text="Network")
+			self.tabs.add(self.info_tab, text="Info")
+			self.tabs.add(self.security_tab, text="Security")
+			self.tabs.add(self.rules_tab, text="Rules")
 
-            start_button = ttk.Button(button_frame, text="Start")
-            start_button.grid(row=0, column=0, padx=5)
+			# Network tab
+			self.network_frame = tk.Frame(self.network_tab)
+			self.network_frame.grid(row=0, column=0, padx=10, pady=10)
 
-            logs_button = ttk.Button(button_frame, text="Logs")
-            logs_button.grid(row=0, column=1, padx=5)
+			self.network_frame.port_label = ttk.Label(self.network_frame, text="Port")
+			self.network_frame.port_label.grid(row=0, column=0, padx=10, pady=5, sticky="e")
 
-            connect_button = ttk.Button(button_frame, text="Connect")
-            connect_button.grid(row=0, column=2, padx=5)
+			self.network_frame.port_entry = ttk.Entry(self.network_frame, width=5)
+			# Load values from config
+			self.network_frame.port_entry.insert(0, self.config.get('NETWORK', 'port', fallback="7240"))
+			self.network_frame.port_entry.grid(row=0, column=1, padx=10, pady=5, sticky="w")
 
-            # Configure stretching
-            self.columnconfigure(0, weight=1)
-            self.rowconfigure(0, weight=1)
+			self.network_frame.checkbutton = ttk.Checkbutton(self.network_frame, text="Discoverable")
+			discoverable = self.config.getboolean('NETWORK', 'discoverable', fallback=True)
+			self.network_frame.checkbutton.state(['selected'] if discoverable else ['!selected'])
+			self.network_frame.checkbutton.grid(row=0, column=2, padx=10, pady=5, sticky="w")
 
-    def __init__(self):
-        super().__init__()
+			# Info tab
+			self.info_frame = tk.Frame(self.info_tab)
+			self.info_frame.grid(row=0, column=0, padx=10, pady=10)
 
-        # Title
-        self.title("Host")
+			self.info_frame.name_label = ttk.Label(self.info_frame, text="Name")
+			self.info_frame.name_label.grid(row=0, column=0, padx=10, pady=5, sticky="e")
 
-        # Icon
-        self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+			self.info_frame.name_entry = ttk.Entry(self.info_frame, width=40)
+			self.info_frame.name_entry.insert(0, self.config.get('INFO', 'server_name', fallback="Default Server"))
+			self.info_frame.name_entry.grid(row=0, column=1, padx=10, pady=5, sticky="w")
 
-        # Set fixed window size
-        self.geometry('600x400')
-        self.resizable(False, False)
-        self.minsize(600, 400)
-        self.maxsize(600, 400)
+			self.info_frame.description_label = ttk.Label(self.info_frame, text="Description")
+			self.info_frame.description_label.grid(row=1, column=0, padx=10, pady=5, sticky="ne")
 
-        center_window(self)
-        
-        # Priority
-        self.grab_set()
+			self.info_frame.description_entry = ttk.Entry(self.info_frame, width=40)
+			self.info_frame.description_entry.insert(0, self.config.get('INFO', 'server_description', fallback="No description"))
+			self.info_frame.description_entry.grid(row=1, column=1, padx=10, pady=5, sticky="w")
 
-        # Key bindings
-        self.bind("<Escape>", lambda event: self.destroy())
+			self.info_frame.url_label = ttk.Label(self.info_frame, text="URL")
+			self.info_frame.url_label.grid(row=2, column=0, padx=10, pady=5, sticky="e")
 
-        # Layout
-        self.columnconfigure(1, weight=3)
-        self.rowconfigure(0, weight=1)
+			self.info_frame.url_entry = ttk.Entry(self.info_frame, width=40)
+			self.info_frame.url_entry.insert(0, self.config.get('INFO', 'server_url', fallback="http://example.com"))
+			self.info_frame.url_entry.grid(row=2, column=1, padx=10, pady=5, sticky="w")
 
-        left_frame = self.ServerSelectionFrame(self)
-        left_frame.grid(row=0, column=0, sticky="nsw")
+			# Security tab
+			self.security_frame = tk.Frame(self.security_tab)
+			self.security_frame.grid(row=0, column=0, padx=10, pady=10)
 
-        right_frame = self.ServerConfigFrame(self)
-        right_frame.grid(row=0, column=1, sticky="nsew")
+			self.security_frame.password_checkbutton = ttk.Checkbutton(self.security_frame, text="Password")
+			password_enabled = self.config.getboolean('SECURITY', 'password_enabled', fallback=False)
+			self.security_frame.password_checkbutton.state(['selected'] if password_enabled else ['!selected'])
+			self.security_frame.password_checkbutton.grid(row=0, column=0, padx=10, pady=5, sticky="e")
 
-        # Bottom frame
-        bottom_frame = tk.Frame(self)
-        bottom_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
+			self.security_frame.password_entry = ttk.Entry(self.security_frame, width=35)
+			self.security_frame.password_entry.insert(0, self.config.get('SECURITY', 'password', fallback=""))
+			self.security_frame.password_entry.grid(row=0, column=1, padx=10, pady=5, sticky="w")
 
-        ok_button = ttk.Button(bottom_frame, text="Ok", command=self.destroy)
-        ok_button.pack(side="right", padx=10, pady=5)
+			# Rules tab
+			self.rules_frame = tk.Frame(self.rules_tab)
+			self.rules_frame.grid(row=0, column=0, padx=10, pady=10)
+
+			self.rules_frame.claim_duration_checkbutton = ttk.Checkbutton(self.rules_frame, text="Claim duration")
+			claim_duration = self.config.get('RULES', 'claim_duration', fallback="14")
+			self.rules_frame.claim_duration_checkbutton.state(['selected'] if claim_duration else ['!selected'])
+			self.rules_frame.claim_duration_checkbutton.grid(row=0, column=0, padx=10, pady=5, sticky="w")
+
+			self.rules_frame.claim_duration_entry = ttk.Entry(self.rules_frame, width=5)
+			self.rules_frame.claim_duration_entry.insert(0, claim_duration)
+			self.rules_frame.claim_duration_entry.grid(row=0, column=1, padx=10, pady=5, sticky="w")
+
+			self.rules_frame.claim_duration_label = ttk.Label(self.rules_frame, text="days")
+			self.rules_frame.claim_duration_label.grid(row=0, column=2, padx=10, pady=5, sticky="w")
+
+			self.rules_frame.max_region_claims_checkbutton = ttk.Checkbutton(self.rules_frame, text="Max claims")
+			max_claims = self.config.get('RULES', 'max_region_claims', fallback="None")
+			self.rules_frame.max_region_claims_checkbutton.state(['selected'] if max_claims != "None" else ['!selected'])
+			self.rules_frame.max_region_claims_checkbutton.grid(row=1, column=0, padx=10, pady=5, sticky="w")
+
+			self.rules_frame.max_region_claims_entry = ttk.Entry(self.rules_frame, width=5)
+			self.rules_frame.max_region_claims_entry.insert(0, max_claims)
+			self.rules_frame.max_region_claims_entry.grid(row=1, column=1, padx=10, pady=5, sticky="w")
+
+			self.rules_frame.max_region_claims_label = ttk.Label(self.rules_frame, text="per region")
+			self.rules_frame.max_region_claims_label.grid(row=1, column=2, padx=10, pady=5, sticky="w")
+
+			# Buttons at bottom
+			button_frame = tk.Frame(self)
+			button_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
+
+			start_button = ttk.Button(button_frame, text="Start")
+			start_button.grid(row=0, column=0, padx=5)
+
+			logs_button = ttk.Button(button_frame, text="Logs")
+			logs_button.grid(row=0, column=1, padx=5)
+
+			connect_button = ttk.Button(button_frame, text="Connect")
+			connect_button.grid(row=0, column=2, padx=5)
+
+			# Configure stretching
+			self.columnconfigure(0, weight=1)
+			self.rowconfigure(0, weight=1)
+
+
+	def __init__(self):
+		super().__init__()
+
+		# Title
+		self.title("Host")
+
+		# Icon
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+
+		# Set fixed window size
+		self.geometry('600x400')
+		self.resizable(False, False)
+		self.minsize(600, 400)
+		self.maxsize(600, 400)
+
+		center_window(self)
+		
+		# Priority
+		self.grab_set()
+
+		# Key bindings
+		self.bind("<Escape>", lambda event: self.destroy())
+
+		# Layout
+		self.columnconfigure(1, weight=3)
+		self.rowconfigure(0, weight=1)
+
+		left_frame = self.ServerSelectionFrame(self)
+		left_frame.grid(row=0, column=0, sticky="nsw")
+
+		right_frame = self.ServerConfigFrame(self)
+		right_frame.grid(row=0, column=1, sticky="nsew")
+
+		# Bottom frame
+		bottom_frame = tk.Frame(self)
+		bottom_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
+
+		ok_button = ttk.Button(bottom_frame, text="Ok", command=self.destroy)
+		ok_button.pack(side="right", padx=10, pady=5)
 
 
 class ServerConfigUI(tk.Toplevel):
