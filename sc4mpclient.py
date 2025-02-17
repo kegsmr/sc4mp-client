@@ -4444,7 +4444,10 @@ class UI(tk.Tk):
 	def host(self):
 		
 		print('"Host..."')
-		HostUI()
+
+		if messagebox.askyesno(SC4MP_TITLE, "Hosting a server requires the SC4MP Server.\n\nWould you like to view the GitHub repository?"):
+			webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/")
+
 
 
 	def direct_connect(self):
