@@ -6354,7 +6354,7 @@ class ServerDetailsUI(tk.Toplevel):
 		try:
 
 			# Check if UI is destoyed and stop updating window size if so
-			if self.destroyed:
+			if not self.winfo_exists(): #self.destroyed:
 				return
 
 			# Update the UI to make sure `winfo` calls are correct
