@@ -4449,6 +4449,7 @@ class UI(tk.Tk):
 		print('"Host..."')
 
 		if is_windows():
+			ServerConfigUI() #TODO remove
 			HostUI()
 		else:
 			if messagebox.askyesno(SC4MP_TITLE, "Hosting a server requires the SC4MP Server application.\n\nWould you like to view the Github repository?"):
@@ -5218,8 +5219,23 @@ class HostUI(tk.Toplevel):
 		def __init__(self, parent):
 			super().__init__(parent)
 			self.grid(sticky="ns")  # Stretch vertically 
-			
+
+			def handle_click(event):
+				region = event.widget.identify_region(event.x, event.y)
+				if region == "separator":
+					return "break"
+				else:
+					self.tree.last_click = time.time()
+					self.tree.last_click_coords = (event.x, event.y)
+
+			def handle_select(event):
+				self.server_id = self.tree.selection_get()[0]
+
 			self.tree = ttk.Treeview(self)
+			self.tree.column("#0")
+			self.tree.heading("#0", text="Servers")
+			self.tree.bind("<Button-1>", handle_click)
+			self.tree.bind("<<TreeViewSelect>>", handle_select)
 			self.tree.grid(row=0, column=0, padx=10, pady=10, sticky="nswe")
 
 			# Allow resizing within the frame
@@ -5246,11 +5262,15 @@ class HostUI(tk.Toplevel):
 			self.info_tab = ttk.Frame(self.tabs)
 			self.security_tab = ttk.Frame(self.tabs)
 			self.rules_tab = ttk.Frame(self.tabs)
+			self.plugins_tab = ttk.Frame(self.tabs)
+			self.regions_tab = ttk.Frame(self.tabs)
 
 			self.tabs.add(self.network_tab, text="Network")
 			self.tabs.add(self.info_tab, text="Info")
 			self.tabs.add(self.security_tab, text="Security")
 			self.tabs.add(self.rules_tab, text="Rules")
+			# self.tabs.add(self.plugins_tab, text="Plugins")
+			# self.tabs.add(self.regions_tab, text="Regions")
 
 			# Network tab
 			self.network_frame = tk.Frame(self.network_tab)
@@ -5335,18 +5355,38 @@ class HostUI(tk.Toplevel):
 			self.rules_frame.max_region_claims_label = ttk.Label(self.rules_frame, text="per region")
 			self.rules_frame.max_region_claims_label.grid(row=1, column=2, padx=10, pady=5, sticky="w")
 
+			# Godmode filter checkbutton
+			#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
+			self.rules_frame.godmode_filter_checkbutton = ttk.Checkbutton(self.rules_frame, text="Allow claims in godmode", onvalue=False, offvalue=True) #, variable=self.updates_frame.checkbutton_variable)
+			self.rules_frame.godmode_filter_checkbutton.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+			#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
+
+			# User plugins checkbutton
+			#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
+			self.rules_frame.user_plugins_checkbutton = ttk.Checkbutton(self.rules_frame, text="Allow user plugins", onvalue=True, offvalue=False) #, variable=self.updates_frame.checkbutton_variable)
+			self.rules_frame.user_plugins_checkbutton.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+			#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
+
+			# Plugins tab
+			# self.plugins_frame = tk.Frame(self.plugins_tab)
+			# self.plugins_frame.grid(row=0, column=0, padx=10, pady=10)
+
+			# # Plugins tab
+			# self.regions_frame = tk.Frame(self.regions_tab)
+			# self.regions_frame.grid(row=0, column=0, padx=10, pady=10)
+
 			# Buttons at bottom
-			button_frame = tk.Frame(self)
-			button_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
+			# button_frame = tk.Frame(self)
+			# button_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
 
-			start_button = ttk.Button(button_frame, text="Start")
-			start_button.grid(row=0, column=0, padx=5)
+			# start_button = ttk.Button(button_frame, text="Start")
+			# start_button.grid(row=0, column=0, padx=5)
 
-			logs_button = ttk.Button(button_frame, text="Logs")
-			logs_button.grid(row=0, column=1, padx=5)
+			# logs_button = ttk.Button(button_frame, text="Logs")
+			# logs_button.grid(row=0, column=1, padx=5)
 
-			connect_button = ttk.Button(button_frame, text="Connect")
-			connect_button.grid(row=0, column=2, padx=5)
+			# connect_button = ttk.Button(button_frame, text="Connect")
+			# connect_button.grid(row=0, column=2, padx=5)
 
 			# Configure stretching
 			self.columnconfigure(0, weight=1)
