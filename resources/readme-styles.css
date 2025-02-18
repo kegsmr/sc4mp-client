@@ -1,0 +1,27 @@
+body {
+	font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+	font-size: 14px;
+	padding: 50px;
+	padding-top: 125px;
+}
+.logo {
+	color: white;
+	font-family: Tahoma; 
+	font-weight: 700;
+}
+.subtitle {
+	color: white;
+}
+.header {
+	background-color: rgb(68, 102, 125);
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	z-index: 1000; /* Ensures it stays on top of other elements */
+	padding: 10px 50px; /* Adjust padding as needed */
+	box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Optional shadow for better visibility */
+}
+img {
+	max-width: 100%;
+}

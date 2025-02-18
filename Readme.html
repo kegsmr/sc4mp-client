@@ -2,119 +2,98 @@
 <html lang="en">
     <head>
 		<title>Readme &bull; SC4MP Launcher v0.8.0</title>
-		<link rel="icon" href="resources/favicon.ico">
-		<style>
-			body {
-				font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-				font-size: 14px;
-				padding: 50px;
-			}
-			.logo {
-				color: white;
-				font-family: Tahoma; 
-				font-weight: 700;
-				text-shadow: 
-					-1px -1px 0 black,  
-					1px -1px 0 black,  
-					-1px  1px 0 black,  
-					1px  1px 0 black;
-			}
-		</style>
+		<link rel="icon" href="resources/readme-favicon.ico">
+		<link rel="stylesheet" href="resources/readme-styles.css">
+		<nav class="header">
+			<h1 class="logo"><span style="color: #ffd74c">SC4</span><span style="color: #d03333;">MP</span> Launcher</h1>
+				<p class="subtitle">Readme &bull; Version 0.8.0</p>	
+		</nav>
 	</head>
     <body>
-        <div class="wrapper">
-			<center>
-				<h1 class="logo"><span style="color: #ffd74c">SC4</span><span style="color: #d03333;">MP</span> Launcher</h1>
-				<h4>Readme &bull; Version 0.8.0</h4>		
-				<br>
-				<p>Thank you for installing the SC4MP Launcher! This readme will help you get started with SC4MP. You can start playing SimCity 4 multiplayer in just a few steps.</p>
-				<br>
-			</center>
-			<h2>Getting started</h2>
-				<h3>Run the launcher</h3>
-					<p>Run the program titled "SC4MP Launcher" to start the launcher. The main window of the SC4MP Launcher will appear on-screen. </p>
-					<p>This window contains a server browser which displays the servers currently online. Each server has associated statistics. You can sort by any column by clicking on the column header. By default the servers are sorted by rank, which is calculated from the other server statistics.</p>
-					<p>Each server has a description, URL and address located in the lower-left corner of the server browser.</p>
-					<p>The servers can be filtered by a category or by search terms using the box on the lower-right corner.</p>
-					<p>You can refresh the listings by clicking the "Refresh" button.</p>
-					<img src="resources/readme-launcher.png">
-				<h3>Connect to a server from the server browser</h3>
-					<p>Once you've selected the server you wish to connect to, click the "Connect" button or press enter.</p>
-				<h3>Connect to a server from the direct connect window</h3>
-					<p>If the desired server does not appear in the server browser, you can use the direct connect window. In the menu bar under "Servers" click "Connect..." or press F1 to open the direct connect window.</p>
-					<p>This window allows you to connect to a server by manually entering the hostname (ie. IP address) and port of a server. If you haven't connected to a server yet, the window will be configured to connect you to the official SC4MP server. Once you've entered in the hostname and port of the server you wish to connect to, click "Connect."</p>
-					<img src="resources/readme-direct-connect.png">
-				<h3>The loading sequence</h3>
-					<p>Certain servers may prompt you for a password. The loading sequence will be cancelled after five failed password attempts.</p>
-					<img src="resources/readme-password-prompt.png">
-					<p>If the launcher successfully establishes a connection to the server, it will begin downloading the server's plugins and regions. Loading a server for the first time might take a couple of minutes, but subsequent loading will be sped up significantly by the cache. This loading sequence can be cancelled at any time by x-ing out of the window or pressing escape.</p>
-					<img src="resources/readme-server-loader.png">
-					<p>Once the loading sequence is complete, the server monitor will start alongside Simcity 4. This window will stay open until the game exits. It displays the result of the last save push and the ping (ie. response time) of the server. A lower ping means a better connection.</p>
-					<img src="resources/readme-server-monitor.png">
-			<h2>Playing in multiplayer</h2>
-				<h3>How claims work</h3>
-					<p>SC4MP uses a claims system to protect cities from editing and to ensure that they are distributed fairly.</p>
-					<p>In this system, players can only save cities that they have previously claimed. Only unoccupied tiles or tiles with expired claims of other players can be claimed.</p>
-					<p>By default, claims expire after 30 days, but this can vary from server to server. By default, players are also limited to one claim per region, but this is also can vary from server to server.</p>
-					<p>Claims are linked to your automatically-generated, server-specific user id. User id's are stored on your computer locally, in your launch directory. This way you are never required to make an account to play on SC4MP, but you can only access your claims on another machine by migrating your launch directory manually.
-				<h3>Claiming a tile</h3>
-					<p>To claim a tile, start a city and save your game. Ensure that the save push succeeded by monitoring for the result in the server monitor window. By default, you must first establish a city to claim the tile. This way, occupied tiles always appear as established cities with city names in the reigon view.</p>
-					<img src="resources/readme-save-successful.png">
-				<h3>Playing in a claimed city</h3>
-					<p>Once you have claimed your city, you can play in it and save it as usual. As long as you're still connected to the server, your saves will be pushed automatically.</p>
-				<!--<h3>Playing in others' cities</h3>
-					<p>You are welcome to open and play in other users' claimed cities. You can even edit them and save them locally, but keep in mind that any changes will not be saved to the server. The saves will also be lost the next time you connect to a server unless you manually move them from the launch directory.</p>
-					<p><b>NOTE:</b> since SC4MP in its current state uses the datetime subfile of savegames as a secondary data point in triangulating save pushes in unusual region configurations, sometimes playing on neighboring tiles can lead to problems. If you encounter issues saving after playing on a neighboring tile, delete all the neighboring tiles of the tile you've claimed to ensure only one savegame is sent to the server.</p>-->
-				<h3>Refreshing regions</h3>
-					<p>To refresh regions, simply load the region titled "Refresh..."</p>
-					<img src="resources/readme-regions.png">
-					<p>The launcher will then initiate the refresh sequence automatically. Wait for this to complete before loading another region.</p>
-					<p>Refreshing regions will also ovverwrite your own cities, so ensure that your work has been saved to the server before refreshing.</p>
-					<!--<img src="resources/readme-refresh.png">-->
-				<h3>Disconnecting</h3>
-					<p>To disconnect from a server, simply exit the game. The server monitor will remain open for a few more seconds, but then the main window will subsequently re-open. You are able to then connect to another server seamlessly, without restarting the launcher.</p>
-			<h2>Configuring the launcher</h2>
-				<p>The launcher settings can be found in the menu bar under "Launcher" then "Settings." Each settings window contains a "reset" button that will reset the settings on screen to their default values.</p>
-				<h3>General settings</h3>
-					<p>The options in this window pertain to gameplay.</p>
-					<img src="resources/readme-general-settings.png">
-					<p><b>Custom plugins:</b> Some servers allow players to load their own plugins alongside the server's plugins. Specify the path to your own plugins directory and check "Enable" to use custom plugins, and your plugins will be loaded with the server's plugins the next time you connect to a server. The directory you choose will not be altered in any way.</p>
-				<h3>Storage settings</h3>
-					<p>The settings in this window pertain to the files stored by the launcher on your disk.</p>
-					<img src="resources/readme-storage-settings.png">
-					<p><b>Launch path:</b> when the launcher downloads plugins and regions from a server, it writes to a special sandboxed folder. This prevents the launcher from interfering with your singleplayer plugins and regions. By default the launcher will write to a directory named "_SC4MP" in the "Simcity 4" directory in your documents.</p>
-					<p>If you want the launcher to write its files to another directory, specify it in this field. <b>Do NOT set this path to your base Simcity 4 directory ("Documents\Simcity 4\")!</b> Doing so will overwrite your singleplayer plugins and regions. Your server profiles are also stored in this directory, so you will also have to migrate those files manually if you change this directory. Unless you have a specific reason to do so, its best to not change this field.</p>
-					<p><b>Cache size: </b>the launcher keeps a rolling cache of downloaded files in order to optimize loading times. A larger cache will allow for faster loading times on servers you've connected to previously, but will use more disk space. A smaller cache will use less disk space but can lead to longer loading times. Specify your desired cache size in megabytes in the field provided.</p>
-					<p>You can also clear your cache here by clicking the "clear cache" button.</p>
-				<h3>SC4 settings</h3>
-					<p>This window allows you to modify the launch parameters that the launcher uses when launching Simcity 4. You can test the settings by clicking the "preview" button and the game will launch without any plugins or regions.</p>
-					<img src="resources/readme-sc4-settings.png">
-					<p><b>Custom installation path: </b>when attempting to launch Simcity 4, the launcher will look for the executable in the most common installation paths. If the launcher cannot find the game's install directory, you can provide a custom path to it.</p>
-					<p>You only need to set this value if the launcher asks for it.</p>
-					<p><b>Resolution: </b>you can specify a custom game resolution using the field provided here, either by selecting one of the common resolutions provided or entering one manually.</p>
-					<p>You can also choose here whether to run the game in fullscreen or windowed mode. But keep in mind the server monitor may not be visible in fullscreen mode. A game overlay is planned for future versions of the launcher.</p>
-					<p><b>CPU count: </b>since Simcity 4 was designed for older hardware than that available today, running the game with more than one CPU core can lead to crashes. Therefore, the SC4MP Launcher launches the game with one CPU core by default. A different CPU count however can be specified here.</p>
-					<p><b>CPU priority: </b>this setting specifies the CPU priority level of the application when minimized.</p>
-					<p><b>Additional launch properties: </b>this field allows you to manually specify more launch parameters if you wish to do so. A list of all launch parameters can be found <a href="https://community.simtropolis.com/omnibus/simcity-4/reference/sc4-command-line-options-r362/">here</a>.</p>
-			<h2>Recovering from server interruptions</h2>
-				<p>The SC4MP Launcher is designed to recover from most temporary server outages, but in the event of a more severe outage, savegames can be recovered manually. Failed save pushes are saved to the "_Salvage" subdirectory of the launch directory. The launcher will automatically copy the savegames from the last failed save push into the region named "downloads" for importation in-game.</p>
-				<img src="resources/readme-import-city.png">
-			<h2>Advanced launch parameters</h2>
-				<p>Some launch parameters are provided for advanced users. Their definitions can be found below:</p>
-				<p><b>"-no-ui" flag:</b> this disables the ui and prompts the user to enter in the host, port and password (if required) of a server through the commandline, if not also specified through launch parameters.</p>
-				<p><b>"--host [hostname]" option:</b> used to specify the hostname of a server to connect to immediately when starting the launcher.</p>
-				<p><b>"--port [port]" option:</b> used to specify the port of a server to connect to.</p>
-				<p><b>"--password [password]" option:</b> used to specify the password for a server (if required).</p>
-			<h2>Issues</h2>
-				<p>If you encounter a bug or error when using the SC4MP Launcher, create a ticket on <a href="https://github.com/kegsmr/sc4mp-client/releases">GitHub</a>.</p>
-			<h2>Updates and more</h2>
-				<p>The latest releases of the SC4MP Launcher can be found on <a href="https://github.com/kegsmr/sc4mp-client/releases">GitHub</a>.</p>
-				<p></p>
-				<p>Visit the official SC4MP website at <a href="http://www.sc4mp.org/">sc4mp.org</a>.</p>
-			<h2>Credits</h2>
-				<p>This readme was prepared for the SC4MP Launcher version 0.8.0.</p>
-				<p>View the full list of collaborators on <a href="https://github.com/kegsmr/sc4mp-client/collaborators">GitHub</a>.</p>
-				<p>Special thanks to <a href="http://j5.io/">Julian Cizmic</a>, the original creator of PMR, the primary inspiration for SC4MP.</p>
-		</div>
+		<h2>Getting started</h2>
+			<h3>Run the launcher</h3>
+				<p>Run the program titled "SC4MP Launcher" to start the launcher. The main window of the SC4MP Launcher will appear on-screen. </p>
+				<p>This window contains a server browser which displays the servers currently online. Each server has associated statistics. You can sort by any column by clicking on the column header. By default the servers are sorted by rank, which is calculated from the other server statistics.</p>
+				<p>Each server has a description, URL and address located in the lower-left corner of the server browser.</p>
+				<p>The servers can be filtered by a category or by search terms using the box on the lower-right corner.</p>
+				<p>You can refresh the listings by clicking the "Refresh" button.</p>
+				<img src="resources/readme-launcher.png">
+			<h3>Connect to a server from the server browser</h3>
+				<p>Once you've selected the server you wish to connect to, click the "Connect" button or press enter.</p>
+			<h3>Connect to a server from the direct connect window</h3>
+				<p>If the desired server does not appear in the server browser, you can use the direct connect window. In the menu bar under "Servers" click "Connect..." or press F1 to open the direct connect window.</p>
+				<p>This window allows you to connect to a server by manually entering the hostname (ie. IP address) and port of a server. If you haven't connected to a server yet, the window will be configured to connect you to the official SC4MP server. Once you've entered in the hostname and port of the server you wish to connect to, click "Connect."</p>
+				<img src="resources/readme-direct-connect.png">
+			<h3>The loading sequence</h3>
+				<p>Certain servers may prompt you for a password. The loading sequence will be cancelled after five failed password attempts.</p>
+				<img src="resources/readme-password-prompt.png">
+				<p>If the launcher successfully establishes a connection to the server, it will begin downloading the server's plugins and regions. Loading a server for the first time might take a couple of minutes, but subsequent loading will be sped up significantly by the cache. This loading sequence can be cancelled at any time by x-ing out of the window or pressing escape.</p>
+				<img src="resources/readme-server-loader.png">
+				<p>Once the loading sequence is complete, the server monitor will start alongside Simcity 4. This window will stay open until the game exits. It displays the result of the last save push and the ping (ie. response time) of the server. A lower ping means a better connection.</p>
+				<img src="resources/readme-server-monitor.png">
+		<h2>Playing in multiplayer</h2>
+			<h3>How claims work</h3>
+				<p>SC4MP uses a claims system to protect cities from editing and to ensure that they are distributed fairly.</p>
+				<p>In this system, players can only save cities that they have previously claimed. Only unoccupied tiles or tiles with expired claims of other players can be claimed.</p>
+				<p>By default, claims expire after 30 days, but this can vary from server to server. By default, players are also limited to one claim per region, but this is also can vary from server to server.</p>
+				<p>Claims are linked to your automatically-generated, server-specific user id. User id's are stored on your computer locally, in your launch directory. This way you are never required to make an account to play on SC4MP, but you can only access your claims on another machine by migrating your launch directory manually.
+			<h3>Claiming a tile</h3>
+				<p>To claim a tile, start a city and save your game. Ensure that the save push succeeded by monitoring for the result in the server monitor window. By default, you must first establish a city to claim the tile. This way, occupied tiles always appear as established cities with city names in the reigon view.</p>
+				<img src="resources/readme-save-successful.png">
+			<h3>Playing in a claimed city</h3>
+				<p>Once you have claimed your city, you can play in it and save it as usual. As long as you're still connected to the server, your saves will be pushed automatically.</p>
+			<!--<h3>Playing in others' cities</h3>
+				<p>You are welcome to open and play in other users' claimed cities. You can even edit them and save them locally, but keep in mind that any changes will not be saved to the server. The saves will also be lost the next time you connect to a server unless you manually move them from the launch directory.</p>
+				<p><b>NOTE:</b> since SC4MP in its current state uses the datetime subfile of savegames as a secondary data point in triangulating save pushes in unusual region configurations, sometimes playing on neighboring tiles can lead to problems. If you encounter issues saving after playing on a neighboring tile, delete all the neighboring tiles of the tile you've claimed to ensure only one savegame is sent to the server.</p>-->
+			<h3>Refreshing regions</h3>
+				<p>To refresh regions, simply load the region titled "Refresh..."</p>
+				<img src="resources/readme-regions.png">
+				<p>The launcher will then initiate the refresh sequence automatically. Wait for this to complete before loading another region.</p>
+				<p>Refreshing regions will also ovverwrite your own cities, so ensure that your work has been saved to the server before refreshing.</p>
+				<!--<img src="resources/readme-refresh.png">-->
+			<h3>Disconnecting</h3>
+				<p>To disconnect from a server, simply exit the game. The server monitor will remain open for a few more seconds, but then the main window will subsequently re-open. You are able to then connect to another server seamlessly, without restarting the launcher.</p>
+		<h2>Configuring the launcher</h2>
+			<p>The launcher settings can be found in the menu bar under "Launcher" then "Settings." Each settings window contains a "reset" button that will reset the settings on screen to their default values.</p>
+			<h3>General settings</h3>
+				<p>The options in this window pertain to gameplay.</p>
+				<img src="resources/readme-general-settings.png">
+				<p><b>Custom plugins:</b> Some servers allow players to load their own plugins alongside the server's plugins. Specify the path to your own plugins directory and check "Enable" to use custom plugins, and your plugins will be loaded with the server's plugins the next time you connect to a server. The directory you choose will not be altered in any way.</p>
+			<h3>Storage settings</h3>
+				<p>The settings in this window pertain to the files stored by the launcher on your disk.</p>
+				<img src="resources/readme-storage-settings.png">
+				<p><b>Launch path:</b> when the launcher downloads plugins and regions from a server, it writes to a special sandboxed folder. This prevents the launcher from interfering with your singleplayer plugins and regions. By default the launcher will write to a directory named "_SC4MP" in the "Simcity 4" directory in your documents.</p>
+				<p>If you want the launcher to write its files to another directory, specify it in this field. <b>Do NOT set this path to your base Simcity 4 directory ("Documents\Simcity 4\")!</b> Doing so will overwrite your singleplayer plugins and regions. Your server profiles are also stored in this directory, so you will also have to migrate those files manually if you change this directory. Unless you have a specific reason to do so, its best to not change this field.</p>
+				<p><b>Cache size: </b>the launcher keeps a rolling cache of downloaded files in order to optimize loading times. A larger cache will allow for faster loading times on servers you've connected to previously, but will use more disk space. A smaller cache will use less disk space but can lead to longer loading times. Specify your desired cache size in megabytes in the field provided.</p>
+				<p>You can also clear your cache here by clicking the "clear cache" button.</p>
+			<h3>SC4 settings</h3>
+				<p>This window allows you to modify the launch parameters that the launcher uses when launching Simcity 4. You can test the settings by clicking the "preview" button and the game will launch without any plugins or regions.</p>
+				<img src="resources/readme-sc4-settings.png">
+				<p><b>Custom installation path: </b>when attempting to launch Simcity 4, the launcher will look for the executable in the most common installation paths. If the launcher cannot find the game's install directory, you can provide a custom path to it.</p>
+				<p>You only need to set this value if the launcher asks for it.</p>
+				<p><b>Resolution: </b>you can specify a custom game resolution using the field provided here, either by selecting one of the common resolutions provided or entering one manually.</p>
+				<p>You can also choose here whether to run the game in fullscreen or windowed mode. But keep in mind the server monitor may not be visible in fullscreen mode. A game overlay is planned for future versions of the launcher.</p>
+				<p><b>CPU count: </b>since Simcity 4 was designed for older hardware than that available today, running the game with more than one CPU core can lead to crashes. Therefore, the SC4MP Launcher launches the game with one CPU core by default. A different CPU count however can be specified here.</p>
+				<p><b>CPU priority: </b>this setting specifies the CPU priority level of the application when minimized.</p>
+				<p><b>Additional launch properties: </b>this field allows you to manually specify more launch parameters if you wish to do so. A list of all launch parameters can be found <a href="https://community.simtropolis.com/omnibus/simcity-4/reference/sc4-command-line-options-r362/">here</a>.</p>
+		<h2>Recovering from server interruptions</h2>
+			<p>The SC4MP Launcher is designed to recover from most temporary server outages, but in the event of a more severe outage, savegames can be recovered manually. Failed save pushes are saved to the "_Salvage" subdirectory of the launch directory. The launcher will automatically copy the savegames from the last failed save push into the region named "downloads" for importation in-game.</p>
+			<img src="resources/readme-import-city.png">
+		<h2>Advanced launch parameters</h2>
+			<p>Some launch parameters are provided for advanced users. Their definitions can be found below:</p>
+			<p><b>"-no-ui" flag:</b> this disables the ui and prompts the user to enter in the host, port and password (if required) of a server through the commandline, if not also specified through launch parameters.</p>
+			<p><b>"--host [hostname]" option:</b> used to specify the hostname of a server to connect to immediately when starting the launcher.</p>
+			<p><b>"--port [port]" option:</b> used to specify the port of a server to connect to.</p>
+			<p><b>"--password [password]" option:</b> used to specify the password for a server (if required).</p>
+		<h2>Issues</h2>
+			<p>If you encounter a bug or error when using the SC4MP Launcher, create a ticket on <a href="https://github.com/kegsmr/sc4mp-client/releases">GitHub</a>.</p>
+		<h2>Updates and more</h2>
+			<p>The latest releases of the SC4MP Launcher can be found on <a href="https://github.com/kegsmr/sc4mp-client/releases">GitHub</a>.</p>
+			<p></p>
+			<p>Visit the official SC4MP website at <a href="http://www.sc4mp.org/">sc4mp.org</a>.</p>
+		<h2>Credits</h2>
+			<p>This readme was prepared for the SC4MP Launcher version 0.8.0.</p>
+			<p>View the full list of collaborators on <a href="https://github.com/kegsmr/sc4mp-client/collaborators">GitHub</a>.</p>
+			<p>Special thanks to <a href="http://j5.io/">Julian Cizmic</a>, the original creator of PMR, the primary inspiration for SC4MP.</p>
     </body>
 </html>
