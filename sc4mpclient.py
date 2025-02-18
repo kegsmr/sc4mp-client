@@ -4449,7 +4449,7 @@ class UI(tk.Tk):
 		print('"Host..."')
 
 		if is_windows():
-			HostUI(self)
+			HostUI()
 		else:
 			if messagebox.askyesno(SC4MP_TITLE, "Hosting a server requires the SC4MP Server application.\n\nWould you like to view the Github repository?"):
 				webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/")
