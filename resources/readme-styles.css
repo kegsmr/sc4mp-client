@@ -1,18 +1,4 @@
-body {
-	font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-	font-size: 14px;
-	padding: 50px;
-	padding-top: 125px;
-}
-.logo {
-	color: white;
-	font-family: Tahoma; 
-	font-weight: 700;
-}
-.subtitle {
-	color: white;
-}
-.header {
+nav {
 	background-color: rgb(68, 102, 125);
 	position: fixed;
 	top: 0;
@@ -22,6 +8,24 @@ body {
 	padding: 10px 50px; /* Adjust padding as needed */
 	box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* Optional shadow for better visibility */
 }
-img {
+
+nav h1 {
+	color: white;
+	font-family: Tahoma; 
+	font-weight: 700;
+}
+
+nav p {
+	color: white;
+}
+
+body {
+	font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+	font-size: 14px;
+	padding: 50px;
+	padding-top: 125px;
+}
+
+body img {
 	max-width: 100%;
 }
