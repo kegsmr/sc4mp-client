@@ -45,7 +45,7 @@ from core.util import *
 
 # Header
 
-SC4MP_VERSION = "0.7.5"
+SC4MP_VERSION = "0.8.0"
 
 SC4MP_SERVERS = get_server_list()
 
@@ -134,6 +134,7 @@ SC4MP_CONFIG_DEFAULTS = [
 	("DEBUG", [
 
 		("random_server_stats", False),
+		("ignore_incompatable_versions", False),
 		
 	])
 ]
@@ -2682,10 +2683,11 @@ class ServerLoader(th.Thread):
 			self.server.fetch()
 			if self.server.fetched == False:
 				raise ClientException("Unable to find server. Check the IP address and port, then try again.")
-		if unformat_version(self.server.server_version)[:2] < unformat_version(SC4MP_VERSION)[:2]:
-			raise ClientException(f"The server requires an outdated version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please contact the server administrators.")
-		if unformat_version(self.server.server_version)[:2] > unformat_version(SC4MP_VERSION)[:2]:
-			raise ClientException(f"The server requires a newer version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please update the launcher to connect to this server.")
+		if not sc4mp_config["DEBUG"]["ignore_incompatable_versions"]:
+			if unformat_version(self.server.server_version)[:2] < unformat_version(SC4MP_VERSION)[:2]:
+				raise ClientException(f"The server requires an outdated version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please contact the server administrators.")
+			if unformat_version(self.server.server_version)[:2] > unformat_version(SC4MP_VERSION)[:2]:
+				raise ClientException(f"The server requires a newer version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please update the launcher to connect to this server.")
 		if self.ui != None:
 			self.ui.title(self.server.server_name)
 
@@ -4467,10 +4469,10 @@ class UI(tk.Tk):
 		print('"Host..."')
 
 		if is_windows():
-			HostUI()
+			HostUI(self)
 		else:
-			if messagebox.askyesno(SC4MP_TITLE, "Hosting a server requires installing the SC4MP Server.\n\nWould you like to view the download page?"):
-				webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/releases/latest")
+			if messagebox.askyesno(SC4MP_TITLE, "Hosting a server requires the SC4MP Server application.\n\nWould you like to view the Github repository?"):
+				webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/")
 
 
 	def direct_connect(self):
