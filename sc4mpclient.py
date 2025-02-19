@@ -919,10 +919,13 @@ def startfile(filename):
 
 
 def open_logs():
-	#if platform.system() == "Windows" and int(platform.win32_ver()[1].split(".")[0]) >= 10:
-	#	subprocess.Popen("start \"\" logs.bat", cwd=os.getcwd(), start_new_session=True)
-	#else:
-	startfile(SC4MP_LOG_PATH)
+	if has_powershell():
+		subprocess.Popen([
+			"cmd.exe", "/c", "start", "cmd.exe", "/k",
+			f"@echo off && powershell -NoProfile -ExecutionPolicy Bypass -Command $Host.UI.RawUI.WindowTitle = \"{SC4MP_TITLE}\"; gc sc4mpclient.log -Wait -Tail 1000"
+		])
+	else:
+		startfile(SC4MP_LOG_PATH)
 
 
 def fatal_error():

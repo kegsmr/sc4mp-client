@@ -485,3 +485,14 @@ def get_public_ip_address(timeout=10):
 		
 		print(f"Error fetching IP address: {e}")
 		return None
+	
+
+def has_powershell():
+	"""Checks if PowerShell is available."""
+
+	import platform
+
+	if is_windows() and int(platform.version().split('.')[0]) >= 10:
+		return True
+	else:
+		return False
