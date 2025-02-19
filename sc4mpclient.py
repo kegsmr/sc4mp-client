@@ -6449,6 +6449,8 @@ class ServerDetailsUI(tk.Toplevel):
 
 		try:
 
+			self.time = self.server.time()
+
 			self.create_mayors_frame()
 			self.create_cities_frame()
 			# self.create_files_frame()
@@ -6596,7 +6598,7 @@ class ServerDetailsUI(tk.Toplevel):
 			lambda data: f"{data:,}", 
 			lambda data: f"{data:,}",
 			lambda data: f"{data:,}",
-			lambda data: format_time_ago(datetime.strptime(data, "%Y-%m-%d %H:%M:%S"), now=self.server.time()),
+			lambda data: format_time_ago(datetime.strptime(data, "%Y-%m-%d %H:%M:%S"), now=self.time),
 		]
 
 		self.mayors_frame = StatisticsTreeUI(self.notebook, data=mayors, columns=columns, formats=formats)
@@ -6750,7 +6752,7 @@ class ServerDetailsUI(tk.Toplevel):
 			lambda data: f"{data:,}",
 			lambda data: f"{data:,}",
 			lambda data: f"{data:,}",
-			lambda data: format_time_ago(data, now=self.server.time()),
+			lambda data: format_time_ago(data, now=self.time),
 		]
 
 		self.cities_frame = StatisticsTreeUI(self.notebook, columns=columns, formats=formats, data=cities)
