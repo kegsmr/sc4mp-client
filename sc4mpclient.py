@@ -3603,6 +3603,8 @@ class GameMonitor(th.Thread):
 					else:
 						sc4mp_ui.deiconify()
 						sc4mp_ui.lift()
+						sc4mp_ui.focus_set()
+						sc4mp_ui.grab_set()
 
 		except Exception as e:
 			
