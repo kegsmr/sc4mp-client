@@ -5359,6 +5359,8 @@ class PasswordDialogUI(tk.Toplevel):
 				return
 			else:
 				self.withdraw()
+				if self.server_loader.ui.background:
+					self.server_loader.ui.background.lift()
 				if not messagebox.askokcancel(self.server_loader.server.server_name, "You are about to join the server as a guest.\n\nAny cities you build will NOT be saved.", icon="info"):
 					self.deiconify()
 					return
@@ -5369,6 +5371,8 @@ class PasswordDialogUI(tk.Toplevel):
 		self.destroy()
 
 		self.server_loader.ui.deiconify()
+		if self.server_loader.ui.background:
+			self.server_loader.ui.background.lift()
 		self.server_loader.ui.lift()
 		self.server_loader.ui.grab_set()		
 
