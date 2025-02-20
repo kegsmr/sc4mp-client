@@ -8485,7 +8485,7 @@ class ServerUpdaterUI(UpdaterUI):
 
 		self.pause = True
 
-		if not self.get_server_path("sc4mpserver.exe"):
+		if not self.worker.get_server_path("sc4mpserver.exe"):
 			self.destroy()
 			return
 
@@ -8499,6 +8499,7 @@ class ServerUpdaterUI(UpdaterUI):
 			self.destroy()
 		elif choice is False:
 			self.pause = False
+
 
 class ReleaseNotesUI(tk.Toplevel):
 	
