@@ -520,7 +520,7 @@ def check_updates():
 						sc4mp_ui.withdraw()
 
 						# Create updater UI
-						updater_ui = UpdaterUI(sc4mp_ui)
+						updater_ui = LauncherUpdaterUI(sc4mp_ui)
 
 						# Start update thread
 						th.Thread(target=update, kwargs={"ui": updater_ui}, daemon=True).start()
@@ -4449,8 +4449,10 @@ class UI(tk.Tk):
 		print('"Host..."')
 
 		if is_windows():
-			ServerConfigUI() #TODO remove
-			HostUI()
+			# ServerConfigUI() #TODO remove
+			if True:
+				ServerUpdaterUI(sc4mp_ui)
+			# HostUI()
 		else:
 			if messagebox.askyesno(SC4MP_TITLE, "Hosting a server requires the SC4MP Server application.\n\nWould you like to view the Github repository?"):
 				webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/")
@@ -8221,6 +8223,14 @@ class UpdaterUI(tk.Toplevel):
 		self.pause = False
 
 
+class LauncherUpdaterUI(UpdaterUI):
+
+	
+	def __init__(self, parent):
+
+		super().__init__(parent)
+
+
 	def delete_window(self):
 
 		self.pause = True
@@ -8242,6 +8252,50 @@ class UpdaterUI(tk.Toplevel):
 
 		self.parent.destroy()
 
+
+class ServerUpdaterUI(UpdaterUI):
+
+
+	class Worker(th.Thread):
+
+
+		def __init__(self, parent):
+
+			super().__init__()
+
+			self.ui = parent
+
+
+		def run(self):
+
+			set_thread_name("UpdtThread")
+		
+			while not self.ui.pause:
+				print("Working...")
+				time.sleep(.1)
+
+
+	def __init__(self, parent):
+
+		super().__init__(parent)
+
+		self.worker = self.Worker(self)
+		self.worker.start()
+
+
+	def delete_window(self):
+
+		self.pause = True
+
+		choice = messagebox.askyesnocancel(title=SC4MP_TITLE, icon="warning", message="Are you sure you want to continue without updating?")
+
+		if choice is None:
+			self.destroy()
+		elif choice is True:
+			HostUI()
+			self.destroy()
+		elif choice is False:
+			self.pause = False
 
 class ReleaseNotesUI(tk.Toplevel):
 	
