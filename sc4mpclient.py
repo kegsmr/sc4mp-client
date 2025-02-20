@@ -8480,11 +8480,11 @@ class ServerUpdaterUI(UpdaterUI):
 
 		global sc4mp_server_update_check
 
+		self.pause = True
+
 		if not self.get_server_path("sc4mpserver.exe"):
 			self.destroy()
 			return
-
-		self.pause = True
 
 		choice = messagebox.askyesnocancel(title=SC4MP_TITLE, icon="warning", message="Are you sure you want to continue without updating?")
 
