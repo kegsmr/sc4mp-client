@@ -134,7 +134,7 @@ SC4MP_CONFIG_DEFAULTS = [
 	("HOSTING", [
 
 		("server_version", ""),
-		("server_path", Path("~/Documents/SimCity 4/SC4MP Server").expanduser()),
+		("server_path", ""),
 
 	]),
 	("DEBUG", [
@@ -8304,6 +8304,18 @@ class ServerUpdaterUI(UpdaterUI):
 
 				self.report("Checking for updates...")
 
+				if not sc4mp_config['HOSTING']['server_path']:
+					if Path("~/Documents/SimCity 4/SC4MP Launcher/sc4mpclient.exe").expanduser().exists():
+						server_path = Path("~/Documents/SimCity 4/SC4MP Server").expanduser()
+					else:
+						if not messagebox.askokcancel(title=SC4MP_TITLE, message="Please choose a directory for SC4MP Server."):
+							return
+						server_path = filedialog.askdirectory(parent=self.ui)
+						if not server_path:
+							return
+					sc4mp_config['HOSTING']['server_path'] = server_path
+					sc4mp_config.update()
+
 				self.pause()
 
 				latest_release_info = get_release_info(repo="kegsmr/sc4mp-server")
@@ -8355,16 +8367,23 @@ class ServerUpdaterUI(UpdaterUI):
 								bytes_read = rfile.read(SC4MP_BUFFER_SIZE) 
 								download_size_downloaded += len(bytes_read)
 								wfile.write(bytes_read)
+					self.report("Downloading update... (100%)")
+					self.progress(download_size, download_size)
 
 					self.pause()
 
 					self.pulse()
 
 					self.report("Installing update...")
-							
-					#subprocess.run([os.path.abspath(destination), "/verysilent"]) #, f"/dir={os.getcwd()}"])
 
-					# sc4mp_config["HOSTING"]["server_version"] = latest_release_version #TODO uncomment
+					self.stop_servers()
+					result = subprocess.run([os.path.abspath(destination), "/verysilent", f"/dir={sc4mp_config['HOSTING']['server_path']}"])
+					self.start_servers()
+
+					if result.returncode not in [0, 5]:
+						raise ClientException(f"Setup returned code {result.returncode}.")
+
+					sc4mp_config["HOSTING"]["server_version"] = latest_release_version
 
 				self.pause()
 
@@ -8408,10 +8427,38 @@ class ServerUpdaterUI(UpdaterUI):
 
 		def pause(self):
 
-			while self.ui.pause:
+			while self.ui.pause and self.ui.winfo_exists():
 				time.sleep(SC4MP_DELAY)
-			if not self.ui.winfo_exists():
+			if self.ui.pause:
 				raise ClientException("Operation cancelled by user.")
+
+
+		def stop_servers(self):
+
+			bat_path = self.get_server_path("stop_all.bat")
+
+			if bat_path:
+				subprocess.run(bat_path, shell=True)
+
+
+		def start_servers(self):
+
+			bat_path = self.get_server_path("stop_all.bat")
+
+			if bat_path:
+				subprocess.run(bat_path, shell=True)
+
+
+		def get_server_path(self, path):
+			
+			server_path = sc4mp_config["HOSTING"]["server_path"]
+
+			if server_path and path:
+				path = Path(server_path) / path
+				if path.exists():
+					return path
+
+			return None
 
 
 	def __init__(self, parent):
