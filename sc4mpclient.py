@@ -131,6 +131,12 @@ SC4MP_CONFIG_DEFAULTS = [
 		("additional_properties", "")
 
 	]),
+	("HOSTING", [
+
+		("server_version", ""),
+		("server_path", Path("~/Documents/SimCity 4/SC4MP Server").expanduser()),
+
+	]),
 	("DEBUG", [
 
 		("random_server_stats", False),
@@ -162,6 +168,8 @@ sc4mp_current_server = None
 
 sc4mp_game_monitor_x = 10
 sc4mp_game_monitor_y = 40
+
+sc4mp_server_update_check = True
 
 
 # Functions
@@ -543,12 +551,12 @@ def check_updates():
 			show_error(f"An error occurred while updating.\n\n{e}", no_ui=True)
 
 
-def get_release_info(version="latest", timeout=10):
+def get_release_info(repo=SC4MP_GITHUB_REPO, version="latest", timeout=10):
 
 	if version == "latest":
-		github_api_call = f"https://api.github.com/repos/{SC4MP_GITHUB_REPO}/releases/latest"
+		github_api_call = f"https://api.github.com/repos/{repo}/releases/latest"
 	else:
-		github_api_call = f"https://api.github.com/repos/{SC4MP_GITHUB_REPO}/releases/tags/v{version}"
+		github_api_call = f"https://api.github.com/repos/{repo}/releases/tags/v{version}"
 
 	try:
 		with urllib.request.urlopen(url=github_api_call, timeout=timeout) as url:
@@ -4454,10 +4462,10 @@ class UI(tk.Tk):
 		print('"Host..."')
 
 		if is_windows():
-			# ServerConfigUI() #TODO remove
-			if True:
+			if sc4mp_server_update_check and sc4mp_config["GENERAL"]["auto_update"]:
 				ServerUpdaterUI(sc4mp_ui)
-			# HostUI()
+			else:
+				HostUI()
 		else:
 			if messagebox.askyesno(SC4MP_TITLE, "Hosting a server requires the SC4MP Server application.\n\nWould you like to view the Github repository?"):
 				webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/")
@@ -8187,7 +8195,7 @@ class UpdaterUI(tk.Toplevel):
 		self.parent = parent
 
 		# Title
-		self.title(SC4MP_TITLE)
+		self.title("SC4MP Updater") #SC4MP_TITLE
 
 		# Icon
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
@@ -8265,34 +8273,151 @@ class LauncherUpdaterUI(UpdaterUI):
 class ServerUpdaterUI(UpdaterUI):
 
 
-	class Worker(th.Thread):
+	class ServerUpdaterThread(th.Thread):
 
 
 		def __init__(self, parent):
 
 			super().__init__()
 
-			self.ui = parent
+			self.last_report = ""
+
+			self.ui: ServerUpdaterUI = parent
 
 
 		def run(self):
 
+			global sc4mp_server_update_check
+
 			set_thread_name("UpdtThread")
-		
-			while not self.ui.pause:
-				print("Working...")
-				time.sleep(.1)
+
+			try:
+
+				self.pulse()
+
+				self.report("Checking for updates...")
+
+				self.pause()
+
+				latest_release_info = get_release_info(repo="kegsmr/sc4mp-server")
+				latest_release_version = latest_release_info["tag_name"]
+
+				self.pause()
+
+				if latest_release_version != sc4mp_config["HOSTING"]["server_version"]:
+					
+					self.report("Preparing update...")
+					time.sleep(3)
+
+					self.pause()
+
+					self.report("Downloading update...")
+
+					# Get download URL
+					download_url = None
+					for asset in latest_release_info["assets"]:
+						if asset["name"].startswith("sc4mp-server-installer-windows"):
+							download_url = asset["browser_download_url"]
+							destination = os.path.join("update", asset["name"])
+							break
+
+					# Raise an exception if the download URL was not found
+					if download_url is None:
+						raise ClientException("The correct release asset was not found.")
+
+					self.pause()
+
+					# Prepare destination
+					os.makedirs("update", exist_ok=True)
+					if os.path.exists(destination):
+						os.unlink(destination)
+
+					self.pause()
+
+					# Download file
+					download_size = int(urllib.request.urlopen(download_url).headers["Content-Length"])
+					self.report("Downloading update... (0%)")
+					self.progress(0, download_size)
+					with urllib.request.urlopen(download_url) as rfile:
+						with open(destination, "wb") as wfile:
+							download_size_downloaded = 0
+							while download_size_downloaded < download_size:
+								self.pause()
+								self.report(f"Downloading update... ({int(100 * (download_size_downloaded / download_size))}%)")
+								self.progress(download_size_downloaded)
+								bytes_read = rfile.read(SC4MP_BUFFER_SIZE) 
+								download_size_downloaded += len(bytes_read)
+								wfile.write(bytes_read)
+
+					self.pause()
+
+					self.pulse()
+
+					self.report("Installing update...")
+							
+					#subprocess.run([os.path.abspath(destination), "/verysilent"]) #, f"/dir={os.getcwd()}"])
+
+					# sc4mp_config["HOSTING"]["server_version"] = latest_release_version #TODO uncomment
+
+				self.pause()
+
+				sc4mp_server_update_check = False
+
+				HostUI()
+
+			except Exception as e:
+
+				if self.ui.winfo_exists():
+					show_error(f"An error occurred while checking for updates.\n\n{e}")
+
+			finally:
+
+				self.ui.destroy()
+
+
+		def report(self, message):
+			
+			self.ui.label["text"] = message
+
+			if message != self.last_report:
+				print(message)
+				self.last_report = message
+
+		def pulse(self):
+
+			self.ui.progress_bar['mode'] = "indeterminate"
+			self.ui.progress_bar['maximum'] = 100
+			self.ui.progress_bar.start(2)
+
+
+		def progress(self, value, maximum=None):
+
+			self.ui.progress_bar['mode'] = "determinate"
+			self.ui.progress_bar['value'] = value
+			
+			if maximum:
+				self.ui.progress_bar['maximum'] = maximum
+
+
+		def pause(self):
+
+			while self.ui.pause:
+				time.sleep(SC4MP_DELAY)
+			if not self.ui.winfo_exists():
+				raise ClientException("Operation cancelled by user.")
 
 
 	def __init__(self, parent):
 
 		super().__init__(parent)
 
-		self.worker = self.Worker(self)
+		self.worker = self.ServerUpdaterThread(self)
 		self.worker.start()
 
 
 	def delete_window(self):
+
+		global sc4mp_server_update_check
 
 		self.pause = True
 
@@ -8302,6 +8427,7 @@ class ServerUpdaterUI(UpdaterUI):
 			self.destroy()
 		elif choice is True:
 			HostUI()
+			sc4mp_server_update_check = False
 			self.destroy()
 		elif choice is False:
 			self.pause = False
