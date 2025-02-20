@@ -8482,6 +8482,7 @@ class ServerUpdaterUI(UpdaterUI):
 
 		if not self.get_server_path("sc4mpserver.exe"):
 			self.destroy()
+			return
 
 		self.pause = True
 
