@@ -8322,8 +8322,11 @@ class ServerUpdaterUI(UpdaterUI):
 					latest_release_info = get_release_info(repo="kegsmr/sc4mp-server")
 					latest_release_version = latest_release_info["tag_name"][1:]
 				except Exception as e:
-					show_error(e, no_ui=True)
-					latest_release_version = ""
+					if self.get_server_path("sc4mpserver.exe"):
+						show_error(e, no_ui=True)
+						latest_release_version = ""
+					else:
+						raise e
 
 				self.pause()
 
