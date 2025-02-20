@@ -8318,12 +8318,16 @@ class ServerUpdaterUI(UpdaterUI):
 
 				self.pause()
 
-				latest_release_info = get_release_info(repo="kegsmr/sc4mp-server")
-				latest_release_version = latest_release_info["tag_name"]
+				try:
+					latest_release_info = get_release_info(repo="kegsmr/sc4mp-server")
+					latest_release_version = latest_release_info["tag_name"][1:]
+				except Exception as e:
+					show_error(e, no_ui=True)
+					latest_release_version = ""
 
 				self.pause()
 
-				if latest_release_version != sc4mp_config["HOSTING"]["server_version"]:
+				if latest_release_version and latest_release_version != sc4mp_config["HOSTING"]["server_version"]:
 					
 					self.report("Preparing update...")
 					time.sleep(3)
