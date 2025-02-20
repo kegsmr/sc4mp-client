@@ -4462,7 +4462,7 @@ class UI(tk.Tk):
 		print('"Host..."')
 
 		if is_windows():
-			if sc4mp_server_update_check and sc4mp_config["GENERAL"]["auto_update"]:
+			if sc4mp_server_update_check and sc4mp_config["GENERAL"]["auto_update"] or not (Path(sc4mp_config["HOSTING"]['server_path']) / "sc4mpserver.exe").exists():
 				ServerUpdaterUI(sc4mp_ui)
 			else:
 				HostUI()
