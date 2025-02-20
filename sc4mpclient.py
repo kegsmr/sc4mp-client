@@ -8201,10 +8201,13 @@ class UpdaterUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.minsize(400, 95)
-		self.maxsize(400, 95)
+		self.minsize(420, 133)
+		self.maxsize(420, 133)
 		self.grid()
 		center_window(self)
+
+		# Background
+		self.configure(background="white")
 
 		# Priority
 		self.lift()
@@ -8217,7 +8220,7 @@ class UpdaterUI(tk.Toplevel):
 		self.bind("<Escape>", lambda event:self.delete_window())
 
 		# Label
-		self.label = ttk.Label(self)
+		self.label = ttk.Label(self, background="white")
 		self.label['text'] = "Loading..."
 		self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=(10,5))
 
@@ -8229,12 +8232,16 @@ class UpdaterUI(tk.Toplevel):
 			length=380,
 			maximum=100
 		)
-		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10,5))
+		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=20, pady=(10,5))
 		self.progress_bar.start(2)
 
-		# Small label
-		self.label_small = tk.Label(self, fg="gray", font=("Segoe UI", 8), text="Press <ESC> to cancel")
-		self.label_small.grid(column=0, row=2, columnspan=2, padx=10, pady=(0,5))
+		# Lower frame
+		self.lower_frame = tk.Frame(self)
+		self.lower_frame.grid(column=0, row=2, columnspan=2, padx=0, pady=20, sticky="ew")
+
+		# Cancel button
+		self.cancel_button = ttk.Button(self.lower_frame, text="Cancel", command=self.delete_window)
+		self.cancel_button.grid(column=0, row=0, padx=(324,0), pady=(10, 50), sticky="e")
 
 		# Pause underlying thread
 		self.pause = False
