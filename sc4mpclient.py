@@ -8394,9 +8394,11 @@ class ServerUpdaterUI(UpdaterUI):
 
 				self.pause()
 
-				sc4mp_server_update_check = False
+				if self.get_server_path("sc4mpserver.exe"):
 
-				HostUI()
+					sc4mp_server_update_check = False
+
+					HostUI()
 
 			except Exception as e:
 
@@ -8415,6 +8417,7 @@ class ServerUpdaterUI(UpdaterUI):
 			if message != self.last_report:
 				print(message)
 				self.last_report = message
+
 
 		def pulse(self):
 
