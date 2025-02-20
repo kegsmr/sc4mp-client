@@ -8391,6 +8391,7 @@ class ServerUpdaterUI(UpdaterUI):
 						raise ClientException(f"Setup returned code {result.returncode}.")
 
 					sc4mp_config["HOSTING"]["server_version"] = latest_release_version
+					sc4mp_config.update()
 
 				self.pause()
 
