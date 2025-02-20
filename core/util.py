@@ -496,3 +496,11 @@ def has_powershell():
 		return True
 	else:
 		return False
+	
+
+def generate_server_id():
+
+	import random
+	import string
+
+	return ''.join(random.SystemRandom().choice(string.ascii_letters + string.digits) for i in range(32))
