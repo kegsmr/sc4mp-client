@@ -135,6 +135,7 @@ SC4MP_CONFIG_DEFAULTS = [
 
 		("server_version", ""),
 		("server_path", ""),
+		("configs_path", ""),
 
 	]),
 	("DEBUG", [
@@ -5246,7 +5247,7 @@ class HostUI(tk.Toplevel):
 			def handle_select(event):
 				self.server_id = self.tree.selection_get()[0]
 
-			self.tree = ttk.Treeview(self)
+			self.tree = ttk.Treeview(self, show="tree")
 			self.tree.column("#0")
 			self.tree.heading("#0", text="Servers")
 			self.tree.bind("<Button-1>", handle_click)
@@ -5256,6 +5257,23 @@ class HostUI(tk.Toplevel):
 			# Allow resizing within the frame
 			self.columnconfigure(0, weight=1)
 			self.rowconfigure(0, weight=1)
+
+			configs_path = sc4mp_config['HOSTING']['configs_path']
+			if not configs_path:
+				server_path = sc4mp_config["HOSTING"]["server_path"]
+				if server_path:
+					configs_path = Path(server_path) / "servers"
+					sc4mp_config['HOSTING']['configs_path'] = configs_path
+					sc4mp_config.update()
+				else:
+					raise ClientException("SC4MP Server is not installed.")
+
+			self.servers = os.listdir(configs_path)
+			for server_id in self.servers:
+				self.tree.insert("", "end", server_id, text=server_id)
+
+			if len(self.tree.get_children()) > 0:
+				self.tree.selection_set([self.tree.get_children()[0]])
 
 
 	class ServerConfigFrame(tk.Frame):
