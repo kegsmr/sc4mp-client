@@ -5267,10 +5267,11 @@ class HostUI(tk.Toplevel):
 					sc4mp_config.update()
 				else:
 					raise ClientException("SC4MP Server is not installed.")
+			os.makedirs(configs_path, exist_ok=True)
 
-			self.servers = os.listdir(configs_path)
-			for server_id in self.servers:
-				self.tree.insert("", "end", server_id, text=server_id)
+			servers = os.listdir(configs_path)
+			for server in servers:
+				self.tree.insert("", "end", server, text=server)
 
 			if len(self.tree.get_children()) > 0:
 				self.tree.selection_set([self.tree.get_children()[0]])
@@ -5278,13 +5279,17 @@ class HostUI(tk.Toplevel):
 
 	class ServerConfigFrame(tk.Frame):
     
-		def __init__(self, parent, config_file="serverconfig.ini"):
+		def __init__(self, parent, path):
+
 			super().__init__(parent)
+
+			self.path = path
+
 			self.grid(sticky="nsew")  # Stretch both directions
 			
 			# Load configuration from file
 			self.config = configparser.ConfigParser()
-			self.config.read(config_file)
+			self.config.read(path / "serverconfig.ini")
 			
 			# Tabbed interface
 			self.tabs = ttk.Notebook(self)
@@ -5356,7 +5361,7 @@ class HostUI(tk.Toplevel):
 			self.security_frame.password_checkbutton.state(['selected'] if password_enabled else ['!selected'])
 			self.security_frame.password_checkbutton.grid(row=0, column=0, padx=10, pady=5, sticky="e")
 
-			self.security_frame.password_entry = ttk.Entry(self.security_frame, width=35)
+			self.security_frame.password_entry = ttk.Entry(self.security_frame, width=35) #, show="*")
 			self.security_frame.password_entry.insert(0, self.config.get('SECURITY', 'password', fallback=""))
 			self.security_frame.password_entry.grid(row=0, column=1, padx=10, pady=5, sticky="w")
 
@@ -5425,6 +5430,25 @@ class HostUI(tk.Toplevel):
 			self.columnconfigure(0, weight=1)
 			self.rowconfigure(0, weight=1)
 
+			self.loop()
+
+
+		def loop(self):
+		
+			CHECKBUTTON_ENTRY_MAP: list[tuple[ttk.Checkbutton, ttk.Entry]] = [
+				(self.security_frame.password_checkbutton, self.security_frame.password_entry),
+				(self.rules_frame.claim_duration_checkbutton, self.rules_frame.claim_duration_entry),
+				(self.rules_frame.max_region_claims_checkbutton, self.rules_frame.max_region_claims_entry),
+			]
+
+			for checkbutton, entry in CHECKBUTTON_ENTRY_MAP:
+				if checkbutton.instate(['selected']):
+					entry.state(['!disabled'])
+				else:
+					entry.state(['disabled'])
+
+			self.after(100, self.loop)
+
 
 	def __init__(self):
 		super().__init__()
@@ -5453,18 +5477,59 @@ class HostUI(tk.Toplevel):
 		self.columnconfigure(1, weight=3)
 		self.rowconfigure(0, weight=1)
 
-		left_frame = self.ServerSelectionFrame(self)
-		left_frame.grid(row=0, column=0, sticky="nsw")
+		self.server_selection_frame = self.ServerSelectionFrame(self)
+		self.server_selection_frame.grid(row=0, column=0, sticky="nsw")
 
-		right_frame = self.ServerConfigFrame(self)
-		right_frame.grid(row=0, column=1, sticky="nsew")
+		self.server_config_frame = None
+		self.current_server = None
 
-		# Bottom frame
-		bottom_frame = tk.Frame(self)
-		bottom_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
+		actions_frame = tk.Frame(self)
+		actions_frame.grid(row=1, column=0)
+		
+		create_button = ttk.Button(actions_frame, text="Create", command=self.create)
+		create_button.grid(row=0, column=0, padx=10, pady=(0,10), sticky="w")
 
-		ok_button = ttk.Button(bottom_frame, text="Ok", command=self.destroy)
-		ok_button.pack(side="right", padx=10, pady=5)
+		delete_button = ttk.Button(actions_frame, text="Delete", command=self.delete)
+		delete_button.grid(row=0, column=1, padx=10, pady=(0,10), sticky="w")
+
+		ok_button = ttk.Button(self, text="Ok", command=self.destroy)
+		ok_button.grid(row=1, column=1, padx=10, pady=(0,10), sticky="e")
+
+		self.loop()
+
+
+	def create(self):
+		
+		self.server_selection_frame.tree.insert("", "end", generate_server_id(), text="New server")
+	
+	
+	def delete(self):
+		return
+
+
+	def loop(self):
+
+		selection = self.server_selection_frame.tree.selection()
+		
+		if len(selection) > 0:
+			
+			selection = selection[0]
+
+			if selection != self.current_server:
+
+				if self.server_config_frame:
+					tab_index = self.server_config_frame.tabs.index(self.server_config_frame.tabs.select())
+					self.server_config_frame.destroy()
+				else:
+					tab_index = 0
+
+				self.server_config_frame = self.ServerConfigFrame(self, path=(Path(sc4mp_config['HOSTING']['configs_path']) / selection))
+				self.server_config_frame.grid(row=0, column=1, sticky="nsew")
+				self.server_config_frame.tabs.select(tab_index)
+
+				self.current_server = selection
+
+		self.after(100, self.loop)
 
 
 class ServerConfigUI(tk.Toplevel):
