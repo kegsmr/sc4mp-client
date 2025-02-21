@@ -5232,9 +5232,12 @@ class OldHostUI(tk.Toplevel):
 class HostUI(tk.Toplevel):
 
 	class ServerSelectionFrame(tk.Frame):
+
 		def __init__(self, parent):
+
 			super().__init__(parent)
-			self.grid(sticky="ns")  # Stretch vertically 
+
+			self.grid(sticky="nswe")  # Allow stretching
 
 			def handle_click(event):
 				region = event.widget.identify_region(event.x, event.y)
@@ -5245,19 +5248,32 @@ class HostUI(tk.Toplevel):
 					self.tree.last_click_coords = (event.x, event.y)
 
 			def handle_select(event):
-				self.server_id = self.tree.selection_get()[0]
+				self.server_id = self.tree.selection()[0]  # Fixed selection method
 
-			self.tree = ttk.Treeview(self, show="tree")
-			self.tree.column("#0")
+			# Create a frame for the Treeview and scrollbar
+			tree_frame = tk.Frame(self)
+			tree_frame.grid(row=0, column=0, sticky="nswe", padx=10, pady=10)
+
+			# Treeview widget
+			self.tree = ttk.Treeview(tree_frame, show="tree")
+			self.tree.column("#0", width=200)
 			self.tree.heading("#0", text="Servers")
 			self.tree.bind("<Button-1>", handle_click)
-			self.tree.bind("<<TreeViewSelect>>", handle_select)
-			self.tree.grid(row=0, column=0, padx=10, pady=10, sticky="nswe")
+			self.tree.bind("<<TreeviewSelect>>", handle_select)
 
-			# Allow resizing within the frame
+			# Scrollbar setup
+			scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
+			self.tree.configure(yscrollcommand=scrollbar.set)
+
+			# Pack tree and scrollbar inside tree_frame
+			self.tree.pack(side="left", fill="both", expand=True)
+			scrollbar.pack(side="right", fill="y")
+
+			# Allow resizing
 			self.columnconfigure(0, weight=1)
 			self.rowconfigure(0, weight=1)
 
+			# Load server configurations
 			configs_path = sc4mp_config['HOSTING']['configs_path']
 			if not configs_path:
 				server_path = sc4mp_config["HOSTING"]["server_path"]
@@ -5269,9 +5285,20 @@ class HostUI(tk.Toplevel):
 					raise ClientException("SC4MP Server is not installed.")
 			os.makedirs(configs_path, exist_ok=True)
 
+			self.server_names = set()
+
 			servers = os.listdir(configs_path)
 			for server in servers:
-				self.tree.insert("", "end", server, text=server)
+				text = server
+				server_config_ini_path = Path(configs_path) / server / "serverconfig.ini"
+				if server_config_ini_path.exists():
+					config = configparser.ConfigParser()
+					config.read(server_config_ini_path)
+					server_name = config.get("INFO", "server_name", fallback="")
+					if server_name:
+						text = server_name
+						self.server_names.add(server_name)
+				self.tree.insert("", "end", server, text=text)
 
 			if len(self.tree.get_children()) > 0:
 				self.tree.selection_set([self.tree.get_children()[0]])
@@ -5284,12 +5311,13 @@ class HostUI(tk.Toplevel):
 			super().__init__(parent)
 
 			self.path = path
+			self.config_path = path / "serverconfig.ini"
 
 			self.grid(sticky="nsew")  # Stretch both directions
 			
 			# Load configuration from file
 			self.config = configparser.ConfigParser()
-			self.config.read(path / "serverconfig.ini")
+			self.config.read(self.config_path)
 			
 			# Tabbed interface
 			self.tabs = ttk.Notebook(self)
@@ -5335,21 +5363,21 @@ class HostUI(tk.Toplevel):
 			self.info_frame.name_label.grid(row=0, column=0, padx=10, pady=5, sticky="e")
 
 			self.info_frame.name_entry = ttk.Entry(self.info_frame, width=40)
-			self.info_frame.name_entry.insert(0, self.config.get('INFO', 'server_name', fallback="Default Server"))
+			self.info_frame.name_entry.insert(0, self.config.get('INFO', 'server_name', fallback=""))
 			self.info_frame.name_entry.grid(row=0, column=1, padx=10, pady=5, sticky="w")
 
 			self.info_frame.description_label = ttk.Label(self.info_frame, text="Description")
 			self.info_frame.description_label.grid(row=1, column=0, padx=10, pady=5, sticky="ne")
 
 			self.info_frame.description_entry = ttk.Entry(self.info_frame, width=40)
-			self.info_frame.description_entry.insert(0, self.config.get('INFO', 'server_description', fallback="No description"))
+			self.info_frame.description_entry.insert(0, self.config.get('INFO', 'server_description', fallback="Join and build your city."))
 			self.info_frame.description_entry.grid(row=1, column=1, padx=10, pady=5, sticky="w")
 
 			self.info_frame.url_label = ttk.Label(self.info_frame, text="URL")
 			self.info_frame.url_label.grid(row=2, column=0, padx=10, pady=5, sticky="e")
 
 			self.info_frame.url_entry = ttk.Entry(self.info_frame, width=40)
-			self.info_frame.url_entry.insert(0, self.config.get('INFO', 'server_url', fallback="http://example.com"))
+			self.info_frame.url_entry.insert(0, self.config.get('INFO', 'server_url', fallback="www.sc4mp.org"))
 			self.info_frame.url_entry.grid(row=2, column=1, padx=10, pady=5, sticky="w")
 
 			# Security tab
@@ -5370,7 +5398,7 @@ class HostUI(tk.Toplevel):
 			self.rules_frame.grid(row=0, column=0, padx=10, pady=10)
 
 			self.rules_frame.claim_duration_checkbutton = ttk.Checkbutton(self.rules_frame, text="Claim duration")
-			claim_duration = self.config.get('RULES', 'claim_duration', fallback="14")
+			claim_duration = self.config.get('RULES', 'claim_duration', fallback="30")
 			self.rules_frame.claim_duration_checkbutton.state(['selected'] if claim_duration else ['!selected'])
 			self.rules_frame.claim_duration_checkbutton.grid(row=0, column=0, padx=10, pady=5, sticky="w")
 
@@ -5382,7 +5410,7 @@ class HostUI(tk.Toplevel):
 			self.rules_frame.claim_duration_label.grid(row=0, column=2, padx=10, pady=5, sticky="w")
 
 			self.rules_frame.max_region_claims_checkbutton = ttk.Checkbutton(self.rules_frame, text="Max claims")
-			max_claims = self.config.get('RULES', 'max_region_claims', fallback="None")
+			max_claims = self.config.get('RULES', 'max_region_claims', fallback="1")
 			self.rules_frame.max_region_claims_checkbutton.state(['selected'] if max_claims != "None" else ['!selected'])
 			self.rules_frame.max_region_claims_checkbutton.grid(row=1, column=0, padx=10, pady=5, sticky="w")
 
@@ -5447,7 +5475,28 @@ class HostUI(tk.Toplevel):
 				else:
 					entry.state(['disabled'])
 
+			self.update()
+
 			self.after(100, self.loop)
+
+
+		def update(self):
+
+			def add_section(name):
+				if not self.config.has_section(name):
+					self.config.add_section(name)
+
+			add_section('NETWORK')
+			self.config.set('NETWORK', 'port', "7240") #TODO
+			self.config.set('NETWORK', 'discoverable', str(True)) #TODO
+
+			add_section('INFO')
+			self.config.set('INFO', 'server_name', self.info_frame.name_entry.get())
+			self.config.set('INFO', 'server_description', self.info_frame.description_entry.get())
+			self.config.set('INFO', 'server_url', self.info_frame.url_entry.get())
+
+			with open(self.config_path, "w", encoding="utf-8") as config_file:
+				self.config.write(config_file)
 
 
 	def __init__(self):
@@ -5478,6 +5527,8 @@ class HostUI(tk.Toplevel):
 		self.rowconfigure(0, weight=1)
 
 		self.server_selection_frame = self.ServerSelectionFrame(self)
+		if len(self.server_selection_frame.tree.get_children()) < 1:
+			self.create()
 		self.server_selection_frame.grid(row=0, column=0, sticky="nsw")
 
 		self.server_config_frame = None
@@ -5500,11 +5551,72 @@ class HostUI(tk.Toplevel):
 
 	def create(self):
 		
-		self.server_selection_frame.tree.insert("", "end", generate_server_id(), text="New server")
+		server_id = generate_server_id()
+		server_name = generate_server_name()
+
+		if server_name in self.server_selection_frame.server_names:
+			n = 1
+			while True:
+				s_n = f"{server_name} ({n})"
+				if s_n in self.server_selection_frame.server_names:
+					n += 1
+				else:
+					server_name = s_n
+					break
+		self.server_selection_frame.server_names.add(server_name)
+
+		self.server_selection_frame.tree.insert("", 0, server_id, text=server_name)
 	
+		server_path = Path(sc4mp_config["HOSTING"]['configs_path']) / server_id
+		os.makedirs(server_path)
+
+		serverconfig_ini_path = server_path / "serverconfig.ini"
+		with open(serverconfig_ini_path, "w") as serverconfig_ini:
+			serverconfig_ini.write(f"[INFO]\nserver_id = {server_id}\nserver_name = {server_name}")
+
+		self.server_selection_frame.tree.selection_set([server_id])
+
 	
 	def delete(self):
-		return
+		
+		server = self.server_selection_frame.tree.selection()[0]
+		server_name = self.server_selection_frame.tree.item(server, "text")
+		server_path = Path(sc4mp_config['HOSTING']['configs_path']) / server
+
+		try:
+
+			self.withdraw()
+
+			if not messagebox.askokcancel(SC4MP_TITLE, icon="warning", message=f"Are you sure you want to delete \"{server_name}\"?\n\nThis action cannot be undone."): return
+
+			shutil.rmtree(server_path)
+
+			self.server_selection_frame.server_names.remove(server_name)
+
+			next = self.server_selection_frame.tree.next(server)
+
+			if next:
+				self.server_selection_frame.tree.selection_set([next])
+			else:
+				children = list(self.server_selection_frame.tree.get_children())
+				if len(children) < 2:
+					self.create()
+				else:
+					children.remove(server)
+					self.server_selection_frame.tree.selection_set([children[-1]])
+
+			self.server_selection_frame.tree.delete(server)
+
+		except Exception as e:
+
+			show_error(f"Unable to delete server.\n\n{e}")
+
+		finally:
+
+			self.deiconify()
+			self.lift()
+			self.grab_set()
+
 
 
 	def loop(self):

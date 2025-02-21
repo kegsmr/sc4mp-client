@@ -504,3 +504,11 @@ def generate_server_id():
 	import string
 
 	return ''.join(random.SystemRandom().choice(string.ascii_letters + string.digits) for i in range(32))
+
+
+def generate_server_name():
+
+	import getpass
+	import socket
+
+	return getpass.getuser() + " on " + socket.gethostname()
