@@ -34,6 +34,9 @@ def format_version(version: tuple[int, int, int]) -> str:
 def unformat_version(version: str) -> tuple[int, int, int]:
 	"""Converts a version number from a string to a tuple."""
 
+	if version.startswith("v"):
+		version = version[1:]
+
 	return tuple([int(v) for v in version.split('.')])
 
 

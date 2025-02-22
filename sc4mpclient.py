@@ -163,6 +163,8 @@ sc4mp_current_server = None
 sc4mp_game_monitor_x = 10
 sc4mp_game_monitor_y = 40
 
+sc4mp_beta = None
+
 
 # Functions
 
@@ -376,8 +378,8 @@ def check_updates():
 				# Get latest release info
 				latest_release_info = get_release_info()
 
-				# Download the update if the version doesn't match
-				if sc4mp_force_update or latest_release_info["tag_name"] != f"v{SC4MP_VERSION}":
+				# Download the update if the version is newer
+				if sc4mp_force_update or unformat_version(latest_release_info["tag_name"]) > unformat_version(SC4MP_VERSION):
 
 					# Local function for update thread
 					def update(ui=None):
@@ -543,7 +545,7 @@ def check_updates():
 			show_error(f"An error occurred while updating.\n\n{e}", no_ui=True)
 
 
-def get_release_info(version="latest", timeout=10):
+def get_release_info(version="latest", timeout=10) -> dict:
 
 	if version == "latest":
 		github_api_call = f"https://api.github.com/repos/{SC4MP_GITHUB_REPO}/releases/latest"
@@ -2688,7 +2690,8 @@ class ServerLoader(th.Thread):
 				raise ClientException("Unable to find server. Check the IP address and port, then try again.")
 		if not sc4mp_config["DEBUG"]["ignore_incompatable_versions"]:
 			if unformat_version(self.server.server_version)[:2] < unformat_version(SC4MP_VERSION)[:2]:
-				raise ClientException(f"The server requires an outdated version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please contact the server administrators.")
+				if not sc4mp_beta:
+					raise ClientException(f"The server requires an outdated version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please contact the server administrators.")
 			if unformat_version(self.server.server_version)[:2] > unformat_version(SC4MP_VERSION)[:2]:
 				raise ClientException(f"The server requires a newer version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please update the launcher to connect to this server.")
 		if self.ui != None:
@@ -4404,22 +4407,27 @@ class UI(tk.Tk):
 
 	def release_notes(self):
 
-		if sc4mp_config["GENERAL"]["show_release_notes"] and sc4mp_config["GENERAL"]["release_notes_version"] != SC4MP_VERSION:
+		global sc4mp_beta
 
-			try:
+		try:
 
-				# Set version for release info
-				version = SC4MP_VERSION
+			# Set version for release info
+			version = SC4MP_VERSION
 
-				# Get latest release info
-				release_info = get_release_info(version=version)
+			# Get current release info
+			release_info = get_release_info(version=version)
+			
+			# Set beta flag to `True` if pre-release
+			if "prerelease" in release_info.keys():
+				sc4mp_beta = release_info["prerelease"]
 
-				# Create release notes UI
+			# Create release notes UI
+			if sc4mp_config["GENERAL"]["show_release_notes"] and sc4mp_config["GENERAL"]["release_notes_version"] != SC4MP_VERSION:
 				ReleaseNotesUI(version, release_info["name"], release_info["body"])
 
-			except Exception as e:
-	
-				show_error(f"Unable to show release notes.\n\n{e}", no_ui=True)
+		except Exception as e:
+
+			show_error(f"Unable to show release notes.\n\n{e}", no_ui=True)
 
 
 	def show_error(self, *args):
