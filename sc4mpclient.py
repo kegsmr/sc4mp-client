@@ -3184,6 +3184,12 @@ class ServerLoader(th.Thread):
 				shutil.copy(path, default_plugins_destination / f"{basename}-{checksum}.dll")
 				toplevel_plugins_checksums.append(checksum)
 
+		# Write server URL local plugin file
+		# with open(get_sc4mp_path("server-url.dat"), "rb") as rfile:
+		# 	data = rfile.read().replace(b"{\x00{\x00U\x00R\x00L\x00}\x00}", bytes(self.server.server_url, encoding="utf-8"))
+		# 	with open(default_plugins_destination / "server-url.dat", "wb") as wfile:
+		# 		wfile.write(data)
+
 
 	def prep_regions(self):
 		
