@@ -3167,7 +3167,14 @@ class ServerLoader(th.Thread):
 			raise ClientException("SimCity 4 is already running!") from e
 
 		# Load default plugins
-		for default_plugin_file_name in ["sc4-fix.dll", "sc4-fix-license.txt", "sc4-thumbnail-fix.dll", "sc4-thumbnail-fix-license.txt", "sc4-thumbnail-fix-third-party-notices.txt"]: #, "sc4-dbpf-loading.dll", "sc4-dbpf-loading-license.txt", "sc4-dbpf-loading-third-party-notices.txt"]:
+		for default_plugin_file_name in [
+			"sc4-fix.dll", 
+			"sc4-fix-license.txt", 
+			"sc4-thumbnail-fix.dll", 
+			"sc4-thumbnail-fix-license.txt", 
+			"sc4-thumbnail-fix-third-party-notices.txt",
+			"sc4mp-local.dat",
+		]:
 			try:
 				default_plugin_file_path = default_plugins_source / default_plugin_file_name
 				default_plugin_checksum = md5(default_plugin_file_path)
@@ -3185,7 +3192,7 @@ class ServerLoader(th.Thread):
 				toplevel_plugins_checksums.append(checksum)
 
 		# Write server URL local plugin file
-		# with open(get_sc4mp_path("server-url.dat"), "rb") as rfile:
+		# with open(get_sc4mp_path("sc4mp-local-server-url.dat"), "rb") as rfile:
 		# 	data = rfile.read().replace(b"{\x00{\x00U\x00R\x00L\x00}\x00}", bytes(self.server.server_url, encoding="utf-8"))
 		# 	with open(default_plugins_destination / "server-url.dat", "wb") as wfile:
 		# 		wfile.write(data)
