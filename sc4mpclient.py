@@ -3174,6 +3174,7 @@ class ServerLoader(th.Thread):
 			"sc4-thumbnail-fix-license.txt", 
 			"sc4-thumbnail-fix-third-party-notices.txt",
 			"sc4mp-local.dat",
+			"sc4mp-ui.dat",
 		]:
 			try:
 				default_plugin_file_path = default_plugins_source / default_plugin_file_name
