@@ -3173,6 +3173,7 @@ class ServerLoader(th.Thread):
 			"sc4-thumbnail-fix.dll", 
 			"sc4-thumbnail-fix-license.txt", 
 			"sc4-thumbnail-fix-third-party-notices.txt",
+			"sc4mp-intro.dat",
 			"sc4mp-local.dat",
 			"sc4mp-ui.dat",
 		]:
