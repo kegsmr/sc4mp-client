@@ -6272,6 +6272,18 @@ class ServerDetailsUI(tk.Toplevel):
 		# Update window size periodically
 
 		self.after(100, self.update_window_size)
+		
+
+		# Select tab from last server detail view
+		self.after(200, self.select_last_tab)
+
+
+	def select_last_tab(self):
+
+		try:
+			self.notebook.select(globals().get("sc4mp_server_details_ui_last_tab_index", 0))
+		except Exception as e:
+			pass
 
 
 	def on_notebook_tab_changed(self, function: function):
@@ -6443,6 +6455,13 @@ class ServerDetailsUI(tk.Toplevel):
 
 
 	def destroy(self):
+
+		global sc4mp_server_details_ui_last_tab_index
+
+		try:
+			sc4mp_server_details_ui_last_tab_index = self.notebook.index(self.notebook.select())
+		except Exception:
+			pass
 
 		self.destroyed = True
 
