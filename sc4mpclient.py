@@ -820,7 +820,7 @@ def is_steam_sc4(path: Path):
 	#	if steam_filename in exec_dir_filenames:
 	#		return True
 
-	return "steamapps" in [directory.name for directory in path.parents]
+	return "steamapps" in [directory.name.lower() for directory in path.parents]
 
 
 def process_exists(process_name): #TODO add MacOS compatability / deprecate in favor of `process_count`?
