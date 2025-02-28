@@ -45,7 +45,7 @@ from core.util import *
 
 # Header
 
-SC4MP_VERSION = "0.8.0"
+SC4MP_VERSION = "0.8.1"
 
 SC4MP_SERVERS = get_server_list()
 
@@ -1102,7 +1102,7 @@ def prep_region_config(path):
 
 def format_download_size(size):
 	if size == 0:
-		return "None"
+		return "..."
 	else:
 		return format_filesize(size)
 

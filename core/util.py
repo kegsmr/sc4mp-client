@@ -515,3 +515,122 @@ def generate_server_name():
 	import socket
 
 	return getpass.getuser() + " on " + socket.gethostname()
+
+
+def publish_release(repo, token, version, target="main", name="", body="", assets=[], draft=True, prerelease=False):
+
+	import os
+	import requests
+	import mimetypes
+
+	if not name:
+		name = f"Draft {version}"
+
+	# github_token = os.getenv("GITHUB_TOKEN")
+	# if not github_token:
+	# 	print("GITHUB_TOKEN not found in environment variables.")
+	# 	return
+	
+	headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+	tag = f"v{version}"
+	release_url = f"https://api.github.com/repos/{repo}/releases"
+
+	# Fetch existing releases
+	response = requests.get(release_url, headers=headers)
+	response.raise_for_status()
+	releases = response.json()
+
+	# Check if the release exists
+	release = next((r for r in releases if r["tag_name"] == tag), None)
+
+	if release:
+		if release["draft"]:
+			# Delete draft release
+			print(f"Deleting existing draft release {tag}...")
+			delete_url = f"https://api.github.com/repos/{repo}/releases/{release['id']}"
+			requests.delete(delete_url, headers=headers).raise_for_status()
+		else:
+			# If release is already published, do not modify it
+			print(f"Release {tag} is already published. Skipping upload.")
+			return
+
+	# Create a new draft release
+	print(f"Creating new draft release for {tag}...")
+	data = {
+		"tag_name": tag,
+		"target_commitish": target,
+		"name": name, 
+		"body": body, 
+		"draft": draft, 
+		"prerelease": prerelease,
+	}
+
+	response = requests.post(release_url, headers=headers, json=data)
+	response.raise_for_status()
+	release = response.json()
+	
+	# Upload assets
+	upload_url = release["upload_url"].split("{?name,label}")[0]
+	for asset in assets:
+		asset_name = os.path.basename(asset)
+		print(f"Uploading {asset_name}...")
+		mime_type, _ = mimetypes.guess_type(asset)
+		mime_type = mime_type or 'application/octet-stream'
+		with open(asset, "rb") as f:
+			response = requests.post(
+				f"{upload_url}?name={asset_name}",
+				headers={"Authorization": f"token {token}", "Content-Type": mime_type},
+				data=f.read()
+			)
+			response.raise_for_status()
+		print(f"Successfully uploaded {asset_name}.")
+
+	print(f"Release {tag} published successfully as a draft. You can edit the draft at https://github.com/{repo}/releases.")
+
+
+def get_release_asset_path(directory, prefix):
+
+	import glob
+	import os
+
+	# Create a pattern to match all files that start with the given prefix
+	pattern = os.path.join(directory, f"{prefix}*")
+	
+	# Get a list of all matching files
+	files = glob.glob(pattern)
+	
+	if not files:
+		return None  # Return None if no files match the prefix
+	
+	# Get the file with the newest modification time
+	newest_file = max(files, key=os.path.getmtime)
+	
+	return newest_file
+
+
+def get_current_git_branch():
+
+	import subprocess
+
+	# Run the Git command to get the current branch
+	result = subprocess.run(
+		["git", "rev-parse", "--abbrev-ref", "HEAD"],
+		stdout=subprocess.PIPE,
+		stderr=subprocess.PIPE,
+		text=True,
+		check=True
+	)
+
+	# Return the current branch name
+	return result.stdout.strip()
+
+
+def replace_in_file(path, old, new):
+
+    with open(path, 'r', encoding='utf-8') as file:
+        content = file.read()
+    
+    content = content.replace(old, new)
+    
+    with open(path, 'w', encoding='utf-8') as file:
+        file.write(content)
