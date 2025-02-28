@@ -38,4 +38,4 @@ else:
 assets = [get_release_asset_path(directory, prefix) for directory, prefix in assets]
 assets = [asset for asset in assets if asset is not None]
 
-publish_release(repo=repo, token=token, version=version, name=name, body=body, assets=assets, prerelease=prerelease)
+publish_release(repo=repo, token=token, version=version, target=target, name=name, body=body, assets=assets, prerelease=prerelease)
