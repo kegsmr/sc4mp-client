@@ -17,7 +17,7 @@ assets = [
 target = get_current_git_branch()
 
 if target == "main":
-	name = f"Draft {version}"
+	name = f"Patch {version}"
 	body = "\n".join([
 		"- {CHANGE}.",
 		"- {CHANGE}.",
