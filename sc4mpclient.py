@@ -121,9 +121,9 @@ SC4MP_CONFIG_DEFAULTS = [
 		("game_path", ""),
 		("use_steam_browser_protocol", 0),
 		
-		("resw", 1280),
-		("resh", 800),
-		("fullscreen", False),
+		("resw", 0),			#1200
+		("resh", 0),			#800
+		("fullscreen", True),	#False
 
 		("cpu_count", 1),
 		("cpu_priority", "high"),
@@ -717,16 +717,28 @@ def start_sc4():
 		show_error("Path to SimCity 4 not found. Specify the correct path in settings.")
 		return
 
+	resw = sc4mp_config["SC4"]["resw"]
+	resh = sc4mp_config["SC4"]["resh"]
+
+	if 0 in (resw, resh):
+		if sc4mp_ui:
+			resw = sc4mp_ui.winfo_screenwidth()
+			resh = sc4mp_ui.winfo_screenheight()
+		else:
+			resw = 1280
+			resh = 800
+
+
 	# Arguments set based on config settings
 	arguments = [str(path),
 			  f'-UserDir:"{SC4MP_LAUNCHPATH}{os.sep}"', # add trailing slash here because SC4 expects it
 			  '-intro:off',
 			  '-CustomResolution:enabled',
-			  f'-r{sc4mp_config["SC4"]["resw"]}x{sc4mp_config["SC4"]["resh"]}x32',
+			  f'-r{resw}x{resh}x32',
 			  f'-CPUCount:{sc4mp_config["SC4"]["cpu_count"]}',
 			  f'-CPUPriority:{sc4mp_config["SC4"]["cpu_priority"]}'
 			  ]
-	if sc4mp_config["SC4"]["fullscreen"] == True:
+	if sc4mp_config["SC4"]["fullscreen"]:
 		arguments.append('-f')
 	else:
 		arguments.append('-w')
@@ -3166,6 +3178,12 @@ class ServerLoader(th.Thread):
 		except Exception as e:
 			raise ClientException("SimCity 4 is already running!") from e
 
+		resw = sc4mp_config['SC4']['resw']
+		resh = sc4mp_config['SC4']['resh']
+		if 0 in (resw, resh) and sc4mp_ui:
+			resw = sc4mp_ui.winfo_screenwidth()
+			resh = sc4mp_ui.winfo_screenheight()
+
 		# Load default plugins
 		for default_plugin_file_name in [
 			"sc4-fix.dll", 
@@ -3173,7 +3191,7 @@ class ServerLoader(th.Thread):
 			"sc4-thumbnail-fix.dll", 
 			"sc4-thumbnail-fix-license.txt", 
 			"sc4-thumbnail-fix-third-party-notices.txt",
-			f"sc4mp-intro-{sc4mp_config['SC4']['resw']}-{sc4mp_config['SC4']['resh']}.dat",
+			f"sc4mp-intro-{resw}-{resh}.dat",
 			"sc4mp-local.dat",
 			"sc4mp-ui.dat",
 		]:
@@ -4911,8 +4929,12 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# Resolution combo box
 		self.resolution_frame.combo_box = ttk.Combobox(self.resolution_frame, width=15)
-		self.resolution_frame.combo_box.insert(0, str(sc4mp_config["SC4"]["resw"]) + "x" + str(sc4mp_config["SC4"]["resh"]))
+		if 0 in (sc4mp_config["SC4"]["resw"], sc4mp_config["SC4"]["resh"]):
+			self.resolution_frame.combo_box.insert(0, "Automatic")
+		else:
+			self.resolution_frame.combo_box.insert(0, str(sc4mp_config["SC4"]["resw"]) + "x" + str(sc4mp_config["SC4"]["resh"]))
 		self.resolution_frame.combo_box["values"] = (
+			"Automatic",
 			"800x600 (4:3)", 
 			"1024x768 (4:3)", 
 			"1280x800 (16:10)", 
@@ -5004,8 +5026,12 @@ class SC4SettingsUI(tk.Toplevel):
 				if sc4mp_config["SC4"]["use_steam_browser_protocol"] in [0, 1]:
 					update_config_value("SC4", "use_steam_browser_protocol", (1 if is_steam_sc4(Path(data)) else 0))
 			if key == "res":
-				res = data.split(' ')[0]
-				resw, resh = res.split('x')
+				if data.lower().startswith("auto"):
+					resw = 0
+					resh = 0
+				else:
+					res = data.split(' ')[0]
+					resw, resh = res.split('x')
 				update_config_value("SC4", "resw", resw)
 				update_config_value("SC4", "resh", resh)
 			else:
