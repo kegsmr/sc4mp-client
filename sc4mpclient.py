@@ -635,52 +635,107 @@ def get_sc4_path() -> Optional[Path]:
 	# The path specified by the user
 	config_path = Path(sc4mp_config['SC4']['game_path'])
 
-	# Common SC4 dirs (alternate path used by GOG and Origin)
-	sc4_dirs = Path("SimCity 4 Deluxe") / "Apps" / "SimCity 4.exe"
-	sc4_dirs_alt = Path("SimCity 4 Deluxe Edition") / "Apps" / "SimCity 4.exe"
+	# On Windows, create a list of possible SC4 installation paths, otherwise just use the config path
+	if is_windows():
 
-	# Common Steam dirs
-	steam_dirs = Path("Steam") / "steamapps" / "common"
+		# Common SC4 dirs (alternate path used by GOG and Origin)
+		sc4_dirs = Path("SimCity 4 Deluxe") / "Apps" / "SimCity 4.exe"
+		sc4_dirs_alt = Path("SimCity 4 Deluxe Edition") / "Apps" / "SimCity 4.exe"
 
-	# On Windows, this is most likely the C:\ drive
-	home_drive = Path(Path.home().drive)
+		# Common Steam dirs
+		steam_dirs = Path("Steam") / "steamapps" / "common"
 
-	# List of common SC4 install dirs, highest priority at the top
-	possible_paths: list[Path] = [
-		
-		# Custom (specified by the user)
-		config_path,
-		config_path / "SimCity 4.exe",
-		config_path / "Apps" / "SimCity 4.exe",
+		# Drive letters
+		drives = [Path(f"{chr(letter)}:\\") for letter in range(65, 91) if Path(f"{chr(letter)}:\\").exists()]
 
-		# Generic (probably pirated copies lol)
-		home_drive / "Games" / sc4_dirs,
-		home_drive / "Games" / sc4_dirs_alt,
-		home_drive / "Program Files" / sc4_dirs,
-		home_drive / "Program Files" / sc4_dirs_alt,
-		home_drive / "Program Files (x86)" / sc4_dirs,
-		home_drive / "Program Files (x86)" / sc4_dirs_alt,
+		# List of common SC4 install dirs, highest priority at the top
+		possible_paths: list[Path] = [
+			
+			# Custom (specified by the user)
+			config_path,
+			config_path / "SimCity 4.exe",
+			config_path / "Apps" / "SimCity 4.exe",
 
-		# GOG (patched, no DRM, launches without issue)
-		home_drive / "Program Files" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
-		home_drive / "Program Files (x86)" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
-		home_drive / "GOG Games" / sc4_dirs,
-		home_drive / "GOG Games" / sc4_dirs_alt,
+		]
 
-		# Steam (patched, but sometimes has launch issues)
-		home_drive / "Program Files" / steam_dirs / sc4_dirs,
-		home_drive / "Program Files (x86)" / steam_dirs / sc4_dirs,
-		home_drive / "SteamLibrary" / steam_dirs / sc4_dirs,
+		# Expand list for common SC4 install dirs using different drive letters
+		for drive in drives:
 
-		# Origin (maybe patched? Origin is crap)
-		home_drive / "Program Files" / "Origin Games" / sc4_dirs_alt,
-		home_drive / "Program Files (x86)" / "Origin Games" / sc4_dirs_alt,
+			possible_paths += [
 
-		# Maxis (probably not patched, so this goes at the bottom)
-		home_drive / "Program Files" / "Maxis" / sc4_dirs,
-		home_drive / "Program Files (x86)" / "Maxis" / sc4_dirs,
+				# GOG (patched, no DRM, launches without issue)
+				drive / "Program Files" / "GOG Galaxy" / "Games" / sc4_dirs,
+				drive / "Program Files" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
+				drive / "Program Files (x86)" / "GOG Galaxy" / "Games" / sc4_dirs,
+				drive / "Program Files (x86)" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
+				drive / "Games" / "GOG Galaxy" / "Games" / sc4_dirs,
+				drive / "Games" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
+				drive / "GOG Galaxy" / "Games" / sc4_dirs,
+				drive / "GOG Galaxy" / "Games" / sc4_dirs_alt,
+				drive / "Games" / "GOG Games" / sc4_dirs,
+				drive / "Games" / "GOG Games" / sc4_dirs_alt,
+				drive / "GOG Games" / sc4_dirs,
+				drive / "GOG Games" / sc4_dirs_alt,
 
-	]
+				# Origin (holy crap Lois, they finally patched it!)
+				drive / "Program Files" / "Origin Games" / sc4_dirs,
+				drive / "Program Files" / "Origin Games" / sc4_dirs_alt,
+				drive / "Program Files (x86)" / "Origin Games" / sc4_dirs,
+				drive / "Program Files (x86)" / "Origin Games" / sc4_dirs_alt,
+				drive / "Games" / "Origin Games" / sc4_dirs,
+				drive / "Games" / "Origin Games" / sc4_dirs_alt,
+				drive / "Origin Games" / sc4_dirs,
+				drive / "Origin Games" / sc4_dirs_alt,
+
+				# EA (apparently this is a thing now?)
+				drive / "Program Files" / "EA Games" / sc4_dirs,
+				drive / "Program Files" / "EA Games" / sc4_dirs_alt,
+				drive / "Program Files (x86)" / "EA Games" / sc4_dirs,
+				drive / "Program Files (x86)" / "EA Games" / sc4_dirs_alt,
+				drive / "Games" / "EA Games" / sc4_dirs,
+				drive / "Games" / "EA Games" / sc4_dirs_alt,
+				drive / "EA Games" / sc4_dirs,
+				drive / "EA Games" / sc4_dirs_alt,
+
+				# Steam (patched, but has annoying DRM)
+				drive / "Program Files" / steam_dirs / sc4_dirs,
+				drive / "Program Files" / steam_dirs / sc4_dirs_alt,
+				drive / "Program Files (x86)" / steam_dirs / sc4_dirs,
+				drive / "Program Files (x86)" / steam_dirs / sc4_dirs_alt,
+				drive / "Games" / "SteamLibrary" / steam_dirs / sc4_dirs,
+				drive / "Games" / "SteamLibrary" / steam_dirs / sc4_dirs_alt,
+				drive / "SteamLibrary" / steam_dirs / sc4_dirs,
+				drive / "SteamLibrary" / steam_dirs / sc4_dirs_alt,
+
+				# Maxis (probably not patched)
+				drive / "Program Files" / "Maxis" / sc4_dirs,
+				drive / "Program Files (x86)" / "Maxis" / sc4_dirs,
+				drive / "Games" / "Maxis" / sc4_dirs,
+
+				# Generic (probably pirated copies lol)
+				drive / sc4_dirs,
+				drive / sc4_dirs_alt,
+				drive / "Games" / sc4_dirs,
+				drive / "Games" / sc4_dirs_alt,
+				drive / "My Games" / sc4_dirs,
+				drive / "My Games" / sc4_dirs_alt,
+				drive / "Game Library" / sc4_dirs,
+				drive / "Game Library" / sc4_dirs_alt,
+				drive / "Program Files" / sc4_dirs,
+				drive / "Program Files" / sc4_dirs_alt,
+				drive / "Program Files (x86)" / sc4_dirs,
+				drive / "Program Files (x86)" / sc4_dirs_alt,
+
+			]
+
+	else:
+
+		# This list could be expanded if Linux/MacOS users want to put what paths they use
+		possible_paths: list[Path] = [config_path]
+
+	# for possible_path in possible_paths:
+	# 	if possible_path.is_file():
+	# 		print(possible_path)
 
 	# Return the FIRST path that exists in the list
 	for possible_path in possible_paths:
