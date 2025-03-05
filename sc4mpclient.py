@@ -5395,7 +5395,7 @@ class HostUI(tk.Toplevel):
 			if not configs_path:
 				server_path = sc4mp_config["HOSTING"]["server_path"]
 				if server_path:
-					configs_path = Path(server_path) / "servers"
+					configs_path = Path(server_path) / "configs"
 					sc4mp_config['HOSTING']['configs_path'] = configs_path
 					sc4mp_config.update()
 				else:
