@@ -5026,14 +5026,17 @@ class SC4SettingsUI(tk.Toplevel):
 				if sc4mp_config["SC4"]["use_steam_browser_protocol"] in [0, 1]:
 					update_config_value("SC4", "use_steam_browser_protocol", (1 if is_steam_sc4(Path(data)) else 0))
 			if key == "res":
-				if data.lower().startswith("auto"):
-					resw = 0
-					resh = 0
-				else:
-					res = data.split(' ')[0]
-					resw, resh = res.split('x')
-				update_config_value("SC4", "resw", resw)
-				update_config_value("SC4", "resh", resh)
+				try:
+					if len(data) < 1 or data.lower().startswith("auto"):
+						resw = 0
+						resh = 0
+					else:
+						res = data.split(' ')[0]
+						resw, resh = res.split('x')
+					update_config_value("SC4", "resw", resw)
+					update_config_value("SC4", "resh", resh)
+				except Exception as e:
+					show_error(e, no_ui=True)
 			else:
 				update_config_value("SC4", key, data)
 		
