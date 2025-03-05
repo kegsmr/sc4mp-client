@@ -45,7 +45,7 @@ from core.util import *
 
 # Header
 
-SC4MP_VERSION = "0.8.0"
+SC4MP_VERSION = "0.8.2"
 
 SC4MP_SERVERS = get_server_list()
 
@@ -121,9 +121,9 @@ SC4MP_CONFIG_DEFAULTS = [
 		("game_path", ""),
 		("use_steam_browser_protocol", 0),
 		
-		("resw", 1280),
-		("resh", 800),
-		("fullscreen", False),
+		("resw", 0),			#1200
+		("resh", 0),			#800
+		("fullscreen", True),	#False
 
 		("cpu_count", 1),
 		("cpu_priority", "high"),
@@ -171,6 +171,8 @@ sc4mp_game_monitor_x = 10
 sc4mp_game_monitor_y = 40
 
 sc4mp_server_update_check = True
+
+sc4mp_beta = None
 
 
 # Functions
@@ -385,8 +387,8 @@ def check_updates():
 				# Get latest release info
 				latest_release_info = get_release_info()
 
-				# Download the update if the version doesn't match
-				if sc4mp_force_update or latest_release_info["tag_name"] != f"v{SC4MP_VERSION}":
+				# Download the update if the version is newer
+				if sc4mp_force_update or unformat_version(latest_release_info["tag_name"]) > unformat_version(SC4MP_VERSION):
 
 					# Local function for update thread
 					def update(ui=None):
@@ -552,7 +554,7 @@ def check_updates():
 			show_error(f"An error occurred while updating.\n\n{e}", no_ui=True)
 
 
-def get_release_info(repo=SC4MP_GITHUB_REPO, version="latest", timeout=10):
+def get_release_info(repo=SC4MP_GITHUB_REPO, version="latest", timeout=10) -> dict:
 
 	if version == "latest":
 		github_api_call = f"https://api.github.com/repos/{repo}/releases/latest"
@@ -642,52 +644,107 @@ def get_sc4_path() -> Optional[Path]:
 	# The path specified by the user
 	config_path = Path(sc4mp_config['SC4']['game_path'])
 
-	# Common SC4 dirs (alternate path used by GOG and Origin)
-	sc4_dirs = Path("SimCity 4 Deluxe") / "Apps" / "SimCity 4.exe"
-	sc4_dirs_alt = Path("SimCity 4 Deluxe Edition") / "Apps" / "SimCity 4.exe"
+	# On Windows, create a list of possible SC4 installation paths, otherwise just use the config path
+	if is_windows():
 
-	# Common Steam dirs
-	steam_dirs = Path("Steam") / "steamapps" / "common"
+		# Common SC4 dirs (alternate path used by GOG and Origin)
+		sc4_dirs = Path("SimCity 4 Deluxe") / "Apps" / "SimCity 4.exe"
+		sc4_dirs_alt = Path("SimCity 4 Deluxe Edition") / "Apps" / "SimCity 4.exe"
 
-	# On Windows, this is most likely the C:\ drive
-	home_drive = Path(Path.home().drive)
+		# Common Steam dirs
+		steam_dirs = Path("Steam") / "steamapps" / "common"
 
-	# List of common SC4 install dirs, highest priority at the top
-	possible_paths: list[Path] = [
-		
-		# Custom (specified by the user)
-		config_path,
-		config_path / "SimCity 4.exe",
-		config_path / "Apps" / "SimCity 4.exe",
+		# Drive letters
+		drives = [Path(f"{chr(letter)}:\\") for letter in range(65, 91) if Path(f"{chr(letter)}:\\").exists()]
 
-		# Generic (probably pirated copies lol)
-		home_drive / "Games" / sc4_dirs,
-		home_drive / "Games" / sc4_dirs_alt,
-		home_drive / "Program Files" / sc4_dirs,
-		home_drive / "Program Files" / sc4_dirs_alt,
-		home_drive / "Program Files (x86)" / sc4_dirs,
-		home_drive / "Program Files (x86)" / sc4_dirs_alt,
+		# List of common SC4 install dirs, highest priority at the top
+		possible_paths: list[Path] = [
+			
+			# Custom (specified by the user)
+			config_path,
+			config_path / "SimCity 4.exe",
+			config_path / "Apps" / "SimCity 4.exe",
 
-		# GOG (patched, no DRM, launches without issue)
-		home_drive / "Program Files" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
-		home_drive / "Program Files (x86)" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
-		home_drive / "GOG Games" / sc4_dirs,
-		home_drive / "GOG Games" / sc4_dirs_alt,
+		]
 
-		# Steam (patched, but sometimes has launch issues)
-		home_drive / "Program Files" / steam_dirs / sc4_dirs,
-		home_drive / "Program Files (x86)" / steam_dirs / sc4_dirs,
-		home_drive / "SteamLibrary" / steam_dirs / sc4_dirs,
+		# Expand list for common SC4 install dirs using different drive letters
+		for drive in drives:
 
-		# Origin (maybe patched? Origin is crap)
-		home_drive / "Program Files" / "Origin Games" / sc4_dirs_alt,
-		home_drive / "Program Files (x86)" / "Origin Games" / sc4_dirs_alt,
+			possible_paths += [
 
-		# Maxis (probably not patched, so this goes at the bottom)
-		home_drive / "Program Files" / "Maxis" / sc4_dirs,
-		home_drive / "Program Files (x86)" / "Maxis" / sc4_dirs,
+				# GOG (patched, no DRM, launches without issue)
+				drive / "Program Files" / "GOG Galaxy" / "Games" / sc4_dirs,
+				drive / "Program Files" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
+				drive / "Program Files (x86)" / "GOG Galaxy" / "Games" / sc4_dirs,
+				drive / "Program Files (x86)" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
+				drive / "Games" / "GOG Galaxy" / "Games" / sc4_dirs,
+				drive / "Games" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
+				drive / "GOG Galaxy" / "Games" / sc4_dirs,
+				drive / "GOG Galaxy" / "Games" / sc4_dirs_alt,
+				drive / "Games" / "GOG Games" / sc4_dirs,
+				drive / "Games" / "GOG Games" / sc4_dirs_alt,
+				drive / "GOG Games" / sc4_dirs,
+				drive / "GOG Games" / sc4_dirs_alt,
 
-	]
+				# Origin (holy crap Lois, they finally patched it!)
+				drive / "Program Files" / "Origin Games" / sc4_dirs,
+				drive / "Program Files" / "Origin Games" / sc4_dirs_alt,
+				drive / "Program Files (x86)" / "Origin Games" / sc4_dirs,
+				drive / "Program Files (x86)" / "Origin Games" / sc4_dirs_alt,
+				drive / "Games" / "Origin Games" / sc4_dirs,
+				drive / "Games" / "Origin Games" / sc4_dirs_alt,
+				drive / "Origin Games" / sc4_dirs,
+				drive / "Origin Games" / sc4_dirs_alt,
+
+				# EA (apparently this is a thing now?)
+				drive / "Program Files" / "EA Games" / sc4_dirs,
+				drive / "Program Files" / "EA Games" / sc4_dirs_alt,
+				drive / "Program Files (x86)" / "EA Games" / sc4_dirs,
+				drive / "Program Files (x86)" / "EA Games" / sc4_dirs_alt,
+				drive / "Games" / "EA Games" / sc4_dirs,
+				drive / "Games" / "EA Games" / sc4_dirs_alt,
+				drive / "EA Games" / sc4_dirs,
+				drive / "EA Games" / sc4_dirs_alt,
+
+				# Steam (patched, but has annoying DRM)
+				drive / "Program Files" / steam_dirs / sc4_dirs,
+				drive / "Program Files" / steam_dirs / sc4_dirs_alt,
+				drive / "Program Files (x86)" / steam_dirs / sc4_dirs,
+				drive / "Program Files (x86)" / steam_dirs / sc4_dirs_alt,
+				drive / "Games" / "SteamLibrary" / steam_dirs / sc4_dirs,
+				drive / "Games" / "SteamLibrary" / steam_dirs / sc4_dirs_alt,
+				drive / "SteamLibrary" / steam_dirs / sc4_dirs,
+				drive / "SteamLibrary" / steam_dirs / sc4_dirs_alt,
+
+				# Maxis (probably not patched)
+				drive / "Program Files" / "Maxis" / sc4_dirs,
+				drive / "Program Files (x86)" / "Maxis" / sc4_dirs,
+				drive / "Games" / "Maxis" / sc4_dirs,
+
+				# Generic (probably pirated copies lol)
+				drive / sc4_dirs,
+				drive / sc4_dirs_alt,
+				drive / "Games" / sc4_dirs,
+				drive / "Games" / sc4_dirs_alt,
+				drive / "My Games" / sc4_dirs,
+				drive / "My Games" / sc4_dirs_alt,
+				drive / "Game Library" / sc4_dirs,
+				drive / "Game Library" / sc4_dirs_alt,
+				drive / "Program Files" / sc4_dirs,
+				drive / "Program Files" / sc4_dirs_alt,
+				drive / "Program Files (x86)" / sc4_dirs,
+				drive / "Program Files (x86)" / sc4_dirs_alt,
+
+			]
+
+	else:
+
+		# This list could be expanded if Linux/MacOS users want to put what paths they use
+		possible_paths: list[Path] = [config_path]
+
+	# for possible_path in possible_paths:
+	# 	if possible_path.is_file():
+	# 		print(possible_path)
 
 	# Return the FIRST path that exists in the list
 	for possible_path in possible_paths:
@@ -724,16 +781,28 @@ def start_sc4():
 		show_error("Path to SimCity 4 not found. Specify the correct path in settings.")
 		return
 
+	resw = sc4mp_config["SC4"]["resw"]
+	resh = sc4mp_config["SC4"]["resh"]
+
+	if 0 in (resw, resh):
+		if sc4mp_ui:
+			resw = sc4mp_ui.winfo_screenwidth()
+			resh = sc4mp_ui.winfo_screenheight()
+		else:
+			resw = 1280
+			resh = 800
+
+
 	# Arguments set based on config settings
 	arguments = [str(path),
 			  f'-UserDir:"{SC4MP_LAUNCHPATH}{os.sep}"', # add trailing slash here because SC4 expects it
 			  '-intro:off',
 			  '-CustomResolution:enabled',
-			  f'-r{sc4mp_config["SC4"]["resw"]}x{sc4mp_config["SC4"]["resh"]}x32',
+			  f'-r{resw}x{resh}x32',
 			  f'-CPUCount:{sc4mp_config["SC4"]["cpu_count"]}',
 			  f'-CPUPriority:{sc4mp_config["SC4"]["cpu_priority"]}'
 			  ]
-	if sc4mp_config["SC4"]["fullscreen"] == True:
+	if sc4mp_config["SC4"]["fullscreen"]:
 		arguments.append('-f')
 	else:
 		arguments.append('-w')
@@ -827,7 +896,7 @@ def is_steam_sc4(path: Path):
 	#	if steam_filename in exec_dir_filenames:
 	#		return True
 
-	return "steamapps" in [directory.name for directory in path.parents]
+	return "steamapps" in [directory.name.lower() for directory in path.parents]
 
 
 def process_exists(process_name): #TODO add MacOS compatability / deprecate in favor of `process_count`?
@@ -1109,7 +1178,7 @@ def prep_region_config(path):
 
 def format_download_size(size):
 	if size == 0:
-		return "None"
+		return "..."
 	else:
 		return format_filesize(size)
 
@@ -2697,7 +2766,8 @@ class ServerLoader(th.Thread):
 				raise ClientException("Unable to find server. Check the IP address and port, then try again.")
 		if not sc4mp_config["DEBUG"]["ignore_incompatable_versions"]:
 			if unformat_version(self.server.server_version)[:2] < unformat_version(SC4MP_VERSION)[:2]:
-				raise ClientException(f"The server requires an outdated version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please contact the server administrators.")
+				if sc4mp_beta is False:
+					raise ClientException(f"The server requires an outdated version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please contact the server administrators.")
 			if unformat_version(self.server.server_version)[:2] > unformat_version(SC4MP_VERSION)[:2]:
 				raise ClientException(f"The server requires a newer version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please update the launcher to connect to this server.")
 		if self.ui != None:
@@ -3172,8 +3242,23 @@ class ServerLoader(th.Thread):
 		except Exception as e:
 			raise ClientException("SimCity 4 is already running!") from e
 
+		resw = sc4mp_config['SC4']['resw']
+		resh = sc4mp_config['SC4']['resh']
+		if 0 in (resw, resh) and sc4mp_ui:
+			resw = sc4mp_ui.winfo_screenwidth()
+			resh = sc4mp_ui.winfo_screenheight()
+
 		# Load default plugins
-		for default_plugin_file_name in ["sc4-fix.dll", "sc4-fix-license.txt", "sc4-thumbnail-fix.dll", "sc4-thumbnail-fix-license.txt", "sc4-thumbnail-fix-third-party-notices.txt"]: #, "sc4-dbpf-loading.dll", "sc4-dbpf-loading-license.txt", "sc4-dbpf-loading-third-party-notices.txt"]:
+		for default_plugin_file_name in [
+			"sc4-fix.dll", 
+			"sc4-fix-license.txt", 
+			"sc4-thumbnail-fix.dll", 
+			"sc4-thumbnail-fix-license.txt", 
+			"sc4-thumbnail-fix-third-party-notices.txt",
+			f"sc4mp-intro-{resw}-{resh}.dat",
+			"sc4mp-local.dat",
+			"sc4mp-ui.dat",
+		]:
 			try:
 				default_plugin_file_path = default_plugins_source / default_plugin_file_name
 				default_plugin_checksum = md5(default_plugin_file_path)
@@ -3189,6 +3274,12 @@ class ServerLoader(th.Thread):
 			if not checksum in toplevel_plugins_checksums:
 				shutil.copy(path, default_plugins_destination / f"{basename}-{checksum}.dll")
 				toplevel_plugins_checksums.append(checksum)
+
+		# Write server URL local plugin file
+		# with open(get_sc4mp_path("sc4mp-local-server-url.dat"), "rb") as rfile:
+		# 	data = rfile.read().replace(b"{\x00{\x00U\x00R\x00L\x00}\x00}", bytes(self.server.server_url, encoding="utf-8"))
+		# 	with open(default_plugins_destination / "server-url.dat", "wb") as wfile:
+		# 		wfile.write(data)
 
 
 	def prep_regions(self):
@@ -4414,22 +4505,27 @@ class UI(tk.Tk):
 
 	def release_notes(self):
 
-		if sc4mp_config["GENERAL"]["show_release_notes"] and sc4mp_config["GENERAL"]["release_notes_version"] != SC4MP_VERSION:
+		global sc4mp_beta
 
-			try:
+		try:
 
-				# Set version for release info
-				version = SC4MP_VERSION
+			# Set version for release info
+			version = SC4MP_VERSION
 
-				# Get latest release info
-				release_info = get_release_info(version=version)
+			# Get current release info
+			release_info = get_release_info(version=version)
+			
+			# Set beta flag to `True` if pre-release
+			if "prerelease" in release_info.keys():
+				sc4mp_beta = release_info["prerelease"]
 
-				# Create release notes UI
+			# Create release notes UI
+			if sc4mp_config["GENERAL"]["show_release_notes"] and sc4mp_config["GENERAL"]["release_notes_version"] != SC4MP_VERSION:
 				ReleaseNotesUI(version, release_info["name"], release_info["body"])
 
-			except Exception as e:
-	
-				show_error(f"Unable to show release notes.\n\n{e}", no_ui=True)
+		except Exception as e:
+
+			show_error(f"Unable to show release notes.\n\n{e}", no_ui=True)
 
 
 	def show_error(self, *args):
@@ -4899,8 +4995,22 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# Resolution combo box
 		self.resolution_frame.combo_box = ttk.Combobox(self.resolution_frame, width=15)
-		self.resolution_frame.combo_box.insert(0, str(sc4mp_config["SC4"]["resw"]) + "x" + str(sc4mp_config["SC4"]["resh"]))
-		self.resolution_frame.combo_box["values"] = ("800x600 (4:3)", "1024x768 (4:3)", "1280x1024 (4:3)", "1600x1200 (4:3)", "1280x800 (16:9)", "1440x900 (16:9)", "1680x1050 (16:9)", "1920x1080 (16:9)", "2048x1152 (16:9)")
+		if 0 in (sc4mp_config["SC4"]["resw"], sc4mp_config["SC4"]["resh"]):
+			self.resolution_frame.combo_box.insert(0, "Automatic")
+		else:
+			self.resolution_frame.combo_box.insert(0, str(sc4mp_config["SC4"]["resw"]) + "x" + str(sc4mp_config["SC4"]["resh"]))
+		self.resolution_frame.combo_box["values"] = (
+			"Automatic",
+			"800x600 (4:3)", 
+			"1024x768 (4:3)", 
+			"1280x800 (16:10)", 
+			"1280x1024 (5:4)", 
+			"1440x900 (16:10)", 
+			"1600x1200 (4:3)", 
+			"1680x1050 (16:10)", 
+			"1920x1080 (16:9)", 
+			"2048x1152 (16:9)"
+		)
 		self.resolution_frame.combo_box.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
 		self.config_update.append((self.resolution_frame.combo_box, "res"))
 
@@ -4982,10 +5092,17 @@ class SC4SettingsUI(tk.Toplevel):
 				if sc4mp_config["SC4"]["use_steam_browser_protocol"] in [0, 1]:
 					update_config_value("SC4", "use_steam_browser_protocol", (1 if is_steam_sc4(Path(data)) else 0))
 			if key == "res":
-				res = data.split(' ')[0]
-				resw, resh = res.split('x')
-				update_config_value("SC4", "resw", resw)
-				update_config_value("SC4", "resh", resh)
+				try:
+					if len(data) < 1 or data.lower().startswith("auto"):
+						resw = 0
+						resh = 0
+					else:
+						res = data.split(' ')[0]
+						resw, resh = res.split('x')
+					update_config_value("SC4", "resw", resw)
+					update_config_value("SC4", "resh", resh)
+				except Exception as e:
+					show_error(e, no_ui=True)
 			else:
 				update_config_value("SC4", key, data)
 		
@@ -6959,6 +7076,18 @@ class ServerDetailsUI(tk.Toplevel):
 		# Update window size periodically
 
 		self.after(100, self.update_window_size)
+		
+
+		# Select tab from last server detail view
+		self.after(200, self.select_last_tab)
+
+
+	def select_last_tab(self):
+
+		try:
+			self.notebook.select(globals().get("sc4mp_server_details_ui_last_tab_index", 0))
+		except Exception as e:
+			pass
 
 
 	def on_notebook_tab_changed(self, function: function):
@@ -7130,6 +7259,13 @@ class ServerDetailsUI(tk.Toplevel):
 
 
 	def destroy(self):
+
+		global sc4mp_server_details_ui_last_tab_index
+
+		try:
+			sc4mp_server_details_ui_last_tab_index = self.notebook.index(self.notebook.select())
+		except Exception:
+			pass
 
 		self.destroyed = True
 
