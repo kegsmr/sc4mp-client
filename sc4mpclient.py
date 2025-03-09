@@ -6425,6 +6425,8 @@ class ServerListUI(tk.Frame):
 
 		# self.tree.bind("<Double-1>", self.handle_double_click) #lambda event: self.connect())
 		self.tree.bind("<Button-1>", self.handle_single_click)
+		self.tree.bind("<Button-2>", self.handle_right_click)
+		self.tree.bind("<Button-3>", self.handle_right_click)
 
 		self.tree.sort = "Rank"
 		self.tree.reverse_sort = False
@@ -6573,6 +6575,39 @@ class ServerListUI(tk.Frame):
 				self.tree.last_click_coords = (event.x, event.y)
 			
 		
+	def handle_right_click(self, event):
+
+		server_id = self.tree.identify('item', event.x, event.y)
+
+		menu = tk.Menu(self, tearoff=0)
+
+		if server_id:
+	
+			self.tree.selection_set(server_id)
+			self.tree.focus(server_id)
+
+			# Create the context menu
+			menu.add_command(label="Connect", command=self.connect, font=("Segoe UI", 9, "bold"))
+			menu.add_command(label="Refresh", command=self.root.refresh)
+			if "Offline" not in self.worker.servers[server_id].categories:
+				menu.add_separator()
+				menu.add_command(label="Details...", command=self.details)
+			# menu.add_separator()
+			# copy_menu = tk.Menu(self, tearoff=0)
+			# copy_menu.add_command(label="Invite link")			#TODO
+			# copy_menu.add_command(label="Address")				#TODO
+			# copy_menu.add_command(label="Website")				#TODO
+			# menu.add_cascade(label="Copy", menu=copy_menu)
+		
+		else:
+
+			#TODO add another menu here?
+
+			pass
+
+		# Show the context menu at the cursor's location
+		menu.post(event.x_root, event.y_root)
+
 
 	def handle_header_click(self, name):
 		
