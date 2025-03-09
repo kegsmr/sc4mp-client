@@ -6455,6 +6455,8 @@ class ServerListUI(tk.Frame):
 		self.server_info.grid(row=3, column=0, columnspan=2, padx=20, pady=0, sticky="nw")
 		self.server_info.grid_propagate(0)
 
+		#TODO add right click context menu
+
 
 		# Description label
 
@@ -6581,29 +6583,19 @@ class ServerListUI(tk.Frame):
 
 		menu = tk.Menu(self, tearoff=0)
 
-		if server_id:
+		if not server_id: return
 	
-			self.tree.selection_set(server_id)
-			self.tree.focus(server_id)
+		self.tree.selection_set(server_id)
+		self.tree.focus(server_id)
 
-			# Create the context menu
-			menu.add_command(label="Connect", command=self.connect, font=("Segoe UI", 9, "bold"))
-			menu.add_command(label="Refresh", command=self.root.refresh)
-			if "Offline" not in self.worker.servers[server_id].categories:
-				menu.add_separator()
-				menu.add_command(label="Details...", command=self.details)
-			# menu.add_separator()
-			# copy_menu = tk.Menu(self, tearoff=0)
-			# copy_menu.add_command(label="Invite link")			#TODO
-			# copy_menu.add_command(label="Address")				#TODO
-			# copy_menu.add_command(label="Website")				#TODO
-			# menu.add_cascade(label="Copy", menu=copy_menu)
-		
-		else:
-
-			#TODO add another menu here?
-
-			pass
+		# Create the context menu
+		menu.add_command(label="Connect", command=self.connect, font=("Segoe UI", 9, "bold"))
+		menu.add_command(label="Refresh", command=self.root.refresh)
+		if "Offline" not in self.worker.servers[server_id].categories:
+			menu.add_separator()
+			menu.add_command(label="Details...", command=self.details)
+		#TODO add "View..." submenu
+		#TODO add "Sort by..." submenu
 
 		# Show the context menu at the cursor's location
 		menu.post(event.x_root, event.y_root)
