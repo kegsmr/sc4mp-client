@@ -5746,6 +5746,8 @@ class ServerListUI(tk.Frame):
 		self.server_info.grid(row=3, column=0, columnspan=2, padx=20, pady=0, sticky="nw")
 		self.server_info.grid_propagate(0)
 
+		#TODO add right click context menu
+
 
 		# Description label
 
