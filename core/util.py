@@ -634,3 +634,27 @@ def replace_in_file(path, old, new):
     
     with open(path, 'w', encoding='utf-8') as file:
         file.write(content)
+
+
+def get_system_language():
+
+	import locale
+	import os
+
+	# Try locale first
+	lang_region, _ = locale.getdefaultlocale()
+
+	# Fallbacks
+	if not lang_region:
+		if is_windows():
+			lang_region = locale.getlocale()[0]
+		else:
+			lang_region = os.environ.get("LANG", "en_US").split('.')[0]
+
+	# Extract just the language (before _)
+	if lang_region and '_' in lang_region:
+		language = lang_region.split('_')[0]
+	else:
+		language = lang_region
+
+	return language or "en"  # Fallback to English

@@ -131,6 +131,9 @@ SC4MP_CONFIG_DEFAULTS = [
 		("additional_properties", "")
 
 	]),
+	("LOCALE", [
+		("language", get_system_language()),
+	]),
 	("DEBUG", [
 
 		("random_server_stats", False),
@@ -164,6 +167,8 @@ sc4mp_game_monitor_x = 10
 sc4mp_game_monitor_y = 40
 
 sc4mp_beta = None
+
+sc4mp_locale = {}
 
 
 # Functions
@@ -337,6 +342,7 @@ def prep():
 	"""Prepares the client to launch."""
 	
 	load_config()
+	load_locale()
 	check_updates()
 	create_subdirectories()
 	load_database()
@@ -355,6 +361,15 @@ def load_config():
 	print("Loading config...")
 
 	sc4mp_config = Config(SC4MP_CONFIG_PATH, SC4MP_CONFIG_DEFAULTS, error_callback=show_error, update_constants_callback=update_config_constants)
+
+
+def load_locale():
+
+	global sc4mp_locale
+
+	print("Loading locale...")
+
+	sc4mp_locale = load_json(get_sc4mp_path("locale.json"))
 
 
 def check_updates():
@@ -1340,6 +1355,11 @@ def window_open(image_name):
     return found.value
 
 
+def loc(message):
+
+	return sc4mp_locale.get(message, {}).get(sc4mp_config["LOCALE"]["language"], None) or message
+
+
 # Objects
 
 class Server:
@@ -1746,7 +1766,7 @@ class ServerList(th.Thread):
 		self.ui: ServerListUI = ui
 
 		if self.ui is not None and kill is None:
-			self.ui.label["text"] = 'Getting server list...'
+			self.ui.label["text"] = loc('Getting server list...')
 
 		self.setDaemon(True)
 
@@ -1988,7 +2008,7 @@ class ServerList(th.Thread):
 					# Update primary label
 					if len(self.servers) > self.offline_server_count:
 						#if len(self.hidden_servers) < len(self.servers):
-						self.ui.label["text"] = 'To get started, select a server below and click "Connect"'
+						self.ui.label["text"] = loc('To get started, select a server below and click "Connect"')
 						#else:
 						#	self.ui.label["text"] = 'No servers found'
 					else:
