@@ -477,7 +477,7 @@ def check_updates():
 									# Download file
 									download_size = int(urllib.request.urlopen(download_url).headers["Content-Length"])
 									if ui is not None:
-										ui.label["text"] = "Downloading update... (0%)"
+										ui.label["text"] = loc("Downloading update...") + " (0%)"
 										ui.progress_bar["mode"] = "determinate"
 										ui.progress_bar["maximum"] = download_size
 										ui.progress_bar["value"] = 0
@@ -488,7 +488,7 @@ def check_updates():
 												while ui.pause:
 													time.sleep(.1)
 												if ui is not None:
-													ui.label["text"] = f"Downloading update... ({int(100 * (download_size_downloaded / download_size))}%)"
+													ui.label["text"] = f"{loc('Downloading update...')} ({int(100 * (download_size_downloaded / download_size))}%)"
 													ui.progress_bar["value"] = download_size_downloaded
 												bytes_read = rfile.read(SC4MP_BUFFER_SIZE) 
 												download_size_downloaded += len(bytes_read)
@@ -498,7 +498,7 @@ def check_updates():
 									pause()
 
 									# Report installing update
-									report("Installing update...")
+									report(loc("Installing update..."))
 									if ui is not None:
 										ui.progress_bar['mode'] = "indeterminate"
 										ui.progress_bar['maximum'] = 100
@@ -957,7 +957,7 @@ def directory_size(directory: Path) -> int:
 def load_json(filename):
 	"""Returns data from a json file as a dictionary."""
 	try:
-		with open(filename, 'r') as file:
+		with open(filename, 'r', encoding="utf-8") as file:
 			data = json.load(file)
 			if data == None:
 				return dict()
@@ -4464,38 +4464,38 @@ class UI(tk.Tk):
 		
 		launcher = Menu(menu, tearoff=0)  
 		settings_submenu = Menu(menu, tearoff=0)
-		settings_submenu.add_command(label="General...", accelerator="F5", command=self.general_settings)     
-		settings_submenu.add_command(label="Storage...", accelerator="F6", command=self.storage_settings)    
+		settings_submenu.add_command(label=loc("General..."), accelerator="F5", command=self.general_settings)     
+		settings_submenu.add_command(label=loc("Storage..."), accelerator="F6", command=self.storage_settings)    
 		settings_submenu.add_command(label="SC4...", accelerator="F7", command=self.SC4_settings)
-		launcher.add_cascade(label="Settings", menu=settings_submenu) 
+		launcher.add_cascade(label=loc("Settings"), menu=settings_submenu) 
 		launcher.add_separator()
-		launcher.add_command(label="Updates...", command=lambda:webbrowser.open_new_tab(SC4MP_RELEASES_URL)) 
+		launcher.add_command(label=loc("Updates..."), command=lambda:webbrowser.open_new_tab(SC4MP_RELEASES_URL)) 
 		launcher.add_separator()
-		launcher.add_command(label="Exit", command=self.quit)  
-		menu.add_cascade(label="Launcher", menu=launcher)  #TODO rename to "Launcher" and put settings in cascade?
+		launcher.add_command(label=loc("Exit"), command=self.quit)  
+		menu.add_cascade(label=loc("Launcher"), menu=launcher)  #TODO rename to "Launcher" and put settings in cascade?
 
 		servers = Menu(menu, tearoff=0)  
 		
-		servers.add_command(label="Connect...", accelerator="F1", command=self.direct_connect)
-		servers.add_command(label="Refresh", accelerator="F2", command=self.refresh)
+		servers.add_command(label=loc("Connect..."), accelerator="F1", command=self.direct_connect)
+		servers.add_command(label=loc("Refresh"), accelerator="F2", command=self.refresh)
 		servers.add_separator() 
-		servers.add_command(label="Host...", accelerator="F3", command=self.host)
-		menu.add_cascade(label="Servers", menu=servers)  
+		servers.add_command(label=loc("Host..."), accelerator="F3", command=self.host)
+		menu.add_cascade(label=loc("Servers"), menu=servers)  
 
 		help = Menu(menu, tearoff=0)  	
-		help.add_command(label="About...", command=self.about)
-		help.add_command(label="Readme...", command=self.readme)
+		help.add_command(label=loc("About..."), command=self.about)
+		help.add_command(label=loc("Readme..."), command=self.readme)
 		help.add_separator()
-		help.add_command(label="Logs...", command=open_logs)
+		help.add_command(label=loc("Logs..."), command=open_logs)
 		help.add_separator()
-		help.add_command(label="Feedback...", command=lambda:webbrowser.open_new_tab(SC4MP_ISSUES_URL))
+		help.add_command(label=loc("Feedback..."), command=lambda:webbrowser.open_new_tab(SC4MP_ISSUES_URL))
 		#feedback_submenu = Menu(help, tearoff=0)
 		#feedback_submenu.add_command(label=SC4MP_FEEDBACK_LINKS[0][0], command=lambda:webbrowser.open_new_tab(SC4MP_FEEDBACK_LINKS[0][1]))
 		#feedback_submenu.add_command(label=SC4MP_FEEDBACK_LINKS[1][0], command=lambda:webbrowser.open_new_tab(SC4MP_FEEDBACK_LINKS[1][1]))
 		#for link in SC4MP_FEEDBACK_LINKS:
 		#	feedback_submenu.add_command(label=link[0], command=lambda:webbrowser.open_new_tab(link[1])) #TODO why does the github button open discord?
 		#help.add_cascade(label="Feedback", menu=feedback_submenu)
-		menu.add_cascade(label="Help", menu=help)
+		menu.add_cascade(label=loc("Help"), menu=help)
 		
 		self.config(menu=menu)  
 
@@ -4511,7 +4511,7 @@ class UI(tk.Tk):
 			self.server_list = ServerListUI(self)
 			self.server_list.grid(row=0, column=0, padx=0, pady=0, sticky="w")
 		else:
-			self.label = tk.Label(self, text="SERVER BROWSER DISABLED") #\n\nTo get started, press <F1> and enter the IP address and port of the server you wish to connect to.")
+			self.label = tk.Label(self, text=loc("SERVER BROWSER DISABLED")) #\n\nTo get started, press <F1> and enter the IP address and port of the server you wish to connect to.")
 			self.label.pack(anchor="center", pady=250)
 			#self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Connect..." in the menu bar and enter the hostname and port of the server you wish to connect to.')
 			#self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
@@ -4656,22 +4656,22 @@ class GeneralSettingsUI(tk.Toplevel):
 		self.config_update = []
 
 		# Updates frame
-		self.updates_frame = tk.LabelFrame(self, text="Updates", width=50)
+		self.updates_frame = tk.LabelFrame(self, text=loc("Updates"), width=50)
 		self.updates_frame.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="nw")
 
 		# Updates checkbutton
 		self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
-		self.updates_frame.checkbutton = ttk.Checkbutton(self.updates_frame, text="Check for updates at startup", onvalue=True, offvalue=False, variable=self.updates_frame.checkbutton_variable)
+		self.updates_frame.checkbutton = ttk.Checkbutton(self.updates_frame, text=loc("Check for updates at startup"), onvalue=True, offvalue=False, variable=self.updates_frame.checkbutton_variable)
 		self.updates_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=(10,10), sticky="w")
 		self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
 
 		# UI frame
-		self.ui_frame = tk.LabelFrame(self, text="UI")		
+		self.ui_frame = tk.LabelFrame(self, text=loc("UI"))		
 		self.ui_frame.grid(row=1, column=0, columnspan=1, padx=10, pady=0, sticky="nw")
 
 		# Use game overlay
 		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_game_overlay"])
-		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use game overlay", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text=loc("Use game overlay"), onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
 		self.ui_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=(10,65), pady=(10,5), sticky="w")
 		self.config_update.append((self.ui_frame.checkbutton_variable, "use_game_overlay"))
 
@@ -4683,7 +4683,7 @@ class GeneralSettingsUI(tk.Toplevel):
 
 		# Use fullscreen background
 		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_fullscreen_background"])
-		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use loading background", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text=loc("Use loading background"), onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
 		self.ui_frame.checkbutton.grid(row=2, column=0, columnspan=1, padx=10, pady=(5,10), sticky="w")
 		self.config_update.append((self.ui_frame.checkbutton_variable, "use_fullscreen_background"))
 
@@ -4696,35 +4696,35 @@ class GeneralSettingsUI(tk.Toplevel):
 		#self.ui_frame.mayors_online_cutoff_combobox.grid(row=0, column=1)
 
 		# Security frame
-		self.security_frame = tk.LabelFrame(self, text="Security")
+		self.security_frame = tk.LabelFrame(self, text=loc("Security"))
 		self.security_frame.grid(row=0, column=1, columnspan=1, rowspan=2, padx=10, pady=10, sticky="nw")
 
 		# Save server passwords checkbutton
 		self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["save_server_passwords"])
-		self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text="Save server passwords", onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
+		self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text=loc("Save server passwords"), onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
 		self.security_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=(10,5), sticky="w")
 		self.config_update.append((self.security_frame.checkbutton_variable, "save_server_passwords"))
 
 		# Ignore 3rd-party server warnings checkbutton
 		self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["ignore_third_party_server_warnings"])
-		self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text="Hide 3rd-party server warnings", onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
+		self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text=loc("Hide 3rd-party server warnings"), onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
 		self.security_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
 		self.config_update.append((self.security_frame.checkbutton_variable, "ignore_third_party_server_warnings"))
 
 		# Ignore authentication errors checkbutton
 		self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["ignore_token_errors"])
-		self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text="Hide authentication warnings", onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
+		self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text=loc("Hide authentication warnings"), onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
 		self.security_frame.checkbutton.grid(row=2, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
 		self.config_update.append((self.security_frame.checkbutton_variable, "ignore_token_errors"))
 
 		# Ignore file warnings checkbutton
 		self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["ignore_risky_file_warnings"])
-		self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text="Hide dangerous file warnings", onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
+		self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text=loc("Hide dangerous file warnings"), onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
 		self.security_frame.checkbutton.grid(row=3, column=0, columnspan=1, padx=10, pady=(5,32), sticky="w")
 		self.config_update.append((self.security_frame.checkbutton_variable, "ignore_risky_file_warnings"))
 
 		# Path frame
-		self.path_frame = tk.LabelFrame(self, text="Custom plugins")		
+		self.path_frame = tk.LabelFrame(self, text=loc("Custom plugins"))		
 		self.path_frame.grid(row=10, column=0, columnspan=3, padx=10, pady=10, sticky="w")
 
 		# Path checkbutton
@@ -4740,11 +4740,11 @@ class GeneralSettingsUI(tk.Toplevel):
 		self.config_update.append((self.path_frame.entry, "custom_plugins_path"))
 
 		# Path browse button
-		self.path_frame.button = ttk.Button(self.path_frame, text="Browse...", command=self.browse_path)
+		self.path_frame.button = ttk.Button(self.path_frame, text=loc("Browse..."), command=self.browse_path)
 		self.path_frame.button.grid(row=1, column=1, columnspan=1, padx=10, pady=10)
 
 		# Path label
-		self.path_frame.label = ttk.Label(self.path_frame, text='Some servers allow users to load their own plugins alongside the server \nplugins. Specify your plugins directory here so that they can be loaded \nwhen joining a server.')
+		self.path_frame.label = ttk.Label(self.path_frame, text=loc('Some servers allow users to load their own plugins alongside the server \nplugins. Specify your plugins directory here so that they can be loaded \nwhen joining a server.'))
 		self.path_frame.label.grid(row=2, column=0, columnspan=2, padx=10, pady=(0,10), sticky="w")
 
 		# Reset button
@@ -5839,7 +5839,7 @@ class ServerListUI(tk.Frame):
 
 		# Details button
 
-		self.details_button = ttk.Button(self.server_options, text="Details", command=self.details)
+		self.details_button = ttk.Button(self.server_options, text=loc("Details"), command=self.details)
 		self.details_button['state'] = tk.DISABLED
 		self.details_button.grid(row=0, column=99, columnspan=1, padx=(15,20), pady=10, sticky="se")
 
