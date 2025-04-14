@@ -1357,7 +1357,11 @@ def window_open(image_name):
 
 def loc(message):
 
-	return sc4mp_locale.get(message, {}).get(sc4mp_config["LOCALE"]["language"], None) or message
+	try:
+		return sc4mp_locale.get(message, {}).get(sc4mp_config["LOCALE"]["language"], None) or message
+	except Exception as e:
+		show_error(f"An error occurred while localizing message \"{message}\".\n\n{e}")
+		return message
 
 
 # Objects
