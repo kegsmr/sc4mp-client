@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import configparser
+import ctypes
 import hashlib
 import inspect
 import json
@@ -18,13 +19,15 @@ import sys
 import threading as th
 import time
 import tkinter as tk
+import tkinter.font as tkfont
 import traceback
+import urllib.request
 import webbrowser
 from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
+from tkinter import font as tkfont
 from typing import Optional
-import urllib.request
 
 try:
 	from PIL import Image, ImageTk, UnidentifiedImageError
@@ -42,14 +45,16 @@ from core.util import *
 
 # Header
 
-SC4MP_VERSION = "0.7.5"
+SC4MP_VERSION = "0.8.3"
 
-SC4MP_SERVERS = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
+SC4MP_SERVERS = get_server_list()
 
-SC4MP_URL = "www.sc4mp.org"
-SC4MP_CONTRIBUTORS_URL = "https://github.com/kegsmr/sc4mp-client/contributors/"
-SC4MP_ISSUES_URL = "https://github.com/kegsmr/sc4mp-client/issues/"
-SC4MP_RELEASES_URL = "https://github.com/kegsmr/sc4mp-client/releases/"
+SC4MP_GITHUB_REPO = "kegsmr/sc4mp-client"
+
+SC4MP_URL = "https://www.sc4mp.org/"
+SC4MP_CONTRIBUTORS_URL = f"https://github.com/{SC4MP_GITHUB_REPO}/contributors/"
+SC4MP_ISSUES_URL = f"https://github.com/{SC4MP_GITHUB_REPO}/issues/"
+SC4MP_RELEASES_URL = f"https://github.com/{SC4MP_GITHUB_REPO}/releases/"
 
 SC4MP_AUTHOR_NAME = "SimCity 4 Multiplayer Project"
 SC4MP_WEBSITE_NAME = "www.sc4mp.org"
@@ -60,7 +65,7 @@ SC4MP_LOG_PATH = "sc4mpclient.log"
 SC4MP_README_PATH = "readme.html"
 SC4MP_RESOURCES_PATH = "resources"
 
-SC4MP_TITLE = f"SC4MP Launcher v{SC4MP_VERSION}" + (" (x86)" if 8 * struct.calcsize('P') == 32 else "")
+SC4MP_TITLE = format_title("SC4MP Launcher", version=SC4MP_VERSION)
 SC4MP_ICON: Path = Path(SC4MP_RESOURCES_PATH) / "icon.png"
 
 SC4MP_HOST = "localhost" #SC4MP_SERVERS[0][0]
@@ -83,9 +88,12 @@ SC4MP_CONFIG_DEFAULTS = [
 		("show_release_notes", True),
 
 		("use_server_browser", True),
+		("server_browser_filter", ""),
 		("scan_lan", True),
 		("stat_mayors_online_cutoff", 60),
 		("show_actual_download", True),
+		("show_rank_bars", True),
+		("show_offline_servers", True),
 		("use_fullscreen_background", True),
 		("use_launcher_map", True),
 		("use_game_overlay", 1),
@@ -113,9 +121,9 @@ SC4MP_CONFIG_DEFAULTS = [
 		("game_path", ""),
 		("use_steam_browser_protocol", 0),
 		
-		("resw", 1280),
-		("resh", 800),
-		("fullscreen", False),
+		("resw", 0),			#1200
+		("resh", 0),			#800
+		("fullscreen", True),	#False
 
 		("cpu_count", 1),
 		("cpu_priority", "high"),
@@ -126,6 +134,7 @@ SC4MP_CONFIG_DEFAULTS = [
 	("DEBUG", [
 
 		("random_server_stats", False),
+		("ignore_incompatable_versions", False),
 		
 	])
 ]
@@ -140,13 +149,21 @@ SC4MP_RISKY_FILE_EXTENSIONS = [".bat", ".bin", ".cmd", ".com", ".cpl", ".dll", "
 								".paf", ".pif", ".py", ".ps1", ".reg", ".rgs", ".scr", ".sct", ".sh", ".shb",
 								".shs", ".u3p", ".vb", ".vbe", ".vbs", ".vbscript", ".ws", ".wsf", ".wsh"]
 
-URL_PREFIX = "sc4mp://"
+SC4MP_URL_PREFIX = "sc4mp://"
+
+SC4MP_SERVERS_DOMAIN = "servers.sc4mp.org"
+SC4MP_INVITES_DOMAIN = "invite.sc4mp.org"
 
 sc4mp_args = sys.argv
 
 sc4mp_ui = None
 
 sc4mp_current_server = None
+
+sc4mp_game_monitor_x = 10
+sc4mp_game_monitor_y = 40
+
+sc4mp_beta = None
 
 
 # Functions
@@ -164,7 +181,7 @@ def main():
 	try:
 
 		# URL launch behavior
-		url_launch = len(sc4mp_args) > 1 and sc4mp_args[1].startswith(URL_PREFIX)
+		url_launch = len(sc4mp_args) > 1 and sc4mp_args[1].startswith(SC4MP_URL_PREFIX)
 		url_launch_exit_after = True
 	
 		# Exit if already runnning (unless launching using URL)
@@ -254,7 +271,7 @@ def main():
 		if url_launch:
 			try:
 				url = sc4mp_args[1]
-				url = url.replace(URL_PREFIX, "", 1)
+				url = url.replace(SC4MP_URL_PREFIX, "", 1)
 				if url.endswith("/"):
 					url = url[:-1]
 				url = url.split(":")
@@ -361,8 +378,8 @@ def check_updates():
 				# Get latest release info
 				latest_release_info = get_release_info()
 
-				# Download the update if the version doesn't match
-				if sc4mp_force_update or latest_release_info["tag_name"] != f"v{SC4MP_VERSION}":
+				# Download the update if the version is newer
+				if sc4mp_force_update or unformat_version(latest_release_info["tag_name"]) > unformat_version(SC4MP_VERSION):
 
 					# Local function for update thread
 					def update(ui=None):
@@ -528,12 +545,12 @@ def check_updates():
 			show_error(f"An error occurred while updating.\n\n{e}", no_ui=True)
 
 
-def get_release_info(version="latest", timeout=10):
+def get_release_info(version="latest", timeout=10) -> dict:
 
 	if version == "latest":
-		github_api_call = "https://api.github.com/repos/kegsmr/sc4mp-client/releases/latest"
+		github_api_call = f"https://api.github.com/repos/{SC4MP_GITHUB_REPO}/releases/latest"
 	else:
-		github_api_call = f"https://api.github.com/repos/kegsmr/sc4mp-client/releases/tags/v{version}"
+		github_api_call = f"https://api.github.com/repos/{SC4MP_GITHUB_REPO}/releases/tags/v{version}"
 
 	try:
 		with urllib.request.urlopen(url=github_api_call, timeout=timeout) as url:
@@ -541,7 +558,6 @@ def get_release_info(version="latest", timeout=10):
 	except urllib.error.URLError as e:
 		raise ClientException("GitHub API call timed out.") from e
 	
-
 	
 def update_config_constants(config):
 	"""For backwards compatibility. Updates the global config constants that are sometimes used internally."""
@@ -619,52 +635,107 @@ def get_sc4_path() -> Optional[Path]:
 	# The path specified by the user
 	config_path = Path(sc4mp_config['SC4']['game_path'])
 
-	# Common SC4 dirs (alternate path used by GOG and Origin)
-	sc4_dirs = Path("SimCity 4 Deluxe") / "Apps" / "SimCity 4.exe"
-	sc4_dirs_alt = Path("SimCity 4 Deluxe Edition") / "Apps" / "SimCity 4.exe"
+	# On Windows, create a list of possible SC4 installation paths, otherwise just use the config path
+	if is_windows():
 
-	# Common Steam dirs
-	steam_dirs = Path("Steam") / "steamapps" / "common"
+		# Common SC4 dirs (alternate path used by GOG and Origin)
+		sc4_dirs = Path("SimCity 4 Deluxe") / "Apps" / "SimCity 4.exe"
+		sc4_dirs_alt = Path("SimCity 4 Deluxe Edition") / "Apps" / "SimCity 4.exe"
 
-	# On Windows, this is most likely the C:\ drive
-	home_drive = Path(Path.home().drive)
+		# Common Steam dirs
+		steam_dirs = Path("Steam") / "steamapps" / "common"
 
-	# List of common SC4 install dirs, highest priority at the top
-	possible_paths: list[Path] = [
-		
-		# Custom (specified by the user)
-		config_path,
-		config_path / "SimCity 4.exe",
-		config_path / "Apps" / "SimCity 4.exe",
+		# Drive letters
+		drives = [Path(f"{chr(letter)}:\\") for letter in range(65, 91) if Path(f"{chr(letter)}:\\").exists()]
 
-		# Generic (probably pirated copies lol)
-		home_drive / "Games" / sc4_dirs,
-		home_drive / "Games" / sc4_dirs_alt,
-		home_drive / "Program Files" / sc4_dirs,
-		home_drive / "Program Files" / sc4_dirs_alt,
-		home_drive / "Program Files (x86)" / sc4_dirs,
-		home_drive / "Program Files (x86)" / sc4_dirs_alt,
+		# List of common SC4 install dirs, highest priority at the top
+		possible_paths: list[Path] = [
+			
+			# Custom (specified by the user)
+			config_path,
+			config_path / "SimCity 4.exe",
+			config_path / "Apps" / "SimCity 4.exe",
 
-		# GOG (patched, no DRM, launches without issue)
-		home_drive / "Program Files" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
-		home_drive / "Program Files (x86)" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
-		home_drive / "GOG Games" / sc4_dirs,
-		home_drive / "GOG Games" / sc4_dirs_alt,
+		]
 
-		# Steam (patched, but sometimes has launch issues)
-		home_drive / "Program Files" / steam_dirs / sc4_dirs,
-		home_drive / "Program Files (x86)" / steam_dirs / sc4_dirs,
-		home_drive / "SteamLibrary" / steam_dirs / sc4_dirs,
+		# Expand list for common SC4 install dirs using different drive letters
+		for drive in drives:
 
-		# Origin (maybe patched? Origin is crap)
-		home_drive / "Program Files" / "Origin Games" / sc4_dirs_alt,
-		home_drive / "Program Files (x86)" / "Origin Games" / sc4_dirs_alt,
+			possible_paths += [
 
-		# Maxis (probably not patched, so this goes at the bottom)
-		home_drive / "Program Files" / "Maxis" / sc4_dirs,
-		home_drive / "Program Files (x86)" / "Maxis" / sc4_dirs,
+				# GOG (patched, no DRM, launches without issue)
+				drive / "Program Files" / "GOG Galaxy" / "Games" / sc4_dirs,
+				drive / "Program Files" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
+				drive / "Program Files (x86)" / "GOG Galaxy" / "Games" / sc4_dirs,
+				drive / "Program Files (x86)" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
+				drive / "Games" / "GOG Galaxy" / "Games" / sc4_dirs,
+				drive / "Games" / "GOG Galaxy" / "Games" / sc4_dirs_alt,
+				drive / "GOG Galaxy" / "Games" / sc4_dirs,
+				drive / "GOG Galaxy" / "Games" / sc4_dirs_alt,
+				drive / "Games" / "GOG Games" / sc4_dirs,
+				drive / "Games" / "GOG Games" / sc4_dirs_alt,
+				drive / "GOG Games" / sc4_dirs,
+				drive / "GOG Games" / sc4_dirs_alt,
 
-	]
+				# Origin (holy crap Lois, they finally patched it!)
+				drive / "Program Files" / "Origin Games" / sc4_dirs,
+				drive / "Program Files" / "Origin Games" / sc4_dirs_alt,
+				drive / "Program Files (x86)" / "Origin Games" / sc4_dirs,
+				drive / "Program Files (x86)" / "Origin Games" / sc4_dirs_alt,
+				drive / "Games" / "Origin Games" / sc4_dirs,
+				drive / "Games" / "Origin Games" / sc4_dirs_alt,
+				drive / "Origin Games" / sc4_dirs,
+				drive / "Origin Games" / sc4_dirs_alt,
+
+				# EA (apparently this is a thing now?)
+				drive / "Program Files" / "EA Games" / sc4_dirs,
+				drive / "Program Files" / "EA Games" / sc4_dirs_alt,
+				drive / "Program Files (x86)" / "EA Games" / sc4_dirs,
+				drive / "Program Files (x86)" / "EA Games" / sc4_dirs_alt,
+				drive / "Games" / "EA Games" / sc4_dirs,
+				drive / "Games" / "EA Games" / sc4_dirs_alt,
+				drive / "EA Games" / sc4_dirs,
+				drive / "EA Games" / sc4_dirs_alt,
+
+				# Steam (patched, but has annoying DRM)
+				drive / "Program Files" / steam_dirs / sc4_dirs,
+				drive / "Program Files" / steam_dirs / sc4_dirs_alt,
+				drive / "Program Files (x86)" / steam_dirs / sc4_dirs,
+				drive / "Program Files (x86)" / steam_dirs / sc4_dirs_alt,
+				drive / "Games" / "SteamLibrary" / steam_dirs / sc4_dirs,
+				drive / "Games" / "SteamLibrary" / steam_dirs / sc4_dirs_alt,
+				drive / "SteamLibrary" / steam_dirs / sc4_dirs,
+				drive / "SteamLibrary" / steam_dirs / sc4_dirs_alt,
+
+				# Maxis (probably not patched)
+				drive / "Program Files" / "Maxis" / sc4_dirs,
+				drive / "Program Files (x86)" / "Maxis" / sc4_dirs,
+				drive / "Games" / "Maxis" / sc4_dirs,
+
+				# Generic (probably pirated copies lol)
+				drive / sc4_dirs,
+				drive / sc4_dirs_alt,
+				drive / "Games" / sc4_dirs,
+				drive / "Games" / sc4_dirs_alt,
+				drive / "My Games" / sc4_dirs,
+				drive / "My Games" / sc4_dirs_alt,
+				drive / "Game Library" / sc4_dirs,
+				drive / "Game Library" / sc4_dirs_alt,
+				drive / "Program Files" / sc4_dirs,
+				drive / "Program Files" / sc4_dirs_alt,
+				drive / "Program Files (x86)" / sc4_dirs,
+				drive / "Program Files (x86)" / sc4_dirs_alt,
+
+			]
+
+	else:
+
+		# This list could be expanded if Linux/MacOS users want to put what paths they use
+		possible_paths: list[Path] = [config_path]
+
+	# for possible_path in possible_paths:
+	# 	if possible_path.is_file():
+	# 		print(possible_path)
 
 	# Return the FIRST path that exists in the list
 	for possible_path in possible_paths:
@@ -673,28 +744,6 @@ def get_sc4_path() -> Optional[Path]:
 
 	# Return `None` if none of the paths exist
 	return None
-
-
-#def is_patched_sc4():
-#	"""Broken"""
-#	
-#	if platform.system() == "Windows":
-#
-#		import win32api
-#
-#		sc4_exe_path = get_sc4_path()
-#
-#		file_version_info = win32api.GetFileVersionInfo(sc4_exe_path, '\\')
-#		file_version_ls = file_version_info["FileVersionLS"]
-#
-#		if win32api.HIWORD(file_version_ls) == 641:
-#			return True
-#		else:
-#			return False
-#
-#	else:
-#
-#		return None
 
 
 def start_sc4():
@@ -723,16 +772,28 @@ def start_sc4():
 		show_error("Path to SimCity 4 not found. Specify the correct path in settings.")
 		return
 
+	resw = sc4mp_config["SC4"]["resw"]
+	resh = sc4mp_config["SC4"]["resh"]
+
+	if 0 in (resw, resh):
+		if sc4mp_ui:
+			resw = sc4mp_ui.winfo_screenwidth()
+			resh = sc4mp_ui.winfo_screenheight()
+		else:
+			resw = 1280
+			resh = 800
+
+
 	# Arguments set based on config settings
 	arguments = [str(path),
 			  f'-UserDir:"{SC4MP_LAUNCHPATH}{os.sep}"', # add trailing slash here because SC4 expects it
 			  '-intro:off',
 			  '-CustomResolution:enabled',
-			  f'-r{sc4mp_config["SC4"]["resw"]}x{sc4mp_config["SC4"]["resh"]}x32',
+			  f'-r{resw}x{resh}x32',
 			  f'-CPUCount:{sc4mp_config["SC4"]["cpu_count"]}',
 			  f'-CPUPriority:{sc4mp_config["SC4"]["cpu_priority"]}'
 			  ]
-	if sc4mp_config["SC4"]["fullscreen"] == True:
+	if sc4mp_config["SC4"]["fullscreen"]:
 		arguments.append('-f')
 	else:
 		arguments.append('-w')
@@ -771,7 +832,7 @@ def start_sc4():
 		# Launch the game
 		print(f"- launching directly ('{command}').")
 		try:
-			if platform.system() == "Windows":
+			if is_windows():
 				subprocess.run(command) 			# `subprocess.run(arguments)` won't work on Windows for some unknowable reason
 			else:
 				subprocess.run(arguments)  			# on Linux, the first String passed as argument must be a file that exists
@@ -826,12 +887,12 @@ def is_steam_sc4(path: Path):
 	#	if steam_filename in exec_dir_filenames:
 	#		return True
 
-	return "steamapps" in [directory.name for directory in path.parents]
+	return "steamapps" in [directory.name.lower() for directory in path.parents]
 
 
 def process_exists(process_name): #TODO add MacOS compatability / deprecate in favor of `process_count`?
 	
-	if platform.system() == "Windows":
+	if is_windows():
 		call = 'TASKLIST', '/FI', 'imagename eq %s' % process_name
 		output = subprocess.check_output(call, shell=True).decode()
 		last_line = output.strip().split('\r\n')[-1]
@@ -843,15 +904,6 @@ def process_exists(process_name): #TODO add MacOS compatability / deprecate in f
 def get_sc4mp_path(filename: str) -> Path:
 	"""Returns the path to a given file in the SC4MP "resources" subdirectory"""
 	return Path(SC4MP_RESOURCES_PATH) / filename
-
-
-#def md5(filename: Path) -> str:
-#	"""Returns an md5 hashcode generated from a given file."""
-#	hash_md5 = hashlib.md5()
-#	with filename.open("rb") as f:
-#		for chunk in iter(lambda: f.read(4096), b""):
-#			hash_md5.update(chunk)
-#	return hash_md5.hexdigest()
 
 
 def random_string(length):
@@ -936,10 +988,13 @@ def startfile(filename):
 
 
 def open_logs():
-	#if platform.system() == "Windows" and int(platform.win32_ver()[1].split(".")[0]) >= 10:
-	#	subprocess.Popen("start \"\" logs.bat", cwd=os.getcwd(), start_new_session=True)
-	#else:
-	startfile(SC4MP_LOG_PATH)
+	if has_powershell():
+		subprocess.Popen([
+			"cmd.exe", "/c", "start", "cmd.exe", "/k",
+			f"@echo off && powershell -NoProfile -ExecutionPolicy Bypass -Command $Host.UI.RawUI.WindowTitle = \"{SC4MP_TITLE}\"; gc sc4mpclient.log -Wait -Tail 1000"
+		])
+	else:
+		startfile(SC4MP_LOG_PATH)
 
 
 def fatal_error():
@@ -1089,11 +1144,6 @@ def refresh_region_open() -> bool:
 	return region_open("Refresh...")
 
 
-#def report(message, object):
-#	
-#	print(message)
-
-
 def prep_region_config(path):
 	
 	try:
@@ -1119,7 +1169,7 @@ def prep_region_config(path):
 
 def format_download_size(size):
 	if size == 0:
-		return "None"
+		return "..."
 	else:
 		return format_filesize(size)
 
@@ -1137,7 +1187,7 @@ def get_bitmap_dimensions(filename):
 
 
 def arp():
-	if platform.system() == "Windows":
+	if is_windows():
 		call = 'arp', '-a'
 		output = subprocess.check_output(call, shell=True).decode()
 		return [line for line in re.findall('([-.0-9]+)\s+([-0-9a-f]{17})\s+(\w+)', output)]
@@ -1189,6 +1239,12 @@ def sanitize_relpath(basepath: Path, relpath: str) -> Path:
 		raise ValueError(f"Invalid relative path: \"{relpath}\".")
 
 
+def copy_to_clipboard(text: str):
+
+	sc4mp_ui.clipboard_clear()
+	sc4mp_ui.clipboard_append(text)
+
+
 def get_image_pids(image_name) -> list[int] | None:
 	"""
 	Find the PIDs of processes with the given image name on Windows.
@@ -1199,27 +1255,36 @@ def get_image_pids(image_name) -> list[int] | None:
 	Returns:
 	    list: A list of PIDs for processes matching the given image name.
 	"""
-	if platform.system() == "Windows":
+
+	if is_windows():
+
 		pids = []
+
 		try:
+
 			# Use tasklist to get the list of processes
 			result = subprocess.run(["tasklist"], capture_output=True, text=True, check=True, shell=True)
-			# Split the result into lines
 			lines = result.stdout.splitlines()
-			# Parse each line for matching processes
+
+			# Regex pattern to match process name followed by its PID
+			pattern = re.compile(rf"^{re.escape(image_name)}\s+(\d+)", re.IGNORECASE)
+
 			for line in lines:
-				if image_name.lower() in line.lower():
-					parts = line.split()
-					if parts[0].lower() == image_name.lower():
-						try:
-							pids.append(int(parts[1]))  # The second column is the PID
-						except ValueError:
-							pass
-			return pids
+				match = pattern.match(line)
+				if match:
+					try:
+						pids.append(int(match.group(1)))  # Extract PID
+					except ValueError:
+						pass
+
+			return pids if pids else None
+
 		except subprocess.CalledProcessError as e:
 			print(f"An error occurred while getting image PIDs.\n\n{e}")
 			return None
+		
 	else:
+
 		return None
 
 
@@ -1230,6 +1295,49 @@ def close_splash():
 		pyi_splash.close()
 	except ImportError:
 		pass
+
+
+def window_open(image_name):
+    """
+    Check if a process with the given image name has an open, visible window.
+
+    Args:
+        image_name (str): The name of the process image (e.g., "notepad.exe").
+
+    Returns:
+        bool: True if at least one instance of the process has a visible window, False otherwise.
+    """
+
+    pids = get_image_pids(image_name)
+    # print(f"PIDs for {image_name}: {pids}")  # Debugging
+
+    if not pids:
+        return False  # No matching processes found
+
+    EnumWindows = ctypes.windll.user32.EnumWindows
+    IsWindowVisible = ctypes.windll.user32.IsWindowVisible
+    GetWindowThreadProcessId = ctypes.windll.user32.GetWindowThreadProcessId
+
+    # Properly define the callback function with ctypes
+    def callback(hwnd, lParam):
+        """Callback function to check if a window belongs to the given PID and is visible."""
+        window_pid = ctypes.c_ulong()
+        GetWindowThreadProcessId(hwnd, ctypes.byref(window_pid))
+
+        if window_pid.value in pids and IsWindowVisible(hwnd):
+            ctypes.cast(lParam, ctypes.POINTER(ctypes.c_bool)).contents.value = True
+            return False  # Stop enumeration
+
+        return True  # Continue searching
+
+    # Create a ctypes boolean variable to store result
+    found = ctypes.c_bool(False)
+
+    # Convert callback to proper function pointer type
+    CALLBACK_TYPE = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.c_void_p)
+    EnumWindows(CALLBACK_TYPE(callback), ctypes.byref(found))
+
+    return found.value
 
 
 # Objects
@@ -1249,7 +1357,7 @@ class Server:
 		self.user_id = None
 
 		self.categories = ["All"]
-		if (host, port) in SC4MP_SERVERS:
+		if self.host == SC4MP_SERVERS_DOMAIN:
 			self.categories.append("Official")
 
 
@@ -1285,8 +1393,14 @@ class Server:
 		self.server_url = server_info["server_url"] #self.request("server_url")
 		self.server_version = server_info["server_version"] #self.request("server_version")
 		self.password_enabled = server_info["password_enabled"] #self.request("password_enabled") == "y"
-		self.user_plugins_enabled = server_info["user_plugins_enabled"] #self.request("user_plugins_enabled") == "y"
 		self.private = server_info["private"] #self.request("private") == "y"
+		self.user_plugins_enabled = server_info["user_plugins_enabled"] #self.request("user_plugins_enabled") == "y"
+		try:
+			self.claim_duration = server_info["claim_duration"]
+			self.max_region_claims = server_info["max_region_claims"]
+			self.godmode_filter = server_info["godmode_filter"]
+		except KeyError:
+			pass
 
 		if self.server_id in sc4mp_servers_database.keys():
 			self.password = sc4mp_servers_database[self.server_id].get("password", None) # Needed for stat fetching private servers
@@ -1487,8 +1601,8 @@ class Server:
 		# Set server categories
 		if "user_id" in entry.keys():
 			self.categories.append("History")
-		if entry.get("favorite", False):
-			self.categories.append("Favorites")
+		if entry.get("bookmarked", False):
+			self.categories.append("Bookmarked")
 
 		# Set values in database entry
 		set_server_data(entry, self)
@@ -1629,7 +1743,7 @@ class ServerList(th.Thread):
 
 		th.Thread.__init__(self)
 
-		self.ui = ui
+		self.ui: ServerListUI = ui
 
 		if self.ui is not None and kill is None:
 			self.ui.label["text"] = 'Getting server list...'
@@ -1640,13 +1754,17 @@ class ServerList(th.Thread):
 		self.ended = False
 		self.pause = False
 
-		self.servers = dict()
+		self.servers: dict[str:Server] = {}
 
-		self.unfetched_servers = SC4MP_SERVERS.copy()
+		self.unfetched_servers: list[tuple] = SC4MP_SERVERS.copy()
 
-		self.fetched_servers = []
-		self.tried_servers = []
-		self.hidden_servers = []
+		self.saved_servers: dict[tuple:str] = {}
+
+		self.fetched_servers: list[tuple] = []
+		self.tried_servers: list[tuple] = []
+		self.hidden_servers: list[tuple] = []
+
+		self.offline_server_count = 0
 
 		self.server_fetchers = 0
 
@@ -1656,9 +1774,16 @@ class ServerList(th.Thread):
 		self.stat_actual_download = dict()
 		self.stat_ping = dict()
 
-		self.blank_icon = tk.PhotoImage(file=get_sc4mp_path("blank-icon.png"))
-		self.lock_icon = tk.PhotoImage(file=get_sc4mp_path("lock-icon.png"))
-		self.official_icon = tk.PhotoImage(file=get_sc4mp_path("official-icon.png"))
+		if self.ui:
+
+			self.blank_icon = tk.PhotoImage(file=get_sc4mp_path("blank-icon.png"))
+			self.lock_icon = tk.PhotoImage(file=get_sc4mp_path("lock-icon.png"))
+			self.official_icon = tk.PhotoImage(file=get_sc4mp_path("official-icon.png"))
+			self.error_icon = tk.PhotoImage(file=get_sc4mp_path("error-icon.png"))
+
+			self.rank_bars = {}
+			self.rank_bar_images = [tk.PhotoImage(file=get_sc4mp_path(f"rank-{i}.png")) for i in range(6)]
+			self.ui.tree.bind("<<TreeviewSelect>>", self.update_rank_bars)
 
 		self.temp_path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList"
 
@@ -1685,7 +1810,11 @@ class ServerList(th.Thread):
 			for server_id in reversed(sc4mp_servers_database.keys()):
 				server_entry = sc4mp_servers_database[server_id]
 				if (server_entry.get("user_id", None) != None) or ("last_contact" not in server_entry.keys()) or (datetime.strptime(server_entry["last_contact"], "%Y-%m-%d %H:%M:%S") + timedelta(days=30) > datetime.now()):
-					self.unfetched_servers.append((sc4mp_servers_database[server_id]["host"], sc4mp_servers_database[server_id]["port"]))
+					host = server_entry["host"]
+					port = server_entry["port"]
+					self.unfetched_servers.append((host, port))
+					if sc4mp_config["GENERAL"]["show_offline_servers"]:
+						self.saved_servers.setdefault((host, port), server_id)
 				else:
 					delete_server_ids.append(server_id)
 			for delete_server_id in delete_server_ids:
@@ -1697,10 +1826,10 @@ class ServerList(th.Thread):
 					time.sleep(SC4MP_DELAY)
 				self.clear_tree()
 
-			try:
-				purge_directory(self.temp_path)
-			except Exception as e:
-				show_error("Error deleting temporary server list files.", no_ui=True)
+			#try: #TODO is this needed?
+			#	purge_directory(self.temp_path)
+			#except Exception as e:
+			#	show_error("Error deleting temporary server list files.", no_ui=True)
 
 			print("Fetching servers...")
 
@@ -1708,23 +1837,31 @@ class ServerList(th.Thread):
 
 				if self.pause == False:
 
-					# Enable or disable connect button and update labels
+					# Enable or disable buttons and update labels
 					server_id = self.ui.tree.focus()
 					if server_id == "" or server_id not in self.servers.keys():
 						self.ui.connect_button['state'] = tk.DISABLED
+						self.ui.details_button['state'] = tk.DISABLED
 						self.ui.address_label["text"] = ""
 						self.ui.description_label["text"] = ""
 						self.ui.url_label["text"] = ""
 					else:
 						self.ui.connect_button['state'] = tk.NORMAL
-						self.ui.address_label["text"] = self.servers[server_id].host + ":" + str(self.servers[server_id].port)
+						if "Offline" in self.servers[server_id].categories:
+							self.ui.address_label["text"] = "Offline"
+							self.ui.address_label["fg"] = "red"
+							self.ui.details_button['state'] = tk.DISABLED
+						else:
+							self.ui.address_label["text"] = self.servers[server_id].host + ":" + str(self.servers[server_id].port)
+							self.ui.address_label["fg"] = "gray"
+							self.ui.details_button['state'] = tk.NORMAL
 						self.ui.description_label["text"] = self.servers[server_id].server_description
 						self.ui.url_label["text"] = self.servers[server_id].server_url
 						
 					# Add all fetched servers to the server dictionary if not already present
 					while len(self.fetched_servers) > 0:
 						fetched_server = self.fetched_servers.pop(0)
-						if fetched_server.server_id not in self.servers.keys():
+						if fetched_server.server_id not in self.servers.keys() or not self.servers[fetched_server.server_id].fetched:
 							self.servers[fetched_server.server_id] = fetched_server
 
 					# Fetch the next unfetched server
@@ -1764,46 +1901,64 @@ class ServerList(th.Thread):
 					# Add missing rows to the tree
 					server_ids = self.servers.keys()
 					filter = self.ui.combo_box.get()
+					if filter == self.ui.combo_box.PLACEHOLDER_TEXT:
+						filter = ""
 					for server_id in server_ids:
-						if (not self.ui.tree.exists(server_id)) and (len(filter) < 1 or (not self.filter(self.servers[server_id], self.filters(filter)))):
+						if (not self.ui.tree.exists(server_id)) and (not self.filter(self.servers[server_id], self.filters(filter))): #(len(filter) < 1 or (not self.filter(self.servers[server_id], self.filters(filter)))):
 							#while len(self.ui.tree.get_children()) >= 50:
 							#	self.ui.tree.delete(self.ui.tree.get_children()[-1])
 							server = self.servers[server_id]
-							if server.password_enabled:
+							tags = []
+							if "Offline" in server.categories:
+								image = self.error_icon
+								tags.append("red")
+							elif server.password_enabled:
 								image = self.lock_icon
-							elif (server.host, server.port) in SC4MP_SERVERS:
+							elif "Official" in server.categories:
 								image = self.official_icon
 							else:
 								image = self.blank_icon
-							self.ui.tree.insert("", self.in_order_index(server), server_id, text=server.server_name, values=self.format_server(server), image=image)
-							#x, y, w, h = self.ui.tree.bbox(server_id, column="#5")
-							#canvas = tk.Canvas(width=w, height=h, borderwidth=0)
-							#canvas.image = tk.PhotoImage(file=get_sc4mp_path("rating-template.png"))
-							#canvas.create_image(0, 0, anchor="nw", image=canvas.image)
-							#canvas.place(x=15+x, y=155+y)							
+							values = self.format_server(server)
+							self.ui.tree.insert("", self.in_order_index(server), server_id, text=server.server_name, values=values, image=image, tags=tuple(tags))					
 
 					# Filter the tree
 					filter = self.ui.combo_box.get()
-					if len(filter) > 0:
-						try:
-							category, search_terms = self.filters(filter)
-							#print("Filtering by \"" + category + "\" and " + str(search_terms) + "...")
-							server_ids = self.ui.tree.get_children()
-							for server_id in server_ids:
-								hide = self.filter(self.servers[server_id], (category, search_terms))
-								if hide and (server_id in self.ui.tree.get_children()) and (server_id not in self.hidden_servers):
-									self.hidden_servers.append(server_id)
-									self.ui.tree.delete(server_id)
-								elif (not hide) and (server_id in self.hidden_servers):
-									self.hidden_servers.remove(server_id)
-									#self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
-						except Exception as e:
-							show_error("An error occurred while filtering the server list.", no_ui=True)
-					elif len(self.hidden_servers) > 0:
-						server_ids = self.hidden_servers
+					if filter == self.ui.combo_box.PLACEHOLDER_TEXT:
+						filter = ""
+					#if len(filter) > 0:
+					try:
+						category, search_terms = self.filters(filter)
+						#print("Filtering by \"" + category + "\" and " + str(search_terms) + "...")
+						if category == "History":
+							self.ui.tree['displaycolumns'] = ("#1", "#2", "#3", "#4", "#6")
+							#self.ui.tree.column("#5", width=0)
+							#self.ui.tree.column("#6", width=93)
+							if self.ui.tree.sort == "Rank":
+								self.ui.tree.sort = "Joined"
+								self.clear_tree()
+						else:
+							self.ui.tree['displaycolumns'] = ("#1", "#2", "#3", "#4", "#5")
+							#self.ui.tree.column("#5", width=93)
+							#self.ui.tree.column("#6", width=0)
+							if self.ui.tree.sort == "Joined":
+								self.ui.tree.sort = "Rank"
+								self.clear_tree()
+						server_ids = self.ui.tree.get_children()
 						for server_id in server_ids:
-							self.hidden_servers.remove(server_id)
-							#self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
+							hide = self.filter(self.servers[server_id], (category, search_terms))
+							if hide and (server_id in self.ui.tree.get_children()) and (server_id not in self.hidden_servers):
+								self.hidden_servers.append(server_id)
+								self.ui.tree.delete(server_id)
+							elif (not hide) and (server_id in self.hidden_servers):
+								self.hidden_servers.remove(server_id)
+								#self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
+					except Exception as e:
+						show_error("An error occurred while filtering the server list.", no_ui=True)
+					#elif len(self.hidden_servers) > 0:
+					#	server_ids = self.hidden_servers
+					#	for server_id in server_ids:
+					#		self.hidden_servers.remove(server_id)
+					#		#self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
 
 					# Sort the tree
 					if not self.sorted():
@@ -1831,8 +1986,11 @@ class ServerList(th.Thread):
 						self.ui.tree.item(server_id, values=self.format_server(server))
 
 					# Update primary label
-					if len(self.servers) > 0:
+					if len(self.servers) > self.offline_server_count:
+						#if len(self.hidden_servers) < len(self.servers):
 						self.ui.label["text"] = 'To get started, select a server below and click "Connect"'
+						#else:
+						#	self.ui.label["text"] = 'No servers found'
 					else:
 						self.ui.address_label["text"] = ""
 						self.ui.description_label["text"] = ""
@@ -1842,8 +2000,14 @@ class ServerList(th.Thread):
 						else:
 							self.ui.label["text"] = 'No servers found' #Select "Servers" then "Connect..." in the menu bar to connect to a server.'
 
+					# Update rank bars
+					self.update_rank_bars()
+
 				# Delay
 				time.sleep(SC4MP_DELAY)
+
+			for canvas in self.rank_bars.values():
+				canvas.destroy()
 
 			self.ended = True
 
@@ -1880,14 +2044,14 @@ class ServerList(th.Thread):
 					search_terms.pop(index)
 			return category, search_terms
 		else:
-			return None
+			return "All", []
 
 
-	def filter(self, server, filters):
+	def filter(self, server: Server, filters: list[str]):
 		
 		category = filters[0]
 		search_terms = filters[1]
-		search_fields = [server.server_name, server.server_description, server.server_url]
+		search_fields = [server.server_name, server.server_description, server.server_url, server.server_id, server.host]
 		if len(search_terms) > 0:
 			for search_field in search_fields:
 				search_field = search_field.lower()
@@ -1941,11 +2105,11 @@ class ServerList(th.Thread):
 		
 		server_a_sort_value = self.get_sort_value(server_a)
 		server_b_sort_value = self.get_sort_value(server_b)
-		if server_a_sort_value == None and server_b_sort_value == None:
+		if server_a_sort_value is None and server_b_sort_value is None:
 			return True
-		elif server_a_sort_value == None:
+		elif server_a_sort_value is None:
 			return False
-		elif server_b_sort_value == None:
+		elif server_b_sort_value is None:
 			return True
 		else:
 			if not self.ui.tree.reverse_sort:
@@ -1956,12 +2120,13 @@ class ServerList(th.Thread):
 
 	def in_order_index(self, server):
 		
-		existing_server_ids = self.ui.tree.get_children()
-		for index in range(len(existing_server_ids)):
-			existing_server_id = existing_server_ids[index]
-			existing_server = self.servers[existing_server_id]
-			if self.in_order(server, existing_server):
-				return index
+		if self.get_sort_value(server):
+			existing_server_ids = self.ui.tree.get_children()
+			for index in range(len(existing_server_ids)):
+				existing_server_id = existing_server_ids[index]
+				existing_server = self.servers[existing_server_id]
+				if self.in_order(server, existing_server):
+					return index
 		return "end"
 
 	
@@ -1979,6 +2144,8 @@ class ServerList(th.Thread):
 				return server.stat_actual_download if sc4mp_config["GENERAL"]["show_actual_download"] else server.stat_download
 			elif sort_mode == "Ping":
 				return server.stat_ping
+			elif sort_mode == "Joined":
+				return server.last_logon
 			else:
 				return server.rating
 		except Exception:
@@ -1992,16 +2159,34 @@ class ServerList(th.Thread):
 	    	lambda: str(int(server.stat_claimed * 100)) + "%",
 		    lambda: format_download_size(server.stat_actual_download) if sc4mp_config["GENERAL"]["show_actual_download"] else format_filesize(server.stat_download),
 		    lambda: str(server.stat_ping) + "ms",
-		    lambda: str(round(server.rating, 1)) # + " ⭐️",
+		    lambda: str(round(server.rating, 1)), # (lambda: "" if sc4mp_config["GENERAL"]["show_rank_bars"] else lambda: str(round(server.rating, 1))), # + " ⭐️",
+			lambda: self.format_server_join_time(server)
 		]
+		if sc4mp_config["GENERAL"]["show_rank_bars"]:
+			functions[4] = lambda: ""
 		cells = []
 		for function in functions:
 			try:
 				cells.append(function())
-			except Exception: #Exception as e:
+			except Exception as e: #Exception as e:
 				#show_error(e)
-				cells.append("...")
+				cells.append("...") #cells.append("")
 		return cells
+
+
+	def format_server_join_time(self, server: Server):
+
+		try:
+			last_logon = server.last_logon
+		except AttributeError:
+			last_logon = sc4mp_servers_database.get(server.server_id, {}).get("last_logon", None)
+
+		server.last_logon = last_logon
+
+		if last_logon:
+			last_logon = datetime.strptime(last_logon, "%Y-%m-%d %H:%M:%S")
+
+		return format_time_ago(last_logon)
 
 	
 	def calculate_rating(self, server):
@@ -2046,10 +2231,128 @@ class ServerList(th.Thread):
 			return 1.0
 
 
+	def update_rank_bars(self, event=None):
+
+		RANK_COLUMN_ID = "#5"
+
+		CUTOFF_Y = 260
+
+		OFFSET_X = 18
+		OFFSET_Y = 154
+
+		IMAGE_W = 29
+		IMAGE_H = 12
+
+		CELL_W = 93
+		CELL_H = 20
+
+		# For passing clicks from the canvas to the underlying row in the tree
+		def handle_click(event):
+
+			# Get the `server_id` associated with the canvas
+			canvas = event.widget
+			server_id = canvas.server_id
+
+			# Select the row which the canvas is placed on
+			self.ui.tree.selection_set([server_id])
+			self.ui.tree.focus(server_id)
+
+			# Call the event handler for a single click in `ServerListUI`
+			self.ui.handle_single_click(event)
+
+
+		def scheduled_update():
+
+			# Allow the function to be scheduled again
+			self.ui.rank_bar_update_scheduled = False
+
+			# Keep the old rank bars so they can be deleted after the new ones are created
+			r = self.rank_bars
+
+			# Reset the list for new rank bars
+			self.rank_bars = {}
+
+			# If "Rank" column is being displayed
+			if RANK_COLUMN_ID in self.ui.tree["displaycolumns"]:
+
+				# Loop through rows in the tree by their `server_id`
+				for server_id in self.ui.tree.get_children():
+					
+					try:
+
+						# Try to get the server rank, if it blows up (no stats, probably), use `0`
+						try:
+							rank = round(self.servers[server_id].rating)
+						except Exception:
+							rank = 0
+
+						# Needed to choose canvas bgcolor
+						selected = server_id in self.ui.tree.selection()
+
+						# Get the bounding box of the cell in the "Rank" column
+						x, y, w, h = self.ui.tree.bbox(server_id, column=RANK_COLUMN_ID)
+
+						# If row is visible
+						if y < CUTOFF_Y:
+
+							# Unique identifier for the canvas
+							key = (x, y, w, h, rank, selected)
+
+							# If the canvas doesn't need to be updated, use the old one
+							if key in r.keys():
+
+								self.rank_bars[key] = r.pop(key)
+
+							# Otherwise, create a new one
+							else:
+
+								canvas = tk.Canvas(
+									width=IMAGE_W, 
+									height=IMAGE_H, 
+									bd=0,
+									bg=("#0078D7" if selected else "white"), 
+									highlightthickness=0, 
+									relief='flat'
+								)
+								
+								# For click passthrough to the underlying row
+								canvas.server_id = server_id
+								canvas.bind("<Button-1>", handle_click)
+								
+								# Create the rank bar image associated with the rank value
+								canvas.image = self.rank_bar_images[rank]
+								canvas.create_image(0, 0, anchor="nw", image=canvas.image)
+								canvas.place(
+									x = x + OFFSET_X + ((CELL_W - IMAGE_W) / 2),
+									y = y + OFFSET_Y + ((CELL_H - IMAGE_H) / 2),
+								)
+								
+								# Store the canvas so it can be deleted later, when needed
+								self.rank_bars[key] = canvas
+
+					# Can't remember why I put this here. I guess we don't care about `ValueErrors`
+					except ValueError:
+						pass
+
+					# Quietly report all errors
+					except Exception as e:
+						show_error(e, no_ui=True)
+
+			# Delete all old rank bars
+			for canvas in r.values():
+				canvas.destroy()
+
+		# Running the function from this thread seems to cause CTDs with 0x0000005 access violations, so we use the `after` method instead
+		if self.ui and sc4mp_config["GENERAL"]["show_rank_bars"]:
+			if not hasattr(self.ui, "rank_bar_update_scheduled") or not self.ui.rank_bar_update_scheduled:
+				self.ui.rank_bar_update_scheduled = True
+				self.ui.after(0, scheduled_update)
+
+
 class ServerFetcher(th.Thread):
 
 
-	def __init__(self, parent, server):
+	def __init__(self, parent: ServerList, server: Server):
 
 		th.Thread.__init__(self)
 
@@ -2072,14 +2375,38 @@ class ServerFetcher(th.Thread):
 				#print("- fetching server info...")
 
 				try:
+
 					self.server.fetch()
+
+					if not self.server.fetched:
+						raise ClientException("Server is not fetched.")
+
 				except Exception as e:
+
+					if (self.server.host, self.server.port) in self.parent.saved_servers.keys():
+
+						self.server.server_id = self.parent.saved_servers.pop((self.server.host, self.server.port))
+
+						server_entry: dict = sc4mp_servers_database[self.server.server_id]
+
+						if "user_id" in server_entry.keys():
+
+							self.server.categories = ["Offline", "History"] # "All"
+
+							self.server.server_name = server_entry.get("server_name", f"{self.server.host}:{self.server.port}")
+							self.server.server_description = server_entry.get("server_description", "")
+							self.server.server_url = server_entry.get("server_url", "")
+
+							self.parent.fetched_servers.append(self.server)
+
+							self.parent.offline_server_count += 1
+
 					raise ClientException("Server not found.") from e
 
 				if self.parent.end:
 					raise ClientException("The parent thread was signaled to end.")
-				elif not self.server.fetched:
-					raise ClientException("Server is not fetched.")
+
+				self.server.categories.append("Online")
 
 				#print("- populating server statistics")
 
@@ -2283,7 +2610,7 @@ class ServerLoader(th.Thread):
 						return
 					
 				# Prompt to apply the 4gb patch if not yet applied
-				if platform.system() == "Windows":
+				if is_windows():
 					try:
 						import ctypes
 						sc4_exe_path = get_sc4_path()
@@ -2332,7 +2659,7 @@ class ServerLoader(th.Thread):
 					self.report("", "Preparing config...")
 					self.prep_config()
 
-				self.report("", "Done")
+				self.report("", "Launching SC4...")
 
 				loading_end = time.time()
 
@@ -2353,24 +2680,45 @@ class ServerLoader(th.Thread):
 				else:
 					show_error(e, no_ui=True)
 
-			#time.sleep(1)
+			if sc4mp_current_server:
 
-			if self.ui != None:
-				self.ui.destroy()
-			
-			if sc4mp_current_server != None:
 				sc4mp_config["GENERAL"]["default_host"] = self.server.host
 				sc4mp_config["GENERAL"]["default_port"] = self.server.port
 				sc4mp_config.update()
+
 				self.server.categories.append("History")
+
 				game_monitor = GameMonitor(self.server)
 				game_monitor.start()
-			else:
-				if sc4mp_ui is not None:
-					if sc4mp_exit_after:
-						sc4mp_ui.destroy()
-					else:
-						sc4mp_ui.deiconify()
+				if self.ui and self.ui.background:
+					if self.ui.background:
+						self.ui.background.lift()
+					self.ui.lift()
+				try:
+					if is_windows():
+						while (not self.ui or self.ui.winfo_exists()) and not window_open("simcity 4.exe"):
+							time.sleep(SC4MP_DELAY)	
+				except Exception as e:
+					show_error(e, no_ui=True)
+
+				if sc4mp_config["SC4"]["fullscreen"]:
+					time.sleep(10)
+
+				if self.ui:
+					self.ui.destroy()
+
+				if game_monitor.ui and game_monitor.ui.state() != "withdrawn":
+					game_monitor.ui.grab_set()
+
+				return
+
+			if sc4mp_ui:
+				if sc4mp_exit_after:
+					sc4mp_ui.destroy()
+				else:
+					sc4mp_ui.deiconify()
+			if self.ui:
+				self.ui.destroy()
 
 		except Exception as e:
 
@@ -2407,10 +2755,12 @@ class ServerLoader(th.Thread):
 			self.server.fetch()
 			if self.server.fetched == False:
 				raise ClientException("Unable to find server. Check the IP address and port, then try again.")
-		if unformat_version(self.server.server_version)[:2] < unformat_version(SC4MP_VERSION)[:2]:
-			raise ClientException(f"The server requires an outdated version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please contact the server administrators.")
-		if unformat_version(self.server.server_version)[:2] > unformat_version(SC4MP_VERSION)[:2]:
-			raise ClientException(f"The server requires a newer version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please update the launcher to connect to this server.")
+		if not sc4mp_config["DEBUG"]["ignore_incompatable_versions"]:
+			if unformat_version(self.server.server_version)[:2] < unformat_version(SC4MP_VERSION)[:2]:
+				if sc4mp_beta is False:
+					raise ClientException(f"The server requires an outdated version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please contact the server administrators.")
+			if unformat_version(self.server.server_version)[:2] > unformat_version(SC4MP_VERSION)[:2]:
+				raise ClientException(f"The server requires a newer version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please update the launcher to connect to this server.")
 		if self.ui != None:
 			self.ui.title(self.server.server_name)
 
@@ -2883,8 +3233,23 @@ class ServerLoader(th.Thread):
 		except Exception as e:
 			raise ClientException("SimCity 4 is already running!") from e
 
+		resw = sc4mp_config['SC4']['resw']
+		resh = sc4mp_config['SC4']['resh']
+		if 0 in (resw, resh) and sc4mp_ui:
+			resw = sc4mp_ui.winfo_screenwidth()
+			resh = sc4mp_ui.winfo_screenheight()
+
 		# Load default plugins
-		for default_plugin_file_name in ["sc4-fix.dll", "sc4-fix-license.txt", "sc4-thumbnail-fix.dll", "sc4-thumbnail-fix-license.txt", "sc4-thumbnail-fix-third-party-notices.txt"]: #, "sc4-dbpf-loading.dll", "sc4-dbpf-loading-license.txt", "sc4-dbpf-loading-third-party-notices.txt"]:
+		for default_plugin_file_name in [
+			"sc4-fix.dll", 
+			"sc4-fix-license.txt", 
+			"sc4-thumbnail-fix.dll", 
+			"sc4-thumbnail-fix-license.txt", 
+			"sc4-thumbnail-fix-third-party-notices.txt",
+			f"sc4mp-intro-{resw}-{resh}.dat",
+			"sc4mp-local.dat",
+			"sc4mp-ui.dat",
+		]:
 			try:
 				default_plugin_file_path = default_plugins_source / default_plugin_file_name
 				default_plugin_checksum = md5(default_plugin_file_path)
@@ -2900,6 +3265,12 @@ class ServerLoader(th.Thread):
 			if not checksum in toplevel_plugins_checksums:
 				shutil.copy(path, default_plugins_destination / f"{basename}-{checksum}.dll")
 				toplevel_plugins_checksums.append(checksum)
+
+		# Write server URL local plugin file
+		# with open(get_sc4mp_path("sc4mp-local-server-url.dat"), "rb") as rfile:
+		# 	data = rfile.read().replace(b"{\x00{\x00U\x00R\x00L\x00}\x00}", bytes(self.server.server_url, encoding="utf-8"))
+		# 	with open(default_plugins_destination / "server-url.dat", "wb") as wfile:
+		# 		wfile.write(data)
 
 
 	def prep_regions(self):
@@ -3045,6 +3416,10 @@ class GameMonitor(th.Thread):
 			# Create game overlay window if the game overlay is enabled (`1` is fullscreen-mode only; `2` is always enabled)
 			if (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
 				self.overlay_ui = GameOverlayUI(self.ui, guest=(server.password == ""))
+				if sc4mp_game_monitor_x > 0:
+					self.ui.withdraw()
+			else:
+				self.ui.deiconify()
 
 			# Set window title to server name
 			self.ui.title(server.server_name)
@@ -3065,6 +3440,10 @@ class GameMonitor(th.Thread):
 
 			# Thead name for logging
 			set_thread_name("GmThread", enumerate=False)
+
+			# if self.ui:
+				# self.ui.deiconify()
+				# self.ui.grab_set()
 
 			# Declare variable to break loop after the game closes
 			end = False
@@ -3218,6 +3597,13 @@ class GameMonitor(th.Thread):
 					# Signal to break the loop when the game is no longer running
 					if not self.game_launcher.game_running:
 						end = True
+						# if self.ui:
+						# 	self.ui.deiconify()
+						# 	self.ui.deiconify()
+						# 	self.ui.lift()
+						# 	self.ui.grab_set()
+						# 	self.ui.focus_set()
+						# 	# I tried everything...
 
 					# Wait
 					time.sleep(1) #3 #1 #3
@@ -3290,11 +3676,11 @@ class GameMonitor(th.Thread):
 					show_error(f"An error occurred while restoring the SimCity 4 config backup.\n\n{e}", no_ui=True)
 
 			# Destroy the game monitor ui if running
-			if self.ui != None:
+			if self.ui:
 				self.ui.destroy()
 
 			# Destroy the game overlay ui if running
-			if self.overlay_ui is not None:
+			if self.overlay_ui:
 				self.overlay_ui.destroy()
 
 			# Show the main ui once again	
@@ -3308,6 +3694,8 @@ class GameMonitor(th.Thread):
 					else:
 						sc4mp_ui.deiconify()
 						sc4mp_ui.lift()
+						sc4mp_ui.focus_set()
+						sc4mp_ui.grab_set()
 
 		except Exception as e:
 			
@@ -3637,21 +4025,22 @@ class GameLauncher(th.Thread):
 
 	def run(self):
 		
-
 		try:
 
 			set_thread_name("GlThread", enumerate=False)
 
 			start_sc4()
-			
-			self.game_running = False
-
-			global sc4mp_current_server
-			sc4mp_current_server = None
 
 		except Exception as e:
 
 			show_error(f"An unexpected error occurred while launching SimCity 4.\n\n{e}")
+
+		finally:
+
+			self.game_running = False
+
+			global sc4mp_current_server
+			sc4mp_current_server = None
 
 
 class RegionsRefresher(th.Thread):
@@ -4039,7 +4428,7 @@ class UI(tk.Tk):
 
 		self.bind("<F1>", lambda event:self.direct_connect())
 		self.bind("<F2>", lambda event:self.refresh())
-		#self.bind("<F3>", lambda event:self.host()) #TODO
+		self.bind("<F3>", lambda event:self.host())
 		self.bind("<F5>", lambda event:self.general_settings())
 		self.bind("<F6>", lambda event:self.storage_settings())
 		self.bind("<F7>", lambda event:self.SC4_settings())
@@ -4065,8 +4454,8 @@ class UI(tk.Tk):
 		
 		servers.add_command(label="Connect...", accelerator="F1", command=self.direct_connect)
 		servers.add_command(label="Refresh", accelerator="F2", command=self.refresh)
-		#servers.add_separator() 
-		#servers.add_command(label="Host...", accelerator="F3", command=self.host) #TODO
+		servers.add_separator() 
+		servers.add_command(label="Host...", accelerator="F3", command=self.host)
 		menu.add_cascade(label="Servers", menu=servers)  
 
 		help = Menu(menu, tearoff=0)  	
@@ -4106,22 +4495,27 @@ class UI(tk.Tk):
 
 	def release_notes(self):
 
-		if sc4mp_config["GENERAL"]["show_release_notes"] and sc4mp_config["GENERAL"]["release_notes_version"] != SC4MP_VERSION:
+		global sc4mp_beta
 
-			try:
+		try:
 
-				# Set version for release info
-				version = SC4MP_VERSION
+			# Set version for release info
+			version = SC4MP_VERSION
 
-				# Get latest release info
-				release_info = get_release_info(version=version)
+			# Get current release info
+			release_info = get_release_info(version=version)
+			
+			# Set beta flag to `True` if pre-release
+			if "prerelease" in release_info.keys():
+				sc4mp_beta = release_info["prerelease"]
 
-				# Create release notes UI
+			# Create release notes UI
+			if sc4mp_config["GENERAL"]["show_release_notes"] and sc4mp_config["GENERAL"]["release_notes_version"] != SC4MP_VERSION:
 				ReleaseNotesUI(version, release_info["name"], release_info["body"])
 
-			except Exception as e:
-	
-				show_error(f"Unable to show release notes.\n\n{e}", no_ui=True)
+		except Exception as e:
+
+			show_error(f"Unable to show release notes.\n\n{e}", no_ui=True)
 
 
 	def show_error(self, *args):
@@ -4150,14 +4544,17 @@ class UI(tk.Tk):
 		SC4SettingsUI()
 
 
-	#def update(self):
-	#	webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-client/releases/")
-
-
 	def host(self):
 		
 		print('"Host..."')
-		HostUI()
+
+		message = "One of the next releases of the SC4MP Launcher will be capable of hosting servers " \
+			"from within the launcher, but for now, you can run the SC4MP Server manually. See the Github repository " \
+			"for more information.\n\n" if is_windows() else ""
+
+		if messagebox.askyesno(SC4MP_TITLE, f"Hosting a server requires the SC4MP Server application.\n\n{message}Would you like to view the GitHub repository?"):
+			webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/")
+
 
 
 	def direct_connect(self):
@@ -4262,7 +4659,7 @@ class GeneralSettingsUI(tk.Toplevel):
 
 		# Use fullscreen background
 		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_fullscreen_background"])
-		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use fullscreen background", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use loading background", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
 		self.ui_frame.checkbutton.grid(row=2, column=0, columnspan=1, padx=10, pady=(5,10), sticky="w")
 		self.config_update.append((self.ui_frame.checkbutton_variable, "use_fullscreen_background"))
 
@@ -4587,8 +4984,22 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# Resolution combo box
 		self.resolution_frame.combo_box = ttk.Combobox(self.resolution_frame, width=15)
-		self.resolution_frame.combo_box.insert(0, str(sc4mp_config["SC4"]["resw"]) + "x" + str(sc4mp_config["SC4"]["resh"]))
-		self.resolution_frame.combo_box["values"] = ("800x600 (4:3)", "1024x768 (4:3)", "1280x1024 (4:3)", "1600x1200 (4:3)", "1280x800 (16:9)", "1440x900 (16:9)", "1680x1050 (16:9)", "1920x1080 (16:9)", "2048x1152 (16:9)")
+		if 0 in (sc4mp_config["SC4"]["resw"], sc4mp_config["SC4"]["resh"]):
+			self.resolution_frame.combo_box.insert(0, "Automatic")
+		else:
+			self.resolution_frame.combo_box.insert(0, str(sc4mp_config["SC4"]["resw"]) + "x" + str(sc4mp_config["SC4"]["resh"]))
+		self.resolution_frame.combo_box["values"] = (
+			"Automatic",
+			"800x600 (4:3)", 
+			"1024x768 (4:3)", 
+			"1280x800 (16:10)", 
+			"1280x1024 (5:4)", 
+			"1440x900 (16:10)", 
+			"1600x1200 (4:3)", 
+			"1680x1050 (16:10)", 
+			"1920x1080 (16:9)", 
+			"2048x1152 (16:9)"
+		)
 		self.resolution_frame.combo_box.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
 		self.config_update.append((self.resolution_frame.combo_box, "res"))
 
@@ -4613,7 +5024,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.cpu_priority_frame.grid(row=1, column=2, columnspan=1, rowspan=1, padx=10, pady=5, sticky="e")
 
 		# CPU priority entry
-		self.cpu_priority_frame.combo_box = ttk.Combobox(self.cpu_priority_frame, width = 8)
+		self.cpu_priority_frame.combo_box = ttk.Combobox(self.cpu_priority_frame, width=8)
 		self.cpu_priority_frame.combo_box.insert(0, sc4mp_config["SC4"]["cpu_priority"])
 		self.cpu_priority_frame.combo_box["values"] = ("low", "normal", "high")
 		self.cpu_priority_frame.combo_box.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
@@ -4670,10 +5081,17 @@ class SC4SettingsUI(tk.Toplevel):
 				if sc4mp_config["SC4"]["use_steam_browser_protocol"] in [0, 1]:
 					update_config_value("SC4", "use_steam_browser_protocol", (1 if is_steam_sc4(Path(data)) else 0))
 			if key == "res":
-				res = data.split(' ')[0]
-				resw, resh = res.split('x')
-				update_config_value("SC4", "resw", resw)
-				update_config_value("SC4", "resh", resh)
+				try:
+					if len(data) < 1 or data.lower().startswith("auto"):
+						resw = 0
+						resh = 0
+					else:
+						res = data.split(' ')[0]
+						resw, resh = res.split('x')
+					update_config_value("SC4", "resw", resw)
+					update_config_value("SC4", "resh", resh)
+				except Exception as e:
+					show_error(e, no_ui=True)
 			else:
 				update_config_value("SC4", key, data)
 		
@@ -5060,6 +5478,8 @@ class PasswordDialogUI(tk.Toplevel):
 				return
 			else:
 				self.withdraw()
+				if self.server_loader.ui.background:
+					self.server_loader.ui.background.lift()
 				if not messagebox.askokcancel(self.server_loader.server.server_name, "You are about to join the server as a guest.\n\nAny cities you build will NOT be saved.", icon="info"):
 					self.deiconify()
 					return
@@ -5070,6 +5490,8 @@ class PasswordDialogUI(tk.Toplevel):
 		self.destroy()
 
 		self.server_loader.ui.deiconify()
+		if self.server_loader.ui.background:
+			self.server_loader.ui.background.lift()
 		self.server_loader.ui.lift()
 		self.server_loader.ui.grab_set()		
 
@@ -5116,7 +5538,7 @@ class AboutUI(tk.Toplevel):
 		self.canvas = tk.Canvas(self, width=256, height=256)
 		self.canvas.image = tk.PhotoImage(file=get_sc4mp_path("icon.png"))
 		self.canvas.create_image(128, 128, anchor="center", image=self.canvas.image)    
-		self.canvas.grid(row=0, column=0, rowspan=5, columnspan=1, padx=10, pady=(10,0), sticky="n")
+		self.canvas.grid(row=0, column=0, rowspan=5, columnspan=1, padx=10, pady=(20,0), sticky="n")
 
 		# Title label 1
 		self.title_label_1 = ttk.Label(self, text="Title:")
@@ -5210,20 +5632,20 @@ class ServerListUI(tk.Frame):
 		self.canvas.create_image(400, 50, image=self.canvas.image)    
 		self.canvas["borderwidth"] = 0
 		self.canvas["highlightthickness"] = 0
-		self.canvas.grid(row=0, column=0, rowspan=1, columnspan=2, padx=0, pady=0)
+		self.canvas.grid(row=0, column=0, rowspan=1, columnspan=3, padx=0, pady=0)
 
 
 		# Label
 
 		self.label = ttk.Label(self)
-		self.label.grid(row=1, column=0, rowspan=1, columnspan=2, padx=10, pady=(15, 10))
+		self.label.grid(row=1, column=0, rowspan=1, columnspan=3, padx=10, pady=(15, 10))
 		#self.label['text'] = 'Loading...' #'To get started, select a server below and click "Connect."' #"Loading server list..."
 
 
 		# Frame
 
 		self.frame = tk.Frame(self)
-		self.frame.grid(row=2, column=0, rowspan=1, columnspan=2, padx=15, pady=10, sticky="n")
+		self.frame.grid(row=2, column=0, rowspan=1, columnspan=3, padx=15, pady=10, sticky="n")
 
 
 		# Tree
@@ -5265,6 +5687,12 @@ class ServerListUI(tk.Frame):
 				"Rank",
 				NORMAL_COLUMN_WIDTH,
 				"center"
+    		),
+			(
+				"#6",
+				"Joined",
+				NORMAL_COLUMN_WIDTH,
+				"center"
     		)
 		]
 
@@ -5282,18 +5710,27 @@ class ServerListUI(tk.Frame):
 			column_anchor = column[3]
 			self.tree.column(column_id, width=column_width, anchor=column_anchor, stretch=False)
 			self.tree.heading(column_id, text=column_name, command=lambda column_name=column_name: self.handle_header_click(column_name))
-		
+
 		#self.tree['show'] = 'headings'
+		self.tree['displaycolumns'] = ("#1", "#2", "#3", "#4", "#5")
 
-		self.tree.bind("<Double-1>", self.handle_double_click) #lambda event: self.connect())
+		# self.tree.bind("<Double-1>", self.handle_double_click) #lambda event: self.connect())
 		self.tree.bind("<Button-1>", self.handle_single_click)
+		self.tree.bind("<Button-2>", self.handle_right_click)
+		self.tree.bind("<Button-3>", self.handle_right_click)
 
-		self.tree.sort = "Rating"
+		self.tree.sort = "Rank"
 		self.tree.reverse_sort = False
+
+		self.tree.tag_configure("strike", font=tkfont.Font(family="Segoe UI", size=9, weight="normal", overstrike=1))
+		self.tree.tag_configure("red", foreground="red")
 
 		self.tree.focus_set()
 
 		self.tree.pack(side="left")
+
+		self.tree.last_click = 0
+		self.tree.last_click_coords = (0,0)
 
 
 		# Scrollbar
@@ -5306,8 +5743,10 @@ class ServerListUI(tk.Frame):
 		# Server info frame
 
 		self.server_info = tk.Frame(self, width=540, height=120)
-		self.server_info.grid(row=3, column=0, padx=20, pady=0, sticky="nw")
+		self.server_info.grid(row=3, column=0, columnspan=2, padx=20, pady=0, sticky="nw")
 		self.server_info.grid_propagate(0)
+
+		#TODO add right click context menu
 
 
 		# Description label
@@ -5327,9 +5766,38 @@ class ServerListUI(tk.Frame):
 
 		# Combo box
 
-		self.combo_box = ttk.Combobox(self, width=20)
-		self.combo_box["values"] = ("category: All", "category: Official", "category: Public", "category: Private", "category: History") #"category: Favorites"
-		self.combo_box.grid(row=3, column=1, rowspan=1, columnspan=1, padx=(0,15), pady=(5,10), sticky="ne")
+		self.combo_box = ttk.Combobox(self, width=23)
+		self.combo_box["values"] = ("category: All", "category: Official", "category: Public", "category: Private", "category: History") #"category: Bookmarked" "category: Online"
+
+		self.combo_box.PLACEHOLDER_TEXT = "Search/Filter servers"
+
+		def on_focus_in(event):
+			if self.combo_box.get() == self.combo_box.PLACEHOLDER_TEXT:
+				self.combo_box.delete(0, tk.END)  # Clear placeholder when clicked
+				self.combo_box.configure(foreground="black")
+
+		def on_focus_out(event):
+			if self.combo_box.get() == "":
+				self.combo_box.set(self.combo_box.PLACEHOLDER_TEXT)  # Restore placeholder if nothing is typed
+				self.combo_box.configure(foreground="gray")
+
+		def on_key_release(event):
+			if self.combo_box.get() == self.combo_box.PLACEHOLDER_TEXT:
+				self.combo_box.delete(0, tk.END)
+				self.combo_box.configure(foreground="black")
+
+		self.combo_box.bind("<FocusIn>", on_focus_in)
+		self.combo_box.bind("<FocusOut>", on_focus_out)
+		self.combo_box.bind("<KeyRelease>", on_key_release)
+
+		if sc4mp_config["GENERAL"]["server_browser_filter"]:
+			self.combo_box.insert(0, sc4mp_config["GENERAL"]["server_browser_filter"])
+			self.combo_box.configure(foreground="black")
+		else:
+			self.combo_box.insert(0, self.combo_box.PLACEHOLDER_TEXT)
+			self.combo_box.configure(foreground="gray")
+		
+		self.combo_box.grid(row=3, column=2, rowspan=1, columnspan=1, padx=(0,16), pady=(5,10), sticky="ne")
 		
 
 		# Address label
@@ -5339,16 +5807,29 @@ class ServerListUI(tk.Frame):
 		self.address_label['text'] = ""
 
 
+		# Server options frame
+
+		self.server_options = tk.Frame(self)
+		self.server_options.grid(row=4, column=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="se")
+
+
+		# Details button
+
+		self.details_button = ttk.Button(self.server_options, text="Details", command=self.details)
+		self.details_button['state'] = tk.DISABLED
+		self.details_button.grid(row=0, column=99, columnspan=1, padx=(15,20), pady=10, sticky="se")
+
+
 		# Refresh / connect frame
 
 		self.refresh_connect = tk.Frame(self)
-		self.refresh_connect.grid(row=4, column=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="se")
+		self.refresh_connect.grid(row=4, column=2, rowspan=1, columnspan=1, padx=0, pady=0, sticky="se")
 
 
 		# Refresh button
 
 		self.refresh_button = ttk.Button(self.refresh_connect, text="Refresh", command=self.root.refresh)
-		self.refresh_button.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="se")
+		self.refresh_button.grid(row=0, column=0, columnspan=1, padx=11, pady=10, sticky="se")
 
 
 		# Connect button
@@ -5370,14 +5851,46 @@ class ServerListUI(tk.Frame):
 			return "break"
 		elif region == "tree" or region == "cell":
 			self.connect()
+		self.tree.last_click = 0
+		self.tree.last_click_coords = (0, 0)
 
 
 	def handle_single_click(self, event):
+
+		if time.time() - self.tree.last_click < 500 and math.dist((event.x, event.y), self.tree.last_click_coords) < 1:
+			self.handle_double_click(event)
+		else:
+			region = self.tree.identify_region(event.x, event.y)
+			if region == "separator":
+				return "break"
+			else:
+				self.tree.last_click = time.time()
+				self.tree.last_click_coords = (event.x, event.y)
+			
 		
-		region = self.tree.identify_region(event.x, event.y)
-		if region == "separator":
-			return "break"
-		
+	def handle_right_click(self, event):
+
+		server_id = self.tree.identify('item', event.x, event.y)
+
+		menu = tk.Menu(self, tearoff=0)
+
+		if not server_id: return
+	
+		self.tree.selection_set(server_id)
+		self.tree.focus(server_id)
+
+		# Create the context menu
+		menu.add_command(label="Connect", command=self.connect, font=("Segoe UI", 9, "bold"))
+		menu.add_command(label="Refresh", command=self.root.refresh)
+		if "Offline" not in self.worker.servers[server_id].categories:
+			menu.add_separator()
+			menu.add_command(label="Details...", command=self.details)
+		#TODO add "View..." submenu
+		#TODO add "Sort by..." submenu
+
+		# Show the context menu at the cursor's location
+		menu.post(event.x_root, event.y_root)
+
 
 	def handle_header_click(self, name):
 		
@@ -5398,12 +5911,17 @@ class ServerListUI(tk.Frame):
 		
 		try:
 			self.tree.focus_set()
-			if self.tree.focus() == "":
-				children = self.tree.get_children()
+			children = self.tree.get_children()
+			if self.tree.focus() == "" and len(children) > 0:
 				self.tree.focus(children[0])
 				self.tree.selection_add([children[0]])
 		except Exception as e:
 			show_error("Error setting focus on server list UI.", no_ui=True) # Method not all that important so we'll just toss an error in the console and call it a day 
+
+
+	def details(self):
+
+		ServerDetailsUI(self.worker.servers[self.tree.focus()])
 
 
 	def connect(self):
@@ -5434,6 +5952,20 @@ class ServerListUI(tk.Frame):
 	def open_server_url(self):
 
 		webbrowser.open_new_tab(format_url(self.url_label["text"]))
+
+	
+	def destroy(self):
+
+		server_browser_filter = self.combo_box.get()
+
+		if server_browser_filter == self.combo_box.PLACEHOLDER_TEXT:
+			server_browser_filter = ""
+
+		if sc4mp_config["GENERAL"]["server_browser_filter"] != server_browser_filter:
+			sc4mp_config["GENERAL"]["server_browser_filter"] = server_browser_filter
+			sc4mp_config.update()
+
+		return super().destroy()
 
 
 class ServerLoaderUI(tk.Toplevel):
@@ -5490,12 +6022,12 @@ class ServerLoaderUI(tk.Toplevel):
 		self.progress_bar.start(2)
 
 		# Progress label
-		self.progress_label = tk.Label(self, fg="gray", font=("Arial", 8))
+		self.progress_label = tk.Label(self, fg="gray", font=("Segoe UI", 8))
 		self.progress_label['text'] = ""
 		self.progress_label.grid(column=0, row=2, columnspan=1, padx=10, pady=0, sticky="w")
 
 		# Duration label
-		self.duration_label = tk.Label(self, fg="gray", font=("Arial", 8))
+		self.duration_label = tk.Label(self, fg="gray", font=("Segoe UI", 8))
 		self.duration_label['text'] = ""
 		self.duration_label.grid(column=1, row=2, columnspan=1, padx=10, pady=0, sticky="e")
 
@@ -5508,8 +6040,8 @@ class ServerLoaderUI(tk.Toplevel):
 
 		super().destroy()
 
-		#if self.background is not None:
-		#	self.background.destroy()
+		if self.background is not None:
+			self.background.destroy()
 
 
 class ServerBackgroundUI(tk.Toplevel):
@@ -5527,7 +6059,8 @@ class ServerBackgroundUI(tk.Toplevel):
 
 		# Geometry
 		self.state('zoomed')
-		#self.attributes("-fullscreen", True)
+		self.wm_attributes("-toolwindow", True)
+		self.attributes("-fullscreen", sc4mp_config["SC4"]["fullscreen"])
 
 		# Load the image
 		self.default_image = Image.open(get_sc4mp_path("background.png"))
@@ -5544,7 +6077,7 @@ class ServerBackgroundUI(tk.Toplevel):
 		th.Thread(target=self.fetch_background, daemon=True).start()
 
 		# Loop
-		self.after(100, self.loop)
+		#self.after(100, self.loop)
 
 
 	def reload_image(self, event=None):
@@ -5633,15 +6166,15 @@ class ServerBackgroundUI(tk.Toplevel):
 		self.after(3000, lambda: th.Thread(target=self.fetch_background, daemon=True).start())
 
 
-	def loop(self):
+	# def loop(self):
 
-		if sc4mp_ui.winfo_viewable():
-			self.destroy()
-		#elif process_exists("simcity 4.exe"):
-		#	self.destroy()
-		#	#self.after(10000, self.destroy)
-		elif not self.destroyed:
-			self.after(100, self.loop)
+	# 	if sc4mp_ui.winfo_viewable():
+	# 		self.destroy()
+	# 	#elif process_exists("simcity 4.exe"):
+	# 	#	self.destroy()
+	# 		#self.after(10000, self.destroy)
+	# 	elif not self.destroyed:
+	# 		self.after(100, self.loop)
 
 	
 	def destroy(self):
@@ -5651,6 +6184,1288 @@ class ServerBackgroundUI(tk.Toplevel):
 		return super().destroy()
 
 
+class ServerDetailsUI(tk.Toplevel):
+
+
+	def __init__(self, server: Server):
+		"""TODO"""
+
+
+		#print("Initializing...")
+
+
+		# Init
+
+		super().__init__()
+
+
+		# Properties
+
+		self.server = server
+		self.destroyed = False
+		self.folder_icon = tk.PhotoImage(file=get_sc4mp_path("folder-icon.png"))
+		self.file_icon = tk.PhotoImage(file=get_sc4mp_path("file-icon.png"))
+
+
+		# Title
+
+		self.title(self.server.server_name)
+
+
+		# Icon
+
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+
+
+		# Geometry
+
+		self.geometry('390x441')
+		self.grid()
+		center_window(self)
+		
+
+		# Priority
+
+		self.grab_set()
+
+
+		# Key bindings
+
+		self.bind("<Return>", lambda event:self.destroy())
+		self.bind("<Escape>", lambda event:self.destroy())
+		self.bind("<Up>", self.up)
+		self.bind("<Down>", self.down)
+		self.bind("<Left>", lambda event: self.switch_tab(left=True))
+		self.bind("<Right>", lambda event: self.switch_tab())
+
+		# Notebook
+
+		self.notebook = ttk.Notebook(self, width=370, height=361)
+		self.notebook.bind("<<NotebookTabChanged>>", self.on_notebook_tab_changed)
+		self.notebook.grid(row=0, column=0, padx=10, pady=5)
+
+
+		# Info frame
+
+		self.info_frame = tk.Frame(self.notebook)
+		
+		canvas = tk.Canvas(self.info_frame, width=350, height=341, highlightthickness=0)
+		canvas.grid(row=0, column=0, padx=10, pady=10, sticky="n")
+		inner_frame = tk.Frame(canvas)
+		canvas.create_window(0, 0, window=inner_frame, anchor="nw")
+
+		invite_link = f"https://{SC4MP_INVITES_DOMAIN}/{self.server.server_id}"
+
+		invite_link_label = ttk.Label(inner_frame, text="Invite link", font=("Segoe UI", 9, "bold"))
+		invite_link_label.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(10,0))
+
+		invite_link_entry = ttk.Entry(inner_frame, width=40)
+		invite_link_entry.insert(0, invite_link)
+		invite_link_entry.after(100, lambda: self.reset_entrybox(invite_link_entry, invite_link))
+		#invite_link_entry.configure(state="disabled")
+		invite_link_entry.grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=0)
+
+		invite_link_copy_button = ttk.Button(inner_frame, text="Copy", command=lambda: copy_to_clipboard(invite_link))
+		invite_link_copy_button.grid(row=1, column=2)
+
+		#server_id_label = ttk.Label(inner_frame, text="ID", font=("Segoe UI", 9, "bold"))
+		#server_id_label.grid(row=2, column=0, columnspan=2, sticky="w", padx=10, pady=(10,0))
+
+		#server_id_entry = ttk.Entry(inner_frame, width=40)
+		#server_id_entry.insert(0, self.server.server_id)
+		#server_id_entry.after(100, lambda: self.reset_entrybox(server_id_entry, self.server.server_id))
+		##server_id_entry.configure(state="disabled")
+		#server_id_entry.grid(row=3, column=0, columnspan=2, sticky="w", padx=10, pady=0)
+
+		#server_id_copy_button = ttk.Button(inner_frame, text="Copy", command=lambda: copy_to_clipboard(self.server.server_id))
+		#server_id_copy_button.grid(row=3, column=2)
+
+		left_frame = ttk.Frame(inner_frame)
+		left_frame.grid(row=10, column=0, pady=20, sticky="nw")
+
+		version_label_1 = ttk.Label(left_frame, text="Version", font=("Segoe UI", 9, "bold"))
+		version_label_1.grid(row=1, column=0, sticky="w", padx=10, pady=(10,0))
+
+		version_label_2 = ttk.Label(left_frame, text=self.server.server_version, foreground=("red" if unformat_version(self.server.server_version)[:2] != unformat_version(SC4MP_VERSION)[:2] else "black"))
+		version_label_2.grid(row=2, column=0, sticky="w", padx=10, pady=0)
+
+		password_enabled_label_1 = ttk.Label(left_frame, text="Public", font=("Segoe UI", 9, "bold"))
+		password_enabled_label_1.grid(row=3, column=0, sticky="w", padx=10, pady=(10,0))
+
+		password_enabled_label_2 = ttk.Label(left_frame, text=("No" if self.server.password_enabled else "Yes"), foreground=("red" if self.server.password_enabled else "green"))
+		password_enabled_label_2.grid(row=4, column=0, sticky="w", padx=10, pady=0)
+
+		if self.server.password_enabled:
+
+			private_label_1 = ttk.Label(left_frame, text="Guests", font=("Segoe UI", 9, "bold"))
+			private_label_1.grid(row=5, column=0, sticky="w", padx=10, pady=(10,0))
+
+			private_label_2 = ttk.Label(left_frame, text=("No" if self.server.private else "Yes"), foreground=("red" if self.server.private else "green"))
+			private_label_2.grid(row=6, column=0, sticky="w", padx=10, pady=0)
+		
+		right_frame = ttk.Frame(inner_frame)
+		right_frame.grid(row=10, column=1, columnspan=2, pady=20, sticky="nw")
+
+		custom_plugins_label_1 = ttk.Label(right_frame, text="Custom plugins", font=("Segoe UI", 9, "bold"))
+		custom_plugins_label_1.grid(row=1, column=0, sticky="w", padx=10, pady=(10,0))
+
+		custom_plugins_label_2 = ttk.Label(right_frame, text=("Yes" if self.server.user_plugins_enabled else "No"), foreground=("green" if self.server.user_plugins_enabled else "red"))
+		custom_plugins_label_2.grid(row=2, column=0, sticky="w", padx=10, pady=0)
+
+		try:
+		
+			claim_duration = self.server.claim_duration
+			max_region_claims = self.server.max_region_claims
+			godmode_filter = self.server.godmode_filter
+
+			if claim_duration is None:
+				claim_duration = "Forever"
+			else:
+				claim_duration = f"{claim_duration} days"
+
+			if max_region_claims is None:
+				max_region_claims = "None"
+			else:
+				max_region_claims = f"{max_region_claims} per region"
+
+			claim_duration_label_1 = ttk.Label(right_frame, text="Claim duration", font=("Segoe UI", 9, "bold"))
+			claim_duration_label_1.grid(row=3, column=0, sticky="w", padx=10, pady=(10,0))
+
+			claim_duration_label_2 = ttk.Label(right_frame, text=claim_duration, foreground=("green" if claim_duration == "Forever" else "black"))
+			claim_duration_label_2.grid(row=4, column=0, sticky="w", padx=10, pady=0)
+
+			claim_limit_label_1 = ttk.Label(right_frame, text="Claim limit", font=("Segoe UI", 9, "bold"))
+			claim_limit_label_1.grid(row=5, column=0, sticky="w", padx=10, pady=(10,0))
+
+			claim_limit_label_2 = ttk.Label(right_frame, text=max_region_claims, foreground=("green" if max_region_claims == "None" else "black"))
+			claim_limit_label_2.grid(row=6, column=0, sticky="w", padx=10, pady=0)
+
+			if not godmode_filter:
+
+				godmode_claims_label_1 = ttk.Label(right_frame, text="Godmode claims", font=("Segoe UI", 9, "bold"))
+				godmode_claims_label_1.grid(row=7, column=0, sticky="w", padx=10, pady=(10,0))
+
+				godmode_claims_label_2 = ttk.Label(right_frame, text=("No" if godmode_filter else "Yes"), foreground=("red" if godmode_filter else "green"))
+				godmode_claims_label_2.grid(row=8, column=0, sticky="w", padx=10, pady=0)
+
+		except AttributeError:
+
+			pass
+
+		#options_frame = tk.Frame(self.info_frame)
+		#options_frame.grid(row=1, column=0, sticky="sw")
+
+		#copy_link_button = ttk.Button(options_frame, text="Copy link", command=lambda: copy_to_clipboard(f"sc4mp://{self.server.host}:{self.server.port}"))
+		#copy_link_button.grid(row=0, column=0, padx=20, pady=10)
+
+		#invite_link_label = ttk.Label(self.info_frame, text="Link: ")
+		#invite_link_label.grid(row=1, column=0)
+
+		#invite_link_entry = ttk.Entry(self.info_frame)
+		#invite_link_entry.insert(0, f"sc4mp://{self.server.host}:{self.server.port}")
+		#invite_link_entry.grid(row=1, column=1)
+
+		#self.info_frame.rules_frame: ttk.LabelFrame = ttk.Labelframe(self.info_frame, text="Rules")
+		#self.info_frame.rules_frame.grid(row=0, column=0)
+
+		#self.info_frame.rules_frame.label = ttk.Label(self.info_frame.rules_frame, text="TEST")
+		#self.info_frame.rules_frame.label.grid(row=0, column=0)
+
+		self.notebook.add(self.info_frame, text="Info")
+
+
+		# Ok button
+
+		self.ok_button = ttk.Button(self, text="Ok", command=self.destroy, default="active")
+		self.ok_button.grid(row=1, column=0, padx=10, pady=5, sticky="se")
+
+
+		# Create notebook frames asynchronously
+
+		th.Thread(target=self.create_notebook_frames).start()
+
+		#self.chain_functions([
+		#	self.create_mayors_frame, 
+		#	self.create_cities_frame, 
+		#	lambda: th.Thread(target=self.create_files_frame).start()
+		#])
+
+
+		# Update window size periodically
+
+		self.after(100, self.update_window_size)
+		
+
+		# Select tab from last server detail view
+		self.after(200, self.select_last_tab)
+
+
+	def select_last_tab(self):
+
+		try:
+			self.notebook.select(globals().get("sc4mp_server_details_ui_last_tab_index", 0))
+		except Exception as e:
+			pass
+
+
+	def on_notebook_tab_changed(self, function: function):
+
+		try:
+
+			functions = [
+				self.collapse_mayors_treeview,
+				self.collapse_cities_treeview,
+				self.collapse_files_treeview,
+			]
+
+			for index in range(len(self.notebook.tabs()) - 1):
+				functions[index]()
+
+		except Exception as e:
+
+			show_error(e, no_ui=True)
+
+
+		#function()
+
+		#self.notebook.unbind("<<NotebookTabChanged>>")
+
+
+	def up(self, event):
+		self.focus_tree(move_up=True)
+
+
+	def down(self, event):
+		self.focus_tree(move_down=True)
+		
+
+	def focus_tree(self, move_up=False, move_down=False):
+
+		try:
+
+			tree: ttk.Treeview = self.notebook.nametowidget(self.notebook.select()).tree
+			children = tree.get_children()
+			if tree.focus() == "" or len(tree.selection()) < 1:
+				tree.focus(children[0])
+				tree.selection_add([children[0]])
+			elif self.focus_get() is not tree:
+				current_selection = tree.selection()[0]
+				if current_selection in children:
+					current_selection_index = children.index(current_selection)
+					tree.selection_remove([current_selection])
+					next_selection = None
+					if move_up:
+						next_selection = [children[current_selection_index - 1]]
+					elif move_down:
+						next_selection = [children[current_selection_index + 1]]
+					if next_selection:
+						tree.selection_add(next_selection)
+						tree.focus(next_selection)
+			tree.focus_set()
+
+		except (AttributeError, ValueError, IndexError) as e:
+	
+			show_error(e, no_ui=True)
+		
+
+	def switch_tab(self, left=False):
+
+		try:
+
+			right = not left
+
+			current_focus = self.focus_get()
+
+			if type(current_focus) is ttk.Treeview and self.notebook.tab(self.notebook.select(), "text") == "Files":
+				tree: ttk.Treeview = current_focus
+				selection = tree.selection()
+				if len(selection) > 0:
+					selection = selection[0]
+					if left and not (selection in tree.get_children("") and not tree.item(selection, "open")):
+						return
+					elif right and len(tree.get_children(selection)) > 0:
+						return
+			elif type(current_focus) is ttk.Entry:
+				return
+				#current_selection = current_focus.selection()
+				#if len(current_selection) > 0:
+				#	current_selection = current_selection[0]
+				#	if current_selection not in current_focus.get_children("") or right:
+				#		return
+					#if len(current_focus.get_children(current_selection)) > 0:
+						#right = not left
+						#expanded = current_focus.item(current_selection, "open")
+						#collapsed = not expanded
+						#if collapsed and right or expanded and left:
+					#	return
+
+			self.notebook.focus_set()
+
+			all_tabs = list(self.notebook.tabs())
+			all_tabs.extend(all_tabs)		
+			current_tab = self.notebook.select()
+			current_tab_index = all_tabs.index(current_tab)
+			next_tab = all_tabs[current_tab_index + (-1 if left else 1)]
+
+			self.notebook.select(next_tab)
+
+		except IndexError as e:
+
+			show_error(e, no_ui=True)
+
+
+	def update_window_size(self):
+
+		try:
+
+			# Check if UI is destoyed and stop updating window size if so
+			if not self.winfo_exists(): #self.destroyed:
+				return
+
+			# Update the UI to make sure `winfo` calls are correct
+			sc4mp_ui.update()
+
+			# Resize notebook
+			inner_frame = self.notebook.nametowidget(self.notebook.select())
+			if type(inner_frame) is tk.Frame:
+				notebook_width = 370
+				notebook_height = 361
+			else:
+				notebook_width = inner_frame.winfo_width()
+				notebook_height = inner_frame.winfo_height()
+			self.notebook.configure(width=notebook_width, height=notebook_height)
+
+			# Get old window width, height, x, y
+			old_window_width = self.winfo_width()
+			old_window_height = self.winfo_height()
+			old_window_x = self.winfo_x()
+			old_window_y = self.winfo_y()
+
+			# Set new window width, height, x, y
+			new_window_width = notebook_width + 20
+			new_window_height = notebook_height + 80
+			new_window_x = old_window_x + int((old_window_width - new_window_width) / 2)
+			new_window_y = old_window_y + int((old_window_height - new_window_height) / 2)
+
+			# Resize the window
+			self.maxsize(new_window_width, new_window_height)
+			self.minsize(new_window_width, new_window_height)
+			self.geometry(f"{new_window_width}x{new_window_height}+{new_window_x}+{new_window_y}")
+
+			#print(f"Resized to {new_window_width}x{new_window_height}.")
+
+			self.after(1, self.update_window_size)
+
+		except Exception as e:
+
+			show_error(e, no_ui=True)
+
+
+	def reset_entrybox(self, entrybox: ttk.Entry, text: str):
+
+		try:
+
+			if entrybox.get() != text:
+				entrybox.delete(0, "end")
+				entrybox.insert(0, text)
+
+			self.after(1, lambda: self.reset_entrybox(entrybox, text))
+
+		except Exception as e:
+
+			show_error(e, no_ui=True)
+
+
+	def destroy(self):
+
+		global sc4mp_server_details_ui_last_tab_index
+
+		try:
+			sc4mp_server_details_ui_last_tab_index = self.notebook.index(self.notebook.select())
+		except Exception:
+			pass
+
+		self.destroyed = True
+
+		return super().destroy()
+
+
+	def chain_functions(self, functions, delay=100):
+
+		if self.destroyed:
+			return
+		else:
+			try:
+				functions[0]()
+			except Exception:
+				self.after(delay, lambda: self.chain_functions(functions, delay=delay))
+			else:
+				functions.pop(0)
+				if len(functions) > 0:
+					self.after(delay, lambda: self.chain_functions(functions, delay=delay))
+
+
+	def load_json(self, *args, **kwargs):
+
+		while not self.destroyed:
+			try:
+				return load_json(*args, *kwargs)
+			except json.decoder.JSONDecodeError:
+				time.sleep(1)
+
+
+	def create_notebook_frames(self):
+
+		try:
+
+			self.time = self.server.time()
+
+			self.create_mayors_frame()
+			self.create_cities_frame()
+			# self.create_files_frame()
+
+		except Exception as e:
+
+			show_error(f"An error occurred while creating notebook frames.\n\n{e}") #, no_ui=True)
+
+
+	def create_mayors_frame(self):
+
+
+		regions_directory: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server.server_id / "Regions"
+		
+		if not regions_directory.exists():
+			return
+
+		mayors = {}
+		for region in os.listdir(regions_directory):
+			region_database: dict = self.load_json(regions_directory / region / "_Database" / "region.json")
+			for entry in region_database.values():
+				if entry is not None:
+					user_id = entry.get("owner", None)
+					if user_id is not None:
+						
+						mayors.setdefault(user_id, {})
+						
+						mayors[user_id].setdefault("name", "Defacto")
+
+						mayors[user_id].setdefault("last_online", None)
+						if mayors[user_id]["last_online"] is None or datetime.strptime(entry["modified"], "%Y-%m-%d %H:%M:%S") > datetime.strptime(mayors[user_id]["last_online"], "%Y-%m-%d %H:%M:%S"):
+							if entry["mayor_name"] != entry.get("last_mayor_name", None):
+								mayors[user_id]["name"] = entry["mayor_name"]
+							mayors[user_id]["last_online"] = entry["modified"]
+
+						mayors[user_id].setdefault("residential_population", 0)
+						mayors[user_id]["residential_population"] += entry["residential_population"]
+
+						mayors[user_id].setdefault("commercial_population", 0)
+						mayors[user_id]["commercial_population"] += entry["commercial_population"]
+
+						mayors[user_id].setdefault("industrial_population", 0)
+						mayors[user_id]["industrial_population"] += entry["industrial_population"]
+
+						mayors[user_id].setdefault("total_population", 0)
+						mayors[user_id]["total_population"] += entry["population"]
+
+						mayors[user_id].setdefault("mayor_rating", 0)
+						mayors[user_id]["mayor_rating"] += entry["residential_population"] * entry["mayor_rating"]
+
+						mayors[user_id].setdefault("tiles_claimed", 0)
+						mayors[user_id]["tiles_claimed"] += 1
+
+						mayors[user_id].setdefault("area_claimed", 0)
+						mayors[user_id]["area_claimed"] += entry["size"] ** 2
+
+						mayors[user_id].setdefault("funds", 0)
+						mayors[user_id]["funds"] += entry.get("total_funds", 0)
+
+		for entry in mayors.values():
+			if entry["residential_population"] > 0:
+				entry["mayor_rating"] = round(entry["mayor_rating"] / entry["residential_population"])
+			else:
+				entry["mayor_rating"] = 0
+
+		m = {}
+		for user_id, entry in mayors.items():
+			m[user_id] = [
+				entry["name"],
+				entry["area_claimed"],
+				entry["mayor_rating"],
+				entry['funds'],
+				entry['residential_population'],
+				entry['commercial_population'],
+				entry['industrial_population'],
+				entry['last_online'],
+			]
+		mayors = m
+
+		if len(mayors.values()) < self.server.stat_mayors:
+			raise ClientException("Wrong number of mayors.")
+
+		columns = [
+			(
+				"#0",
+				"Name",
+				250,
+				"w"
+			),
+			(
+				"#1",
+				"Claimed",
+				100,
+				"center"
+			),
+			(
+				"#2",
+				"Rating",
+				100,
+				"center"
+			),
+			(
+				"#3",
+				"Funds",
+				100,
+				"center"
+			),
+			(
+				"#4",
+				"Residential",
+				100,
+				"center"
+			),
+			(
+				"#5",
+				"Commercial",
+				100,
+				"center"
+			),
+			(
+				"#6",
+				"Industrial",
+				100,
+				"center"
+			),
+			(
+				"#7",
+				"Online",
+				100,
+				"center"
+			),
+			(
+				"#8",
+				"⠀",
+				1000,
+				"center"
+			)
+		]
+
+		formats = [
+			lambda data: data,
+			lambda data: f"{data}km²",
+			lambda data: data, 
+			lambda data: f"§{data:,}",
+			lambda data: f"{data:,}", 
+			lambda data: f"{data:,}",
+			lambda data: f"{data:,}",
+			lambda data: format_time_ago(datetime.strptime(data, "%Y-%m-%d %H:%M:%S"), now=self.time),
+		]
+
+		self.mayors_frame = StatisticsTreeUI(self.notebook, data=mayors, columns=columns, formats=formats)
+
+		self.mayors_frame.tree["displaycolumns"] = ["#7", "#8"]
+		self.mayors_frame.button.configure(command=self.expand_mayors_treeview, text="Expand")
+
+		self.notebook.add(self.mayors_frame, text="Mayors")
+		
+
+	def expand_mayors_treeview(self):
+
+		self.mayors_frame.tree["displaycolumns"] = "#all"
+		self.mayors_frame.button.configure(command=self.collapse_mayors_treeview, text="Collapse")
+
+		#self.notebook.bind("<<NotebookTabChanged>>", lambda event: self.on_notebook_tab_changed(self.collapse_mayors_treeview))
+
+		#self.after(200, lambda: center_window(self))
+
+
+	def collapse_mayors_treeview(self):
+
+		self.mayors_frame.tree["displaycolumns"] = ["#7", "#8"]
+		self.mayors_frame.button.configure(command=self.expand_mayors_treeview, text="Expand")
+
+		#self.after(200, lambda: center_window(self))
+
+
+	def create_cities_frame(self):
+	
+
+		regions_directory: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server.server_id / "Regions"
+		
+		if not regions_directory.exists():
+			return
+
+		cities = {}
+		for region in os.listdir(regions_directory):
+
+			region_database: dict = self.load_json(regions_directory / region / "_Database" / "region.json")
+
+			for coords, entry in region_database.items():
+
+				if entry is not None:
+
+					city_id = f"{region.replace(' ', '_')}_{coords}"
+
+					city_name = entry.get("city_name", "New City")
+					mayor_name = entry.get("mayor_name", "Defacto")
+
+					if len(mayor_name) < 1:
+						continue
+
+					s = entry.get("size")
+					if s == 1:
+						size = "Small"
+					elif s == 2:
+						size = "Medium"
+					elif s == 4:
+						size = "Large"
+					else:
+						size = "None"
+
+					modified = entry.get('modified', None)
+					if modified:
+						modified = datetime.strptime(modified, "%Y-%m-%d %H:%M:%S")
+					else:
+						modified = datetime.now() - timedelta(days=400000)
+
+					cities[city_id] = [
+						city_name,
+						mayor_name,
+						size,
+						entry.get('mayor_rating', 0),
+						entry.get('total_funds', 0),
+						entry.get('residential_population', 0),
+						entry.get('commercial_population', 0),
+						entry.get('industrial_population', 0),
+						modified,
+					]
+
+		columns = [
+			(
+				"#0",
+				"Name",
+				250,
+				"w"
+    		),
+			(
+				"#1",
+				"Mayor",
+				150,
+				"w"
+    		),
+			(
+				"#2",
+				"Size",
+				100,
+				"center"
+    		),
+		    (
+				"#3",
+				"Rating",
+				100,
+				"center"
+    		),
+			(
+				"#4",
+				"Funds",
+				100,
+				"center"
+    		),
+			(
+				"#5",
+				"Residential",
+				100,
+				"center"
+    		),
+			(
+				"#6",
+				"Commercial",
+				100,
+				"center"
+    		),
+			(
+				"#7",
+				"Industrial",
+				100,
+				"center"
+    		),
+			(
+				"#8",
+				"Modified",
+				100,
+				"center"
+    		),
+			(
+				"#9",
+				"⠀",
+				1000,
+				"center"
+			)
+		]
+
+		formats = [
+			lambda data: data,
+			lambda data: data,
+			lambda data: data,
+			lambda data: f"{data}",
+			lambda data: f"§{data:,}",
+			lambda data: f"{data:,}",
+			lambda data: f"{data:,}",
+			lambda data: f"{data:,}",
+			lambda data: format_time_ago(data, now=self.time),
+		]
+
+		self.cities_frame = StatisticsTreeUI(self.notebook, columns=columns, formats=formats, data=cities)
+
+		self.cities_frame.tree["displaycolumns"] = ["#8", "#9"]
+
+		self.cities_frame.button.configure(command=self.expand_cities_treeview, text="Expand")
+
+		self.notebook.add(self.cities_frame, text="Cities")
+
+
+	def expand_cities_treeview(self):
+
+		self.cities_frame.tree["displaycolumns"] = "#all"
+		self.cities_frame.button.configure(command=self.collapse_cities_treeview, text="Collapse")
+
+
+	def collapse_cities_treeview(self):
+
+		self.cities_frame.tree["displaycolumns"] = ["#8", "#9"]
+		self.cities_frame.button.configure(command=self.expand_cities_treeview, text="Expand")
+
+
+	def create_files_frame(self):
+
+		try:
+
+			self.files_frame = StatisticsTreeUI(self.notebook, columns=[
+				(
+					"#0",
+					"Name",
+					250,
+					"w"
+				),
+				(
+					"#1",
+					"Download",
+					100,
+					"center"
+				),
+				(
+					"#2",
+					"⠀",
+					1000,
+					"center"
+				)
+			])
+
+			self.files_frame.tree.tag_configure('cached', foreground='green')
+			#self.files_frame.tree.tag_configure('red', foreground='red')
+
+			files = {}
+
+			for request in ["Plugins", "Regions"]:
+
+				s = socket.socket()
+				s.settimeout(10)
+				s.connect((self.server.host, self.server.port))
+
+				if not self.server.private:
+					s.send(request.lower().encode())
+				else:
+					s.send(f"{request.lower()} {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
+
+				file_table = recv_json(s)
+
+				s.close()
+
+				for entry in file_table:
+
+					md5 = entry[0]
+					size = entry[1]
+					path = entry[2]
+
+					path = list(Path(path).parts)
+					path.insert(0, request)
+
+					entry = files
+					while len(path) > 1:
+						d = path.pop(0)
+						entry.setdefault(d, {})
+						entry = entry[d]
+
+					d = path.pop(0)
+
+					download_size = size
+					cached_file = SC4MP_LAUNCHPATH / "_Cache" / md5
+
+					if cached_file.exists():
+						download_size -= cached_file.stat().st_size
+
+					entry[d] = [
+						download_size
+					]
+
+			#update_json("test.json", files)
+
+			self.populate_files_treeview(self.files_frame.tree, data=files)
+
+			self.files_frame.button.configure(command=self.expand_files_treeview, text="Expand")
+
+			self.notebook.add(self.files_frame, text="Files")
+
+		except Exception as e:
+	
+			show_error(e, no_ui=True)
+
+
+	def populate_files_treeview(self, tree=None, parent="", data={}):
+		
+		total_download_size = 0
+
+		for key in sorted(data.keys()):
+
+			value = data[key]
+
+			download_size = 0
+
+			if isinstance(value, dict):
+
+				# Insert parent node
+				node = tree.insert(parent, 'end', text=key, values=[""], image=self.folder_icon)
+
+				# Recursively add children
+				download_size = self.populate_files_treeview(tree, node, value)
+
+				#tree.item(parent, values=[format_download_size(download_size)])
+
+			elif isinstance(value, list):
+
+				download_size = value[0]
+
+				# Insert leaf node
+				tree.insert(parent, 'end', text=key, values=[format_download_size(download_size)], image=self.file_icon)
+
+			total_download_size += download_size
+
+		if parent:
+			tree.item(parent, values=[format_download_size(total_download_size)])
+
+		return total_download_size
+
+
+	def expand_files_treeview(self):
+
+		self.expand_files_treeview_helper(self.files_frame.tree)
+
+		self.files_frame.adjust_tree_column_widths()
+
+		self.files_frame.button.configure(text="Collapse", command=self.collapse_files_treeview)
+
+
+	def expand_files_treeview_helper(self, tree, parent=""):
+
+		tree.item(parent, open=True)
+
+		children = tree.get_children(parent)
+		for child in children:
+			self.expand_files_treeview_helper(tree, child)
+
+
+	def collapse_files_treeview(self):
+
+		self.collapse_files_treeview_helper(self.files_frame.tree)
+
+		self.files_frame.tree.column("#0", width=250)
+
+		self.files_frame.button.configure(text="Expand", command=self.expand_files_treeview)
+
+
+	def collapse_files_treeview_helper(self, tree, parent=""):
+
+		tree.item(parent, open=False)
+
+		children = tree.get_children(parent)
+		for child in children:
+			self.collapse_files_treeview_helper(tree, child)
+
+
+class StatisticsTreeUI(tk.Frame):
+
+
+	def __init__(self, *args, columns=[], formats=[], data={}, sort=-1, reverse=True, **kwargs):
+		
+		
+		super().__init__(*args, **kwargs)
+
+		self.columns = columns
+		self.formats = formats
+		self.data = data
+		self.sort = sort
+		self.reverse = reverse
+		self.query = ""
+
+
+		# Tree frame
+
+		self.tree_frame = tk.Frame(self)
+		self.tree_frame.grid(row=0, column=0, columnspan=2)
+
+
+		# Tree canvas
+
+		self.tree_canvas = tk.Canvas(self.tree_frame, width=350, height=323, bg="white", highlightthickness=0)
+		self.tree_canvas.pack(side="left")
+
+
+		# Tree
+
+		column_ids = []
+		for column in columns:
+			column_ids.append(column[0])
+		column_ids = tuple(column_ids[1:])
+
+		self.tree = ttk.Treeview(self.tree_canvas, columns=column_ids, selectmode="browse", height=15)
+		self.tree.bind("<<TreeviewOpen>>", self.on_item_expand)
+		self.tree.bind("<<TreeviewClose>>", self.on_item_expand)
+		self.tree.bind("<Double-1>", self.on_click)
+		self.tree.bind("<Button-1>", self.on_click)
+
+		for column in columns:
+			column_id = column[0]
+			column_name = column[1]
+			column_width = column[2]
+			column_anchor = column[3]
+			self.tree.column(column_id, width=column_width, anchor=column_anchor, stretch=False)
+			self.tree.heading(column_id, text=column_name, command=lambda index=columns.index(column): self.on_header_click(index))
+
+		self.sort_data()
+		self.populate_treeview()
+
+		#self.master.configure(width=sum([column[2] for column in columns]))
+		self.tree.pack()
+		self.tree_canvas.create_window(0, 0, window=self.tree, anchor="nw")
+
+		self.after(100, self.filter_treeview)
+
+
+		# Scrollbar
+
+		self.scrollbar = ttk.Scrollbar(self.tree_frame, orient ="vertical", command=self.tree.yview)
+		self.scrollbar.pack(side="right", fill="y")
+		self.tree.configure(yscrollcommand=self.scrollbar.set)
+
+
+		# Button
+
+		self.button = ttk.Button(self, text="Button")
+		self.button.grid(row=1, column=0, sticky="nw", padx=(0,10), pady=(10,0))
+
+
+		# Entry
+
+		self.entry = ttk.Entry(self)
+		self.entry.grid(row=1, column=1, sticky="ne", padx=(10,15), pady=(12, 0))
+
+
+	def sort_data(self):
+
+		self.data = {key:entry for key, entry in sorted(self.data.items(), key=lambda item: item[1][self.sort], reverse=self.reverse)}
+
+
+	def populate_treeview(self, parent=""):
+
+		# Get all child items of the parent item
+		children: list[str] = list(self.tree.get_children(parent))
+
+		# Set index for insertion
+		index = 0
+
+		# Loop through each item, format it, and add it to the tree
+		for item, entry in self.data.items():
+
+			# Generate search field for query
+			field = ""
+			for value in entry:
+				if type(value) is str:
+					field += value
+
+			# Format the data
+			entry = entry.copy()
+			for i in range(len(entry)):
+				try:
+					entry[i] = self.formats[i](entry[i])
+				except Exception as e:
+					entry[i] = f"ERROR: {e}"
+
+			# Divide the entry into text (column #0) and values (columns #1)
+			text: str = entry[0]
+			values = entry[1:]
+
+			# If item satisfies the query
+			if len(self.query) < 1 or self.query.lower() in field.lower():
+
+				# If item in tree
+				if item not in children:
+
+					# Insert the item into the tree
+					self.tree.insert("", index, id=item, text=text, values=values)
+					children.insert(index, item)
+
+				# Increment the index for insertion
+				index += 1
+
+			# If item does not satisfy query
+			else:
+
+				# If item in tree
+				if item in children:
+
+					# Remove the item
+					self.tree.delete(item)
+					children.remove(item)
+
+
+	def filter_treeview(self):
+
+		try:
+
+			query = self.entry.get()
+
+			if query != self.query:
+				
+				self.query = query
+
+				self.populate_treeview()
+
+		except Exception as e:
+
+			show_error(f"An error occurred while filtering.\n\n{e}", no_ui=True)
+
+			#self.query = query
+
+			# Cache the tree structure if not already cached
+			#if not hasattr(self, "original_tree"):
+			#	self.original_tree = {}
+			#	self.original_indices = {}
+
+			#	def cache_tree_structure(parent):
+			#		"""Recursively cache the tree structure and indices."""
+			#		children = tree.get_children(parent)
+			#		self.original_tree[parent] = children
+			#		self.original_indices[parent] = {child: idx for idx, child in enumerate(children)}
+			#		for child in children:
+			#			cache_tree_structure(child)
+			#
+			#	cache_tree_structure("")
+
+			#def recursive_filter(parent, query):
+			#	"""Recursively filter the items in the tree."""
+			#	match_found = False  # Tracks if any child matches the query
+
+			#	visible_children = []
+
+			#	for child in self.original_tree.get(parent, []):
+			#		# Get the text of the current item
+			#		item_text = tree.item(child, "text").lower()
+			#		child_match = query in item_text if query else True  # Match all if query is empty
+
+			#		# Recursively filter the children of this child
+			#		child_visible = recursive_filter(child, query)
+
+			#		# Show this item if it or any of its descendants match
+			#		if child_match or child_visible:
+			#			visible_children.append(child)
+			#			match_found = True
+			#		else:
+			#			if child in tree.get_children(parent):
+			#				tree.detach(child)  # Detach the item
+
+				# Reattach children in original order
+			#	for child in visible_children:
+			#		tree.reattach(child, parent, "end")
+
+			#	return match_found
+
+			#if not query:
+				# Reset the tree to its original structure
+			#	def reset_tree(parent):
+			#		children = self.original_tree.get(parent, [])
+			#		for child in children:
+			#			if child not in tree.get_children(parent):
+			#				tree.reattach(child, parent, "end")
+			#			reset_tree(child)
+
+			#	reset_tree("")
+			#else:
+			#	# Start recursive filtering from the root
+			#	recursive_filter("", query)
+
+		# Continue filtering periodically
+		self.after(100, self.filter_treeview)
+		
+
+	def on_click(self, event):
+		
+		region = self.tree.identify_region(event.x, event.y)
+		if region == "separator":
+			return "break"
+
+
+	def on_item_expand(self, event):
+
+		th.Thread(target=self.adjust_tree_column_widths).start()
+
+
+	def on_header_click(self, index):
+
+		# Get current selection (to be reselected after sorting)
+		selection = self.tree.selection()
+
+		# Set sort mode
+		if index == self.sort:
+			self.reverse = not self.reverse
+		else:
+			if self.columns[index][1] in ["Name", "Mayor"]:
+				self.reverse = False
+			else:
+				self.reverse = True
+		self.sort = index
+
+		# Clear the tree
+		for item in self.tree.get_children(""):
+			self.tree.delete(item)
+
+		# Sort the data
+		self.sort_data()
+
+		# Populate the tree
+		self.populate_treeview()
+
+		# Re-add the selection (if any)
+		if len(selection) > 0:
+			self.tree.selection_add(selection)
+			self.tree.focus(selection[0])	
+
+
+	def adjust_tree_column_widths(self):
+		"""
+		Adjusts column widths on the TreeView to fit contents.
+		
+		Trash code written by Chat-GPT
+		"""
+
+		try:
+
+			time.sleep(.2) # Give time for the item to actually expand
+
+			tree = self.tree
+
+			# Get the style used in the Treeview
+			font_name = "TkDefaultFont"
+			font = tkfont.nametofont(font_name)
+			
+			indent = 40  # Default indentation for Treeview items (can be customized)
+    
+			# Adjust the #0 column (tree column)
+			max_width = tree.column("#0", option="width") #font.measure(tree.heading("#0")["text"])  # Start with header width
+
+			def calculate_width(item, level=0):
+
+				nonlocal max_width
+
+				children = tree.get_children(item)
+
+				# Calculate the width of the item's text in the #0 column
+				cell_content = tree.item(item, "text")
+				item_width = font.measure(cell_content) + (level * indent)
+				max_width = max(max_width, item_width)
+
+				# Recursively calculate widths for child items
+				if tree.item(item, "open"):
+					for child in children:
+						calculate_width(child, level + 1)
+
+			# Process root-level items and their children for #0 column
+			for root_item in tree.get_children(""):
+				calculate_width(root_item)
+
+			# Set the #0 column width to the calculated maximum
+			tree.column("#0", width=min(1000, max_width))
+
+			# Adjust other columns
+			#for col in tree["columns"]:
+
+			#	max_width = tree.column(col, option="width") #font.measure(col)  # Start with column header width
+
+			#	def calculate_column_width(item, level=0):
+
+			#		nonlocal max_width
+
+			#		# Calculate the width of the current item's content in this column
+			#		cell_content = tree.set(item, col)
+			#		item_width = font.measure(cell_content)
+			#		max_width = max(max_width, item_width)
+
+			#		# Recursively calculate widths for child items
+			#		if tree.item(item, "open"):
+			#			for child in tree.get_children(item):
+			#				calculate_column_width(child, level + 1)
+
+			#	# Process root-level items and their children for each column
+			#	for root_item in tree.get_children(""):
+			#		calculate_column_width(root_item)
+
+			#	# Set the column width to the calculated maximum
+			#	tree.column(col, width=max_width)
+
+		except Exception as e:
+	
+			show_error(f"Failed to adjust column widths.\n\n{e}", no_ui=True)
+
+
+	def get_tree_width(self):
+
+		width = self.tree.column("#0", "width")
+
+		for column in self.tree["columns"]:
+			try:
+				if self.tree.heading(column, "text") != "⠀":
+					width += self.tree.column(column, option="width")
+			except:
+				pass
+			
+		return width
+
+
+	def winfo_width(self):
+
+		#print(self.tree_canvas.configure("width"))
+		#self.scrollbar.lift()
+
+		tree_width = self.get_tree_width()
+
+		self.tree_canvas.configure(width=tree_width - 2)
+
+		return tree_width + 20
+	
+
+	def winfo_height(self):
+
+		return 361
+
+
 class GameMonitorUI(tk.Toplevel):
 	
 
@@ -5658,13 +7473,14 @@ class GameMonitorUI(tk.Toplevel):
 	def __init__(self, parent):
 		
 
-		print("Initializing...")
+		# print("Initializing...")
 
 		# Parameters
 		self.parent = parent
 
 		# Init
 		super().__init__()
+		self.withdraw()
 
 		# Title
 		self.title(SC4MP_TITLE)
@@ -5673,13 +7489,17 @@ class GameMonitorUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.geometry("400x400+10+40")
+		self.geometry(f"400x400+{sc4mp_game_monitor_x}+{sc4mp_game_monitor_y}")
 		self.minsize(420, 280)
 		self.maxsize(420, 280)
 		self.grid()
 
+		# Iconify
+		# if sc4mp_config["SC4"]["fullscreen"]:
+		# 	self.iconify()
+
 		# Priority
-		self.grab_set()
+		# self.grab_set()
 
 		# Protocol
 		self.protocol("WM_DELETE_WINDOW", self.delete_window)
@@ -5741,6 +7561,19 @@ class GameMonitorUI(tk.Toplevel):
 			sc4mp_game_exit_ovveride = True
 			self.parent.end = True
 			self.destroy()
+
+	
+	def destroy(self):
+
+		global sc4mp_game_monitor_x, sc4mp_game_monitor_y
+
+		try:
+			sc4mp_game_monitor_x = self.winfo_x()
+			sc4mp_game_monitor_y = self.winfo_y()
+		except Exception:
+			pass
+
+		return super().destroy()
 
 
 class GameMonitorMapUI(tk.Toplevel):
@@ -5931,9 +7764,11 @@ class GameOverlayUI(tk.Toplevel):
 
 	def click(self, event):
 		try:
+			self.game_monitor_ui.deiconify()
 			self.game_monitor_ui.focus_set()
-		except Exception:
-			pass
+			self.game_monitor_ui.grab_set()
+		except Exception as e:
+			show_error(e, no_ui=True)
 
 
 class RegionsRefresherUI(tk.Toplevel):
@@ -6047,7 +7882,7 @@ class UpdaterUI(tk.Toplevel):
 		self.progress_bar.start(2)
 
 		# Small label
-		self.label_small = tk.Label(self, fg="gray", font=("Arial", 8), text="Press <ESC> to cancel")
+		self.label_small = tk.Label(self, fg="gray", font=("Segoe UI", 8), text="Press <ESC> to cancel")
 		self.label_small.grid(column=0, row=2, columnspan=2, padx=10, pady=(0,5))
 
 		# Pause underlying thread
@@ -6126,7 +7961,7 @@ class ReleaseNotesUI(tk.Toplevel):
 			self.body.grid_propagate(0)
 
 			# Body title
-			self.body.title = ttk.Label(self.body, text=title, wraplength=(int(self.body["width"]) - 20), background="white", font=("Arial", 8, "bold"))
+			self.body.title = ttk.Label(self.body, text=title, wraplength=(int(self.body["width"]) - 20), background="white", font=("Segoe UI", 8, "bold"))
 			self.body.title.grid(row=0, column=0, columnspan=99, padx=10, pady=10, sticky="nw")
 
 			# Body text
@@ -6136,7 +7971,7 @@ class ReleaseNotesUI(tk.Toplevel):
 				if len(lines) > 0 and len(lines[-1]) == 0:
 					lines.pop(-1)
 			if len(lines) < 1:
-				ttk.Label(self.body, text="No description provided.", background="white", font=("Arial", 8, "italic")).grid(row=1, column=0, columnspan=99, padx=10, pady=2, sticky="nw")
+				ttk.Label(self.body, text="No description provided.", background="white", font=("Segoe UI", 8, "italic")).grid(row=1, column=0, columnspan=99, padx=10, pady=2, sticky="nw")
 			else:
 				for line_number in range(len(lines)):
 					line = lines[line_number]
