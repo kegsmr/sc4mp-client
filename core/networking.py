@@ -7,7 +7,7 @@ import time
 SC4MP_BUFFER_SIZE = 4096
 
 
-def send_json(s, data, length_encoding="I"):
+def send_json(s: socket.socket, data, length_encoding="I"):
 
 	if data is None:
 		data = b"" 
@@ -17,7 +17,7 @@ def send_json(s, data, length_encoding="I"):
 	s.sendall(struct.pack(length_encoding, len(data)) + data)
 
 
-def recv_json(s, length_encoding="I"):
+def recv_json(s: socket.socket, length_encoding="I"):
 
 	length_header_size = struct.calcsize(length_encoding)
 	length_header = b""
@@ -59,91 +59,147 @@ def recv_json(s, length_encoding="I"):
 		return None
 	else:
 		return json.loads(data.decode())
+
+
+def recv_exact(s: socket.socket, length):
+
+	data = b""
+
+	while len(data) < length:
+		data += s.recv(length - len(data))
+
+	return data
 	
+
+def send_message(s: socket.socket, is_request=True, command="Ping", headers=None):
+
+	if headers is None:
+		headers = {}
+
+	m = "SC4MP"
+	if is_request:
+		m += "Req"
+	else:
+		m += "Res"
+	m += command
+
+	message = m.encode('ascii')
+
+	while len(message) < 14:
+		message += b"\x00"
+
+	h = json.dumps(headers).encode()
+	l = struct.pack("H", len(h))
+
+	message += l + h
+
+	s.send(message)
+
+
+def recv_message(s: socket.socket):
+
+	p = recv_exact(s, 5).decode('ascii')
+	if p != "SC4MP": return
+
+	t = recv_exact(s, 3).decode('ascii')
+	if t == "Req":
+		is_request = True
+	elif t == "Res":
+		is_request = False
+	else: return
+
+	c = recv_exact(s, 6)
+	command = c.rstrip(b"\x00").decode('ascii')
+
+	l = struct.unpack("H", recv_exact(s, 2))[0]
+	headers = json.loads(recv_exact(s, l).decode())
+
+	return is_request, command, headers
+	
+
+def request(s, command, **kwargs):
+
+	send_message(s, True, command, kwargs)
+	
+	is_request, c, h = recv_message(s)
+
+	if is_request is False and c == command:
+		return h
+
+
+def respond(s, command, **kwargs):
+
+	return send_message(s, False, command, kwargs)
+
 
 class Socket(socket.socket):
 
 
-	def send_json(self, data, **kwargs):
-		
-		return send_json(self, data, **kwargs)
-	
-	
-	def recv_json(self, **kwargs):
+	def __init__(self, s:socket.socket=None):
 
-		return recv_json(self, **kwargs)
-	
+		self.headers = {}
 
-	def recv_exact(self, length):
+		if s:
 
-		data = b""
+			# Instead of creating a new socket, we "adopt" an existing one.
+			super().__init__(s.family, s.type, s.proto)
+			self.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+			self.settimeout(s.gettimeout())
 
-		while len(data) < length:
-			data += self.recv(length - len(data))
+			# Duplicate the underlying file descriptor
+			self._sock = s
+			self._dup_sock()
 
-		return data
-	
+		else:
+
+			super().__init__()
+
+
+	def set_headers(self, **kwargs):
+
+		self.headers = kwargs
+
+
+	def _dup_sock(self):
+		"""Duplicate the socket's file descriptor so this object manages it properly."""
+
+		# self.detach()
+		self.fileno = self._sock.fileno
+		self.recv = self._sock.recv
+		self.send = self._sock.send
+		self.close = self._sock.close
+		self.settimeout = self._sock.settimeout
+		self.gettimeout = self._sock.gettimeout
+
+
+	def send_json(self, data, length_encoding="I"):
+
+		send_json(self, data, length_encoding)
+
+
+	def recv_json(self, length_encoding="I"):
+
+		return recv_json(self, length_encoding)
+
 
 	def send_message(self, is_request=True, command="Ping", headers=None):
 
-		if headers is None:
-			headers = {}
-
-		m = "SC4MP"
-		if is_request:
-			m += "Req"
-		else:
-			m += "Res"
-		m += command
-
-		message = m.encode('ascii')
-
-		while len(message) < 14:
-			message += b"\x00"
-
-		h = json.dumps(headers).encode()
-		l = struct.pack("H", len(h))
-
-		message += l + h
-
-		print(message) #TODO remove
-
-		self.send(message)
+		send_message(self, is_request, command, headers)
 
 
 	def recv_message(self):
 
-		print("RECEIVING MESSAGE") #TODO
+		return recv_message(self)
 
-		p = self.recv_exact(5).decode('ascii')
-		if p != "SC4MP": return
-
-		print("PROTOCOL CHECKED")
-
-		t = self.recv_exact(3).decode('ascii')
-		if t == "Req":
-			is_request = True
-		elif t == "Res":
-			is_request = False
-		else: return
-
-		c = self.recv_exact(6)
-		command = c.rstrip(b"\x00").decode('ascii')
-
-		l = struct.unpack("H", self.recv_exact(2))[0]
-		headers = json.loads(self.recv_exact(l).decode())
-
-		return is_request, command, headers
-		
 
 	def request(self, command, headers=None):
 
-		self.send_message(True, command, headers)
-		
-		is_request, c, h = self.recv_message()
+		return request(self, command, headers)
 
-		if is_request is False and c == command:
-			return h
+
+	def respond(self, command, headers=None):
+
+		return respond(self, command, headers)
 
 
 class ClientSocket(Socket):
@@ -156,11 +212,60 @@ class ClientSocket(Socket):
 		self.settimeout(timeout)
 
 		self.connect(address)
-
 	
-	def ping(self, headers=None):
 
-		return self.request("Ping", headers)
+	def add_server(self, port, **kwargs):
+
+		return self.request("AddSrv", port=port, **kwargs)["status"] == "success"
+
+
+	def check_password(self, password, **kwargs):
+
+		return self.request("ChkPwd", password=password, **kwargs)["status"] == "success"
+
+
+	def info(self, **kwargs):
+
+		return self.request("Info", **kwargs)
+
+
+	def password_enabled(self, **kwargs):
+
+		return self.request("PwdEnb", **kwargs)["password_enabled"]
+
+
+	def ping(self, **kwargs):
+
+		return self.request("Ping", **kwargs)
+	
+
+	def plugins_table(self, **kwargs):
+
+		self.request("PlgTab", **kwargs)
+
+		return self.recv_json()
+	
+	
+	def plugins_data(self, **kwargs):
+
+		return int(self.request("PlgDat", **kwargs)["size"])
+	
+
+	def private(self, **kwargs):
+
+		return self.request("PwdEnb", **kwargs)["private"]
+		
+
+	def regions_table(self, **kwargs):
+
+		self.request("RgnTab", **kwargs)
+
+		return self.recv_json()
+	
+
+	def regions_data(self, **kwargs):
+
+		return int(self.request("RgnDat", **kwargs)["size"])
 
 
 class ServerSocket(Socket):
@@ -172,22 +277,42 @@ class ServerSocket(Socket):
 
 		self.bind(address)
 	
+
 	def listen(self, backlog=5):
+
 		return super().listen(backlog)
 
-	def accept(self):
-		conn, addr = super().accept()
-		return Socket(_sock=conn), addr
 
-	def respond(self, command, headers=None):
-		return self.send_message(False, command, headers)
+	def accept(self):
+
+		connection, address = super().accept()
+
+		connection = Socket(connection)
+		connection.set_headers(self.headers)
+
+		return connection, address
+
+
+class NetworkException(Exception):
+	
+
+	def __init__(self, message, *args):
+		
+		super().__init__(args)
+
+		self.message = message
+	
+
+	def __str__(self):
+		
+		return self.message
 
 
 if __name__ == "__main__":
 
 	import threading as th
 
-	address = ("127.0.0.1", 7239)
+	address = ("127.0.0.1", 8080)
 
 	def test_serve():
 		s = ServerSocket(address)
@@ -200,10 +325,10 @@ if __name__ == "__main__":
 
 	th.Thread(target=test_serve).start()
 
-	time.sleep(5)
+	while True:
 
-	s = ClientSocket(address)
+		s = ClientSocket(address)
 
-	print(s.ping({
-		"test":"test"
-	}))
+		print(s.ping({
+			"test":"asdfsaddfsadfasdfhyuboqewrfvopiueqwrvneqpifvuhneqriujgbnqeariufveqnwhrgviuqenbrfvqeioujprvfnqeriujpvnqerpiufvnqerfvipunqerfvgujeqrfbnqeuirgvhnbqeiu"
+		}))
