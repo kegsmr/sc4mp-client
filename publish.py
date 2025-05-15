@@ -24,7 +24,7 @@ if target == "main":
 		"- {CHANGE}.",
 	])
 	prerelease = False
-if target == "feature":
+elif target == "feature":
 	name = f"Preview {version}"
 	body = "\n\n".join([
 		"This is a pre-release introducing new features from the next update, but also likely many bugs.",
