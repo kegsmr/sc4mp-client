@@ -30,20 +30,18 @@ from tkinter import font as tkfont
 from typing import Optional
 
 try:
-	from PIL import Image, ImageTk, UnidentifiedImageError
+	from PIL import Image, ImageTk
 	sc4mp_has_pil = True
 except ImportError:
 	sc4mp_has_pil = False
 
-#pylint: disable=wildcard-import
-#pylint: disable=unused-wildcard-import
 from core.config import *
 from core.dbpf import *
 from core.networking import *
 from core.util import *
 
 
-# Header
+# Globals
 
 SC4MP_VERSION = "0.8.4"
 
@@ -75,7 +73,7 @@ SC4MP_BUFFER_SIZE = 4096
 
 SC4MP_DELAY = .1
 
-SC4MP_LAUNCHERMAP_ENABLED = False 		#TODO replace with config setting eventually
+SC4MP_LAUNCHERMAP_ENABLED = False  #TODO replace with config setting eventually
 
 SC4MP_CONFIG_DEFAULTS = [
 	("GENERAL", [
@@ -105,7 +103,8 @@ SC4MP_CONFIG_DEFAULTS = [
 		("ignore_risky_file_warnings", False),
 
 		("custom_plugins", False),
-		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser()),	
+		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins")
+   			.expanduser()),	
 
 		("sync_simcity_4_cfg", True),
 
@@ -144,10 +143,11 @@ SC4MP_LAUNCHRESW = None
 SC4MP_LAUNCHRESH = None
 SC4MP_CUSTOMPATH = None
 
-SC4MP_RISKY_FILE_EXTENSIONS = [".bat", ".bin", ".cmd", ".com", ".cpl", ".dll", ".exe", ".gadget", ".inf1", ".ins",
-							    ".inx", ".isu", ".jar", ".job", ".jse", ".lnk", ".msc", ".msi", ".msp", ".mst",
-								".paf", ".pif", ".py", ".ps1", ".reg", ".rgs", ".scr", ".sct", ".sh", ".shb",
-								".shs", ".u3p", ".vb", ".vbe", ".vbs", ".vbscript", ".ws", ".wsf", ".wsh"]
+SC4MP_RISKY_FILE_EXTENSIONS = [".bat", ".bin", ".cmd", ".com", ".cpl", ".dll", 
+	".exe", ".gadget", ".inf1", ".ins", ".inx", ".isu", ".jar", ".job", ".jse", 
+	".lnk", ".msc", ".msi", ".msp", ".mst", ".paf", ".pif", ".py", ".ps1", 
+	".reg", ".rgs", ".scr", ".sct", ".sh", ".shb", ".shs", ".u3p", ".vb", 
+	".vbe", ".vbs", ".vbscript", ".ws", ".wsf", ".wsh"]
 
 SC4MP_URL_PREFIX = "sc4mp://"
 
@@ -181,7 +181,8 @@ def main():
 	try:
 
 		# URL launch behavior
-		url_launch = len(sc4mp_args) > 1 and sc4mp_args[1].startswith(SC4MP_URL_PREFIX)
+		url_launch = len(sc4mp_args) > 1 and sc4mp_args[1] \
+			.startswith(SC4MP_URL_PREFIX)
 		url_launch_exit_after = True
 	
 		# Exit if already runnning (unless launching using URL)
@@ -208,7 +209,10 @@ def main():
 					else:
 						tk.Tk().withdraw()
 						close_splash()
-						messagebox.showerror(title=SC4MP_TITLE, message="SC4MP Launcher is already running!")
+						messagebox.showerror(
+							title=SC4MP_TITLE, 
+							message="SC4MP Launcher is already running!"
+						)
 						return
 			except Exception:
 				pass
@@ -230,7 +234,8 @@ def main():
 		# "-force-update"/"-skip-update" flags
 		global sc4mp_force_update, sc4mp_skip_update
 		sc4mp_force_update = "-force-update" in sc4mp_args
-		sc4mp_skip_update = "-skip-update" in sc4mp_args or (len(sc4mp_args) > 1 and not sc4mp_force_update)
+		sc4mp_skip_update = "-skip-update" in sc4mp_args \
+			or (len(sc4mp_args) > 1 and not sc4mp_force_update)
 
 		# "-no-ui" flag
 		global sc4mp_ui
@@ -354,7 +359,12 @@ def load_config():
 
 	print("Loading config...")
 
-	sc4mp_config = Config(SC4MP_CONFIG_PATH, SC4MP_CONFIG_DEFAULTS, error_callback=show_error, update_constants_callback=update_config_constants)
+	sc4mp_config = Config(
+		SC4MP_CONFIG_PATH, 
+		SC4MP_CONFIG_DEFAULTS, 
+		error_callback=show_error, 
+		update_constants_callback=update_config_constants
+	)
 
 
 def check_updates():
@@ -398,7 +408,8 @@ def check_updates():
 								print(message)
 								ui.label["text"] = message
 
-							# Change working directory to the one where the executable can be found
+							# Change working directory to the one where the 
+							# executable can be found
 							if exec_file == "sc4mpclient.exe":
 								os.chdir(exec_dir)
 
