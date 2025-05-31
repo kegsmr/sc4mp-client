@@ -4445,7 +4445,7 @@ class UI(tk.Tk):
 
 		self.bind("<F1>", lambda event:self.direct_connect())
 		self.bind("<F2>", lambda event:self.refresh())
-		self.bind("<F3>", lambda event:self.host())
+		# self.bind("<F3>", lambda event:self.host())
 		self.bind("<F5>", lambda event:self.general_settings())
 		self.bind("<F6>", lambda event:self.storage_settings())
 		self.bind("<F7>", lambda event:self.SC4_settings())
@@ -4471,8 +4471,8 @@ class UI(tk.Tk):
 		
 		servers.add_command(label="Connect...", accelerator="F1", command=self.direct_connect)
 		servers.add_command(label="Refresh", accelerator="F2", command=self.refresh)
-		servers.add_separator() 
-		servers.add_command(label="Host...", accelerator="F3", command=self.host)
+		# servers.add_separator() 
+		# servers.add_command(label="Host...", accelerator="F3", command=self.host)
 		menu.add_cascade(label="Servers", menu=servers)  
 
 		help = Menu(menu, tearoff=0)  	
