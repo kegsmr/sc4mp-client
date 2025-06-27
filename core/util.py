@@ -327,7 +327,10 @@ def parse_filesize(filesize_str) -> int:
 
     # Compute the size in bytes
     if unit not in size_multipliers:
-        raise ValueError(f"Unsupported unit '{unit}'. Supported units are: {', '.join(size_multipliers.keys())}.")
+        raise ValueError(
+			f"Unsupported unit '{unit}'. "
+			f"Supported units are: {', '.join(size_multipliers.keys())}."
+		)
 
     return int(size * size_multipliers[unit])
 
@@ -382,7 +385,10 @@ def get_process_creation_time(pid):
 		PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, False, pid
 	)
 	if not h_process:
-		raise Exception(f"Failed to open process with PID {pid}. Error code: {ctypes.GetLastError()}")
+		raise Exception(
+			f"Failed to open process with PID {pid}. "
+			f"Error code: {ctypes.GetLastError()}"
+		)
 
 	# Create a FILETIME structure to store creation time
 	creation_time = ctypes.wintypes.FILETIME()
@@ -400,15 +406,21 @@ def get_process_creation_time(pid):
 	)
 	if not success:
 		ctypes.windll.kernel32.CloseHandle(h_process)
-		raise Exception(f"Failed to get process times for PID {pid}. Error code: {ctypes.GetLastError()}")
+		raise Exception(
+			f"Failed to get process times for PID {pid}. "
+			f"Error code: {ctypes.GetLastError()}"
+		)
 
 	# Close the process handle
 	ctypes.windll.kernel32.CloseHandle(h_process)
 
 	# Convert FILETIME to a Python datetime
 	def filetime_to_datetime(ft):
-		# FILETIME is a 64-bit value representing the number of 100-nanosecond intervals since January 1, 1601 (UTC)
+
+		# FILETIME is a 64-bit value representing the number of 100-nanosecond 
+		# intervals since January 1, 1601 (UTC)
 		time = (ft.dwHighDateTime << 32) + ft.dwLowDateTime
+
 		return datetime(1601, 1, 1) + timedelta(microseconds=time // 10)
 
 	return filetime_to_datetime(creation_time)
@@ -443,7 +455,9 @@ def has_powershell():
 
 def generate_server_id():
 
-	return ''.join(random.SystemRandom().choice(string.ascii_letters + string.digits) for i in range(32))
+	return ''.join(
+		random.SystemRandom().choice(string.ascii_letters + string.digits) for i in range(32)
+	)
 
 
 def generate_server_name():
@@ -451,7 +465,8 @@ def generate_server_name():
 	return getpass.getuser() + " on " + socket.gethostname()
 
 
-def publish_release(repo, token, version, target="main", name="", body="", assets=[], draft=True, prerelease=False):
+def publish_release(repo, token, version, target="main", name="", body="", 
+					assets=[], draft=True, prerelease=False):
 
 	if not name:
 		name = f"Draft {version}"
