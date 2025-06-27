@@ -28,26 +28,33 @@ except ImportError:
 	pass
 
 
-def process_count(process_name): #TODO add MacOS compatability
+#TODO add MacOS compatability
+def process_count(process_name):
 
 	if platform.system() == "Windows":
-		return int(subprocess.check_output(f"tasklist | find /I /C \"{process_name}\"", shell=True))
+		return int(
+			subprocess.check_output(
+				f"tasklist | find /I /C \"{process_name}\"", shell=True
+			)
+		)
 	else:
 		return None
-	
+
 
 def md5(filename) -> str:
 
 	hash_md5 = hashlib.md5()
+
 	with filename.open("rb") as f:
 		for chunk in iter(lambda: f.read(4096), b""):
 			hash_md5.update(chunk)
+
 	return hash_md5.hexdigest()
 
 
 def format_version(version: tuple[int, int, int]) -> str:
 	"""Converts a version number from a tuple to a string."""
-	
+
 	major, minor, patch = version
 
 	return f'{major}.{minor}.{patch}'
@@ -145,7 +152,10 @@ def format_time_ago(time, now=None):
 			
 
 def get_server_list() -> list[tuple]:
-	"""Returns a list of `(<host>, <port>)` tuples extracted from the `servers.txt` file."""
+	"""
+	Returns a list of `(<host>, <port>)` tuples extracted from the 
+	`servers.txt` file.
+	"""
 
 	servers = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
 
@@ -153,7 +163,8 @@ def get_server_list() -> list[tuple]:
 
 	if servers_txt_path.exists():
 
-		s = [(line.split()[0], int(line.split()[1])) for line in open(servers_txt_path) if line.strip()]
+		s = [(line.split()[0], int(line.split()[1])) 
+	   		for line in open(servers_txt_path) if line.strip()]
 		s.reverse()
 
 		for server in s:
@@ -164,7 +175,10 @@ def get_server_list() -> list[tuple]:
 
 
 def update_server_list(maximum=100):
-	"""Updates the `servers.txt` file with servers fetched from the SC4MP API. To be used in release workflows only!"""
+	"""
+	Updates the `servers.txt` file with servers fetched from the SC4MP API. To 
+	be used in release workflows only!
+	"""
 
 	URL = "https://api.sc4mp.org/servers"
 	
@@ -178,9 +192,12 @@ def update_server_list(maximum=100):
 	if server_file.exists():
 		with server_file.open("r") as file:
 			existing_servers = {
-				tuple(line.strip().split("\t")) for line in file if line.strip()
+				tuple(line.strip().split("\t")) 
+				for line in file if line.strip()
 			}
-			existing_servers = {(host, int(port)) for host, port in existing_servers}
+			existing_servers = {
+				(host, int(port)) for host, port in existing_servers
+			}
 	else:
 		existing_servers = set()
 	
@@ -196,7 +213,8 @@ def update_server_list(maximum=100):
 	with server_file.open("r") as file:
 		lines = file.readlines()
 	
-	# If the file has more than `maxiumum`, slice the list to keep only the last `maxiumum` lines
+	# If the file has more than `maxiumum`, slice the list to keep only the 
+	# last `maxiumum` lines
 	if len(lines) > maximum:
 
 		lines = lines[-maximum:]
@@ -270,10 +288,12 @@ def format_filesize(size, scale=None):
 
 def parse_filesize(filesize_str) -> int:
     """
-    Parses a string representing a file size and returns its equivalent in bytes.
+    Parses a string representing a file size and returns its equivalent in 
+	bytes.
 
     Args:
-        filesize_str (str): A string representing the file size (e.g., '8MB', '3.3KB').
+        filesize_str (str): A string representing the file size (e.g., '8MB', 
+		'3.3KB').
 
     Returns:
         int: The file size in bytes.
@@ -292,10 +312,13 @@ def parse_filesize(filesize_str) -> int:
     }
 
     # Regular expression to match the input pattern
-    match = re.fullmatch(r"([0-9]*\.?[0-9]+)\s*(B|KB|MB|GB|TB)", filesize_str.strip(), re.IGNORECASE)
+    match = re.fullmatch(r"([0-9]*\.?[0-9]+)\s*(B|KB|MB|GB|TB)", 
+		filesize_str.strip(), re.IGNORECASE)
 
     if not match:
-        raise ValueError("Invalid file size format. Use format like '8MB' or '3.3KB'.")
+        raise ValueError(
+			"Invalid file size format. Use format like '8MB' or '3.3KB'."
+		)
 
     # Extract the numeric part and the unit
     size, unit = match.groups()
