@@ -2704,7 +2704,7 @@ class ServerLoader(th.Thread):
 
 				if self.ui:
 
-					if self.ui.background.winfo_exists():
+					if self.ui.background and self.ui.background.winfo_exists():
 						self.ui.background.lift()
 					self.ui.lift()
 
