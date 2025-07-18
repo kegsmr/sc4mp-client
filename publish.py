@@ -18,11 +18,7 @@ target = get_current_git_branch()
 
 if target == "main":
 	name = f"Patch {version}"
-	body = "\n".join([
-		"- {CHANGE}.",
-		"- {CHANGE}.",
-		"- {CHANGE}.",
-	])
+	body = ""
 	prerelease = False
 elif target == "feature":
 	name = f"Preview {version}"
