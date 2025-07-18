@@ -6835,7 +6835,7 @@ class ServerDetailsUI(tk.Toplevel):
 					city_name = entry.get("city_name", "New City")
 					mayor_name = entry.get("mayor_name", "Defacto")
 
-					if len(mayor_name) < 1:
+					if entry.get("gamemode", 1) < 1:
 						continue
 
 					s = entry.get("size")
