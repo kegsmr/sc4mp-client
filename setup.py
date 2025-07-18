@@ -15,7 +15,7 @@ import PyInstaller.__main__ as pyinstaller
 from pyinstaller_versionfile import create_versionfile
 
 import sc4mpclient
-from core.util import update_server_list
+from core.util import update_server_list, update_readme_version, update_inno_setup_version
 
 
 TITLE = "SC4MP Launcher"
@@ -28,6 +28,10 @@ DIST = "dist" + str(8 * struct.calcsize("P"))
 
 
 def main():
+
+	# Update readme & installer version
+	update_readme_version("Readme.html", sc4mpclient.SC4MP_VERSION)
+	update_inno_setup_version("setup.iss", sc4mpclient.SC4MP_VERSION)
 
 	# Update server list
 	print("Updating server list...")

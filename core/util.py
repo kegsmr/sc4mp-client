@@ -574,3 +574,52 @@ def replace_in_file(path, old, new):
     
     with open(path, 'w', encoding='utf-8') as file:
         file.write(content)
+
+
+def get_version():
+    with open("VERSION") as file:
+        return file.read().strip()
+
+
+def update_readme_version(path: str, version: str) -> None:
+    """Replace the version inside <version>...</version> with new_version."""
+    with open(path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # Replace the contents inside the <version> tag
+    updated_content = re.sub(
+        r'(<version>)(.*?)(</version>)',
+        rf'\1{version}\3',
+        content,
+        flags=re.IGNORECASE | re.DOTALL
+    )
+
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(updated_content)
+
+    print(f"Updated version to \"{version}\" in \"{path}\"")
+
+
+
+def update_inno_setup_version(path: str, version: str) -> None:
+    """Update the #define MyAppVersion directive in an Inno Setup script."""
+    with open(path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # Match a line like: #define MyAppVersion "0.8.5"
+    pattern = r'^(#define\s+MyAppVersion\s+)".*?"'
+    replacement = rf'\1"{version}"'
+
+    updated_content, count = re.subn(
+        pattern,
+        replacement,
+        content,
+        flags=re.MULTILINE
+    )
+
+    if count == 0:
+        print(f'Warning: No MyAppVersion definition found in "{path}".')
+    else:
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(updated_content)
+        print(f'Updated MyAppVersion to "{version}" in "{path}".')
