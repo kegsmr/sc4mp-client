@@ -598,7 +598,7 @@ def update_readme_version(path: str, version: str) -> None:
 	with open(path, 'w', encoding='utf-8') as f:
 		f.write(updated_content)
 
-	print(f'Updated version to "{version}" in "{path}"')
+	# print(f'Updated version to "{version}" in "{path}"')
 
 
 
@@ -623,7 +623,7 @@ def update_inno_setup_version(path: str, version: str) -> None:
     else:
         with open(path, 'w', encoding='utf-8') as f:
             f.write(updated_content)
-        print(f'Updated MyAppVersion to "{version}" in "{path}".')
+        # print(f'Updated MyAppVersion to "{version}" in "{path}".')
 
 
 def update_python_version(path: str, version: str) -> None:
