@@ -582,22 +582,23 @@ def get_version():
 
 
 def update_readme_version(path: str, version: str) -> None:
-    """Replace the version inside <version>...</version> with new_version."""
-    with open(path, 'r', encoding='utf-8') as f:
-        content = f.read()
+	"""Replace the version inside <version>...</version> with new_version."""
 
-    # Replace the contents inside the <version> tag
-    updated_content = re.sub(
-        r'(<version>)(.*?)(</version>)',
-        rf'\1{version}\3',
-        content,
-        flags=re.IGNORECASE | re.DOTALL
-    )
+	with open(path, 'r', encoding='utf-8') as f:
+		content = f.read()
 
-    with open(path, 'w', encoding='utf-8') as f:
-        f.write(updated_content)
+	# Replace the contents inside the <version> tag
+	updated_content = re.sub(
+		r'(<version>)(.*?)(</version>)',
+		rf'\g<1>{version}\g<3>',
+		content,
+		flags=re.IGNORECASE | re.DOTALL
+	)
 
-    print(f"Updated version to \"{version}\" in \"{path}\"")
+	with open(path, 'w', encoding='utf-8') as f:
+		f.write(updated_content)
+
+	print(f'Updated version to "{version}" in "{path}"')
 
 
 
