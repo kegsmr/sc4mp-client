@@ -18,7 +18,7 @@ target = get_current_git_branch()
 
 if target == "main":
 	name = f"Patch {version}"
-	body = ""
+	body = "This is a patch that fixes some things."
 	prerelease = False
 elif target == "feature":
 	name = f"Preview {version}"
