@@ -624,3 +624,24 @@ def update_inno_setup_version(path: str, version: str) -> None:
         with open(path, 'w', encoding='utf-8') as f:
             f.write(updated_content)
         print(f'Updated MyAppVersion to "{version}" in "{path}".')
+
+
+def update_python_version(path: str, version: str) -> None:
+    """Update SC4MP_VERSION = "..." in a Python file."""
+    with open(path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # Match SC4MP_VERSION = "..."
+    updated_content, count = re.subn(
+        r'^(SC4MP_VERSION\s*=\s*)["\'].*?["\']',
+        rf'\1"{version}"',
+        content,
+        flags=re.MULTILINE
+    )
+
+    if count == 0:
+        print(f'Warning: No SC4MP_VERSION assignment found in "{path}".')
+    else:
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(updated_content)
+        print(f'Updated SC4MP_VERSION to "{version}" in "{path}".')

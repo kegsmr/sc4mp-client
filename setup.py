@@ -11,12 +11,12 @@ if sys.version_info[:2] != (3, 8):
 
 # subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
+import requests
 import PyInstaller.__main__ as pyinstaller
 from pyinstaller_versionfile import create_versionfile
 
 import sc4mpclient
-from core.util import update_server_list, update_readme_version, update_inno_setup_version
-
+import core.util as utils
 
 TITLE = "SC4MP Launcher"
 NAME = "sc4mpclient.exe"
@@ -30,13 +30,13 @@ DIST = "dist" + str(8 * struct.calcsize("P"))
 def main():
 
 	# Update readme & installer version
-	update_readme_version("Readme.html", sc4mpclient.SC4MP_VERSION)
-	update_inno_setup_version("setup.iss", sc4mpclient.SC4MP_VERSION)
+	utils.update_readme_version("Readme.html", sc4mpclient.SC4MP_VERSION)
+	utils.update_inno_setup_version("setup.iss", sc4mpclient.SC4MP_VERSION)
 
 	# Update server list
 	print("Updating server list...")
 	try:
-		update_server_list()
+		utils.update_server_list()
 	except Exception as e:
 		print(f"- failed to update server list {e}!")
 
