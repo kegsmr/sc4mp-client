@@ -1795,6 +1795,7 @@ class ServerList(th.Thread):
 			self.rank_bars = {}
 			self.rank_bar_images = [tk.PhotoImage(file=get_sc4mp_path(f"rank-{i}.png")) for i in range(6)]
 			self.ui.tree.bind("<<TreeviewSelect>>", self.update_rank_bars)
+			self.ui.tree.bind("<MouseWheel>", self.update_rank_bars)
 
 		self.temp_path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList"
 
@@ -5752,7 +5753,11 @@ class ServerListUI(tk.Frame):
 
 		# Scrollbar
 
-		self.scrollbar = ttk.Scrollbar(self.frame, orient ="vertical", command = self.tree.yview)
+		def yview(*args, **kwargs):
+			self.worker.update_rank_bars()
+			self.tree.yview(*args, **kwargs)
+
+		self.scrollbar = ttk.Scrollbar(self.frame, orient="vertical", command=yview)
 		self.scrollbar.pack(side="right", fill="y")
 		self.tree.configure(yscrollcommand=self.scrollbar.set)
 
