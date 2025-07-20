@@ -27,7 +27,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
 from tkinter import font as tkfont
-from typing import Optional
+from typing import Optional, Union
 
 try:
 	from PIL import Image, ImageTk
@@ -6647,7 +6647,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 		except Exception as e:
 
-			show_error(f"An error occurred while creating notebook frames.\n\n{e}") #, no_ui=True)
+			show_error(f"An error occurred while creating notebook frames.\n\n{e}", no_ui=True)
 
 
 	def create_mayors_frame(self):
@@ -6660,7 +6660,12 @@ class ServerDetailsUI(tk.Toplevel):
 
 		mayors = {}
 		for region in os.listdir(regions_directory):
-			region_database: dict = self.load_json(regions_directory / region / "_Database" / "region.json")
+			
+			region_database: Union[dict, None] = self.load_json(regions_directory / region / "_Database" / "region.json")
+			
+			if not region_database:
+				return
+			
 			for entry in region_database.values():
 				if entry is not None:
 					user_id = entry.get("owner", None)
@@ -6828,7 +6833,10 @@ class ServerDetailsUI(tk.Toplevel):
 		cities = {}
 		for region in os.listdir(regions_directory):
 
-			region_database: dict = self.load_json(regions_directory / region / "_Database" / "region.json")
+			region_database: Union[dict, None] = self.load_json(regions_directory / region / "_Database" / "region.json")
+
+			if not region_database:
+				continue
 
 			for coords, entry in region_database.items():
 
