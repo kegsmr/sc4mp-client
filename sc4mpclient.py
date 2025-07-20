@@ -657,7 +657,15 @@ def get_sc4_path() -> Optional[Path]:
 		steam_dirs = Path("Steam") / "steamapps" / "common"
 
 		# Drive letters
-		drives = [Path(f"{chr(letter)}:\\") for letter in range(65, 91) if Path(f"{chr(letter)}:\\").exists()]
+		drives: list[Path] = []
+		for l in range(65, 91):
+			try:
+				letter: str = chr(l)
+				drive = Path(f"{letter}:\\")
+				if drive.exists():
+					drives += [drive]
+			except Exception as e:
+				show_error(e, no_ui=True)
 
 		# List of common SC4 install dirs, highest priority at the top
 		possible_paths: list[Path] = [
