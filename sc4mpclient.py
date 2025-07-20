@@ -2624,7 +2624,6 @@ class ServerLoader(th.Thread):
 				# Prompt to apply the 4gb patch if not yet applied
 				if is_windows():
 					try:
-						import ctypes
 						sc4_exe_path = get_sc4_path()
 						if not os.path.exists(sc4_exe_path.parent / (sc4_exe_path.name + ".Backup")):
 							choice = messagebox.askyesnocancel(SC4MP_TITLE, "It appears the 4GB patch has not been applied to SimCity 4.\n\nLoading certain plugins may cause SimCity 4 to crash if the patch has not been applied.\n\nWould you like to apply the patch now?", icon="warning")
