@@ -6664,7 +6664,7 @@ class ServerDetailsUI(tk.Toplevel):
 			region_database: Union[dict, None] = self.load_json(regions_directory / region / "_Database" / "region.json")
 			
 			if not region_database:
-				return
+				continue
 			
 			for entry in region_database.values():
 				if entry is not None:
