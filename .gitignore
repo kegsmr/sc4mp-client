@@ -2,6 +2,7 @@
 /_SC4MP*
 /_Server*
 /_Servers*
+/.vscode
 /core/dummy
 /dist
 /dist32
