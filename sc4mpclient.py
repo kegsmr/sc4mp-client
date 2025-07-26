@@ -21,13 +21,12 @@ import time
 import tkinter as tk
 import tkinter.font as tkfont
 import traceback
-import urllib.request
 import webbrowser
 from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
 from tkinter import font as tkfont
-from typing import Optional
+from typing import Optional, Union
 
 try:
 	from PIL import Image, ImageTk
@@ -43,7 +42,7 @@ from core.util import *
 
 # Globals
 
-SC4MP_VERSION = "0.8.4"
+SC4MP_VERSION = "0.8.9"
 
 SC4MP_SERVERS = get_server_list()
 
@@ -657,7 +656,15 @@ def get_sc4_path() -> Optional[Path]:
 		steam_dirs = Path("Steam") / "steamapps" / "common"
 
 		# Drive letters
-		drives = [Path(f"{chr(letter)}:\\") for letter in range(65, 91) if Path(f"{chr(letter)}:\\").exists()]
+		drives: list[Path] = []
+		for l in range(65, 91):
+			try:
+				letter: str = chr(l)
+				drive = Path(f"{letter}:\\")
+				if drive.exists():
+					drives += [drive]
+			except Exception as e:
+				show_error(e, no_ui=True)
 
 		# List of common SC4 install dirs, highest priority at the top
 		possible_paths: list[Path] = [
@@ -1795,6 +1802,7 @@ class ServerList(th.Thread):
 			self.rank_bars = {}
 			self.rank_bar_images = [tk.PhotoImage(file=get_sc4mp_path(f"rank-{i}.png")) for i in range(6)]
 			self.ui.tree.bind("<<TreeviewSelect>>", self.update_rank_bars)
+			self.ui.tree.bind("<MouseWheel>", self.update_rank_bars)
 
 		self.temp_path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList"
 
@@ -2623,7 +2631,6 @@ class ServerLoader(th.Thread):
 				# Prompt to apply the 4gb patch if not yet applied
 				if is_windows():
 					try:
-						import ctypes
 						sc4_exe_path = get_sc4_path()
 						if not os.path.exists(sc4_exe_path.parent / (sc4_exe_path.name + ".Backup")):
 							choice = messagebox.askyesnocancel(SC4MP_TITLE, "It appears the 4GB patch has not been applied to SimCity 4.\n\nLoading certain plugins may cause SimCity 4 to crash if the patch has not been applied.\n\nWould you like to apply the patch now?", icon="warning")
@@ -2704,7 +2711,7 @@ class ServerLoader(th.Thread):
 
 				if self.ui:
 
-					if self.ui.background.winfo_exists():
+					if self.ui.background and self.ui.background.winfo_exists():
 						self.ui.background.lift()
 					self.ui.lift()
 
@@ -5752,7 +5759,11 @@ class ServerListUI(tk.Frame):
 
 		# Scrollbar
 
-		self.scrollbar = ttk.Scrollbar(self.frame, orient ="vertical", command = self.tree.yview)
+		def yview(*args, **kwargs):
+			self.worker.update_rank_bars()
+			self.tree.yview(*args, **kwargs)
+
+		self.scrollbar = ttk.Scrollbar(self.frame, orient="vertical", command=yview)
 		self.scrollbar.pack(side="right", fill="y")
 		self.tree.configure(yscrollcommand=self.scrollbar.set)
 
@@ -6643,7 +6654,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 		except Exception as e:
 
-			show_error(f"An error occurred while creating notebook frames.\n\n{e}") #, no_ui=True)
+			show_error(f"An error occurred while creating notebook frames.\n\n{e}", no_ui=True)
 
 
 	def create_mayors_frame(self):
@@ -6656,7 +6667,12 @@ class ServerDetailsUI(tk.Toplevel):
 
 		mayors = {}
 		for region in os.listdir(regions_directory):
-			region_database: dict = self.load_json(regions_directory / region / "_Database" / "region.json")
+			
+			region_database: Union[dict, None] = self.load_json(regions_directory / region / "_Database" / "region.json")
+			
+			if not region_database:
+				continue
+			
 			for entry in region_database.values():
 				if entry is not None:
 					user_id = entry.get("owner", None)
@@ -6824,7 +6840,10 @@ class ServerDetailsUI(tk.Toplevel):
 		cities = {}
 		for region in os.listdir(regions_directory):
 
-			region_database: dict = self.load_json(regions_directory / region / "_Database" / "region.json")
+			region_database: Union[dict, None] = self.load_json(regions_directory / region / "_Database" / "region.json")
+
+			if not region_database:
+				continue
 
 			for coords, entry in region_database.items():
 
@@ -6835,7 +6854,7 @@ class ServerDetailsUI(tk.Toplevel):
 					city_name = entry.get("city_name", "New City")
 					mayor_name = entry.get("mayor_name", "Defacto")
 
-					if len(mayor_name) < 1:
+					if entry.get("gamemode", 1) < 1:
 						continue
 
 					s = entry.get("size")
