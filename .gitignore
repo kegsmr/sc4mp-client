@@ -26,4 +26,4 @@ version.rc
 *.cfg
 *.ini
 
-!resources/4gb-patch.exe
+!resources/*.exe

@@ -131,6 +131,13 @@ SC4MP_CONFIG_DEFAULTS = [
 		("additional_properties", "")
 
 	]),
+	("HOSTING", [
+
+		("server_version", ""),
+		("server_path", ""),
+		("configs_path", ""),
+
+	]),
 	("DEBUG", [
 
 		("random_server_stats", False),
@@ -162,6 +169,8 @@ sc4mp_current_server = None
 
 sc4mp_game_monitor_x = 10
 sc4mp_game_monitor_y = 40
+
+sc4mp_server_update_check = True
 
 sc4mp_beta = None
 
@@ -522,7 +531,7 @@ def check_updates():
 						sc4mp_ui.withdraw()
 
 						# Create updater UI
-						updater_ui = UpdaterUI(sc4mp_ui)
+						updater_ui = LauncherUpdaterUI(sc4mp_ui)
 
 						# Start update thread
 						th.Thread(target=update, kwargs={"ui": updater_ui}, daemon=True).start()
@@ -545,12 +554,12 @@ def check_updates():
 			show_error(f"An error occurred while updating.\n\n{e}", no_ui=True)
 
 
-def get_release_info(version="latest", timeout=10) -> dict:
+def get_release_info(repo=SC4MP_GITHUB_REPO, version="latest", timeout=10) -> dict:
 
 	if version == "latest":
-		github_api_call = f"https://api.github.com/repos/{SC4MP_GITHUB_REPO}/releases/latest"
+		github_api_call = f"https://api.github.com/repos/{repo}/releases/latest"
 	else:
-		github_api_call = f"https://api.github.com/repos/{SC4MP_GITHUB_REPO}/releases/tags/v{version}"
+		github_api_call = f"https://api.github.com/repos/{repo}/releases/tags/v{version}"
 
 	try:
 		with urllib.request.urlopen(url=github_api_call, timeout=timeout) as url:
@@ -4460,7 +4469,8 @@ class UI(tk.Tk):
 		
 		servers.add_command(label="Connect...", accelerator="F1", command=self.direct_connect)
 		servers.add_command(label="Refresh", accelerator="F2", command=self.refresh)
-		servers.add_separator() 
+		# if is_windows():
+		servers.add_separator()
 		servers.add_command(label="Host...", accelerator="F3", command=self.host)
 		menu.add_cascade(label="Servers", menu=servers)  
 
@@ -4554,13 +4564,14 @@ class UI(tk.Tk):
 		
 		print('"Host..."')
 
-		message = "One of the next releases of the SC4MP Launcher will be capable of hosting servers " \
-			"from within the launcher, but for now, you can run the SC4MP Server manually. See the Github repository " \
-			"for more information.\n\n" if is_windows() else ""
-
-		if messagebox.askyesno(SC4MP_TITLE, f"Hosting a server requires the SC4MP Server application.\n\n{message}Would you like to view the GitHub repository?"):
-			webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/")
-
+		if is_windows():
+			if sc4mp_server_update_check and sc4mp_config["GENERAL"]["auto_update"] or not (Path(sc4mp_config["HOSTING"]['server_path']) / "sc4mpserver.exe").exists():
+				ServerUpdaterUI(sc4mp_ui)
+			else:
+				HostUI()
+		else:
+			if messagebox.askyesno(SC4MP_TITLE, "Hosting a server requires the SC4MP Server application.\n\nWould you like to view the Github repository?"):
+				webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/")
 
 
 	def direct_connect(self):
@@ -5183,7 +5194,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.lift()
 
 
-class HostUI(tk.Toplevel):
+class OldHostUI(tk.Toplevel):
 
 
 	def __init__(self):
@@ -5192,7 +5203,7 @@ class HostUI(tk.Toplevel):
 		#print("Initializing...")
 
 		# Create default server configuration
-		path = Path("_Servers" / "default")
+		path = Path("_Servers") / "default"
 		if not path.exists():
 			path.mkdir(parents=True)
 			prep_server(path)
@@ -5208,8 +5219,8 @@ class HostUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry('400x400')
-		self.maxsize(305, 375)
-		self.minsize(305, 375)
+		#self.maxsize(375, 375)
+		#self.minsize(375, 375)
 		self.grid()
 		center_window(self)
 		
@@ -5217,69 +5228,105 @@ class HostUI(tk.Toplevel):
 		self.grab_set()
 
 		# Key bindings
-		self.bind("<Return>", lambda event:self.ok())
+		self.bind("<Return>", lambda event:self.start_stop())
 		self.bind("<Escape>", lambda event:self.destroy())
 
 		# Label
-		self.label = ttk.Label(self, text="Select a server configuration to launch with.", justify="center")
-		self.label.grid(row=0, column=0, columnspan=3, padx=10, pady=10)
+		#self.label = ttk.Label(self, text="Select a server configuration below to start", justify="center")
+		#self.label.grid(row=0, column=0, columnspan=3, padx=10, pady=(20,10))
 
-		# Rename/Config/Files frame
-		self.rename_config_files = tk.Frame(self)
-		self.rename_config_files.grid(row=1, column=0, columnspan=3, sticky="w")
+		# Buttons frame
+		self.top_buttons = tk.Frame(self)
+		self.top_buttons.grid(row=1, column=0, rowspan=1, sticky="n", pady=30, padx=(10,0))
+
+		# Start/Stop button
+		self.top_buttons.button_1 = ttk.Button(self.top_buttons, text="Start", command=self.start_stop, state="disabled")
+		self.top_buttons.button_1.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
+
+		# Logs button
+		self.top_buttons.button_2 = ttk.Button(self.top_buttons, text="Logs", command=self.logs, state="disabled")
+		self.top_buttons.button_2.grid(row=1, column=0, columnspan=1, padx=0, pady=5, sticky="w")
+
+		# Edit button
+		self.top_buttons.button_3 = ttk.Button(self.top_buttons, text="Edit", command=self.edit, state="disabled")
+		self.top_buttons.button_3.grid(row=2, column=0, columnspan=1, padx=0, pady=5, sticky="w")
 
 		# Rename button
-		self.rename_config_files.rename_button = ttk.Button(self.rename_config_files, text="Rename...", command=self.rename, default="disabled")
-		self.rename_config_files.rename_button.grid(row=0, column=0, columnspan=1, padx=(10, 5), pady=10, sticky="w")
+		self.top_buttons.button_4 = ttk.Button(self.top_buttons, text="Rename", command=self.rename, state="disabled")
+		self.top_buttons.button_4.grid(row=3, column=0, columnspan=1, padx=0, pady=5, sticky="w")
 
-		# Config button
-		self.rename_config_files.config_button = ttk.Button(self.rename_config_files, text="Edit...", command=self.config, default="disabled")
-		self.rename_config_files.config_button.grid(row=0, column=1, columnspan=1, padx=5, pady=10)
-
-		# Files button
-		self.rename_config_files.files_button = ttk.Button(self.rename_config_files, text="Locate...", command=self.files, default="disabled")
-		self.rename_config_files.files_button.grid(row=0, column=2, columnspan=1, padx=5, pady=10, sticky="e")
+		# Delete button
+		self.top_buttons.button_5 = ttk.Button(self.top_buttons, text="Delete", command=self.delete, state="disabled")
+		self.top_buttons.button_5.grid(row=4, column=0, columnspan=1, padx=0, pady=5, sticky="w")
 
 		# List box
-		self.list_box_variable = tk.Variable(value=os.listdir("_Servers"))
-		self.list_box = tk.Listbox(self, width=47, height=15, listvariable=self.list_box_variable)
-		self.list_box.select_set(0)
-		self.list_box.grid(row=2, column=0, columnspan=3, padx=10, pady=0)
+		#self.list_box_variable = tk.Variable(value=os.listdir("_Servers"))
+		#self.list_box = tk.Listbox(self, width=55, height=15, listvariable=self.list_box_variable)
+		#self.list_box.select_set(0)
+		#self.list_box.grid(row=2, column=0, columnspan=3, padx=10, pady=0)
+
+		# Configuration list
+		self.configs = ttk.Treeview(self)
+		self.configs.grid(row=1, column=1, padx=10, pady=10)
 
 		# New button
-		self.new_button = ttk.Button(self, text="New...", command=self.new)
-		self.new_button.grid(row=3, column=0, columnspan=1, padx=10, pady=10, sticky="w")
+		self.new_button = ttk.Button(self, text="New", command=self.new)
+		self.new_button.grid(row=3, column=0, columnspan=1, padx=(10,0), pady=10, sticky="w")
 
 		# Ok/Cancel frame
 		self.ok_cancel = tk.Frame(self)
-		self.ok_cancel.grid(row=3, column=1, columnspan=2, sticky="se")
+		self.ok_cancel.grid(row=3, column=1, columnspan=1, sticky="e")
 
 		# Ok button
-		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Host", command=self.ok, default="active")
-		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
+		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Ok", command=self.destroy, default="active")
+		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
 
 		# Cancel button
-		self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
-		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
+		#self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
+		#self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
 
+		#sc4mp_ui.withdraw()
+
+
+	def start_stop(self):
+		
+
+		#TODO
+
+		#path = Path("_Servers") / self.list_box_variable.get()[self.list_box.curselection()[0]]
+
+		#start_server(path)
+
+		#self.destroy()
+
+		return
+	
+
+	def logs(self):
+		
+
+		#TODO
+
+		return
+
+
+	def edit(self):
+		"""TODO"""
+
+		#TODO
+
+		return
+	
 
 	def rename(self):
-		
+		"""TODO"""
 
 		#TODO
 
 		return
 	
 
-	def config(self):
-		
-
-		#TODO
-
-		return
-	
-
-	def files(self):
+	def delete(self):
 		
 
 		#TODO
@@ -5292,15 +5339,677 @@ class HostUI(tk.Toplevel):
 
 		#TODO
 
+		ServerConfigUI()
+
+		return
+
+
+	def destroy(self):
+		
+
+		super().destroy()
+
+		#sc4mp_ui.deiconify()
+
+
+class HostUI(tk.Toplevel):
+
+	class ServerSelectionFrame(tk.Frame):
+
+		def __init__(self, parent):
+
+			super().__init__(parent)
+
+			self.grid(sticky="nswe")  # Allow stretching
+
+			def handle_click(event):
+				region = event.widget.identify_region(event.x, event.y)
+				if region == "separator":
+					return "break"
+				else:
+					self.tree.last_click = time.time()
+					self.tree.last_click_coords = (event.x, event.y)
+
+			def handle_select(event):
+				self.server_id = self.tree.selection()[0]  # Fixed selection method
+
+			# Create a frame for the Treeview and scrollbar
+			tree_frame = tk.Frame(self)
+			tree_frame.grid(row=0, column=0, sticky="nswe", padx=10, pady=10)
+
+			# Treeview widget
+			self.tree = ttk.Treeview(tree_frame, show="tree")
+			self.tree.column("#0", width=200)
+			self.tree.heading("#0", text="Servers")
+			self.tree.bind("<Button-1>", handle_click)
+			self.tree.bind("<<TreeviewSelect>>", handle_select)
+
+			# Scrollbar setup
+			scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
+			self.tree.configure(yscrollcommand=scrollbar.set)
+
+			# Pack tree and scrollbar inside tree_frame
+			self.tree.pack(side="left", fill="both", expand=True)
+			scrollbar.pack(side="right", fill="y")
+
+			# Allow resizing
+			self.columnconfigure(0, weight=1)
+			self.rowconfigure(0, weight=1)
+
+			# Load server configurations
+			configs_path = sc4mp_config['HOSTING']['configs_path']
+			if not configs_path:
+				server_path = sc4mp_config["HOSTING"]["server_path"]
+				if server_path:
+					configs_path = Path(server_path) / "configs"
+					sc4mp_config['HOSTING']['configs_path'] = configs_path
+					sc4mp_config.update()
+				else:
+					raise ClientException("SC4MP Server is not installed.")
+			os.makedirs(configs_path, exist_ok=True)
+
+			self.server_names = set()
+
+			servers = os.listdir(configs_path)
+			for server in servers:
+				text = server
+				server_config_ini_path = Path(configs_path) / server / "serverconfig.ini"
+				if server_config_ini_path.exists():
+					config = configparser.ConfigParser()
+					config.read(server_config_ini_path)
+					server_name = config.get("INFO", "server_name", fallback="")
+					if server_name:
+						text = server_name
+						self.server_names.add(server_name)
+				self.tree.insert("", "end", server, text=text)
+
+			if len(self.tree.get_children()) > 0:
+				self.tree.selection_set([self.tree.get_children()[0]])
+
+
+	class ServerConfigFrame(tk.Frame):
+    
+		def __init__(self, parent, path):
+
+			super().__init__(parent)
+
+			self.path = path
+			self.config_path = path / "serverconfig.ini"
+
+			self.grid(sticky="nsew")  # Stretch both directions
+			
+			# Load configuration from file
+			self.config = configparser.ConfigParser()
+			self.config.read(self.config_path)
+			
+			# Tabbed interface
+			self.tabs = ttk.Notebook(self)
+			self.tabs.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+
+			# Create tabs
+			self.network_tab = ttk.Frame(self.tabs)
+			self.info_tab = ttk.Frame(self.tabs)
+			self.security_tab = ttk.Frame(self.tabs)
+			self.rules_tab = ttk.Frame(self.tabs)
+			self.plugins_tab = ttk.Frame(self.tabs)
+			self.regions_tab = ttk.Frame(self.tabs)
+
+			self.tabs.add(self.network_tab, text="Network")
+			self.tabs.add(self.info_tab, text="Info")
+			self.tabs.add(self.security_tab, text="Security")
+			self.tabs.add(self.rules_tab, text="Rules")
+			# self.tabs.add(self.plugins_tab, text="Plugins")
+			# self.tabs.add(self.regions_tab, text="Regions")
+
+			# Network tab
+			self.network_frame = tk.Frame(self.network_tab)
+			self.network_frame.grid(row=0, column=0, padx=10, pady=10)
+
+			self.network_frame.port_label = ttk.Label(self.network_frame, text="Port")
+			self.network_frame.port_label.grid(row=0, column=0, padx=10, pady=5, sticky="e")
+
+			self.network_frame.port_entry = ttk.Entry(self.network_frame, width=5)
+			# Load values from config
+			self.network_frame.port_entry.insert(0, self.config.get('NETWORK', 'port', fallback="7240"))
+			self.network_frame.port_entry.grid(row=0, column=1, padx=10, pady=5, sticky="w")
+
+			self.network_frame.checkbutton = ttk.Checkbutton(self.network_frame, text="Discoverable")
+			discoverable = self.config.getboolean('NETWORK', 'discoverable', fallback=True)
+			self.network_frame.checkbutton.state(['selected'] if discoverable else ['!selected'])
+			self.network_frame.checkbutton.grid(row=0, column=2, padx=10, pady=5, sticky="w")
+
+			# Info tab
+			self.info_frame = tk.Frame(self.info_tab)
+			self.info_frame.grid(row=0, column=0, padx=10, pady=10)
+
+			self.info_frame.name_label = ttk.Label(self.info_frame, text="Name")
+			self.info_frame.name_label.grid(row=0, column=0, padx=10, pady=5, sticky="e")
+
+			self.info_frame.name_entry = ttk.Entry(self.info_frame, width=40)
+			self.info_frame.name_entry.insert(0, self.config.get('INFO', 'server_name', fallback=""))
+			self.info_frame.name_entry.grid(row=0, column=1, padx=10, pady=5, sticky="w")
+
+			self.info_frame.description_label = ttk.Label(self.info_frame, text="Description")
+			self.info_frame.description_label.grid(row=1, column=0, padx=10, pady=5, sticky="ne")
+
+			self.info_frame.description_entry = ttk.Entry(self.info_frame, width=40)
+			self.info_frame.description_entry.insert(0, self.config.get('INFO', 'server_description', fallback="Join and build your city."))
+			self.info_frame.description_entry.grid(row=1, column=1, padx=10, pady=5, sticky="w")
+
+			self.info_frame.url_label = ttk.Label(self.info_frame, text="URL")
+			self.info_frame.url_label.grid(row=2, column=0, padx=10, pady=5, sticky="e")
+
+			self.info_frame.url_entry = ttk.Entry(self.info_frame, width=40)
+			self.info_frame.url_entry.insert(0, self.config.get('INFO', 'server_url', fallback="www.sc4mp.org"))
+			self.info_frame.url_entry.grid(row=2, column=1, padx=10, pady=5, sticky="w")
+
+			# Security tab
+			self.security_frame = tk.Frame(self.security_tab)
+			self.security_frame.grid(row=0, column=0, padx=10, pady=10)
+
+			self.security_frame.password_checkbutton = ttk.Checkbutton(self.security_frame, text="Password")
+			password_enabled = self.config.getboolean('SECURITY', 'password_enabled', fallback=False)
+			self.security_frame.password_checkbutton.state(['selected'] if password_enabled else ['!selected'])
+			self.security_frame.password_checkbutton.grid(row=0, column=0, padx=10, pady=5, sticky="e")
+
+			self.security_frame.password_entry = ttk.Entry(self.security_frame, width=35) #, show="*")
+			self.security_frame.password_entry.insert(0, self.config.get('SECURITY', 'password', fallback=""))
+			self.security_frame.password_entry.grid(row=0, column=1, padx=10, pady=5, sticky="w")
+
+			# Rules tab
+			self.rules_frame = tk.Frame(self.rules_tab)
+			self.rules_frame.grid(row=0, column=0, padx=10, pady=10)
+
+			self.rules_frame.claim_duration_checkbutton = ttk.Checkbutton(self.rules_frame, text="Claim duration")
+			claim_duration = self.config.get('RULES', 'claim_duration', fallback="30")
+			self.rules_frame.claim_duration_checkbutton.state(['selected'] if claim_duration else ['!selected'])
+			self.rules_frame.claim_duration_checkbutton.grid(row=0, column=0, padx=10, pady=5, sticky="w")
+
+			self.rules_frame.claim_duration_entry = ttk.Entry(self.rules_frame, width=5)
+			self.rules_frame.claim_duration_entry.insert(0, claim_duration)
+			self.rules_frame.claim_duration_entry.grid(row=0, column=1, padx=10, pady=5, sticky="w")
+
+			self.rules_frame.claim_duration_label = ttk.Label(self.rules_frame, text="days")
+			self.rules_frame.claim_duration_label.grid(row=0, column=2, padx=10, pady=5, sticky="w")
+
+			self.rules_frame.max_region_claims_checkbutton = ttk.Checkbutton(self.rules_frame, text="Max claims")
+			max_claims = self.config.get('RULES', 'max_region_claims', fallback="1")
+			self.rules_frame.max_region_claims_checkbutton.state(['selected'] if max_claims != "None" else ['!selected'])
+			self.rules_frame.max_region_claims_checkbutton.grid(row=1, column=0, padx=10, pady=5, sticky="w")
+
+			self.rules_frame.max_region_claims_entry = ttk.Entry(self.rules_frame, width=5)
+			self.rules_frame.max_region_claims_entry.insert(0, max_claims)
+			self.rules_frame.max_region_claims_entry.grid(row=1, column=1, padx=10, pady=5, sticky="w")
+
+			self.rules_frame.max_region_claims_label = ttk.Label(self.rules_frame, text="per region")
+			self.rules_frame.max_region_claims_label.grid(row=1, column=2, padx=10, pady=5, sticky="w")
+
+			# Godmode filter checkbutton
+			#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
+			self.rules_frame.godmode_filter_checkbutton = ttk.Checkbutton(self.rules_frame, text="Allow claims in godmode", onvalue=False, offvalue=True) #, variable=self.updates_frame.checkbutton_variable)
+			self.rules_frame.godmode_filter_checkbutton.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+			#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
+
+			# User plugins checkbutton
+			#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
+			self.rules_frame.user_plugins_checkbutton = ttk.Checkbutton(self.rules_frame, text="Allow user plugins", onvalue=True, offvalue=False) #, variable=self.updates_frame.checkbutton_variable)
+			self.rules_frame.user_plugins_checkbutton.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="w")
+			#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
+
+			# Plugins tab
+			# self.plugins_frame = tk.Frame(self.plugins_tab)
+			# self.plugins_frame.grid(row=0, column=0, padx=10, pady=10)
+
+			# # Plugins tab
+			# self.regions_frame = tk.Frame(self.regions_tab)
+			# self.regions_frame.grid(row=0, column=0, padx=10, pady=10)
+
+			# Buttons at bottom
+			# button_frame = tk.Frame(self)
+			# button_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
+
+			# start_button = ttk.Button(button_frame, text="Start")
+			# start_button.grid(row=0, column=0, padx=5)
+
+			# logs_button = ttk.Button(button_frame, text="Logs")
+			# logs_button.grid(row=0, column=1, padx=5)
+
+			# connect_button = ttk.Button(button_frame, text="Connect")
+			# connect_button.grid(row=0, column=2, padx=5)
+
+			# Configure stretching
+			self.columnconfigure(0, weight=1)
+			self.rowconfigure(0, weight=1)
+
+			self.loop()
+
+
+		def loop(self):
+		
+			CHECKBUTTON_ENTRY_MAP: list[tuple[ttk.Checkbutton, ttk.Entry]] = [
+				(self.security_frame.password_checkbutton, self.security_frame.password_entry),
+				(self.rules_frame.claim_duration_checkbutton, self.rules_frame.claim_duration_entry),
+				(self.rules_frame.max_region_claims_checkbutton, self.rules_frame.max_region_claims_entry),
+			]
+
+			for checkbutton, entry in CHECKBUTTON_ENTRY_MAP:
+				if checkbutton.instate(['selected']):
+					entry.state(['!disabled'])
+				else:
+					entry.state(['disabled'])
+
+			self.update()
+
+			self.after(100, self.loop)
+
+
+		def update(self):
+
+			def add_section(name):
+				if not self.config.has_section(name):
+					self.config.add_section(name)
+
+			add_section('NETWORK')
+			self.config.set('NETWORK', 'port', "7240") #TODO
+			self.config.set('NETWORK', 'discoverable', str(True)) #TODO
+
+			add_section('INFO')
+			self.config.set('INFO', 'server_name', self.info_frame.name_entry.get())
+			self.config.set('INFO', 'server_description', self.info_frame.description_entry.get())
+			self.config.set('INFO', 'server_url', self.info_frame.url_entry.get())
+
+			with open(self.config_path, "w", encoding="utf-8") as config_file:
+				self.config.write(config_file)
+
+
+	def __init__(self):
+		super().__init__()
+
+		# Title
+		self.title("Host")
+
+		# Icon
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+
+		# Set fixed window size
+		self.geometry('600x400')
+		self.resizable(False, False)
+		self.minsize(600, 400)
+		self.maxsize(600, 400)
+
+		center_window(self)
+		
+		# Priority
+		self.grab_set()
+
+		# Key bindings
+		self.bind("<Escape>", lambda event: self.destroy())
+
+		# Layout
+		self.columnconfigure(1, weight=3)
+		self.rowconfigure(0, weight=1)
+
+		self.server_selection_frame = self.ServerSelectionFrame(self)
+		if len(self.server_selection_frame.tree.get_children()) < 1:
+			self.create()
+		self.server_selection_frame.grid(row=0, column=0, sticky="nsw")
+
+		self.server_config_frame = None
+		self.current_server = None
+
+		actions_frame = tk.Frame(self)
+		actions_frame.grid(row=1, column=0)
+		
+		create_button = ttk.Button(actions_frame, text="Create", command=self.create)
+		create_button.grid(row=0, column=0, padx=10, pady=(0,10), sticky="w")
+
+		delete_button = ttk.Button(actions_frame, text="Delete", command=self.delete)
+		delete_button.grid(row=0, column=1, padx=10, pady=(0,10), sticky="w")
+
+		ok_button = ttk.Button(self, text="Ok", command=self.destroy)
+		ok_button.grid(row=1, column=1, padx=10, pady=(0,10), sticky="e")
+
+		self.loop()
+
+
+	def create(self):
+		
+		server_id = generate_server_id()
+		server_name = generate_server_name()
+
+		if server_name in self.server_selection_frame.server_names:
+			n = 1
+			while True:
+				s_n = f"{server_name} ({n})"
+				if s_n in self.server_selection_frame.server_names:
+					n += 1
+				else:
+					server_name = s_n
+					break
+		self.server_selection_frame.server_names.add(server_name)
+
+		self.server_selection_frame.tree.insert("", 0, server_id, text=server_name)
+	
+		server_path = Path(sc4mp_config["HOSTING"]['configs_path']) / server_id
+		os.makedirs(server_path)
+
+		serverconfig_ini_path = server_path / "serverconfig.ini"
+		with open(serverconfig_ini_path, "w") as serverconfig_ini:
+			serverconfig_ini.write(f"[INFO]\nserver_id = {server_id}\nserver_name = {server_name}")
+
+		self.server_selection_frame.tree.selection_set([server_id])
+
+	
+	def delete(self):
+		
+		server = self.server_selection_frame.tree.selection()[0]
+		server_name = self.server_selection_frame.tree.item(server, "text")
+		server_path = Path(sc4mp_config['HOSTING']['configs_path']) / server
+
+		try:
+
+			self.withdraw()
+
+			if not messagebox.askokcancel(SC4MP_TITLE, icon="warning", message=f"Are you sure you want to delete \"{server_name}\"?\n\nThis action cannot be undone."): return
+
+			shutil.rmtree(server_path)
+
+			self.server_selection_frame.server_names.remove(server_name)
+
+			next = self.server_selection_frame.tree.next(server)
+
+			if next:
+				self.server_selection_frame.tree.selection_set([next])
+			else:
+				children = list(self.server_selection_frame.tree.get_children())
+				if len(children) < 2:
+					self.create()
+				else:
+					children.remove(server)
+					self.server_selection_frame.tree.selection_set([children[-1]])
+
+			self.server_selection_frame.tree.delete(server)
+
+		except Exception as e:
+
+			show_error(f"Unable to delete server.\n\n{e}")
+
+		finally:
+
+			self.deiconify()
+			self.lift()
+			self.grab_set()
+
+
+
+	def loop(self):
+
+		selection = self.server_selection_frame.tree.selection()
+		
+		if len(selection) > 0:
+			
+			selection = selection[0]
+
+			if selection != self.current_server:
+
+				if self.server_config_frame:
+					tab_index = self.server_config_frame.tabs.index(self.server_config_frame.tabs.select())
+					self.server_config_frame.destroy()
+				else:
+					tab_index = 0
+
+				self.server_config_frame = self.ServerConfigFrame(self, path=(Path(sc4mp_config['HOSTING']['configs_path']) / selection))
+				self.server_config_frame.grid(row=0, column=1, sticky="nsew")
+				self.server_config_frame.tabs.select(tab_index)
+
+				self.current_server = selection
+
+		self.after(100, self.loop)
+
+
+class ServerConfigUI(tk.Toplevel):
+
+
+	def __init__(self):
+		"""TODO"""
+
+		#print("Initializing...")
+
+		# Init
+		super().__init__()
+
+		# Title
+		self.title("Server")
+
+		# Icon
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+
+		# Geometry
+		self.geometry('800x600')
+		#self.maxsize(355, 375)
+		#self.minsize(355, 375)
+		self.grid()
+		center_window(self)
+		
+		# Priority
+		self.grab_set()
+
+		# Key bindings
+		self.bind("<Return>", lambda event:self.ok())
+		self.bind("<Escape>", lambda event:self.destroy())
+
+		# Network frame
+		self.network_frame = tk.LabelFrame(self, text="Network", padx=10, pady=10)
+		self.network_frame.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=10)
+
+		# Port label
+		self.network_frame.port_label = ttk.Label(self.network_frame, text="Port")
+		self.network_frame.port_label.grid(row=0, column=0, columnspan=1, padx=(48,10), pady=0, sticky="e")
+
+		# Port Entry
+		self.network_frame.port_entry = ttk.Entry(self.network_frame, width=5)
+		self.network_frame.port_entry.insert(0, 7240)
+		self.network_frame.port_entry.grid(row=0, column=1, columnspan=1, padx=(10,50), pady=(10,10), sticky="w")
+
+		# Port help label 1
+		#self.network_frame.port_help_label_1 = tk.Label(self.network_frame, text="Ensure you've port forwarded.", fg="gray", justify="left")
+		#self.network_frame.port_help_label_1.grid(row=0, column=2, columnspan=1, padx=10, pady=10, sticky="w")
+
+		# Port help label 2
+		#self.network_frame.port_help_label_2 = tk.Label(self.network_frame, text="More information...", fg="blue", justify="left")
+		#self.network_frame.port_help_label_2.grid(row=2, column=1, columnspan=1, padx=10, pady=0, sticky="w")
+
+		# Discoverable checkbutton
+		#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
+		self.network_frame.checkbutton = ttk.Checkbutton(self.network_frame, text="Discoverable", onvalue=True, offvalue=False) #, variable=self.updates_frame.checkbutton_variable)
+		self.network_frame.checkbutton.grid(row=0, column=2, columnspan=1, padx=(10,70), pady=10, sticky="w")
+		#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
+
+		# Warning label
+		#self.network_frame.warning_label = tk.Label(self.network_frame, text="Ensure the port accepts incoming connections.") #, fg="red")
+		#self.network_frame.warning_label.grid(row=1, column=0, columnspan=3, padx=10, pady=(10,0), sticky="n")
+
+		# Port forwarding help label
+		#self.network_frame.warning_label = tk.Label(self.network_frame, text="How do I port forward?", fg="blue")
+		#self.network_frame.warning_label.grid(row=2, column=0, columnspan=3, padx=10, pady=(0,10), sticky="n")
+
+		# Info frame
+		self.info_frame = tk.LabelFrame(self, text="Info", padx=10, pady=10)
+		self.info_frame.grid(row=1, column=0, columnspan=2, rowspan=2, sticky="nw", padx=10)
+
+		# Name label
+		self.info_frame.name_label = ttk.Label(self.info_frame, text="Name")
+		self.info_frame.name_label.grid(row=10, column=0, columnspan=1, padx=10, pady=0, sticky="e")
+
+		# Name entry
+		self.info_frame.name_entry = ttk.Entry(self.info_frame, width=40)
+		self.info_frame.name_entry.grid(row=10, column=1, columnspan=1, padx=10, pady=(10,0), sticky="w")
+
+		# Name help label
+		self.info_frame.description_help_label = tk.Label(self.info_frame, text="Choose a name for your server", fg="gray", justify="left")
+		self.info_frame.description_help_label.grid(row=11, column=1, columnspan=1, padx=10, pady=0, sticky="w")
+
+		# Description label
+		self.info_frame.description_label = ttk.Label(self.info_frame, text="Description")
+		self.info_frame.description_label.grid(row=20, column=0, columnspan=1, padx=10, pady=0, sticky="ne")
+
+		# Description entry
+		self.info_frame.description_entry = ttk.Entry(self.info_frame, width=40) #, height=5, font={'family': 'DejaVu Sans', 'weight': 'normal', 'slant': 'roman', 'overstrike': 0, 'underline': 0, 'size': 1}, )
+		self.info_frame.description_entry.grid(row=20, column=1, columnspan=1, padx=10, pady=(10,0), sticky="w")
+		
+		# Description help label
+		self.info_frame.description_help_label = tk.Label(self.info_frame, text="Briefly describe your server", fg="gray", justify="left")
+		self.info_frame.description_help_label.grid(row=21, column=1, columnspan=1, padx=10, pady=0, sticky="w")
+
+		# URL label
+		self.info_frame.url_label = ttk.Label(self.info_frame, text="URL")
+		self.info_frame.url_label.grid(row=30, column=0, columnspan=1, padx=10, pady=0, sticky="e")
+
+		# URL entry
+		self.info_frame.url_entry = ttk.Entry(self.info_frame, width=40)
+		self.info_frame.url_entry.grid(row=30, column=1, columnspan=1, padx=10, pady=(10,0), sticky="w")
+
+		# URL help label
+		self.info_frame.url_help_label = tk.Label(self.info_frame, text="Link a site for communication (eg. Discord)", fg="gray", justify="left")
+		self.info_frame.url_help_label.grid(row=31, column=1, columnspan=1, padx=10, pady=(0,102), sticky="w")
+
+		# Security frame
+		self.security_frame = tk.LabelFrame(self, text="Security", padx=10, pady=10)
+		self.security_frame.grid(row=0, column=3, columnspan=2, sticky="w", padx=10)
+
+		# Private checkbutton
+		#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
+		#self.security_frame.private_checkbutton = ttk.Checkbutton(self.security_frame, text="Private", onvalue=True, offvalue=False) #, variable=self.updates_frame.checkbutton_variable)
+		#self.security_frame.private_checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
+		#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
+
+		# Password checkbutton
+		self.security_frame.password_checkbutton = ttk.Checkbutton(self.security_frame, text="Password")
+		self.security_frame.password_checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=0, sticky="e")
+
+		# Password entry
+		self.security_frame.password_entry = ttk.Entry(self.security_frame, width=35)
+		self.security_frame.password_entry.grid(row=0, column=1, columnspan=1, padx=(20,21), pady=(10,10), sticky="w")
+
+		# Password checkbutton
+		#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
+		#self.security_frame.password_checkbutton = ttk.Checkbutton(self.security_frame, text="Enabled", onvalue=True, offvalue=False) #, variable=self.updates_frame.checkbutton_variable)
+		#self.security_frame.password_checkbutton.grid(row=1, column=1, columnspan=1, padx=20, pady=10, sticky="w")
+		#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
+
+		# Rules frame
+		self.rules_frame = tk.LabelFrame(self, text="Rules", padx=10, pady=10)
+		self.rules_frame.grid(row=1, column=3, columnspan=2, rowspan=1, sticky="w", padx=10, pady=(0,10))
+
+		# Claim duration checkbutton
+		self.rules_frame.claim_duration_checkbutton = ttk.Checkbutton(self.rules_frame, text="Claim duration")
+		self.rules_frame.claim_duration_checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=0, sticky="w")
+
+		# Claim duration entry
+		self.rules_frame.claim_duration_entry = ttk.Entry(self.rules_frame, width=5)
+		#self.cache_size_frame.entry.insert(0, str(sc4mp_config["STORAGE"]["cache_size"]))
+		self.rules_frame.claim_duration_entry.grid(row=0, column=1, columnspan=1, padx=(10,0), pady=10, sticky="w")
+		#self.config_update.append((self.cache_size_frame.entry, "cache_size"))
+
+		# Claim duration label
+		self.rules_frame.claim_duration_label = ttk.Label(self.rules_frame, text="days")
+		self.rules_frame.claim_duration_label.grid(row=0, column=2, columnspan=1, padx=(2,132), pady=10, sticky="w")
+
+		# Max region claims checkbutton
+		self.rules_frame.max_region_claims_checkbutton = ttk.Checkbutton(self.rules_frame, text="Max claims")
+		self.rules_frame.max_region_claims_checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=0, sticky="w")
+
+		# Max region claims entry
+		self.rules_frame.max_region_claims_entry = ttk.Entry(self.rules_frame, width=5)
+		#self.cache_size_frame.entry.insert(0, str(sc4mp_config["STORAGE"]["cache_size"]))
+		self.rules_frame.max_region_claims_entry.grid(row=1, column=1, columnspan=1, padx=(10,0), pady=10, sticky="w")
+		#self.config_update.append((self.cache_size_frame.entry, "cache_size"))
+
+		# Max region claims label
+		self.rules_frame.max_region_claims_label = ttk.Label(self.rules_frame, text="per region")
+		self.rules_frame.max_region_claims_label.grid(row=1, column=2, columnspan=1, padx=(2,10), pady=10, sticky="w")
+
+		# Godmode filter checkbutton
+		#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
+		self.rules_frame.godmode_filter_checkbutton = ttk.Checkbutton(self.rules_frame, text="Allow claims in godmode", onvalue=False, offvalue=True) #, variable=self.updates_frame.checkbutton_variable)
+		self.rules_frame.godmode_filter_checkbutton.grid(row=2, column=0, columnspan=2, padx=(10,20), pady=10, sticky="w")
+		#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
+
+		# User plugins checkbutton
+		#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
+		self.rules_frame.user_plugins_checkbutton = ttk.Checkbutton(self.rules_frame, text="Allow user plugins", onvalue=True, offvalue=False) #, variable=self.updates_frame.checkbutton_variable)
+		self.rules_frame.user_plugins_checkbutton.grid(row=3, column=0, columnspan=2, padx=(10,20), pady=10, sticky="w")
+		#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
+
+		# Plugins frame
+		self.plugins_frame = tk.LabelFrame(self, text="Plugins", padx=10, pady=10)
+		self.plugins_frame.grid(row=2, column=3, columnspan=2, sticky="w", padx=10)
+
+		# Browse button
+		self.plugins_frame.button = ttk.Button(self.plugins_frame, text="Browse...", command=self.browse_plugins)
+		self.plugins_frame.button.grid(row=0, column=0, columnspan=1, padx=(10,67), pady=10)
+
+		# Regions frame
+		self.regions_frame = tk.LabelFrame(self, text="Regions", padx=10, pady=10)
+		self.regions_frame.grid(row=2, column=4, columnspan=2, sticky="w", padx=10)
+
+		# Browse button
+		self.regions_frame.button = ttk.Button(self.regions_frame, text="Browse...", command=self.browse_regions)
+		self.regions_frame.button.grid(row=0, column=0, columnspan=1, padx=(10,67), pady=10)
+
+		# Ok/Cancel frame
+		self.ok_cancel = tk.Frame(self)
+		self.ok_cancel.grid(row=99, column=0, columnspan=99, sticky="se")
+
+		# Ok button
+		self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Ok", command=self.ok, default="active")
+		self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
+
+		# Cancel button
+		self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
+		self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
+
+		# Loop
+		self.loop()
+
+
+	def loop(self):
+		
+		CHECKBUTTON_ENTRY_MAP: list[tuple[ttk.Checkbutton, ttk.Entry]] = [
+			(self.security_frame.password_checkbutton, self.security_frame.password_entry),
+			(self.rules_frame.claim_duration_checkbutton, self.rules_frame.claim_duration_entry),
+			(self.rules_frame.max_region_claims_checkbutton, self.rules_frame.max_region_claims_entry),
+		]
+
+		for checkbutton, entry in CHECKBUTTON_ENTRY_MAP:
+			if checkbutton.instate(['selected']):
+				entry.state(['!disabled'])
+			else:
+				entry.state(['disabled'])
+
+		self.after(100, self.loop)
+
+
+	def browse_plugins(self):
+
+		subprocess.Popen(f"explorer.exe 'C:\\'") # TESTING
+
+		#TODO
+
+		return
+
+
+	def browse_regions(self):
+
+		#TODO
+
 		return
 
 
 	def ok(self):
-		
+		"""TODO"""
 
-		path = Path("_Servers") / self.list_box_variable.get()[self.list_box.curselection()[0]]
-
-		start_server(path)
+		#TODO
 
 		self.destroy()
 
@@ -7850,16 +8559,19 @@ class UpdaterUI(tk.Toplevel):
 		self.parent = parent
 
 		# Title
-		self.title(SC4MP_TITLE)
+		self.title("SC4MP Updater") #SC4MP_TITLE
 
 		# Icon
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.minsize(400, 95)
-		self.maxsize(400, 95)
+		self.minsize(420, 133)
+		self.maxsize(420, 133)
 		self.grid()
 		center_window(self)
+
+		# Background
+		self.configure(background="white")
 
 		# Priority
 		self.lift()
@@ -7872,7 +8584,7 @@ class UpdaterUI(tk.Toplevel):
 		self.bind("<Escape>", lambda event:self.delete_window())
 
 		# Label
-		self.label = ttk.Label(self)
+		self.label = ttk.Label(self, background="white")
 		self.label['text'] = "Loading..."
 		self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=(10,5))
 
@@ -7884,15 +8596,27 @@ class UpdaterUI(tk.Toplevel):
 			length=380,
 			maximum=100
 		)
-		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10,5))
+		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=20, pady=(10,5))
 		self.progress_bar.start(2)
 
-		# Small label
-		self.label_small = tk.Label(self, fg="gray", font=("Segoe UI", 8), text="Press <ESC> to cancel")
-		self.label_small.grid(column=0, row=2, columnspan=2, padx=10, pady=(0,5))
+		# Lower frame
+		self.lower_frame = tk.Frame(self)
+		self.lower_frame.grid(column=0, row=2, columnspan=2, padx=0, pady=20, sticky="ew")
+
+		# Cancel button
+		self.cancel_button = ttk.Button(self.lower_frame, text="Cancel", command=self.delete_window)
+		self.cancel_button.grid(column=0, row=0, padx=(324,0), pady=(10, 50), sticky="e")
 
 		# Pause underlying thread
 		self.pause = False
+
+
+class LauncherUpdaterUI(UpdaterUI):
+
+	
+	def __init__(self, parent):
+
+		super().__init__(parent)
 
 
 	def delete_window(self):
@@ -7915,6 +8639,231 @@ class UpdaterUI(tk.Toplevel):
 		super().destroy()
 
 		self.parent.destroy()
+
+
+class ServerUpdaterUI(UpdaterUI):
+
+
+	class ServerUpdaterThread(th.Thread):
+
+
+		def __init__(self, parent):
+
+			super().__init__()
+
+			self.last_report = ""
+
+			self.ui: ServerUpdaterUI = parent
+
+
+		def run(self):
+
+			global sc4mp_server_update_check
+
+			set_thread_name("UpdtThread")
+
+			try:
+
+				self.pulse()
+
+				self.report("Checking for updates...")
+
+				if not sc4mp_config['HOSTING']['server_path']:
+					if Path("~/Documents/SimCity 4/SC4MP Launcher/sc4mpclient.exe").expanduser().exists():
+						server_path = Path("~/Documents/SimCity 4/SC4MP Server").expanduser()
+					else:
+						if not messagebox.askokcancel(title=SC4MP_TITLE, message="Please choose a directory for SC4MP Server."):
+							return
+						server_path = filedialog.askdirectory(parent=self.ui)
+						if not server_path:
+							return
+					sc4mp_config['HOSTING']['server_path'] = server_path
+					sc4mp_config.update()
+
+				self.pause()
+
+				try:
+					latest_release_info = get_release_info(repo="kegsmr/sc4mp-server")
+					latest_release_version = latest_release_info["tag_name"][1:]
+				except Exception as e:
+					if self.get_server_path("sc4mpserver.exe"):
+						show_error(e, no_ui=True)
+						latest_release_version = ""
+					else:
+						raise e
+
+				self.pause()
+
+				if latest_release_version and latest_release_version != sc4mp_config["HOSTING"]["server_version"]:
+					
+					self.report("Preparing update...")
+					time.sleep(3)
+
+					self.pause()
+
+					self.report("Downloading update...")
+
+					# Get download URL
+					download_url = None
+					for asset in latest_release_info["assets"]:
+						if asset["name"].startswith("sc4mp-server-installer-windows"):
+							download_url = asset["browser_download_url"]
+							destination = os.path.join("update", asset["name"])
+							break
+
+					# Raise an exception if the download URL was not found
+					if download_url is None:
+						raise ClientException("The correct release asset was not found.")
+
+					self.pause()
+
+					# Prepare destination
+					os.makedirs("update", exist_ok=True)
+					if os.path.exists(destination):
+						os.unlink(destination)
+
+					self.pause()
+
+					# Download file
+					download_size = int(urllib.request.urlopen(download_url).headers["Content-Length"])
+					self.report("Downloading update... (0%)")
+					self.progress(0, download_size)
+					with urllib.request.urlopen(download_url) as rfile:
+						with open(destination, "wb") as wfile:
+							download_size_downloaded = 0
+							while download_size_downloaded < download_size:
+								self.pause()
+								self.report(f"Downloading update... ({int(100 * (download_size_downloaded / download_size))}%)")
+								self.progress(download_size_downloaded)
+								bytes_read = rfile.read(SC4MP_BUFFER_SIZE) 
+								download_size_downloaded += len(bytes_read)
+								wfile.write(bytes_read)
+					self.report("Downloading update... (100%)")
+					self.progress(download_size, download_size)
+
+					self.pause()
+
+					self.pulse()
+
+					self.report("Installing update...")
+
+					self.stop_servers()
+					result = subprocess.run([os.path.abspath(destination), "/verysilent", f"/dir={sc4mp_config['HOSTING']['server_path']}"])
+					self.start_servers()
+
+					if result.returncode not in [0, 5]:
+						raise ClientException(f"Setup returned code {result.returncode}.")
+
+					sc4mp_config["HOSTING"]["server_version"] = latest_release_version
+					sc4mp_config.update()
+
+				self.pause()
+
+				if self.get_server_path("sc4mpserver.exe"):
+
+					sc4mp_server_update_check = False
+
+					HostUI()
+
+			except Exception as e:
+
+				if self.ui.winfo_exists():
+					show_error(f"An error occurred while checking for updates.\n\n{e}")
+
+			finally:
+
+				self.ui.destroy()
+
+
+		def report(self, message):
+			
+			self.ui.label["text"] = message
+
+			if message != self.last_report:
+				print(message)
+				self.last_report = message
+
+
+		def pulse(self):
+
+			self.ui.progress_bar['mode'] = "indeterminate"
+			self.ui.progress_bar['maximum'] = 100
+			self.ui.progress_bar.start(2)
+
+
+		def progress(self, value, maximum=None):
+
+			self.ui.progress_bar['mode'] = "determinate"
+			self.ui.progress_bar['value'] = value
+			
+			if maximum:
+				self.ui.progress_bar['maximum'] = maximum
+
+
+		def pause(self):
+
+			while self.ui.pause and self.ui.winfo_exists():
+				time.sleep(SC4MP_DELAY)
+			if self.ui.pause:
+				raise ClientException("Operation cancelled by user.")
+
+
+		def stop_servers(self):
+
+			bat_path = self.get_server_path("stop_all.bat")
+
+			if bat_path:
+				subprocess.run(bat_path, shell=True)
+
+
+		def start_servers(self):
+
+			bat_path = self.get_server_path("stop_all.bat")
+
+			if bat_path:
+				subprocess.run(bat_path, shell=True)
+
+
+		def get_server_path(self, path):
+			
+			server_path = sc4mp_config["HOSTING"]["server_path"]
+
+			if server_path and path:
+				path = Path(server_path) / path
+				if path.exists():
+					return path
+
+			return None
+
+
+	def __init__(self, parent):
+
+		super().__init__(parent)
+
+		self.worker = self.ServerUpdaterThread(self)
+		self.worker.start()
+
+
+	def delete_window(self):
+
+		global sc4mp_server_update_check
+
+		self.pause = True
+
+		if not self.worker.get_server_path("sc4mpserver.exe"):
+			self.destroy()
+			return
+
+		choice = messagebox.askyesnocancel(title=SC4MP_TITLE, icon="warning", message="Are you sure you want to continue without updating?")
+
+		if choice is None:
+			self.destroy()
+		elif choice is True:
+			HostUI()
+			sc4mp_server_update_check = False
+			self.destroy()
+		elif choice is False:
+			self.pause = False
 
 
 class ReleaseNotesUI(tk.Toplevel):
