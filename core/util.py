@@ -1,31 +1,60 @@
 from __future__ import annotations
 
+import ctypes
+import ctypes.wintypes
+import datetime
+import getpass
+import glob
+import hashlib
+import mimetypes
+import os
+import platform
+import random
+import re
+import socket
+import string
+import struct
+import subprocess
+import sys
+import threading as th
+import urllib.request
+import urllib.error
+from datetime import datetime, timedelta
+from pathlib import Path
 
-def process_count(process_name): #TODO add MacOS compatability
-	
-	import platform
-	import subprocess
-	
+try:
+	import requests
+except ImportError:
+	pass
+
+
+#TODO add MacOS compatability
+def process_count(process_name):
+
 	if platform.system() == "Windows":
-		return int(subprocess.check_output(f"tasklist | find /I /C \"{process_name}\"", shell=True))
+		return int(
+			subprocess.check_output(
+				f"tasklist | find /I /C \"{process_name}\"", shell=True
+			)
+		)
 	else:
 		return None
-	
+
 
 def md5(filename) -> str:
 
-	import hashlib
-
 	hash_md5 = hashlib.md5()
+
 	with filename.open("rb") as f:
 		for chunk in iter(lambda: f.read(4096), b""):
 			hash_md5.update(chunk)
+
 	return hash_md5.hexdigest()
 
 
 def format_version(version: tuple[int, int, int]) -> str:
 	"""Converts a version number from a tuple to a string."""
-	
+
 	major, minor, patch = version
 
 	return f'{major}.{minor}.{patch}'
@@ -41,8 +70,6 @@ def unformat_version(version: str) -> tuple[int, int, int]:
 
 
 def set_thread_name(name, enumerate=True):
-
-	import threading as th
 
 	if enumerate:
 
@@ -69,8 +96,6 @@ def xor(conditionA, conditionB):
 
 def filter_non_alpha_numeric(text: str) -> str:
 
-	import re
-
 	return " ".join(re.sub('[^0-9a-zA-Z ]+', " ", text).split())
 
 
@@ -88,81 +113,7 @@ def sanitize_directory_name(text: str) -> str:
 	return text
 
 
-def format_filesize(size, scale=None):
-	if scale is None:
-		scale = size
-	if scale >= 10 ** 13:
-		return str(int(size / (10 ** 12))) + "TB"
-	elif scale >= 10 ** 12:
-		return str(float(int(size / (10 ** 11)) / 10)) + "TB"
-	elif scale >= 10 ** 11:
-		return str(int(size / (10 ** 9))) + "GB"
-	elif scale >= 10 ** 10:
-		return str(int(size / (10 ** 9))) + "GB"
-	elif scale >= 10 ** 9:
-		return str(float(int(size / (10 ** 8)) / 10)) + "GB"
-	elif scale >= 10 ** 8:
-		return str(int(size / (10 ** 6))) + "MB"
-	elif scale >= 10 ** 7:
-		return str(int(size / (10 ** 6))) + "MB"
-	elif scale >= 10 ** 6:
-		return str(float(int(size / (10 ** 5)) / 10)) + "MB"
-	elif scale >= 10 ** 5:
-		return str(int(size / (10 ** 3))) + "KB"
-	elif scale >= 10 ** 4:
-		return str(int(size / (10 ** 3))) + "KB"
-	elif scale >= 10 ** 3:
-		return str(float(int(size / (10 ** 2)) / 10)) + "KB"
-	else:
-		return str(int(size)) + "B"
-
-
-def parse_filesize(filesize_str) -> int:
-    """
-    Parses a string representing a file size and returns its equivalent in bytes.
-
-    Args:
-        filesize_str (str): A string representing the file size (e.g., '8MB', '3.3KB').
-
-    Returns:
-        int: The file size in bytes.
-
-    Raises:
-        ValueError: If the input format is invalid.
-    """
-
-    # Define size multipliers
-    size_multipliers = {
-        'B': 1,
-        'KB': 10**3,
-        'MB': 10**6,
-        'GB': 10**9,
-        'TB': 10**12
-    }
-
-    import re
-
-    # Regular expression to match the input pattern
-    match = re.fullmatch(r"([0-9]*\.?[0-9]+)\s*(B|KB|MB|GB|TB)", filesize_str.strip(), re.IGNORECASE)
-
-    if not match:
-        raise ValueError("Invalid file size format. Use format like '8MB' or '3.3KB'.")
-
-    # Extract the numeric part and the unit
-    size, unit = match.groups()
-    size = float(size)
-    unit = unit.upper()
-
-    # Compute the size in bytes
-    if unit not in size_multipliers:
-        raise ValueError(f"Unsupported unit '{unit}'. Supported units are: {', '.join(size_multipliers.keys())}.")
-
-    return int(size * size_multipliers[unit])
-
-
 def format_time_ago(time, now=None):
-
-	from datetime import datetime, timedelta
 
 	if time is None:
 		return "Never"
@@ -201,9 +152,10 @@ def format_time_ago(time, now=None):
 			
 
 def get_server_list() -> list[tuple]:
-	"""Returns a list of `(<host>, <port>)` tuples extracted from the `servers.txt` file."""
-
-	from pathlib import Path
+	"""
+	Returns a list of `(<host>, <port>)` tuples extracted from the 
+	`servers.txt` file.
+	"""
 
 	servers = [("servers.sc4mp.org", port) for port in range(7240, 7250)]
 
@@ -211,7 +163,8 @@ def get_server_list() -> list[tuple]:
 
 	if servers_txt_path.exists():
 
-		s = [(line.split()[0], int(line.split()[1])) for line in open(servers_txt_path) if line.strip()]
+		s = [(line.split()[0], int(line.split()[1])) 
+	   		for line in open(servers_txt_path) if line.strip()]
 		s.reverse()
 
 		for server in s:
@@ -222,10 +175,10 @@ def get_server_list() -> list[tuple]:
 
 
 def update_server_list(maximum=100):
-	"""Updates the `servers.txt` file with servers fetched from the SC4MP API. To be used in release workflows only!"""
-
-	from pathlib import Path
-	import requests
+	"""
+	Updates the `servers.txt` file with servers fetched from the SC4MP API. To 
+	be used in release workflows only!
+	"""
 
 	URL = "https://api.sc4mp.org/servers"
 	
@@ -239,9 +192,12 @@ def update_server_list(maximum=100):
 	if server_file.exists():
 		with server_file.open("r") as file:
 			existing_servers = {
-				tuple(line.strip().split("\t")) for line in file if line.strip()
+				tuple(line.strip().split("\t")) 
+				for line in file if line.strip()
 			}
-			existing_servers = {(host, int(port)) for host, port in existing_servers}
+			existing_servers = {
+				(host, int(port)) for host, port in existing_servers
+			}
 	else:
 		existing_servers = set()
 	
@@ -257,7 +213,8 @@ def update_server_list(maximum=100):
 	with server_file.open("r") as file:
 		lines = file.readlines()
 	
-	# If the file has more than `maxiumum`, slice the list to keep only the last `maxiumum` lines
+	# If the file has more than `maxiumum`, slice the list to keep only the 
+	# last `maxiumum` lines
 	if len(lines) > maximum:
 
 		lines = lines[-maximum:]
@@ -275,7 +232,7 @@ def format_title(title: str, version=None) -> str:
 		t.append(f"v{version}")
 	if is_frozen():
 		if is_32_bit():
-			if is_windows:
+			if is_windows():
 				t.append("(x86)")
 			else:
 				t.append("(32-bit)")
@@ -287,27 +244,17 @@ def format_title(title: str, version=None) -> str:
 
 def is_32_bit():
 
-	import struct
-
 	return 8 * struct.calcsize('P') == 32
 
 
 def is_frozen():
-
-	import sys
 
 	return getattr(sys, 'frozen', False)
 
 
 def is_windows():
 
-	import platform
-
 	return platform.system() == "Windows"
-
-
-if __name__ == "__main__":
-	update_server_list()
 
 
 def format_filesize(size, scale=None):
@@ -341,10 +288,12 @@ def format_filesize(size, scale=None):
 
 def parse_filesize(filesize_str) -> int:
     """
-    Parses a string representing a file size and returns its equivalent in bytes.
+    Parses a string representing a file size and returns its equivalent in 
+	bytes.
 
     Args:
-        filesize_str (str): A string representing the file size (e.g., '8MB', '3.3KB').
+        filesize_str (str): A string representing the file size (e.g., '8MB', 
+		'3.3KB').
 
     Returns:
         int: The file size in bytes.
@@ -362,13 +311,14 @@ def parse_filesize(filesize_str) -> int:
         'TB': 10**12
     }
 
-    import re
-
     # Regular expression to match the input pattern
-    match = re.fullmatch(r"([0-9]*\.?[0-9]+)\s*(B|KB|MB|GB|TB)", filesize_str.strip(), re.IGNORECASE)
+    match = re.fullmatch(r"([0-9]*\.?[0-9]+)\s*(B|KB|MB|GB|TB)", 
+		filesize_str.strip(), re.IGNORECASE)
 
     if not match:
-        raise ValueError("Invalid file size format. Use format like '8MB' or '3.3KB'.")
+        raise ValueError(
+			"Invalid file size format. Use format like '8MB' or '3.3KB'."
+		)
 
     # Extract the numeric part and the unit
     size, unit = match.groups()
@@ -377,7 +327,10 @@ def parse_filesize(filesize_str) -> int:
 
     # Compute the size in bytes
     if unit not in size_multipliers:
-        raise ValueError(f"Unsupported unit '{unit}'. Supported units are: {', '.join(size_multipliers.keys())}.")
+        raise ValueError(
+			f"Unsupported unit '{unit}'. "
+			f"Supported units are: {', '.join(size_multipliers.keys())}."
+		)
 
     return int(size * size_multipliers[unit])
 
@@ -393,8 +346,6 @@ def is_socket_listening(host: str, port: int) -> bool:
 	Returns:
 	- bool: True if the socket is in use, False otherwise.
 	"""
-
-	import socket
 
 	s = socket.socket()
 
@@ -425,10 +376,6 @@ def get_process_creation_time(pid):
 		datetime: The creation date and time of the process.
 	"""
 
-	import ctypes
-	import ctypes.wintypes
-	from datetime import datetime, timedelta
-
 	# Constants
 	PROCESS_QUERY_INFORMATION = 0x0400
 	PROCESS_VM_READ = 0x0010
@@ -438,7 +385,10 @@ def get_process_creation_time(pid):
 		PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, False, pid
 	)
 	if not h_process:
-		raise Exception(f"Failed to open process with PID {pid}. Error code: {ctypes.GetLastError()}")
+		raise Exception(
+			f"Failed to open process with PID {pid}. "
+			f"Error code: {ctypes.GetLastError()}"
+		)
 
 	# Create a FILETIME structure to store creation time
 	creation_time = ctypes.wintypes.FILETIME()
@@ -456,23 +406,27 @@ def get_process_creation_time(pid):
 	)
 	if not success:
 		ctypes.windll.kernel32.CloseHandle(h_process)
-		raise Exception(f"Failed to get process times for PID {pid}. Error code: {ctypes.GetLastError()}")
+		raise Exception(
+			f"Failed to get process times for PID {pid}. "
+			f"Error code: {ctypes.GetLastError()}"
+		)
 
 	# Close the process handle
 	ctypes.windll.kernel32.CloseHandle(h_process)
 
 	# Convert FILETIME to a Python datetime
 	def filetime_to_datetime(ft):
-		# FILETIME is a 64-bit value representing the number of 100-nanosecond intervals since January 1, 1601 (UTC)
+
+		# FILETIME is a 64-bit value representing the number of 100-nanosecond 
+		# intervals since January 1, 1601 (UTC)
 		time = (ft.dwHighDateTime << 32) + ft.dwLowDateTime
+
 		return datetime(1601, 1, 1) + timedelta(microseconds=time // 10)
 
 	return filetime_to_datetime(creation_time)
 
 
 def get_public_ip_address(timeout=10):
-
-	import urllib
 
 	try:
 
@@ -493,8 +447,6 @@ def get_public_ip_address(timeout=10):
 def has_powershell():
 	"""Checks if PowerShell is available."""
 
-	import platform
-
 	if is_windows() and int(platform.version().split('.')[0]) >= 10:
 		return True
 	else:
@@ -503,25 +455,18 @@ def has_powershell():
 
 def generate_server_id():
 
-	import random
-	import string
-
-	return ''.join(random.SystemRandom().choice(string.ascii_letters + string.digits) for i in range(32))
+	return ''.join(
+		random.SystemRandom().choice(string.ascii_letters + string.digits) for i in range(32)
+	)
 
 
 def generate_server_name():
 
-	import getpass
-	import socket
-
 	return getpass.getuser() + " on " + socket.gethostname()
 
 
-def publish_release(repo, token, version, target="main", name="", body="", assets=[], draft=True, prerelease=False):
-
-	import os
-	import requests
-	import mimetypes
+def publish_release(repo, token, version, target="main", name="", body="", 
+					assets=[], draft=True, prerelease=False):
 
 	if not name:
 		name = f"Draft {version}"
@@ -590,9 +535,6 @@ def publish_release(repo, token, version, target="main", name="", body="", asset
 
 def get_release_asset_path(directory, prefix):
 
-	import glob
-	import os
-
 	# Create a pattern to match all files that start with the given prefix
 	pattern = os.path.join(directory, f"{prefix}*")
 	
@@ -609,8 +551,6 @@ def get_release_asset_path(directory, prefix):
 
 
 def get_current_git_branch():
-
-	import subprocess
 
 	# Run the Git command to get the current branch
 	result = subprocess.run(
@@ -634,3 +574,74 @@ def replace_in_file(path, old, new):
     
     with open(path, 'w', encoding='utf-8') as file:
         file.write(content)
+
+
+def get_version():
+    with open("VERSION") as file:
+        return file.read().strip()
+
+
+def update_readme_version(path: str, version: str) -> None:
+	"""Replace the version inside <version>...</version> with new_version."""
+
+	with open(path, 'r', encoding='utf-8') as f:
+		content = f.read()
+
+	# Replace the contents inside the <version> tag
+	updated_content = re.sub(
+		r'(<version>)(.*?)(</version>)',
+		rf'\g<1>{version}\g<3>',
+		content,
+		flags=re.IGNORECASE | re.DOTALL
+	)
+
+	with open(path, 'w', encoding='utf-8') as f:
+		f.write(updated_content)
+
+	# print(f'Updated version to "{version}" in "{path}"')
+
+
+
+def update_inno_setup_version(path: str, version: str) -> None:
+    """Update the #define MyAppVersion directive in an Inno Setup script."""
+    with open(path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # Match a line like: #define MyAppVersion "0.8.5"
+    pattern = r'^(#define\s+MyAppVersion\s+)".*?"'
+    replacement = rf'\1"{version}"'
+
+    updated_content, count = re.subn(
+        pattern,
+        replacement,
+        content,
+        flags=re.MULTILINE
+    )
+
+    if count == 0:
+        print(f'Warning: No MyAppVersion definition found in "{path}".')
+    else:
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(updated_content)
+        # print(f'Updated MyAppVersion to "{version}" in "{path}".')
+
+
+def update_python_version(path: str, version: str) -> None:
+    """Update SC4MP_VERSION = "..." in a Python file."""
+    with open(path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # Match SC4MP_VERSION = "..."
+    updated_content, count = re.subn(
+        r'^(SC4MP_VERSION\s*=\s*)["\'].*?["\']',
+        rf'\1"{version}"',
+        content,
+        flags=re.MULTILINE
+    )
+
+    if count == 0:
+        print(f'Warning: No SC4MP_VERSION assignment found in "{path}".')
+    else:
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(updated_content)
+        print(f'Updated SC4MP_VERSION to "{version}" in "{path}".')

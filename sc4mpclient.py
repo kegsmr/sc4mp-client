@@ -21,31 +21,28 @@ import time
 import tkinter as tk
 import tkinter.font as tkfont
 import traceback
-import urllib.request
 import webbrowser
 from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
 from tkinter import font as tkfont
-from typing import Optional
+from typing import Optional, Union
 
 try:
-	from PIL import Image, ImageTk, UnidentifiedImageError
+	from PIL import Image, ImageTk
 	sc4mp_has_pil = True
 except ImportError:
 	sc4mp_has_pil = False
 
-#pylint: disable=wildcard-import
-#pylint: disable=unused-wildcard-import
 from core.config import *
 from core.dbpf import *
 from core.networking import *
 from core.util import *
 
 
-# Header
+# Globals
 
-SC4MP_VERSION = "0.8.3"
+SC4MP_VERSION = "0.8.9"
 
 SC4MP_SERVERS = get_server_list()
 
@@ -75,7 +72,7 @@ SC4MP_BUFFER_SIZE = 4096
 
 SC4MP_DELAY = .1
 
-SC4MP_LAUNCHERMAP_ENABLED = False 		#TODO replace with config setting eventually
+SC4MP_LAUNCHERMAP_ENABLED = False  #TODO replace with config setting eventually
 
 SC4MP_CONFIG_DEFAULTS = [
 	("GENERAL", [
@@ -105,7 +102,8 @@ SC4MP_CONFIG_DEFAULTS = [
 		("ignore_risky_file_warnings", False),
 
 		("custom_plugins", False),
-		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins").expanduser()),	
+		("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins")
+   			.expanduser()),	
 
 		("sync_simcity_4_cfg", True),
 
@@ -144,10 +142,11 @@ SC4MP_LAUNCHRESW = None
 SC4MP_LAUNCHRESH = None
 SC4MP_CUSTOMPATH = None
 
-SC4MP_RISKY_FILE_EXTENSIONS = [".bat", ".bin", ".cmd", ".com", ".cpl", ".dll", ".exe", ".gadget", ".inf1", ".ins",
-							    ".inx", ".isu", ".jar", ".job", ".jse", ".lnk", ".msc", ".msi", ".msp", ".mst",
-								".paf", ".pif", ".py", ".ps1", ".reg", ".rgs", ".scr", ".sct", ".sh", ".shb",
-								".shs", ".u3p", ".vb", ".vbe", ".vbs", ".vbscript", ".ws", ".wsf", ".wsh"]
+SC4MP_RISKY_FILE_EXTENSIONS = [".bat", ".bin", ".cmd", ".com", ".cpl", ".dll", 
+	".exe", ".gadget", ".inf1", ".ins", ".inx", ".isu", ".jar", ".job", ".jse", 
+	".lnk", ".msc", ".msi", ".msp", ".mst", ".paf", ".pif", ".py", ".ps1", 
+	".reg", ".rgs", ".scr", ".sct", ".sh", ".shb", ".shs", ".u3p", ".vb", 
+	".vbe", ".vbs", ".vbscript", ".ws", ".wsf", ".wsh"]
 
 SC4MP_URL_PREFIX = "sc4mp://"
 
@@ -181,7 +180,8 @@ def main():
 	try:
 
 		# URL launch behavior
-		url_launch = len(sc4mp_args) > 1 and sc4mp_args[1].startswith(SC4MP_URL_PREFIX)
+		url_launch = len(sc4mp_args) > 1 and sc4mp_args[1] \
+			.startswith(SC4MP_URL_PREFIX)
 		url_launch_exit_after = True
 	
 		# Exit if already runnning (unless launching using URL)
@@ -208,7 +208,10 @@ def main():
 					else:
 						tk.Tk().withdraw()
 						close_splash()
-						messagebox.showerror(title=SC4MP_TITLE, message="SC4MP Launcher is already running!")
+						messagebox.showerror(
+							title=SC4MP_TITLE, 
+							message="SC4MP Launcher is already running!"
+						)
 						return
 			except Exception:
 				pass
@@ -230,7 +233,8 @@ def main():
 		# "-force-update"/"-skip-update" flags
 		global sc4mp_force_update, sc4mp_skip_update
 		sc4mp_force_update = "-force-update" in sc4mp_args
-		sc4mp_skip_update = "-skip-update" in sc4mp_args or (len(sc4mp_args) > 1 and not sc4mp_force_update)
+		sc4mp_skip_update = "-skip-update" in sc4mp_args \
+			or (len(sc4mp_args) > 1 and not sc4mp_force_update)
 
 		# "-no-ui" flag
 		global sc4mp_ui
@@ -354,7 +358,12 @@ def load_config():
 
 	print("Loading config...")
 
-	sc4mp_config = Config(SC4MP_CONFIG_PATH, SC4MP_CONFIG_DEFAULTS, error_callback=show_error, update_constants_callback=update_config_constants)
+	sc4mp_config = Config(
+		SC4MP_CONFIG_PATH, 
+		SC4MP_CONFIG_DEFAULTS, 
+		error_callback=show_error, 
+		update_constants_callback=update_config_constants
+	)
 
 
 def check_updates():
@@ -398,7 +407,8 @@ def check_updates():
 								print(message)
 								ui.label["text"] = message
 
-							# Change working directory to the one where the executable can be found
+							# Change working directory to the one where the 
+							# executable can be found
 							if exec_file == "sc4mpclient.exe":
 								os.chdir(exec_dir)
 
@@ -646,7 +656,15 @@ def get_sc4_path() -> Optional[Path]:
 		steam_dirs = Path("Steam") / "steamapps" / "common"
 
 		# Drive letters
-		drives = [Path(f"{chr(letter)}:\\") for letter in range(65, 91) if Path(f"{chr(letter)}:\\").exists()]
+		drives: list[Path] = []
+		for l in range(65, 91):
+			try:
+				letter: str = chr(l)
+				drive = Path(f"{letter}:\\")
+				if drive.exists():
+					drives += [drive]
+			except Exception as e:
+				show_error(e, no_ui=True)
 
 		# List of common SC4 install dirs, highest priority at the top
 		possible_paths: list[Path] = [
@@ -1784,6 +1802,7 @@ class ServerList(th.Thread):
 			self.rank_bars = {}
 			self.rank_bar_images = [tk.PhotoImage(file=get_sc4mp_path(f"rank-{i}.png")) for i in range(6)]
 			self.ui.tree.bind("<<TreeviewSelect>>", self.update_rank_bars)
+			self.ui.tree.bind("<MouseWheel>", self.update_rank_bars)
 
 		self.temp_path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList"
 
@@ -2612,7 +2631,6 @@ class ServerLoader(th.Thread):
 				# Prompt to apply the 4gb patch if not yet applied
 				if is_windows():
 					try:
-						import ctypes
 						sc4_exe_path = get_sc4_path()
 						if not os.path.exists(sc4_exe_path.parent / (sc4_exe_path.name + ".Backup")):
 							choice = messagebox.askyesnocancel(SC4MP_TITLE, "It appears the 4GB patch has not been applied to SimCity 4.\n\nLoading certain plugins may cause SimCity 4 to crash if the patch has not been applied.\n\nWould you like to apply the patch now?", icon="warning")
@@ -2690,24 +2708,30 @@ class ServerLoader(th.Thread):
 
 				game_monitor = GameMonitor(self.server)
 				game_monitor.start()
-				if self.ui and self.ui.background:
-					if self.ui.background:
-						self.ui.background.lift()
-					self.ui.lift()
-				try:
-					if is_windows():
-						while (not self.ui or self.ui.winfo_exists()) and not window_open("simcity 4.exe"):
-							time.sleep(SC4MP_DELAY)	
-				except Exception as e:
-					show_error(e, no_ui=True)
-
-				if sc4mp_config["SC4"]["fullscreen"]:
-					time.sleep(10)
 
 				if self.ui:
+
+					if self.ui.background and self.ui.background.winfo_exists():
+						self.ui.background.lift()
+					self.ui.lift()
+
+					try:
+						if is_windows():
+							while self.ui.winfo_exists() and not sc4mp_ui.winfo_viewable() and not window_open("simcity 4.exe"):
+								time.sleep(SC4MP_DELAY)
+					except Exception as e:
+						show_error(e, no_ui=True)
+
+					if sc4mp_config["SC4"]["fullscreen"] and not sc4mp_ui.winfo_viewable():
+						time.sleep(10)
+
 					self.ui.destroy()
 
-				if game_monitor.ui and game_monitor.ui.state() != "withdrawn":
+					if sc4mp_ui.winfo_viewable():
+						if messagebox.askokcancel(title=SC4MP_TITLE, icon="error", message="SimCity 4 may not have launched correctly due to invalid settings.\n\nAdjust your settings in the SC4 settings menu before connecting to the server again.\n\nTIP: You can click the \"Preview\" button in the SC4 settings menu to test your settings without connecting to a server."):
+							SC4SettingsUI()
+
+				if game_monitor.ui and game_monitor.ui.winfo_exists() and game_monitor.ui.winfo_viewable():
 					game_monitor.ui.grab_set()
 
 				return
@@ -4428,7 +4452,7 @@ class UI(tk.Tk):
 
 		self.bind("<F1>", lambda event:self.direct_connect())
 		self.bind("<F2>", lambda event:self.refresh())
-		self.bind("<F3>", lambda event:self.host())
+		# self.bind("<F3>", lambda event:self.host())
 		self.bind("<F5>", lambda event:self.general_settings())
 		self.bind("<F6>", lambda event:self.storage_settings())
 		self.bind("<F7>", lambda event:self.SC4_settings())
@@ -4454,8 +4478,8 @@ class UI(tk.Tk):
 		
 		servers.add_command(label="Connect...", accelerator="F1", command=self.direct_connect)
 		servers.add_command(label="Refresh", accelerator="F2", command=self.refresh)
-		servers.add_separator() 
-		servers.add_command(label="Host...", accelerator="F3", command=self.host)
+		# servers.add_separator() 
+		# servers.add_command(label="Host...", accelerator="F3", command=self.host)
 		menu.add_cascade(label="Servers", menu=servers)  
 
 		help = Menu(menu, tearoff=0)  	
@@ -5735,7 +5759,11 @@ class ServerListUI(tk.Frame):
 
 		# Scrollbar
 
-		self.scrollbar = ttk.Scrollbar(self.frame, orient ="vertical", command = self.tree.yview)
+		def yview(*args, **kwargs):
+			self.worker.update_rank_bars()
+			self.tree.yview(*args, **kwargs)
+
+		self.scrollbar = ttk.Scrollbar(self.frame, orient="vertical", command=yview)
 		self.scrollbar.pack(side="right", fill="y")
 		self.tree.configure(yscrollcommand=self.scrollbar.set)
 
@@ -6626,7 +6654,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 		except Exception as e:
 
-			show_error(f"An error occurred while creating notebook frames.\n\n{e}") #, no_ui=True)
+			show_error(f"An error occurred while creating notebook frames.\n\n{e}", no_ui=True)
 
 
 	def create_mayors_frame(self):
@@ -6639,7 +6667,12 @@ class ServerDetailsUI(tk.Toplevel):
 
 		mayors = {}
 		for region in os.listdir(regions_directory):
-			region_database: dict = self.load_json(regions_directory / region / "_Database" / "region.json")
+			
+			region_database: Union[dict, None] = self.load_json(regions_directory / region / "_Database" / "region.json")
+			
+			if not region_database:
+				continue
+			
 			for entry in region_database.values():
 				if entry is not None:
 					user_id = entry.get("owner", None)
@@ -6807,7 +6840,10 @@ class ServerDetailsUI(tk.Toplevel):
 		cities = {}
 		for region in os.listdir(regions_directory):
 
-			region_database: dict = self.load_json(regions_directory / region / "_Database" / "region.json")
+			region_database: Union[dict, None] = self.load_json(regions_directory / region / "_Database" / "region.json")
+
+			if not region_database:
+				continue
 
 			for coords, entry in region_database.items():
 
@@ -6818,7 +6854,7 @@ class ServerDetailsUI(tk.Toplevel):
 					city_name = entry.get("city_name", "New City")
 					mayor_name = entry.get("mayor_name", "Defacto")
 
-					if len(mayor_name) < 1:
+					if entry.get("gamemode", 1) < 1:
 						continue
 
 					s = entry.get("size")

@@ -18,13 +18,9 @@ target = get_current_git_branch()
 
 if target == "main":
 	name = f"Patch {version}"
-	body = "\n".join([
-		"- {CHANGE}.",
-		"- {CHANGE}.",
-		"- {CHANGE}.",
-	])
+	body = "This is a patch that fixes some things."
 	prerelease = False
-if target == "feature":
+elif target == "feature":
 	name = f"Preview {version}"
 	body = "\n\n".join([
 		"This is a pre-release introducing new features from the next update, but also likely many bugs.",
