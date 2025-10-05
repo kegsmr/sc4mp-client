@@ -1,15 +1,14 @@
 import socket
 import json
 import struct
-import time
 import hashlib
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional, Any, Type
+from threading import Thread
 
 
 SC4MP_BUFFER_SIZE = 4096
-SC4MP_DELAY = 0.1
 
 MESSAGE_PROTOCOL = 'SC4MP'
 
@@ -398,7 +397,7 @@ class ServerSocket(Socket):
 		return connection, address
 
 
-class RequestHandler(ABC):
+class BaseRequestHandler(Thread):
 
 
 	def __init__(self, c: Socket):
@@ -486,8 +485,6 @@ class NetworkException(Exception):
 
 if __name__ == "__main__":
 
-	import threading as th
-
 	address = ("127.0.0.1", 8080)
 
 	def test_serve():
@@ -497,11 +494,11 @@ if __name__ == "__main__":
 		while True:
 			c, _ = s.accept()
 			c.settimeout(10)
-			rh = RequestHandler(c)
+			rh = BaseRequestHandler(c)
 			rh.handle_request()
 			c.close()
 
-	th.Thread(target=test_serve).start()
+	Thread(target=test_serve).start()
 
 	while True:
 
