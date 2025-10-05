@@ -25,6 +25,9 @@ COMMAND_PLUGINS_DATA = 'PlgDat'
 COMMAND_PRIVATE = 'Prv'
 COMMAND_REGIONS_TABLE = 'RgnTab'
 COMMAND_REGIONS_DATA = 'RgnDat'
+COMMAND_SAVE = 'Save'
+COMMAND_USER_ID = 'UserId'
+COMMAND_TOKEN = 'Token'
 
 
 def send_json(s: socket.socket, data, length_encoding="I"):
@@ -371,15 +374,38 @@ class ClientSocket(Socket):
 		for chunk in self.recv_files(file_table):
 			yield chunk
 
+	
+	def user_id(self, hash, **headers):
+
+		response = self.request(COMMAND_USER_ID, hash=hash, **headers)
+
+		if error := response.get('error'):
+			raise NetworkException(f"Authentication failed.\n\n{error}")
+
+		return response.get('user_id')
+
+
+	def token(self, user_id, **headers):
+		
+		response = self.request(
+			COMMAND_TOKEN, user_id=user_id, **headers
+		)
+
+		if error := response.get('error'):
+			raise NetworkException(f"Authentication failed.\n\n{error}")
+
+		return response.get('token')
+
 
 class ServerSocket(Socket):
 
 
-	def __init__(self, address):
+	def __init__(self, address=None):
 
 		super().__init__()
 
-		self.bind(address)
+		if address is not None:
+			self.bind(address)
 	
 
 	def listen(self, backlog=5):
@@ -400,7 +426,7 @@ class ServerSocket(Socket):
 class BaseRequestHandler(Thread):
 
 
-	def __init__(self, c: Socket):
+	def __init__(self, c: Socket, private=False):
 
 		super().__init__()
 
@@ -419,19 +445,43 @@ class BaseRequestHandler(Thread):
 			COMMAND_PLUGINS_DATA: self.plugins_data,
 			COMMAND_PRIVATE: self.private,
 			COMMAND_REGIONS_TABLE: self.regions_table,
-			COMMAND_REGIONS_DATA: self.regions_data
+			COMMAND_REGIONS_DATA: self.regions_data,
+			COMMAND_SAVE: self.save,
+			COMMAND_USER_ID: self.send_user_id,
+			COMMAND_TOKEN: self.send_token,
 		}
 
+		self.require_auth = [
+			COMMAND_SAVE,
+			COMMAND_TOKEN
+		]
 
-	def add_server(self, headers): ...
-	def check_password(self, headers): ...
-	def info(self, headers): ...
-	def password_enabled(self, headers): ...
-	def plugins_table(self, headers): ...
-	def plugins_data(self, headers): ...
-	def private(self, headers): ...
-	def regions_table(self, headers): ...
-	def regions_data(self, headers): ...
+		if private:
+			self.require_auth += [
+				COMMAND_PLUGINS_DATA,
+				COMMAND_PLUGINS_TABLE,
+				COMMAND_REGIONS_DATA,
+				COMMAND_REGIONS_TABLE
+			]
+
+
+	def authenticate(self): raise NotImplementedError()
+	def add_server(self): raise NotImplementedError()
+	def check_password(self): raise NotImplementedError()
+	def info(self): raise NotImplementedError()
+	def password_enabled(self): raise NotImplementedError()
+	def plugins_table(self): raise NotImplementedError()
+	def plugins_data(self): raise NotImplementedError()
+	def private(self): raise NotImplementedError()
+	def regions_table(self): raise NotImplementedError()
+	def regions_data(self): raise NotImplementedError()
+	def save(self): raise NotImplementedError()
+	def send_user_id(self): raise NotImplementedError()
+	def send_token(self): raise NotImplementedError()
+
+
+	def get_header(self, key: str, type: Type):
+		return pluck_header(self.headers, key, type)
 
 
 	def recv_request(self):
@@ -455,7 +505,10 @@ class BaseRequestHandler(Thread):
 		if self.command is None:
 			self.recv_request()
 		
-		return self.commands[self.command](self.headers)
+		if self.command in self.require_auth:
+			self.authenticate()
+
+		return self.commands[self.command]()
 
 
 	def respond(self, **headers):
@@ -463,8 +516,8 @@ class BaseRequestHandler(Thread):
 		return self.c.respond(self.command, **headers)
 
 
-	def ping(self, _):
-		
+	def ping(self):
+
 		return self.respond()
 
 
@@ -485,23 +538,27 @@ class NetworkException(Exception):
 
 if __name__ == "__main__":
 
-	address = ("127.0.0.1", 8080)
+	# address = ("127.0.0.1", 8080)
 
-	def test_serve():
-		s = ServerSocket(address)
-		s.set_headers(test=456)
-		s.listen()
-		while True:
-			c, _ = s.accept()
-			c.settimeout(10)
-			rh = BaseRequestHandler(c)
-			rh.handle_request()
-			c.close()
+	# def test_serve():
+	# 	s = ServerSocket(address)
+	# 	s.set_headers(test=456)
+	# 	s.listen()
+	# 	while True:
+	# 		c, _ = s.accept()
+	# 		c.settimeout(10)
+	# 		rh = BaseRequestHandler(c)
+	# 		rh.handle_request()
+	# 		c.close()
 
-	Thread(target=test_serve).start()
+	# Thread(target=test_serve).start()
 
-	while True:
+	# while True:
 
-		s = ClientSocket(address, timeout=10)
-		s.set_headers(test=123)
-		s.ping()
+	# 	s = ClientSocket(address, timeout=10)
+	# 	s.set_headers(test=123)
+	# 	s.ping()
+
+	s = ClientSocket(('localhost', 7249))
+
+	s.ping(test=123)

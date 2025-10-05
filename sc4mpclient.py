@@ -1387,11 +1387,8 @@ class Server:
 
 		# Request server info
 		try:
-			s = ClientSocket()
-			s.settimeout(10)
-			s.connect((self.host, self.port))
-			s.send(b"info")
-			server_info = s.recv_json()
+			s = ClientSocket((self.host, self.port))
+			server_info = s.info()
 		except Exception as e:
 			raise ClientException("Unable to find server. Check the IP address and port, then try again.") from e
 
@@ -1675,8 +1672,7 @@ class Server:
 			s = ClientSocket()
 			s.settimeout(10)
 			s.connect((self.host, self.port))
-			s.sendall(f"user_id {hash}".encode())
-			if s.recv(SC4MP_BUFFER_SIZE).decode() == hashlib.sha256(user_id.encode()).hexdigest()[:32]:
+			if s.user_id(hash) == hashlib.sha256(user_id.encode()).hexdigest()[:32]:
 				self.user_id = user_id
 			else:
 				if not sc4mp_config["GENERAL"]["ignore_token_errors"]:
@@ -1695,12 +1691,14 @@ class Server:
 		s = ClientSocket()
 		s.settimeout(10)
 		s.connect((self.host, self.port))
-		s.sendall(f"token {SC4MP_VERSION} {self.user_id} {self.password}".encode())
-		token = s.recv(SC4MP_BUFFER_SIZE).decode()
+		token = s.token(
+			user_id=self.user_id, version=SC4MP_VERSION,
+			password=self.password
+		)
 
 		# Raise exception if no token is received
-		if len(token) < 1:
-			raise ClientException("Authentication failed.\n\nThe reason could be any of the following:\n(1)   You are banned from this server.\n(2)   You have too many different user accounts on this server.\n(3)   There is a problem with your internet connection.")
+		# if len(token) < 1:
+		# 	raise ClientException("Authentication failed.\n\nThe reason could be any of the following:\n(1)   You are banned from this server.\n(2)   You have too many different user accounts on this server.\n(3)   There is a problem with your internet connection.")
 
 		# Set user_id and token in the database entry
 		entry["user_id"] = user_id
@@ -2825,8 +2823,7 @@ class ServerLoader(th.Thread):
 			s = self.create_socket()
 			if self.ui is not None:
 				self.ui.label['text'] = "Authenticating..."
-			s.sendall(f"check_password {self.server.password}".encode())
-			if s.recv(SC4MP_BUFFER_SIZE) == b'y':
+			if s.check_password(password=self.server.password):
 				if sc4mp_config["GENERAL"]["save_server_passwords"]:
 					try:
 						sc4mp_servers_database[self.server.server_id]["password"] = self.server.password
