@@ -3,6 +3,7 @@ import json
 import struct
 import time
 import hashlib
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional, Any, Type
 
@@ -30,9 +31,9 @@ COMMAND_REGIONS_DATA = 'RgnDat'
 def send_json(s: socket.socket, data, length_encoding="I"):
 
 	if data is None:
-		data = b"" 
-	else:
-		data = json.dumps(data).encode()
+		data = {}
+
+	data = json.dumps(data).encode()
 
 	s.sendall(struct.pack(length_encoding, len(data)) + data)
 
@@ -43,16 +44,10 @@ def recv_json(s: socket.socket, length_encoding="I"):
 	length_header = b""
 
 	while len(length_header) < length_header_size:
-
-		new_data = s.recv(length_header_size - len(length_header))
-
-		if new_data:
-
-			length_header += new_data
-
+		if d := s.recv(length_header_size - len(length_header)):
+			length_header += d
 		else:
-
-			time.sleep(SC4MP_DELAY)
+			raise NetworkException("Connection closed.")
 
 	data_size = struct.unpack(length_encoding, length_header)[0]
 	data_size_read = 0
@@ -63,17 +58,11 @@ def recv_json(s: socket.socket, length_encoding="I"):
 
 		buffer_size = min(SC4MP_BUFFER_SIZE, data_size - data_size_read)
 
-		new_data = s.recv(buffer_size)
-
-		if new_data:
-
-			data += new_data
-			
-			data_size_read += len(new_data)
-
+		if d := s.recv(buffer_size):
+			data += d
+			data_size_read += len(d)
 		else:
-			
-			time.sleep(SC4MP_DELAY)
+			raise NetworkException("Connection closed.")
 
 	if len(data) < 1:
 		raise NetworkException('No data received.')
@@ -81,12 +70,15 @@ def recv_json(s: socket.socket, length_encoding="I"):
 		return json.loads(data.decode())
 
 
-def recv_exact(s: socket.socket, length) -> bytes:
+def recv_exact(s: socket.socket, length: int) -> bytes:
 
 	data = b""
 
 	while len(data) < length:
-		data += s.recv(length - len(data))
+		if d := s.recv(length - len(data)):
+			data += d
+		else:
+			raise NetworkException("Connection closed.")
 
 	return data
 	
@@ -120,7 +112,7 @@ def send_message(s: socket.socket, is_request=True, command="Ping", headers=None
 	except Exception as e:
 		raise NetworkException(
 			f"Error sending {'request' if is_request else 'response'} "
-			f"{command!r} with headers {headers!r}."
+			f"{command!r}.\n\n{e}"
 		) from e
 
 
@@ -155,7 +147,7 @@ def recv_message(s: socket.socket):
 
 	except Exception as e:
 		raise NetworkException(
-			"Error receiving message."
+			f"Error receiving message.\n\n{e}"
 		) from e
 
 	return is_request, command, headers
@@ -191,7 +183,7 @@ def is_success(headers: dict):
 	SUCCESS = 'success'
 
 	if STATUS not in headers:
-		raise NetworkException(f"Repsonse headers missing {STATUS!r}.")
+		raise NetworkException(f"Response headers missing {STATUS!r}.")
 
 	return headers[STATUS] == SUCCESS
 
@@ -290,6 +282,11 @@ class Socket(socket.socket):
 	def recv_files(self, file_table):
 
 		return recv_files(self, file_table)
+
+
+	def recv_exact(self, length: int) -> bytes:
+		
+		return recv_exact(self, length)
 
 
 class ClientSocket(Socket):
@@ -401,6 +398,77 @@ class ServerSocket(Socket):
 		return connection, address
 
 
+class RequestHandler(ABC):
+
+
+	def __init__(self, c: Socket):
+
+		super().__init__()
+
+		self.c = c
+
+		self.command = None
+		self.headers = {}
+
+		self.commands = {
+			COMMAND_ADD_SERVER: self.add_server,
+			COMMAND_CHECK_PASSWORD: self.check_password,
+			COMMAND_INFO: self.info,
+			COMMAND_PASSWORD_ENABLED: self.password_enabled,
+			COMMAND_PING: self.ping,
+			COMMAND_PLUGINS_TABLE: self.plugins_table,
+			COMMAND_PLUGINS_DATA: self.plugins_data,
+			COMMAND_PRIVATE: self.private,
+			COMMAND_REGIONS_TABLE: self.regions_table,
+			COMMAND_REGIONS_DATA: self.regions_data
+		}
+
+
+	def add_server(self, headers): ...
+	def check_password(self, headers): ...
+	def info(self, headers): ...
+	def password_enabled(self, headers): ...
+	def plugins_table(self, headers): ...
+	def plugins_data(self, headers): ...
+	def private(self, headers): ...
+	def regions_table(self, headers): ...
+	def regions_data(self, headers): ...
+
+
+	def recv_request(self):
+
+		is_request, command, headers = self.c.recv_message()
+
+		if command not in self.commands:
+			raise NetworkException(f"Invalid request: {command!r}")
+
+		if not is_request:
+			raise NetworkException("Expected request but got response.")
+
+		self.command = command
+		self.headers = headers
+
+		return command, headers
+
+
+	def handle_request(self):
+
+		if self.command is None:
+			self.recv_request()
+		
+		return self.commands[self.command](self.headers)
+
+
+	def respond(self, **headers):
+
+		return self.c.respond(self.command, **headers)
+
+
+	def ping(self, _):
+		
+		return self.respond()
+
+
 class NetworkException(Exception):
 	
 
@@ -424,17 +492,19 @@ if __name__ == "__main__":
 
 	def test_serve():
 		s = ServerSocket(address)
+		s.set_headers(test=456)
 		s.listen()
 		while True:
 			c, _ = s.accept()
-			_, command, headers = c.recv_message()
-			print("MESSAGE RECEIVED")
-			c.respond(command, **headers)
+			c.settimeout(10)
+			rh = RequestHandler(c)
+			rh.handle_request()
+			c.close()
 
 	th.Thread(target=test_serve).start()
 
 	while True:
 
-		s = ClientSocket(address)
-
-		print(s.ping(test='sadgfasdfasdf'))
+		s = ClientSocket(address, timeout=10)
+		s.set_headers(test=123)
+		s.ping()
