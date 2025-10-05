@@ -34,9 +34,9 @@ try:
 except ImportError:
 	sc4mp_has_pil = False
 
-from core.config import *
-from core.dbpf import *
-from core.networking import *
+from core.config import Config
+from core.dbpf import SC4Savegame, SC4Config
+from core.networking import ClientSocket, send_json, recv_json
 from core.util import *
 
 
@@ -1387,11 +1387,11 @@ class Server:
 
 		# Request server info
 		try:
-			s = socket.socket()
+			s = ClientSocket()
 			s.settimeout(10)
 			s.connect((self.host, self.port))
 			s.send(b"info")
-			server_info = recv_json(s)
+			server_info = s.recv_json()
 		except Exception as e:
 			raise ClientException("Unable to find server. Check the IP address and port, then try again.") from e
 
@@ -1522,7 +1522,7 @@ class Server:
 			destination = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server_id / directory
 
 			# Create the socket
-			s = socket.socket()
+			s = ClientSocket()
 			s.settimeout(30)
 			s.connect((self.host, self.port))
 
@@ -1533,7 +1533,7 @@ class Server:
 				s.send(f"{request} {SC4MP_VERSION} {self.user_id} {self.password}".encode())
 
 			# Receive file table
-			file_table = recv_json(s)
+			file_table = s.recv_json()
 
 			# Get total and download size
 			#size = sum([entry[1] for entry in file_table])
@@ -1553,7 +1553,7 @@ class Server:
 			file_table = ft
 
 			# Send pruned file table
-			send_json(s, file_table)
+			s.send_json(file_table)
 
 			# Receive files
 			for entry in file_table:
@@ -1636,7 +1636,7 @@ class Server:
 		port = self.port
 
 		try:
-			s = socket.socket()
+			s = ClientSocket()
 			s.settimeout(10)
 			s.connect((host, port))
 			s.sendall(request.encode())
@@ -1672,7 +1672,7 @@ class Server:
 		# Verify server can produce the user_id from the hash of the user_id and token combined
 		if token != None:
 			hash = hashlib.sha256(((hashlib.sha256(user_id.encode()).hexdigest()[:32]) + token).encode()).hexdigest()
-			s = socket.socket()
+			s = ClientSocket()
 			s.settimeout(10)
 			s.connect((self.host, self.port))
 			s.sendall(f"user_id {hash}".encode())
@@ -1692,7 +1692,7 @@ class Server:
 			self.user_id = user_id
 
 		# Get the new token
-		s = socket.socket()
+		s = ClientSocket()
 		s.settimeout(10)
 		s.connect((self.host, self.port))
 		s.sendall(f"token {SC4MP_VERSION} {self.user_id} {self.password}".encode())
@@ -1714,7 +1714,7 @@ class Server:
 		host = self.host
 		port = self.port
 
-		s = socket.socket()
+		s = ClientSocket()
 		
 		s.settimeout(10)
 
@@ -1736,7 +1736,7 @@ class Server:
 
 		try:
 
-			s = socket.socket()
+			s = ClientSocket()
 			s.settimeout(10)
 			s.connect((self.host, self.port))
 			s.sendall(b"time")
@@ -2514,7 +2514,7 @@ class ServerFetcher(th.Thread):
 		s.sendall(b"server_list")
 		
 		# Receive server list
-		servers = recv_json(s)
+		servers = s.recv_json()
 
 		# Loop through server list and append them to the unfetched servers
 		for host, port in servers:
@@ -2537,7 +2537,7 @@ class ServerFetcher(th.Thread):
 		host = server.host
 		port = server.port
 		try:
-			s = socket.socket()
+			s = ClientSocket()
 			s.settimeout(10)
 			s.connect((host, port))
 			return s
@@ -2983,7 +2983,7 @@ class ServerLoader(th.Thread):
 					s.sendall(f"{target} {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
 
 				# Receive file table
-				file_table = recv_json(s)
+				file_table = s.recv_json()
 
 				# Get total download size
 				size = sum([entry[1] for entry in file_table])
@@ -3081,7 +3081,7 @@ class ServerLoader(th.Thread):
 				old_eta_display_time = download_start_time + 2
 
 				# Send pruned file table
-				send_json(s, file_table)
+				s.send_json(file_table)
 
 				# Receive files
 				for entry in file_table:
@@ -3181,7 +3181,7 @@ class ServerLoader(th.Thread):
 		host = self.server.host
 		port = self.server.port
 
-		s = socket.socket()
+		s = ClientSocket()
 
 		s.settimeout(10)
 
@@ -3213,7 +3213,7 @@ class ServerLoader(th.Thread):
 		return s
 
 
-	def receive_file(self, s: socket.socket, filename: Path) -> None:
+	def receive_file(self, s: ClientSocket, filename: Path) -> None:
 		"""TODO: unused function?"""
 
 		filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
@@ -3743,7 +3743,7 @@ class GameMonitor(th.Thread):
 		return city_paths, city_hashcodes
 
 
-	def receive_file(self, s: socket.socket, filename: Path):
+	def receive_file(self, s: ClientSocket, filename: Path):
 		"""TODO: unused function?"""
 
 		filesize = int(s.recv(SC4MP_BUFFER_SIZE).decode())
@@ -3867,7 +3867,7 @@ class GameMonitor(th.Thread):
 
 		# Send region name and file sizes
 		#self.report(self.PREFIX, 'Saving: sending metadata...')
-		send_json(s, [
+		s.send_json([
 			region,
 			[os.path.getsize(save_city_path) for save_city_path in save_city_paths]
 		])
@@ -3950,7 +3950,7 @@ class GameMonitor(th.Thread):
 		host = self.server.host
 		port = self.server.port
 
-		s = socket.socket()
+		s = ClientSocket()
 
 		s.settimeout(10)
 
@@ -3988,7 +3988,7 @@ class GameMonitor(th.Thread):
 		return s
 
 
-	def send_file(self, s: socket.socket, filename: Path) -> None:
+	def send_file(self, s: ClientSocket, filename: Path) -> None:
 		
 
 		self.report_quietly("Saving...")
@@ -4109,7 +4109,7 @@ class RegionsRefresher(th.Thread):
 					s.sendall(f"regions {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
 
 				# Receive file table
-				file_table = recv_json(s)
+				file_table = s.recv_json()
 
 				# Get total download size
 				size = sum([entry[1] for entry in file_table])
@@ -4175,7 +4175,7 @@ class RegionsRefresher(th.Thread):
 				file_table = ft
 
 				# Send pruned file table
-				send_json(s, file_table)
+				s.send_json(file_table)
 
 				# Receive files
 				for entry in file_table:
@@ -4302,7 +4302,7 @@ class RegionsRefresher(th.Thread):
 		host = self.server.host
 		port = self.server.port
 
-		s = socket.socket()
+		s = ClientSocket()
 
 		s.settimeout(10)
 
@@ -6146,7 +6146,7 @@ class ServerBackgroundUI(tk.Toplevel):
 
 		try:
 
-			s = socket.socket()
+			s = ClientSocket()
 			s.settimeout(10)
 			s.connect((self.server.host, self.server.port))
 		
@@ -7013,7 +7013,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 			for request in ["Plugins", "Regions"]:
 
-				s = socket.socket()
+				s = ClientSocket()
 				s.settimeout(10)
 				s.connect((self.server.host, self.server.port))
 
@@ -7022,7 +7022,7 @@ class ServerDetailsUI(tk.Toplevel):
 				else:
 					s.send(f"{request.lower()} {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
 
-				file_table = recv_json(s)
+				file_table = s.recv_json()
 
 				s.close()
 
