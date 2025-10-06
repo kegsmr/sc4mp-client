@@ -1,9 +1,9 @@
+import errno
 import socket
 import json
 import struct
 import hashlib
-from abc import ABC, abstractmethod
-from pathlib import Path
+from datetime import datetime
 from typing import Optional, Any, Type
 from threading import Thread
 
@@ -28,6 +28,7 @@ COMMAND_REGIONS_DATA = 'RgnDat'
 COMMAND_SAVE = 'Save'
 COMMAND_USER_ID = 'UserId'
 COMMAND_TOKEN = 'Token'
+COMMAND_TIME = 'Time'
 
 
 def send_json(s: socket.socket, data, length_encoding="I"):
@@ -68,8 +69,8 @@ def recv_json(s: socket.socket, length_encoding="I"):
 
 	if len(data) < 1:
 		raise NetworkException('No data received.')
-	else:
-		return json.loads(data.decode())
+	
+	return json.loads(data.decode())
 
 
 def recv_exact(s: socket.socket, length: int) -> bytes:
@@ -111,11 +112,10 @@ def send_message(s: socket.socket, is_request=True, command="Ping", headers=None
 
 		s.sendall(message)
 
+	except NetworkException as e:
+		raise e
 	except Exception as e:
-		raise NetworkException(
-			f"Error sending {'request' if is_request else 'response'} "
-			f"{command!r}.\n\n{e}"
-		) from e
+		raise NetworkException(e) from e
 
 
 def recv_message(s: socket.socket):
@@ -147,10 +147,10 @@ def recv_message(s: socket.socket):
 		l = struct.unpack("H", recv_exact(s, 2))[0]
 		headers = json.loads(recv_exact(s, l).decode())
 
+	except NetworkException as e:
+		raise e
 	except Exception as e:
-		raise NetworkException(
-			f"Error receiving message.\n\n{e}"
-		) from e
+		raise NetworkException(e) from e
 
 	return is_request, command, headers
 	
@@ -227,6 +227,88 @@ def recv_files(s: socket.socket, file_table):
 				f"Expected checksum {checksum!r} but received "
 				f"{checksum_actual!r}."
 			)
+		
+
+def interpret_socket_error(e: BaseException) -> str:
+    """
+    Inspect a socket-related exception and return a human-readable description
+    of what went wrong. Useful for logging or rethrowing as a higher-level error.
+    """
+
+    if isinstance(e, socket.timeout):
+        return "Operation timed out."
+
+    if isinstance(e, ConnectionResetError):
+        return "Connection reset by peer."
+
+    if isinstance(e, ConnectionRefusedError):
+        return "Connection refused by remote host."
+
+    if isinstance(e, BrokenPipeError):
+        return "Attempted to write to a closed socket (broken pipe)."
+
+    if isinstance(e, OSError):
+        err = e.errno
+
+        # Use errno for detailed OS-specific cases
+        if err == errno.ECONNRESET:
+            return "Connection reset by peer."
+        elif err == errno.ECONNREFUSED:
+            return "Connection refused."
+        elif err == errno.ECONNABORTED:
+            return "Connection aborted."
+        elif err == errno.ENETDOWN:
+            return "Network is down."
+        elif err == errno.ENETUNREACH:
+            return "Network unreachable."
+        elif err == errno.EHOSTDOWN:
+            return "Host is down."
+        elif err == errno.EHOSTUNREACH:
+            return "Host unreachable."
+        elif err == errno.ETIMEDOUT:
+            return "Connection timed out."
+        elif err == errno.EPIPE:
+            return "Broken pipe."
+        elif err == errno.EINVAL:
+            return "Invalid argument to socket operation."
+        elif err == errno.EBADF:
+            return "Bad file descriptor (socket likely closed)."
+        elif err == errno.EFAULT:
+            return "Bad memory address in socket operation."
+        elif err == errno.ENOBUFS:
+            return "No buffer space available."
+        elif err == errno.ENOMEM:
+            return "Out of memory during socket operation."
+        elif err == errno.EINTR:
+            return "Socket operation interrupted."
+        elif err == errno.EAGAIN or err == errno.EWOULDBLOCK:
+            return "Resource temporarily unavailable (non-blocking socket)."
+        elif err == errno.ENOTCONN:
+            return "Socket is not connected."
+        elif err == errno.EISCONN:
+            return "Socket is already connected."
+        elif err == errno.EADDRINUSE:
+            return "Address already in use."
+        elif err == errno.EADDRNOTAVAIL:
+            return "Cannot assign requested address."
+        elif err == errno.EAFNOSUPPORT:
+            return "Address family not supported."
+        elif err == errno.EPROTONOSUPPORT:
+            return "Protocol not supported."
+        elif err == errno.ENETRESET:
+            return "Network dropped connection because of reset."
+        elif err == errno.EIO:
+            return "I/O error on socket."
+        elif err == errno.EPERM:
+            return "Operation not permitted."
+        elif err == errno.EACCES:
+            return "Permission denied on socket operation."
+
+        # Unrecognized errno — show details
+        return f"Unrecognized socket error: [Errno {err}] {e.strerror or e}"
+
+    # Fallback for unexpected types
+    return f"Unknown error: {e.__class__.__name__!r}: {e}"
 
 
 class Socket(socket.socket):
@@ -300,9 +382,12 @@ class ClientSocket(Socket):
 
 		self.settimeout(timeout)
 
-		if address:
-			self.connect(address)
-	
+		try:
+			if address:
+				self.connect(address)
+		except Exception as e:
+			raise NetworkException(e) from e
+
 
 	def add_server(self, port, **headers) -> bool:
 
@@ -395,6 +480,17 @@ class ClientSocket(Socket):
 			raise NetworkException(f"Authentication failed.\n\n{error}")
 
 		return response.get('token')
+	
+	
+	def time(self, **headers):
+
+		response = self.request(
+			COMMAND_TIME, **headers
+		)
+
+		time = pluck_header(response, 'time', str)
+
+		return datetime.strptime(time, "%Y-%m-%d %H:%M:%S")
 
 
 class ServerSocket(Socket):
@@ -449,6 +545,7 @@ class BaseRequestHandler(Thread):
 			COMMAND_SAVE: self.save,
 			COMMAND_USER_ID: self.send_user_id,
 			COMMAND_TOKEN: self.send_token,
+			COMMAND_TIME: self.time
 		}
 
 		self.require_auth = [
@@ -478,6 +575,7 @@ class BaseRequestHandler(Thread):
 	def save(self): raise NotImplementedError()
 	def send_user_id(self): raise NotImplementedError()
 	def send_token(self): raise NotImplementedError()
+	def time(self): raise NotImplementedError()
 
 
 	def get_header(self, key: str, type: Type):
@@ -524,8 +622,13 @@ class BaseRequestHandler(Thread):
 class NetworkException(Exception):
 	
 
-	def __init__(self, message, *args):
+	def __init__(self, e, *args):
 		
+		if isinstance(e, str):
+			message = e
+		else:
+			message = interpret_socket_error(e)
+
 		super().__init__(message, *args)
 
 		self.message = message

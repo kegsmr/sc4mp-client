@@ -1519,15 +1519,15 @@ class Server:
 			destination = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server_id / directory
 
 			# Create the socket
-			s = ClientSocket()
-			s.settimeout(30)
-			s.connect((self.host, self.port))
+			s = self.socket()
 
 			# Request the type of data
-			if not self.private:
-				s.send(request.encode())
+			if request == 'plugins':
+				s.plugins_table()
+			elif request == 'regions':
+				s.regions_table()
 			else:
-				s.send(f"{request} {SC4MP_VERSION} {self.user_id} {self.password}".encode())
+				file_table = []
 
 			# Receive file table
 			file_table = s.recv_json()
@@ -1669,9 +1669,7 @@ class Server:
 		# Verify server can produce the user_id from the hash of the user_id and token combined
 		if token != None:
 			hash = hashlib.sha256(((hashlib.sha256(user_id.encode()).hexdigest()[:32]) + token).encode()).hexdigest()
-			s = ClientSocket()
-			s.settimeout(10)
-			s.connect((self.host, self.port))
+			s = self.socket()
 			if s.user_id(hash) == hashlib.sha256(user_id.encode()).hexdigest()[:32]:
 				self.user_id = user_id
 			else:
@@ -1688,9 +1686,7 @@ class Server:
 			self.user_id = user_id
 
 		# Get the new token
-		s = ClientSocket()
-		s.settimeout(10)
-		s.connect((self.host, self.port))
+		s = self.socket()
 		token = s.token(
 			user_id=self.user_id, version=SC4MP_VERSION,
 			password=self.password
@@ -1734,18 +1730,27 @@ class Server:
 
 		try:
 
-			s = ClientSocket()
-			s.settimeout(10)
-			s.connect((self.host, self.port))
-			s.sendall(b"time")
+			s = self.socket()
 
-			return datetime.strptime(s.recv(SC4MP_BUFFER_SIZE).decode(), "%Y-%m-%d %H:%M:%S")
+			return s.time()
 		
 		except Exception as e:
 
 			show_error("Unable to get server time, using local time instead.", no_ui=True)
 
 			return datetime.now()
+
+
+	def socket(self) -> ClientSocket:
+
+		s = ClientSocket((self.host, self.port))
+		s.set_headers(
+			version=SC4MP_VERSION,
+			user_id=self.user_id,
+			password=self.password
+		)
+
+		return s
 
 
 # Workers
@@ -2967,20 +2972,18 @@ class ServerLoader(th.Thread):
 					raise ClientException("SimCity 4 is already running!") from e		# #TODO better to check if the process is actually running
 
 				# Create the socket
-				s = self.create_socket()
-				#s.settimeout(None)
+				s = self.server.socket()
 
 				# Report
 				self.report("", f"Synchronizing {target}...")
 
 				# Request the type of data
-				if not self.server.private:
-					s.sendall(target.encode())
+				if target == 'plugins':
+					file_table = s.plugins_table()
+				elif target == 'regions':
+					file_table = s.regions_table()
 				else:
-					s.sendall(f"{target} {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
-
-				# Receive file table
-				file_table = s.recv_json()
+					file_table = []
 
 				# Get total download size
 				size = sum([entry[1] for entry in file_table])
