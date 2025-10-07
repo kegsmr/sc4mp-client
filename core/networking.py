@@ -115,7 +115,7 @@ def send_message(s: socket.socket, is_request=True, command="Ping", headers=None
 	except NetworkException as e:
 		raise e
 	except Exception as e:
-		raise NetworkException(e) from e
+		raise NetworkException(e)
 
 
 def recv_message(s: socket.socket):
@@ -150,7 +150,7 @@ def recv_message(s: socket.socket):
 	except NetworkException as e:
 		raise e
 	except Exception as e:
-		raise NetworkException(e) from e
+		raise NetworkException(e)
 
 	return is_request, command, headers
 	
@@ -330,7 +330,7 @@ class Socket(socket.socket):
 
 	def set_headers(self, **headers):
 
-		self.headers = headers
+		self.headers.update(headers)
 
 
 	def send_json(self, data, length_encoding="I"):
@@ -386,7 +386,7 @@ class ClientSocket(Socket):
 			if address:
 				self.connect(address)
 		except Exception as e:
-			raise NetworkException(e) from e
+			raise NetworkException(e)
 
 
 	def add_server(self, port, **headers) -> bool:
@@ -562,20 +562,20 @@ class BaseRequestHandler(Thread):
 			]
 
 
-	def authenticate(self): raise NotImplementedError()
-	def add_server(self): raise NotImplementedError()
-	def check_password(self): raise NotImplementedError()
-	def info(self): raise NotImplementedError()
-	def password_enabled(self): raise NotImplementedError()
-	def plugins_table(self): raise NotImplementedError()
-	def plugins_data(self): raise NotImplementedError()
-	def private(self): raise NotImplementedError()
-	def regions_table(self): raise NotImplementedError()
-	def regions_data(self): raise NotImplementedError()
-	def save(self): raise NotImplementedError()
-	def send_user_id(self): raise NotImplementedError()
-	def send_token(self): raise NotImplementedError()
-	def time(self): raise NotImplementedError()
+	def authenticate(self): self.respond()
+	def add_server(self): self.respond()
+	def check_password(self): self.respond()
+	def info(self): self.respond()
+	def password_enabled(self): self.respond()
+	def plugins_table(self): self.respond()
+	def plugins_data(self): self.respond()
+	def private(self): self.respond()
+	def regions_table(self): self.respond()
+	def regions_data(self): self.respond()
+	def save(self): self.respond()
+	def send_user_id(self): self.respond()
+	def send_token(self): self.respond()
+	def time(self): self.respond()
 
 
 	def get_header(self, key: str, type: Type):

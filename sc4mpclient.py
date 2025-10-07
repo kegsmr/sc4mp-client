@@ -1387,7 +1387,7 @@ class Server:
 
 		# Request server info
 		try:
-			s = ClientSocket((self.host, self.port))
+			s = self.socket()
 			server_info = s.info()
 		except Exception as e:
 			raise ClientException("Unable to find server. Check the IP address and port, then try again.") from e
@@ -1744,11 +1744,10 @@ class Server:
 	def socket(self) -> ClientSocket:
 
 		s = ClientSocket((self.host, self.port))
-		s.set_headers(
-			version=SC4MP_VERSION,
-			user_id=self.user_id,
-			password=self.password
-		)
+
+		s.set_headers(version=SC4MP_VERSION)
+		if self.user_id: s.set_headers(user_id=self.user_id)
+		if self.password: s.set_headers(password=self.password)
 
 		return s
 
@@ -3178,12 +3177,12 @@ class ServerLoader(th.Thread):
 	def create_socket(self):
 		
 
-		host = self.server.host
-		port = self.server.port
+		# host = self.server.host
+		# port = self.server.port
 
-		s = ClientSocket()
+		# s = ClientSocket()
 
-		s.settimeout(10)
+		# s.settimeout(10)
 
 		#tries_left = 5
 
@@ -3192,7 +3191,8 @@ class ServerLoader(th.Thread):
 		#	try:
 
 		self.report("", "Connecting...")
-		s.connect((host, port))
+		s = self.server.socket()
+		# s.connect((host, port))
 
 		self.report("", "Connected.")
 
