@@ -472,6 +472,9 @@ class ClientSocket(Socket):
 	
 	def plugins_data(self, file_table: list, **headers):
 
+		if not file_table:
+			return []
+
 		self.request(COMMAND_PLUGINS_DATA, **headers)
 		self.send_json(file_table)
 
@@ -494,6 +497,9 @@ class ClientSocket(Socket):
 	
 
 	def regions_data(self, file_table: list, **headers):
+
+		if not file_table:
+			return []
 
 		self.request(COMMAND_REGIONS_DATA, **headers)
 		self.send_json(file_table)
