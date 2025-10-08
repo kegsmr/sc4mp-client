@@ -1494,11 +1494,9 @@ class Server:
 			# Set destination
 			destination = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server_id / directory
 
-			# Create the socket
-			s = self.socket()
-
 			# Receive file table
-			file_table = s.file_table(type_)
+			with self.socket() as s:
+				file_table = s.file_table(type_)
 
 			# Get total and download size
 			for entry in file_table:
@@ -1515,26 +1513,28 @@ class Server:
 			file_table = ft
 
 			# Receive files
-			for entry in s.file_table_data(type_, file_table):
+			with self.socket() as s:
 
-				# Get necessary values from entry
-				filesize = entry[1]
-				relpath = Path(entry[2])
-				chunks = entry[3]
+				for entry in s.file_table_data(type_, file_table):
 
-				# Set the destination
-				d = sanitize_relpath(Path(destination), relpath)
+					# Get necessary values from entry
+					filesize = entry[1]
+					relpath = Path(entry[2])
+					chunks = entry[3]
 
-				# Create the destination directory if necessary
-				d.parent.mkdir(parents=True, exist_ok=True)
+					# Set the destination
+					d = sanitize_relpath(Path(destination), relpath)
 
-				# Delete the destination file if it exists
-				d.unlink(missing_ok=True)
+					# Create the destination directory if necessary
+					d.parent.mkdir(parents=True, exist_ok=True)
 
-				# Receive the file
-				with d.open("wb") as dest:
-					for chunk in chunks:
-						dest.write(chunk)
+					# Delete the destination file if it exists
+					d.unlink(missing_ok=True)
+
+					# Receive the file
+					with d.open("wb") as dest:
+						for chunk in chunks:
+							dest.write(chunk)
 
 		return (total_size, download_size)
 
@@ -1582,28 +1582,27 @@ class Server:
 		# Verify server can produce the user_id from the hash of the user_id and token combined
 		if token != None:
 			hash = hashlib.sha256(((hashlib.sha256(user_id.encode()).hexdigest()[:32]) + token).encode()).hexdigest()
-			s = self.socket()
-			if s.user_id(hash) == hashlib.sha256(user_id.encode()).hexdigest()[:32]:
-				self.user_id = user_id
-			else:
-				if not sc4mp_config["GENERAL"]["ignore_token_errors"]:
-					if sc4mp_ui:
-						if messagebox.askokcancel(title=SC4MP_TITLE, message="The server failed to authenticate.\n\nThe user ID corresponding to your last login could not be produced by the server. A recent rollback of the server, or a recent failed authentication attempt may be to blame.\n\nIf you proceed, your user ID may become compromised.", icon="warning"):
-							self.user_id = user_id
+			with self.socket() as s:
+				if s.user_id(hash) == hashlib.sha256(user_id.encode()).hexdigest()[:32]:
+					self.user_id = user_id
+				else:
+					if not sc4mp_config["GENERAL"]["ignore_token_errors"]:
+						if sc4mp_ui:
+							if messagebox.askokcancel(title=SC4MP_TITLE, message="The server failed to authenticate.\n\nThe user ID corresponding to your last login could not be produced by the server. A recent rollback of the server, or a recent failed authentication attempt may be to blame.\n\nIf you proceed, your user ID may become compromised.", icon="warning"):
+								self.user_id = user_id
+							else:
+								raise ClientException("Connection cancelled.")
 						else:
-							raise ClientException("Connection cancelled.")
-					else:
-						raise ClientException("Invalid token.") #"Authentication error."
-			s.close()
+							raise ClientException("Invalid token.") #"Authentication error."
 		else:
 			self.user_id = user_id
 
 		# Get the new token
-		s = self.socket()
-		token = s.token(
-			user_id=self.user_id, version=SC4MP_VERSION,
-			password=self.password
-		)
+		with self.socket() as s:
+			token = s.token(
+				user_id=self.user_id, version=SC4MP_VERSION,
+				password=self.password
+			)
 
 		# Raise exception if no token is received
 		# if len(token) < 1:
@@ -1634,9 +1633,8 @@ class Server:
 
 		try:
 
-			s = self.socket()
-
-			return s.time()
+			with self.socket() as s:
+				return s.time()
 		
 		except Exception as e:
 
@@ -2842,14 +2840,12 @@ class ServerLoader(th.Thread):
 				except ClientException as e: 											# This is stupid
 					raise ClientException("SimCity 4 is already running!") from e		# #TODO better to check if the process is actually running
 
-				# Create the socket
-				s = self.server.socket()
-
 				# Report
 				self.report("", f"Synchronizing {target}...")
 
 				# Request the type of data
-				file_table = s.file_table(target)
+				with self.server.socket() as s:
+					file_table = s.file_table(target)
 
 				# Get total download size
 				size = sum([entry[1] for entry in file_table])
@@ -2946,75 +2942,77 @@ class ServerLoader(th.Thread):
 				old_eta_display_time = download_start_time + 2
 
 				# Receive files
-				for entry in s.file_table_data(target, file_table):
+				with self.server.socket() as s:
 
-					# Get necessary values from entry
-					checksum = sanitize_directory_name(entry[0])
-					filesize = entry[1]
-					relpath = Path(entry[2])
-					chunks = entry[3]
+					for entry in s.file_table_data(target, file_table):
 
-					# Report
-					print(f'- caching "{checksum}"...')
+						# Get necessary values from entry
+						checksum = sanitize_directory_name(entry[0])
+						filesize = entry[1]
+						relpath = Path(entry[2])
+						chunks = entry[3]
 
-					# Set the destination
-					d = sanitize_relpath(Path(destination), relpath)
+						# Report
+						print(f'- caching "{checksum}"...')
 
-					# Display current file in UI
-					try:
-						self.ui.progress_label["text"] = d.name #.relative_to(destination)
-					except Exception:
-						pass
+						# Set the destination
+						d = sanitize_relpath(Path(destination), relpath)
 
-					# Set path of cached file
-					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
+						# Display current file in UI
+						try:
+							self.ui.progress_label["text"] = d.name #.relative_to(destination)
+						except Exception:
+							pass
 
-					# Create the destination directory if necessary
-					d.parent.mkdir(parents=True, exist_ok=True)
+						# Set path of cached file
+						t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
 
-					# Delete the destination file if it exists
-					d.unlink(missing_ok=True)
+						# Create the destination directory if necessary
+						d.parent.mkdir(parents=True, exist_ok=True)
 
-					# Delete the cache file if it exists
-					t.unlink(missing_ok=True)
+						# Delete the destination file if it exists
+						d.unlink(missing_ok=True)
 
-					# Delete cache files if cache too large to accomadate the new cache file
-					cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
-					while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
-						random_cache = random.choice(list(cache_directory.iterdir()))
-						random_cache.unlink()
+						# Delete the cache file if it exists
+						t.unlink(missing_ok=True)
 
-					# Receive the file. Write to both the destination and cache
-					filesize_read = 0
-					with d.open("wb") as dest, t.open("wb") as cache:
-						for chunk in chunks:
-							for file in [dest, cache]:
-								file.write(chunk)
-							filesize_read += len(chunk)
-							total_size_already_downloaded += len(chunk)
-							size_downloaded += len(chunk)
-							old_percent = percent
-							percent = math.floor(100 * (size_downloaded / (size + 1)))
-							if percent > old_percent:
-								self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
-							if sc4mp_ui is not None:
-								try:
-									now = time.time()
-									eta = int((total_size_to_download - total_size_already_downloaded) / (total_size_already_downloaded / float(now - download_start_time)))
-									if (eta < 86400) and (old_eta is None or (old_eta > eta or int(now - old_eta_display_time) > 5)) and float(now - old_eta_display_time) >= .8:
-										old_eta = eta
-										old_eta_display_time = now
-										hours = math.floor(eta / 3600)
-										eta -= hours * 3600
-										minutes = math.floor(eta / 60)
-										eta -= minutes * 60
-										seconds = eta
-										if hours > 0:
-											self.ui.duration_label["text"] = f"{hours}:{minutes:0>{2}}:{seconds:0>{2}}"
-										else:
-											self.ui.duration_label["text"] = f"{minutes}:{seconds:0>{2}}"
-								except ZeroDivisionError as e:
-									show_error(e, no_ui=True) # Lazy solution
+						# Delete cache files if cache too large to accomadate the new cache file
+						cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
+						while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
+							random_cache = random.choice(list(cache_directory.iterdir()))
+							random_cache.unlink()
+
+						# Receive the file. Write to both the destination and cache
+						filesize_read = 0
+						with d.open("wb") as dest, t.open("wb") as cache:
+							for chunk in chunks:
+								for file in [dest, cache]:
+									file.write(chunk)
+								filesize_read += len(chunk)
+								total_size_already_downloaded += len(chunk)
+								size_downloaded += len(chunk)
+								old_percent = percent
+								percent = math.floor(100 * (size_downloaded / (size + 1)))
+								if percent > old_percent:
+									self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
+								if sc4mp_ui is not None:
+									try:
+										now = time.time()
+										eta = int((total_size_to_download - total_size_already_downloaded) / (total_size_already_downloaded / float(now - download_start_time)))
+										if (eta < 86400) and (old_eta is None or (old_eta > eta or int(now - old_eta_display_time) > 5)) and float(now - old_eta_display_time) >= .8:
+											old_eta = eta
+											old_eta_display_time = now
+											hours = math.floor(eta / 3600)
+											eta -= hours * 3600
+											minutes = math.floor(eta / 60)
+											eta -= minutes * 60
+											seconds = eta
+											if hours > 0:
+												self.ui.duration_label["text"] = f"{hours}:{minutes:0>{2}}:{seconds:0>{2}}"
+											else:
+												self.ui.duration_label["text"] = f"{minutes}:{seconds:0>{2}}"
+									except ZeroDivisionError as e:
+										show_error(e, no_ui=True) # Lazy solution
 
 				self.report_progress(f"Synchronizing {target}... (100%)", 100, 100)
 
@@ -3031,17 +3029,6 @@ class ServerLoader(th.Thread):
 				#else:
 
 					#raise ClientException("Maximum connection attemps exceeded. Check your internet connection and firewall settings, then try again.\n\n" + str(e))
-
-
-	def create_socket(self):
-	
-		self.report("", "Connecting...")
-		s = self.server.socket()
-		# s.connect((host, port))
-
-		self.report("", "Connected.")
-
-		return s
 
 
 	def prep_plugins(self):

@@ -20,10 +20,10 @@ COMMAND_CHECK_PASSWORD = 'ChkPwd'
 COMMAND_INFO = 'Info'
 COMMAND_PASSWORD_ENABLED = 'PwdEnb'
 COMMAND_PING = 'Ping'
-COMMAND_PLUGINS_TABLE = 'PlgTab'
+COMMAND_PLUGINS_TABLE = 'PlgTbl'
 COMMAND_PLUGINS_DATA = 'PlgDat'
 COMMAND_PRIVATE = 'Prv'
-COMMAND_REGIONS_TABLE = 'RgnTab'
+COMMAND_REGIONS_TABLE = 'RgnTbl'
 COMMAND_REGIONS_DATA = 'RgnDat'
 COMMAND_SAVE = 'Save'
 COMMAND_SERVER_LIST = 'SrvLst'
@@ -52,7 +52,7 @@ def recv_json(s: socket.socket, length_encoding="I"):
 		if d := s.recv(length_header_size - len(length_header)):
 			length_header += d
 		else:
-			raise NetworkException("Connection closed.")
+			raise ConnectionClosedException()
 
 	data_size = struct.unpack(length_encoding, length_header)[0]
 	data_size_read = 0
@@ -67,7 +67,7 @@ def recv_json(s: socket.socket, length_encoding="I"):
 			data += d
 			data_size_read += len(d)
 		else:
-			raise NetworkException("Connection closed.")
+			raise ConnectionClosedException()
 
 	if len(data) < 1:
 		raise NetworkException('No data received.')
@@ -81,10 +81,13 @@ def recv_exact(s: socket.socket, length: int) -> bytes:
 	remaining = length
 
 	while remaining > 0:
+
 		chunk = s.recv(remaining)
+
 		if not chunk:
-			raise NetworkException("Connection closed.")
-		data.extend(chunk)
+			raise ConnectionClosedException()
+		
+		data += chunk
 		remaining -= len(chunk)
 
 	return bytes(data)
@@ -119,7 +122,7 @@ def send_message(s: socket.socket, is_request=True, command="Ping", headers=None
 	except NetworkException as e:
 		raise e
 	except Exception as e:
-		raise NetworkException(e)
+		raise NetworkException(e) from e
 
 
 def recv_message(s: socket.socket):
@@ -154,7 +157,7 @@ def recv_message(s: socket.socket):
 	except NetworkException:
 		raise
 	except Exception as e:
-		raise NetworkException(e)
+		raise NetworkException(e) from e
 
 	return is_request, command, headers
 	
@@ -231,7 +234,7 @@ def recv_files(s: socket.socket, file_table):
 				chunk = s.recv(buffersize)
 
 				if not chunk:
-					raise NetworkException("Connection closed.")
+					raise ConnectionClosedException()
 
 				filesize_read += len(chunk)
 				checksummer.update(chunk)
@@ -405,7 +408,7 @@ class ClientSocket(Socket):
 			if address:
 				self.connect(address)
 		except Exception as e:
-			raise NetworkException(e)
+			raise NetworkException(e) from e
 
 
 	def add_server(self, port, **headers) -> bool:
@@ -703,6 +706,13 @@ class NetworkException(Exception):
 	def __str__(self):
 		
 		return self.message
+
+
+class ConnectionClosedException(NetworkException):
+
+	def __init__(self):
+
+		super().__init__("Connection closed.")
 
 
 if __name__ == "__main__":
