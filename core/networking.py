@@ -602,22 +602,22 @@ class BaseRequestHandler(Thread):
 		self.headers = {}
 
 		self.commands = {
-			COMMAND_ADD_SERVER: self.add_server,
-			COMMAND_CHECK_PASSWORD: self.check_password,
-			COMMAND_INFO: self.info,
-			COMMAND_PASSWORD_ENABLED: self.password_enabled,
+			COMMAND_ADD_SERVER: self.res_add_server,
+			COMMAND_CHECK_PASSWORD: self.res_check_password,
+			COMMAND_INFO: self.res_info,
+			COMMAND_PASSWORD_ENABLED: self.res_password_enabled,
 			COMMAND_PING: self.ping,
-			COMMAND_PLUGINS_TABLE: self.plugins_table,
-			COMMAND_PLUGINS_DATA: self.plugins_data,
-			COMMAND_PRIVATE: self.private,
-			COMMAND_REGIONS_TABLE: self.regions_table,
-			COMMAND_REGIONS_DATA: self.regions_data,
-			COMMAND_SAVE: self.save,
-			COMMAND_SERVER_LIST: self.server_list,
-			COMMAND_USER_ID: self.send_user_id,
-			COMMAND_TOKEN: self.send_token,
-			COMMAND_TIME: self.time,
-			COMMAND_LOADING_BACKGROUND: self.loading_background
+			COMMAND_PLUGINS_TABLE: self.res_plugins_table,
+			COMMAND_PLUGINS_DATA: self.res_plugins_data,
+			COMMAND_PRIVATE: self.res_private,
+			COMMAND_REGIONS_TABLE: self.res_regions_table,
+			COMMAND_REGIONS_DATA: self.res_regions_data,
+			COMMAND_SAVE: self.res_save,
+			COMMAND_SERVER_LIST: self.res_server_list,
+			COMMAND_USER_ID: self.res_user_id,
+			COMMAND_TOKEN: self.res_token,
+			COMMAND_TIME: self.res_time,
+			COMMAND_LOADING_BACKGROUND: self.res_loading_background
 		}
 
 		self.require_auth = [
@@ -636,21 +636,21 @@ class BaseRequestHandler(Thread):
 
 	def authenticate(self): ...
 
-	def add_server(self): self.respond()
-	def check_password(self): self.respond()
-	def info(self): self.respond()
-	def password_enabled(self): self.respond()
-	def plugins_table(self): self.respond()
-	def plugins_data(self): self.respond()
-	def private(self): self.respond()
-	def regions_table(self): self.respond()
-	def regions_data(self): self.respond()
-	def save(self): self.respond()
-	def server_list(self): self.respond()
-	def send_user_id(self): self.respond()
-	def send_token(self): self.respond()
-	def time(self): self.respond()
-	def loading_background(self): self.respond()
+	def res_add_server(self): self.respond()
+	def res_check_password(self): self.respond()
+	def res_info(self): self.respond()
+	def res_password_enabled(self): self.respond()
+	def res_plugins_table(self): self.respond()
+	def res_plugins_data(self): self.respond()
+	def res_private(self): self.respond()
+	def res_regions_table(self): self.respond()
+	def res_regions_data(self): self.respond()
+	def res_save(self): self.respond()
+	def res_server_list(self): self.respond()
+	def res_user_id(self): self.respond()
+	def res_token(self): self.respond()
+	def res_time(self): self.respond()
+	def res_loading_background(self): self.respond()
 
 
 	def get_header(self, key: str, type: Type):

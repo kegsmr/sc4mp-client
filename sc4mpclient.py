@@ -36,7 +36,7 @@ except ImportError:
 
 from core.config import Config
 from core.dbpf import SC4Savegame, SC4Config
-from core.networking import ClientSocket, NetworkException, send_json, recv_json
+from core.networking import ClientSocket, NetworkException
 from core.util import *
 
 
