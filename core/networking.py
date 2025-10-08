@@ -26,9 +26,11 @@ COMMAND_PRIVATE = 'Prv'
 COMMAND_REGIONS_TABLE = 'RgnTab'
 COMMAND_REGIONS_DATA = 'RgnDat'
 COMMAND_SAVE = 'Save'
+COMMAND_SERVER_LIST = 'SrvLst'
 COMMAND_USER_ID = 'UserId'
 COMMAND_TOKEN = 'Token'
 COMMAND_TIME = 'Time'
+COMMAND_LOADING_BACKGROUND = 'LdgBkg'
 
 
 def send_json(s: socket.socket, data, length_encoding="I"):
@@ -75,15 +77,17 @@ def recv_json(s: socket.socket, length_encoding="I"):
 
 def recv_exact(s: socket.socket, length: int) -> bytes:
 
-	data = b""
+	data = bytearray()
+	remaining = length
 
-	while len(data) < length:
-		if d := s.recv(length - len(data)):
-			data += d
-		else:
+	while remaining > 0:
+		chunk = s.recv(remaining)
+		if not chunk:
 			raise NetworkException("Connection closed.")
+		data.extend(chunk)
+		remaining -= len(chunk)
 
-	return data
+	return bytes(data)
 	
 
 def send_message(s: socket.socket, is_request=True, command="Ping", headers=None):
@@ -147,8 +151,8 @@ def recv_message(s: socket.socket):
 		l = struct.unpack("H", recv_exact(s, 2))[0]
 		headers = json.loads(recv_exact(s, l).decode())
 
-	except NetworkException as e:
-		raise e
+	except NetworkException:
+		raise
 	except Exception as e:
 		raise NetworkException(e)
 
@@ -170,6 +174,9 @@ def request(s, command, **headers) -> dict:
 		raise NetworkException(
 			f"Expected command {command!r} but received {c!r}."
 		)
+	
+	if error := h.get('error'):
+		raise NetworkException(error)
 
 	return h
 
@@ -210,24 +217,36 @@ def pluck_header(headers: dict, key: str, type: Type) -> Any:
 def recv_files(s: socket.socket, file_table):
 	
 	for checksum, filesize, relpath in file_table:
-		filesize_read: int = 0
-		checksummer = hashlib.md5()
-		while filesize_read < filesize:
-			filesize_remaining = filesize - filesize_read
-			buffersize = min(filesize_remaining, SC4MP_BUFFER_SIZE)
-			chunk = s.recv(buffersize)
-			if not chunk:
-				raise NetworkException("Connection closed.")
-			filesize_read += len(chunk)
-			checksummer.update(chunk)
-			yield (checksum, filesize, relpath), chunk
-		checksum_actual = checksummer.hexdigest()
-		if checksum != checksum_actual:
-			raise NetworkException(
-				f"Expected checksum {checksum!r} but received "
-				f"{checksum_actual!r}."
-			)
-		
+
+		def _recv_file():
+
+			filesize_read: int = 0
+			checksummer = hashlib.md5()
+
+			while filesize_read < filesize:
+
+				filesize_remaining = filesize - filesize_read
+				buffersize = min(filesize_remaining, SC4MP_BUFFER_SIZE)
+
+				chunk = s.recv(buffersize)
+
+				if not chunk:
+					raise NetworkException("Connection closed.")
+
+				filesize_read += len(chunk)
+				checksummer.update(chunk)
+
+				yield chunk
+
+			checksum_actual = checksummer.hexdigest()
+			if checksum != checksum_actual:
+				raise NetworkException(
+					f"Checksum mismatch for {relpath!r}: "
+					f"expected {checksum!r}, got {checksum_actual!r}."
+				)
+
+		yield checksum, filesize, relpath, _recv_file()
+
 
 def interpret_socket_error(e: BaseException) -> str:
     """
@@ -421,6 +440,26 @@ class ClientSocket(Socket):
 		return self.request(COMMAND_PING, **headers)
 	
 
+	def file_table(self, target, **headers):
+
+		if target == 'plugins':
+			return self.plugins_table(**headers)
+		elif target == 'regions':
+			return self.regions_table(**headers)
+		else:
+			raise ValueError(f"Invalid target: {target!r}")
+
+
+	def file_table_data(self, target, file_table, **headers):
+
+		if target == 'plugins':
+			return self.plugins_data(file_table, **headers)
+		elif target == 'regions':
+			return self.regions_data(file_table, **headers)
+		else:
+			raise ValueError(f"Invalid target: {target!r}")
+
+
 	def plugins_table(self, **headers) -> list:
 
 		self.request(COMMAND_PLUGINS_TABLE, **headers)
@@ -491,6 +530,28 @@ class ClientSocket(Socket):
 		time = pluck_header(response, 'time', str)
 
 		return datetime.strptime(time, "%Y-%m-%d %H:%M:%S")
+	
+	
+	def server_list(self, **headers):
+
+		self.request(
+			command=COMMAND_SERVER_LIST, **headers
+		)
+
+		server_list = self.recv_json()
+
+		return server_list
+	
+
+	def loading_background(self, **headers):
+
+		response = self.request(
+			command=COMMAND_LOADING_BACKGROUND, **headers
+		)
+
+		size = pluck_header(response, 'size', int)
+
+		return self.recv_exact(size)
 
 
 class ServerSocket(Socket):
@@ -543,9 +604,11 @@ class BaseRequestHandler(Thread):
 			COMMAND_REGIONS_TABLE: self.regions_table,
 			COMMAND_REGIONS_DATA: self.regions_data,
 			COMMAND_SAVE: self.save,
+			COMMAND_SERVER_LIST: self.server_list,
 			COMMAND_USER_ID: self.send_user_id,
 			COMMAND_TOKEN: self.send_token,
-			COMMAND_TIME: self.time
+			COMMAND_TIME: self.time,
+			COMMAND_LOADING_BACKGROUND: self.loading_background
 		}
 
 		self.require_auth = [
@@ -562,7 +625,8 @@ class BaseRequestHandler(Thread):
 			]
 
 
-	def authenticate(self): self.respond()
+	def authenticate(self): ...
+
 	def add_server(self): self.respond()
 	def check_password(self): self.respond()
 	def info(self): self.respond()
@@ -573,9 +637,11 @@ class BaseRequestHandler(Thread):
 	def regions_table(self): self.respond()
 	def regions_data(self): self.respond()
 	def save(self): self.respond()
+	def server_list(self): self.respond()
 	def send_user_id(self): self.respond()
 	def send_token(self): self.respond()
 	def time(self): self.respond()
+	def loading_background(self): self.respond()
 
 
 	def get_header(self, key: str, type: Type):
