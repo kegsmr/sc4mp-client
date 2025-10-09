@@ -728,31 +728,3 @@ class ConnectionClosedException(NetworkException):
 	def __init__(self):
 
 		super().__init__("Connection closed.")
-
-
-if __name__ == "__main__":
-
-	# address = ("127.0.0.1", 8080)
-
-	# def test_serve():
-	# 	s = ServerSocket(address)
-	# 	s.set_headers(test=456)
-	# 	s.listen()
-	# 	while True:
-	# 		c, _ = s.accept()
-	# 		c.settimeout(10)
-	# 		rh = BaseRequestHandler(c)
-	# 		rh.handle_request()
-	# 		c.close()
-
-	# Thread(target=test_serve).start()
-
-	# while True:
-
-	# 	s = ClientSocket(address, timeout=10)
-	# 	s.set_headers(test=123)
-	# 	s.ping()
-
-	s = ClientSocket(('localhost', 7249))
-
-	s.ping(test=123)
