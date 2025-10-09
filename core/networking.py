@@ -156,6 +156,7 @@ def recv_message(s: socket.socket):
 
 		# 2 bytes header length
 		l = struct.unpack("H", recv_exact(s, 2))[0]
+
 		headers = json.loads(recv_exact(s, l).decode())
 
 	except NetworkException:
