@@ -129,14 +129,16 @@ def recv_message(s: socket.socket):
 
 	try:
 
-		pb = recv_exact(s, len(MESSAGE_PROTOCOL))
+		# 5 bytes protocol (b'SC4MP')
+		pb = recv_exact(s, 5)
 		p = pb.decode('ascii')
 		if p != MESSAGE_PROTOCOL:
 			raise NetworkException(
 				f"Expected {MESSAGE_PROTOCOL!r}, but received {p!r}."
 			)
 
-		tb = recv_exact(s, max(len(MESSAGE_TYPE_REQUEST), len(MESSAGE_TYPE_RESPONSE)))
+		# 3 bytes message type (b'Req' or b'Res')
+		tb = recv_exact(s, 3)
 		t = tb.rstrip(b"\x00").decode('ascii')
 		if t == MESSAGE_TYPE_REQUEST:
 			is_request = True
@@ -148,9 +150,11 @@ def recv_message(s: socket.socket):
 				f"{MESSAGE_TYPE_RESPONSE!r} but received {t!r}."
 			)
 
+		# 6 bytes command
 		c = recv_exact(s, 6)
 		command = c.rstrip(b"\x00").decode('ascii')
 
+		# 2 bytes header length
 		l = struct.unpack("H", recv_exact(s, 2))[0]
 		headers = json.loads(recv_exact(s, l).decode())
 
