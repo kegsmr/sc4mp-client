@@ -8,7 +8,7 @@ from typing import Optional, Any, Type
 from threading import Thread
 
 
-SC4MP_BUFFER_SIZE = 4096
+BUFFER_SIZE = 4096
 
 MESSAGE_PROTOCOL = 'SC4MP'
 
@@ -61,7 +61,7 @@ def recv_json(s: socket.socket, length_encoding="I"):
 	
 	while data_size_read < data_size:
 
-		buffer_size = min(SC4MP_BUFFER_SIZE, data_size - data_size_read)
+		buffer_size = min(BUFFER_SIZE, data_size - data_size_read)
 
 		if d := s.recv(buffer_size):
 			data += d
@@ -234,7 +234,7 @@ def recv_files(s: socket.socket, file_table):
 			while filesize_read < filesize:
 
 				filesize_remaining = filesize - filesize_read
-				buffersize = min(filesize_remaining, SC4MP_BUFFER_SIZE)
+				buffersize = min(filesize_remaining, BUFFER_SIZE)
 
 				chunk = s.recv(buffersize)
 
@@ -618,7 +618,7 @@ class BaseRequestHandler(Thread):
 			COMMAND_CHECK_PASSWORD: self.res_check_password,
 			COMMAND_INFO: self.res_info,
 			COMMAND_PASSWORD_ENABLED: self.res_password_enabled,
-			COMMAND_PING: self.ping,
+			COMMAND_PING: self.res_ping,
 			COMMAND_PLUGINS_TABLE: self.res_plugins_table,
 			COMMAND_PLUGINS_DATA: self.res_plugins_data,
 			COMMAND_PRIVATE: self.res_private,
@@ -652,6 +652,7 @@ class BaseRequestHandler(Thread):
 	def res_check_password(self): self.respond()
 	def res_info(self): self.respond()
 	def res_password_enabled(self): self.respond()
+	def res_ping(self): self.respond()
 	def res_plugins_table(self): self.respond()
 	def res_plugins_data(self): self.respond()
 	def res_private(self): self.respond()
@@ -666,6 +667,7 @@ class BaseRequestHandler(Thread):
 
 
 	def get_header(self, key: str, type: Type):
+
 		return pluck_header(self.headers, key, type)
 
 
@@ -699,11 +701,6 @@ class BaseRequestHandler(Thread):
 	def respond(self, **headers):
 
 		return self.c.respond(self.command, **headers)
-
-
-	def ping(self):
-
-		return self.respond()
 
 
 class NetworkException(Exception):
