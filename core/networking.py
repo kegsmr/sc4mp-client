@@ -561,6 +561,13 @@ class ClientSocket(Socket):
 		size = pluck_header(response, 'size', int)
 
 		return self.recv_exact(size)
+	
+
+	def save(self, **headers):
+
+		self.request(
+			command=COMMAND_SAVE, **headers
+		)
 
 
 class ServerSocket(Socket):

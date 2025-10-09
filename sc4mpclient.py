@@ -3211,7 +3211,7 @@ class GameMonitor(th.Thread):
 
 		th.Thread.__init__(self)
 
-		self.server = server
+		self.server: Server = server
 		
 		# Get list of city paths and their md5's
 		self.city_paths, self.city_hashcodes = self.get_cities()
@@ -3392,7 +3392,7 @@ class GameMonitor(th.Thread):
 								try:
 									self.report("", "Saving...")
 									self.set_overlay_state('saving')
-									self.push_save(save_city_paths)
+									self.save(save_city_paths)
 									break
 								except (socket.timeout, socket.error) as e: # Is `ConnectionResetError` a `socket.error`?
 									show_error(e, no_ui=True)
@@ -3593,7 +3593,7 @@ class GameMonitor(th.Thread):
 		return filtered_savegames
 
 
-	def push_save(self, save_city_paths: list[Path]) -> None:
+	def save(self, save_city_paths: list[Path]) -> None:
 
 		# Update overlay
 		self.set_overlay_state("saving")
@@ -3617,17 +3617,14 @@ class GameMonitor(th.Thread):
 			region = list(regions)[0]
 
 		# Create socket
-		s = self.create_socket()
-		if s == None:
+		s = self.server.socket()
+		if s is None:
 			self.report(self.PREFIX, 'Save push failed! Server unreachable.', color="red") #'Unable to save the city "' + new_city + '" because the server is unreachable.'
 			self.set_overlay_state("not-saved")
 			return
 
 		# Send save request
-		s.sendall(f"save {SC4MP_VERSION} {self.server.user_id} {self.server.password}".encode())
-		
-		# Separator
-		s.recv(SC4MP_BUFFER_SIZE)
+		s.save()
 
 		# Send region name and file sizes
 		s.send_json([
