@@ -263,7 +263,7 @@ def interpret_socket_error(e: BaseException) -> str:
     """
 
     if isinstance(e, socket.timeout):
-        return "Operation timed out."
+        return "Connection timed out."
 
     if isinstance(e, ConnectionResetError):
         return "Connection reset by peer."
