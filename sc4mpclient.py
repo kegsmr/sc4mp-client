@@ -3616,53 +3616,42 @@ class GameMonitor(th.Thread):
 		else:
 			region = list(regions)[0]
 
-		# Create socket
-		s = self.server.socket()
-		if s is None:
-			self.report(self.PREFIX, 'Save push failed! Server unreachable.', color="red") #'Unable to save the city "' + new_city + '" because the server is unreachable.'
-			self.set_overlay_state("not-saved")
-			return
+		with self.server.socket() as s:
 
-		# Send save request
-		s.save()
+			# Send save request
+			s.save()
 
-		# Send region name and file sizes
-		s.send_json([
-			region,
-			[os.path.getsize(save_city_path) for save_city_path in save_city_paths]
-		])
+			# Send region name and file sizes
+			s.send_json([
+				region,
+				[os.path.getsize(save_city_path) for save_city_path in save_city_paths]
+			])
 
-		# Separator
-		s.recv(SC4MP_BUFFER_SIZE)
+			# Send file contents
+			total_filesize = sum([save_city_path.stat().st_size for save_city_path in save_city_paths])
+			filesize_sent = 0
+			filesize_reported = None
+			for save_city_path in save_city_paths:
+				with open(save_city_path, "rb") as file:
+					while True:
+						data = file.read(SC4MP_BUFFER_SIZE)
+						if not data:
+							break
+						s.sendall(data)
+						filesize_sent += len(data)
+						if filesize_sent == total_filesize or filesize_reported is None or filesize_sent > filesize_reported + 100000:
+							filesize_reported = filesize_sent
+							self.report_quietly(f'Saving... ({round(filesize_sent / 1000):,}/{round(total_filesize / 1000):,}KB)') 
 
-		# Send file contents
-		total_filesize = sum([save_city_path.stat().st_size for save_city_path in save_city_paths])
-		filesize_sent = 0
-		filesize_reported = None
-		for save_city_path in save_city_paths:
-			with open(save_city_path, "rb") as file:
-				while True:
-					data = file.read(SC4MP_BUFFER_SIZE)
-					if not data:
-						break
-					s.sendall(data)
-					filesize_sent += len(data)
-					if filesize_sent == total_filesize or filesize_reported is None or filesize_sent > filesize_reported + 100000:
-						filesize_reported = filesize_sent
-						self.report_quietly(f'Saving... ({round(filesize_sent / 1000):,}/{round(total_filesize / 1000):,}KB)') 
-
-		# Handle response from server
-		response = s.recv(SC4MP_BUFFER_SIZE).decode()
-		if response == "ok":
-			self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green") #TODO keep track locally of the client's claims
-			self.set_overlay_state("saved")
-			shutil.rmtree(salvage_directory) #TODO make configurable
-		else:
-			self.report(self.PREFIX + "[WARNING] ", f"Save push failed! {response}", color="red")
-			self.set_overlay_state("not-saved")
-
-		# Close socket
-		s.close()
+			# Handle response from server
+			response = s.save_result()
+			if response == "ok":
+				self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green") #TODO keep track locally of the client's claims
+				self.set_overlay_state("saved")
+				shutil.rmtree(salvage_directory) #TODO make configurable
+			else:
+				self.report(self.PREFIX + "[WARNING] ", f"Save push failed! {response}", color="red")
+				self.set_overlay_state("not-saved")
 
 
 	def backup_city(self, city_path: Path) -> None:

@@ -575,6 +575,12 @@ class ClientSocket(Socket):
 		)
 
 
+	def save_result(self):
+
+		_, _, headers = self.recv_message()
+
+		return pluck_header(headers, 'result', str)
+
 class ServerSocket(Socket):
 
 
