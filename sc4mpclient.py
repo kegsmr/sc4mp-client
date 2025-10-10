@@ -3394,7 +3394,7 @@ class GameMonitor(th.Thread):
 									self.set_overlay_state('saving')
 									self.save(save_city_paths)
 									break
-								except (socket.timeout, socket.error) as e: # Is `ConnectionResetError` a `socket.error`?
+								except (NetworkException, socket.timeout, socket.error) as e: # Is `ConnectionResetError` a `socket.error`?
 									show_error(e, no_ui=True)
 								except Exception as e:
 									show_error(e, no_ui=True)
@@ -3675,20 +3675,6 @@ class GameMonitor(th.Thread):
 		shutil.copy(city_path, destination.with_suffix(".sc4"))
 
 
-	def create_socket(self):
-
-		host = self.server.host
-		port = self.server.port
-
-		s = ClientSocket()
-
-		s.settimeout(10)
-
-		s.connect((host, port))
-
-		return s
-
-
 	def ping(self):
 		
 		return self.server.ping()
@@ -3946,30 +3932,6 @@ class RegionsRefresher(th.Thread):
 			self.ui.progress_bar['value'] = value
 			self.ui.progress_bar['maximum'] = maximum
 		print(text)
-
-
-	def create_socket(self):
-		
-
-		host = self.server.host
-		port = self.server.port
-
-		s = ClientSocket()
-
-		s.settimeout(10)
-
-		try:
-
-			self.report("", "Connecting...")
-			s.connect((host, port))
-
-			self.report("", "Connected.")
-
-		except socket.error as e:
-			
-			raise ClientException("Connection failed.\n\n" + str(e)) from e
-
-		return s
 
 
 class DatabaseManager(th.Thread):
@@ -6650,9 +6612,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 			for request in ["Plugins", "Regions"]:
 
-				s = ClientSocket()
-				s.settimeout(10)
-				s.connect((self.server.host, self.server.port))
+				s = self.server.socket()
 
 				if not self.server.private:
 					s.send(request.lower().encode())
