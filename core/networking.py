@@ -416,10 +416,10 @@ class ClientSocket(Socket):
 			raise NetworkException(e) from e
 
 
-	def add_server(self, port, **headers) -> bool:
+	def add_server(self, host, port, **headers) -> bool:
 
 		return is_success(
-			self.request(COMMAND_ADD_SERVER, port=port, **headers)
+			self.request(COMMAND_ADD_SERVER, host=host, port=port, **headers)
 		)
 
 
