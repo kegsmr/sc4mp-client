@@ -645,3 +645,13 @@ def update_python_version(path: str, version: str) -> None:
         with open(path, 'w', encoding='utf-8') as f:
             f.write(updated_content)
         print(f'Updated SC4MP_VERSION to "{version}" in "{path}".')
+
+
+def sanitize_relpath(basepath: Path, relpath: str) -> Path:
+
+	fullpath = basepath / relpath
+
+	if str(fullpath.resolve()).startswith(str(basepath.resolve())):
+		return fullpath
+	else:
+		raise ValueError(f"Invalid relative path: \"{relpath}\".")
