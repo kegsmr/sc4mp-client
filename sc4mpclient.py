@@ -803,19 +803,7 @@ def start_sc4():
 
 
 	# Arguments set based on config settings
-	arguments = [str(path),
-			  f'-UserDir:"{SC4MP_LAUNCHPATH}{os.sep}"', # add trailing slash here because SC4 expects it
-			  '-intro:off',
-			  '-CustomResolution:enabled',
-			  f'-r{resw}x{resh}x32',
-			  f'-CPUCount:{sc4mp_config["SC4"]["cpu_count"]}',
-			  f'-CPUPriority:{sc4mp_config["SC4"]["cpu_priority"]}'
-			  ]
-	if sc4mp_config["SC4"]["fullscreen"]:
-		arguments.append('-f')
-	else:
-		arguments.append('-w')
-	arguments.extend(sc4mp_config["SC4"]["additional_properties"].strip().split(' '))  # assumes that properties do not have spaces
+	arguments = get_sc4_launch_args(path, resw, resh)
 
 	# `True` if the game is installed using Steam
 	steam_sc4 = is_steam_sc4(path)
@@ -892,6 +880,25 @@ def start_sc4():
 	
 	# SimCity 4 has closed
 	print("SimCity 4 closed.")
+
+
+def get_sc4_launch_args(path, resw: int, resh: int) -> list[str]:
+
+	arguments = [str(path),
+			  f'-UserDir:"{SC4MP_LAUNCHPATH}{os.sep}"', # add trailing slash here because SC4 expects it
+			  '-intro:off',
+			  '-CustomResolution:enabled',
+			  f'-r{resw}x{resh}x32',
+			  f'-CPUCount:{sc4mp_config["SC4"]["cpu_count"]}',
+			  f'-CPUPriority:{sc4mp_config["SC4"]["cpu_priority"]}'
+			  ]
+	if sc4mp_config["SC4"]["fullscreen"]:
+		arguments.append('-f')
+	else:
+		arguments.append('-w')
+	arguments.extend(str(sc4mp_config["SC4"]["additional_properties"]).strip().split(' '))  # assumes that properties do not have spaces
+
+	return arguments
 
 
 def is_steam_sc4(path: Path):
