@@ -3297,36 +3297,39 @@ class GameMonitor(th.Thread):
 				try:
 
 					# Update server ping in UI every 5 seconds
-					if last_ping_time is None or time.time() - last_ping_time >= 5:
+					# if last_ping_time is None or time.time() - last_ping_time >= 5:
 
-						# Ping the server
-						try:
-							ping, events = calculate_latency(self.socket.events)
-						except Exception as e:
-							show_error(e, no_ui=True)
-							ping, events = None, []
+					# Ping the server
+					try:
+						request = self.socket.ping if self.server.guest \
+							else self.socket.events
+						ping, events = calculate_latency(request)
+					except Exception as e:
+						show_error(e, no_ui=True)
+						ping, events = None, None
 
-						#TODO Handle events
+					#TODO Handle events
+					if events:
 						for event in events:
 							print(event)
 
-						# If the server is unresponsive, print a warning in the console and update the ui accordingly
-						if ping is None:
-							print("[WARNING] Disconnected.")
-							if self.ui != None:
-								self.ui.ping_frame.right['text'] = "Disconnected"
-								self.ui.ping_frame.right['fg'] = "red"
-							self.connect()
-						
-						# If the server is responsive, print the ping in the console and display the ping in the ui
-						else:
-							print(f"Ping: {ping}")
-							if self.ui != None:
-								self.ui.ping_frame.right['text'] = f"{ping}ms"
-								self.ui.ping_frame.right['fg'] = "gray"
+					# If the server is unresponsive, print a warning in the console and update the ui accordingly
+					if ping is None:
+						print("[WARNING] Disconnected.")
+						if self.ui != None:
+							self.ui.ping_frame.right['text'] = "Disconnected"
+							self.ui.ping_frame.right['fg'] = "red"
+						self.connect()
+					
+					# If the server is responsive, print the ping in the console and display the ping in the ui
+					else:
+						# print(f"Ping: {ping}")
+						if self.ui != None:
+							self.ui.ping_frame.right['text'] = f"{ping}ms"
+							self.ui.ping_frame.right['fg'] = "gray"
 					
 						# Set the last ping time
-						last_ping_time = time.time()
+						# last_ping_time = time.time()
 
 					# If not in guest mode
 					if not self.server.guest:
