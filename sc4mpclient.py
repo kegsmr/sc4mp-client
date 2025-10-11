@@ -1349,6 +1349,7 @@ class Server:
 		#self.stats = False
 		self.password = None
 		self.user_id = None
+		self.guest = None
 
 		self.categories = ["All"]
 		if self.host == SC4MP_SERVERS_DOMAIN:
@@ -1619,7 +1620,7 @@ class Server:
 
 		try:
 			with self.socket() as s:
-				self.server_ping = calculate_latency(s.ping)
+				self.server_ping, _ = calculate_latency(s.ping)
 				return self.server_ping
 		except (NetworkException, socket.error):
 			return None
@@ -3299,7 +3300,15 @@ class GameMonitor(th.Thread):
 					if last_ping_time is None or time.time() - last_ping_time >= 5:
 
 						# Ping the server
-						ping = self.ping()
+						try:
+							ping, events = calculate_latency(self.socket.events)
+						except Exception as e:
+							show_error(e, no_ui=True)
+							ping, events = None, []
+
+						#TODO Handle events
+						for event in events:
+							print(event)
 
 						# If the server is unresponsive, print a warning in the console and update the ui accordingly
 						if ping is None:
@@ -3320,7 +3329,7 @@ class GameMonitor(th.Thread):
 						last_ping_time = time.time()
 
 					# If not in guest mode
-					if self.server.password != "":
+					if not self.server.guest:
 
 						#new_city_paths, new_city_hashcodes = self.get_cities()
 						
@@ -3533,6 +3542,7 @@ class GameMonitor(th.Thread):
 	def connect(self):
 		try:
 			self.socket = self.server.socket()
+			self.socket.subscribe()
 		except Exception as e:
 			show_error(e, no_ui=True)
 
@@ -3680,14 +3690,6 @@ class GameMonitor(th.Thread):
 		backup_directory.mkdir(exist_ok=True, parents=True)
 		destination = backup_directory / datetime.now().strftime("%Y%m%d%H%M%S")
 		shutil.copy(city_path, destination.with_suffix(".sc4"))
-
-
-	def ping(self):
-
-		try:
-			return calculate_latency(self.socket.ping)
-		except Exception:
-			return None
 
 
 	def report(self, prefix, text, color="black"):
@@ -5129,6 +5131,7 @@ class PasswordDialogUI(tk.Toplevel):
 				if self.server_loader.ui.background:
 					self.server_loader.ui.background.lift()
 				if not messagebox.askokcancel(self.server_loader.server.server_name, "You are about to join the server as a guest.\n\nAny cities you build will NOT be saved.", icon="info"):
+					self.server_loader.server.guest = True
 					self.deiconify()
 					return
 

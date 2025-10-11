@@ -659,12 +659,13 @@ def sanitize_relpath(basepath: Path, relpath: str) -> Path:
 		raise ValueError(f"Invalid relative path: \"{relpath}\".")
 
 
-def calculate_latency(function: Callable) -> int:
+def calculate_latency(function: Callable) -> tuple:
 	"""
-	Calls a function and returns the time in miliseconds it took to execute.
+	Calls a function and returns the time in miliseconds it took to execute,
+	as well as the return value of the function.
 	"""
 
 	start = time.time()
-	function()
+	r = function()
 	end = time.time()
-	return round(1000 * (end - start))
+	return round(1000 * (end - start)), r

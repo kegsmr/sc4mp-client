@@ -17,6 +17,7 @@ MESSAGE_TYPE_RESPONSE = 'Res'
 
 COMMAND_ADD_SERVER = 'AddSrv'
 COMMAND_CHECK_PASSWORD = 'ChkPwd'
+COMMAND_EVENTS = 'Events'
 COMMAND_INFO = 'Info'
 COMMAND_PASSWORD_ENABLED = 'PwdEnb'
 COMMAND_PING = 'Ping'
@@ -31,6 +32,7 @@ COMMAND_USER_ID = 'UserId'
 COMMAND_TOKEN = 'Token'
 COMMAND_TIME = 'Time'
 COMMAND_LOADING_BACKGROUND = 'LdgBkg'
+COMMAND_SUBSCRIBE = 'Subscr'
 
 
 def send_json(s: socket.socket, data, length_encoding="I"):
@@ -581,6 +583,23 @@ class ClientSocket(Socket):
 
 		return pluck_header(headers, 'result', str)
 
+
+	def subscribe(self, **headers):
+
+		self.request(
+			command=COMMAND_SUBSCRIBE, **headers
+		)
+
+	
+	def events(self, **headers) -> list:
+
+		response = self.request(
+			command=COMMAND_EVENTS, **headers
+		)
+
+		return pluck_header(response, 'events', list)
+
+
 class ServerSocket(Socket):
 
 
@@ -622,6 +641,7 @@ class BaseRequestHandler(Thread):
 		self.commands = {
 			COMMAND_ADD_SERVER: self.res_add_server,
 			COMMAND_CHECK_PASSWORD: self.res_check_password,
+			COMMAND_EVENTS: self.res_events,
 			COMMAND_INFO: self.res_info,
 			COMMAND_PASSWORD_ENABLED: self.res_password_enabled,
 			COMMAND_PING: self.res_ping,
@@ -635,12 +655,15 @@ class BaseRequestHandler(Thread):
 			COMMAND_USER_ID: self.res_user_id,
 			COMMAND_TOKEN: self.res_token,
 			COMMAND_TIME: self.res_time,
-			COMMAND_LOADING_BACKGROUND: self.res_loading_background
+			COMMAND_LOADING_BACKGROUND: self.res_loading_background,
+			COMMAND_SUBSCRIBE: self.res_subscribe
 		}
 
 		self.require_auth = [
 			COMMAND_SAVE,
-			COMMAND_TOKEN
+			COMMAND_TOKEN,
+			COMMAND_SUBSCRIBE,
+			COMMAND_EVENTS
 		]
 
 		if private:
@@ -656,6 +679,7 @@ class BaseRequestHandler(Thread):
 
 	def res_add_server(self): self.respond()
 	def res_check_password(self): self.respond()
+	def res_events(self): self.respond()
 	def res_info(self): self.respond()
 	def res_password_enabled(self): self.respond()
 	def res_ping(self): self.respond()
@@ -670,6 +694,7 @@ class BaseRequestHandler(Thread):
 	def res_token(self): self.respond()
 	def res_time(self): self.respond()
 	def res_loading_background(self): self.respond()
+	def res_subscribe(self): self.respond()
 
 
 	def get_header(self, key: str, type: Type):
