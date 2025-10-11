@@ -16,11 +16,13 @@ import string
 import struct
 import subprocess
 import sys
+import time
 import threading as th
 import urllib.request
 import urllib.error
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Callable
 
 try:
 	import requests
@@ -655,3 +657,14 @@ def sanitize_relpath(basepath: Path, relpath: str) -> Path:
 		return fullpath
 	else:
 		raise ValueError(f"Invalid relative path: \"{relpath}\".")
+
+
+def calculate_latency(function: Callable) -> int:
+	"""
+	Calls a function and returns the time in miliseconds it took to execute.
+	"""
+
+	start = time.time()
+	function()
+	end = time.time()
+	return round(1000 * (end - start))

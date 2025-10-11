@@ -1619,10 +1619,7 @@ class Server:
 
 		try:
 			with self.socket() as s:
-				start = time.time()
-				s.ping()
-				end = time.time()
-				self.server_ping = round(1000 * (end - start))
+				self.server_ping = calculate_latency(s.ping)
 				return self.server_ping
 		except (NetworkException, socket.error):
 			return None
