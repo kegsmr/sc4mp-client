@@ -3210,6 +3210,8 @@ class GameMonitor(th.Thread):
 
 		self.server: Server = server
 		
+		self.socket = None
+		
 		# Get list of city paths and their md5's
 		self.city_paths, self.city_hashcodes = self.get_cities()
 
@@ -3285,6 +3287,8 @@ class GameMonitor(th.Thread):
 			# Time the server was last pinged (`None` for now)
 			last_ping_time = None
 
+			self.connect()
+
 			# Infinite loop that can be broken by the "end" variable (runs an extra time once it's set to `True`)
 			while True:
 
@@ -3297,19 +3301,20 @@ class GameMonitor(th.Thread):
 						# Ping the server
 						ping = self.ping()
 
-						# If the server is responsive, print the ping in the console and display the ping in the ui
-						if ping != None:
-							print(f"Ping: {ping}")
-							if self.ui != None:
-								self.ui.ping_frame.right['text'] = f"{ping}ms"
-								self.ui.ping_frame.right['fg'] = "gray"
-						
 						# If the server is unresponsive, print a warning in the console and update the ui accordingly
-						else:
+						if ping is None:
 							print("[WARNING] Disconnected.")
 							if self.ui != None:
 								self.ui.ping_frame.right['text'] = "Disconnected"
 								self.ui.ping_frame.right['fg'] = "red"
+							self.connect()
+						
+						# If the server is responsive, print the ping in the console and display the ping in the ui
+						else:
+							print(f"Ping: {ping}")
+							if self.ui != None:
+								self.ui.ping_frame.right['text'] = f"{ping}ms"
+								self.ui.ping_frame.right['fg'] = "gray"
 					
 						# Set the last ping time
 						last_ping_time = time.time()
@@ -3406,6 +3411,7 @@ class GameMonitor(th.Thread):
 									self.report("[WARNING] ", "Save push failed! Server unreachable.", color="red")
 									self.set_overlay_state("not-saved")
 									break
+								self.connect()
 							time.sleep(5)
 
 					# Break the loop when signaled
@@ -3518,6 +3524,23 @@ class GameMonitor(th.Thread):
 		except Exception as e:
 			
 			show_error(f"An unexpected error occurred in the game monitor thread.\n\n{e}")
+		
+		finally:
+
+			self.disconnect()
+
+
+	def connect(self):
+		try:
+			self.socket = self.server.socket()
+		except Exception as e:
+			show_error(e, no_ui=True)
+
+
+	def disconnect(self):
+		if self.socket:
+			self.socket.close()
+		self.socket = None
 
 
 	def get_cities(self) -> tuple[list[Path], list[str]]:
@@ -3613,42 +3636,40 @@ class GameMonitor(th.Thread):
 		else:
 			region = list(regions)[0]
 
-		with self.server.socket() as s:
+		# Send save request
+		self.socket.save()
 
-			# Send save request
-			s.save()
+		# Send region name and file sizes
+		self.socket.send_json([
+			region,
+			[os.path.getsize(save_city_path) for save_city_path in save_city_paths]
+		])
 
-			# Send region name and file sizes
-			s.send_json([
-				region,
-				[os.path.getsize(save_city_path) for save_city_path in save_city_paths]
-			])
+		# Send file contents
+		total_filesize = sum([save_city_path.stat().st_size for save_city_path in save_city_paths])
+		filesize_sent = 0
+		filesize_reported = None
+		for save_city_path in save_city_paths:
+			with open(save_city_path, "rb") as file:
+				while True:
+					data = file.read(SC4MP_BUFFER_SIZE)
+					if not data:
+						break
+					self.socket.sendall(data)
+					filesize_sent += len(data)
+					if filesize_sent == total_filesize or filesize_reported is None or filesize_sent > filesize_reported + 100000:
+						filesize_reported = filesize_sent
+						self.report_quietly(f'Saving... ({round(filesize_sent / 1000):,}/{round(total_filesize / 1000):,}KB)') 
 
-			# Send file contents
-			total_filesize = sum([save_city_path.stat().st_size for save_city_path in save_city_paths])
-			filesize_sent = 0
-			filesize_reported = None
-			for save_city_path in save_city_paths:
-				with open(save_city_path, "rb") as file:
-					while True:
-						data = file.read(SC4MP_BUFFER_SIZE)
-						if not data:
-							break
-						s.sendall(data)
-						filesize_sent += len(data)
-						if filesize_sent == total_filesize or filesize_reported is None or filesize_sent > filesize_reported + 100000:
-							filesize_reported = filesize_sent
-							self.report_quietly(f'Saving... ({round(filesize_sent / 1000):,}/{round(total_filesize / 1000):,}KB)') 
-
-			# Handle response from server
-			response = s.save_result()
-			if response == "ok":
-				self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green") #TODO keep track locally of the client's claims
-				self.set_overlay_state("saved")
-				shutil.rmtree(salvage_directory) #TODO make configurable
-			else:
-				self.report(self.PREFIX + "[WARNING] ", f"Save push failed! {response}", color="red")
-				self.set_overlay_state("not-saved")
+		# Handle response from server
+		response = self.socket.save_result()
+		if response == "ok":
+			self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green") #TODO keep track locally of the client's claims
+			self.set_overlay_state("saved")
+			shutil.rmtree(salvage_directory) #TODO make configurable
+		else:
+			self.report(self.PREFIX + "[WARNING] ", f"Save push failed! {response}", color="red")
+			self.set_overlay_state("not-saved")
 
 
 	def backup_city(self, city_path: Path) -> None:
@@ -3662,8 +3683,11 @@ class GameMonitor(th.Thread):
 
 
 	def ping(self):
-		
-		return self.server.ping()
+
+		try:
+			return calculate_latency(self.socket.ping)
+		except Exception:
+			return None
 
 
 	def report(self, prefix, text, color="black"):

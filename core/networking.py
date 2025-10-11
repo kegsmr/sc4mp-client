@@ -110,9 +110,9 @@ def send_message(s: socket.socket, is_request=True, command="Ping", headers=None
 		message = m.encode('ascii')
 
 		while len(message) < 14:
-			message += b"\x00"
+			message += b'\x00'
 
-		h = json.dumps(headers).encode()
+		h = json.dumps(headers).encode() if headers else b''
 		l = struct.pack("H", len(h))
 
 		message += l + h
@@ -157,7 +157,7 @@ def recv_message(s: socket.socket):
 		# 2 bytes header length
 		l = struct.unpack("H", recv_exact(s, 2))[0]
 
-		headers = json.loads(recv_exact(s, l).decode())
+		headers = json.loads(recv_exact(s, l).decode()) if l else {}
 
 	except NetworkException:
 		raise
@@ -687,6 +687,7 @@ class BaseRequestHandler(Thread):
 		if not is_request:
 			raise NetworkException("Expected request but got response.")
 
+		self.address = self.c.getpeername()[0]
 		self.command = command
 		self.headers = headers
 
