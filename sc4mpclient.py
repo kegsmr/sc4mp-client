@@ -3319,9 +3319,9 @@ class GameMonitor(th.Thread):
 							# Set the last ping time
 							last_ping_time = time.time()
 
-					#TODO Handle events
-					while event := self.event_listener.pop():
-						print(f"RECEIVED: {event}")
+					#TODO Handle save events
+					while event := self.event_listener.pop('save'):
+						pass
 
 					# If not in guest mode
 					if not self.server.guest:
