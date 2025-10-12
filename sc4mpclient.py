@@ -3415,7 +3415,6 @@ class GameMonitor(th.Thread):
 									self.report("[WARNING] ", "Save push failed! Server unreachable.", color="red")
 									self.set_overlay_state("not-saved")
 									break
-								self.connect()
 							time.sleep(5)
 
 					# Break the loop when signaled
@@ -3697,6 +3696,9 @@ class GameMonitor(th.Thread):
 class EventListener(th.Thread):
 
 
+	MAX_EVENTS = 1000
+
+
 	def __init__(self, server):
 
 		super().__init__(daemon=True)
@@ -3726,6 +3728,8 @@ class EventListener(th.Thread):
 						for event in events:
 							print(event)
 							self._events.append(event)
+							while len(self._events) > self.MAX_EVENTS:
+								self._events.pop(0)
 				except TimeoutException:
 					pass
 				except NetworkException:

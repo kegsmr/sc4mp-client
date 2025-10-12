@@ -7,6 +7,9 @@ from threading import Lock, Condition
 class EventChannel:
 
 
+	MAX_EVENTS = 1000
+
+
 	def __init__(self):
 
 		self._lock = Lock()
@@ -52,6 +55,8 @@ class EventChannel:
 				if exclude and user_id in exclude:
 					continue
 				self._events[user_id].append(event)
+				while len(self._events[user_id]) > self.MAX_EVENTS:
+					self._events.pop(0)
 			self._condition.notify_all()
 
 
