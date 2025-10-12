@@ -56,7 +56,7 @@ class EventChannel:
 					continue
 				self._events[user_id].append(event)
 				while len(self._events[user_id]) > self.MAX_EVENTS:
-					self._events.pop(0)
+					self._events[user_id].pop(0)
 			self._condition.notify_all()
 
 
