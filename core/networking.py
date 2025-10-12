@@ -17,7 +17,6 @@ MESSAGE_TYPE_RESPONSE = 'Res'
 
 COMMAND_ADD_SERVER = 'AddSrv'
 COMMAND_CHECK_PASSWORD = 'ChkPwd'
-COMMAND_EVENTS = 'Events'
 COMMAND_INFO = 'Info'
 COMMAND_PASSWORD_ENABLED = 'PwdEnb'
 COMMAND_PING = 'Ping'
@@ -37,63 +36,84 @@ COMMAND_SUBSCRIBE = 'Subscr'
 
 def send_json(s: socket.socket, data, length_encoding="I"):
 
-	if data is None:
-		data = {}
+	try:
 
-	data = json.dumps(data).encode()
+		if data is None:
+			data = {}
 
-	s.sendall(struct.pack(length_encoding, len(data)) + data)
+		data = json.dumps(data).encode()
+
+		s.sendall(struct.pack(length_encoding, len(data)) + data)
+
+	except NetworkException:
+		raise
+	except Exception as e:
+		raise pretty_exception(e) from e
 
 
 def recv_json(s: socket.socket, length_encoding="I"):
 
-	length_header_size = struct.calcsize(length_encoding)
-	length_header = b""
+	try:
 
-	while len(length_header) < length_header_size:
-		if d := s.recv(length_header_size - len(length_header)):
-			length_header += d
-		else:
-			raise ConnectionClosedException()
+		length_header_size = struct.calcsize(length_encoding)
+		length_header = b""
 
-	data_size = struct.unpack(length_encoding, length_header)[0]
-	data_size_read = 0
+		while len(length_header) < length_header_size:
+			if d := s.recv(length_header_size - len(length_header)):
+				length_header += d
+			else:
+				raise ConnectionClosedException()
 
-	data = b""
+		data_size = struct.unpack(length_encoding, length_header)[0]
+		data_size_read = 0
+
+		data = b""
+		
+		while data_size_read < data_size:
+
+			buffer_size = min(BUFFER_SIZE, data_size - data_size_read)
+
+			if d := s.recv(buffer_size):
+				data += d
+				data_size_read += len(d)
+			else:
+				raise ConnectionClosedException()
+
+		if len(data) < 1:
+			raise NetworkException('No data received.')
+		
+		return json.loads(data.decode())
 	
-	while data_size_read < data_size:
-
-		buffer_size = min(BUFFER_SIZE, data_size - data_size_read)
-
-		if d := s.recv(buffer_size):
-			data += d
-			data_size_read += len(d)
-		else:
-			raise ConnectionClosedException()
-
-	if len(data) < 1:
-		raise NetworkException('No data received.')
-	
-	return json.loads(data.decode())
+	except NetworkException:
+		raise
+	except Exception as e:
+		raise pretty_exception(e) from e
 
 
 def recv_exact(s: socket.socket, length: int) -> bytes:
 
-	data = bytearray()
-	remaining = length
+	try:
 
-	while remaining > 0:
+		data = bytearray()
+		remaining = length
 
-		chunk = s.recv(remaining)
+		while remaining > 0:
 
-		if not chunk:
-			raise ConnectionClosedException()
-		
-		data += chunk
-		remaining -= len(chunk)
+			chunk = s.recv(remaining)
 
-	return bytes(data)
-	
+			if not chunk:
+				raise ConnectionClosedException()
+			
+			data += chunk
+			remaining -= len(chunk)
+
+		return bytes(data)
+
+	except NetworkException:
+		raise
+	except Exception as e:
+		raise pretty_exception(e) from e
+
 
 def send_message(s: socket.socket, is_request=True, command="Ping", headers=None):
 
@@ -121,10 +141,10 @@ def send_message(s: socket.socket, is_request=True, command="Ping", headers=None
 
 		s.sendall(message)
 
-	except NetworkException as e:
-		raise e
+	except NetworkException:
+		raise
 	except Exception as e:
-		raise NetworkException(e) from e
+		raise pretty_exception(e) from e
 
 
 def recv_message(s: socket.socket):
@@ -161,34 +181,42 @@ def recv_message(s: socket.socket):
 
 		headers = json.loads(recv_exact(s, l).decode()) if l else {}
 
+		return is_request, command, headers
+
 	except NetworkException:
 		raise
 	except Exception as e:
-		raise NetworkException(e) from e
+		raise pretty_exception(e) from e
 
-	return is_request, command, headers
 	
 
 def request(s, command, **headers) -> dict:
+		
+	try:
 
-	send_message(s, True, command, headers)
+		send_message(s, True, command, headers)
 
-	is_request, c, h = recv_message(s)
+		is_request, c, h = recv_message(s)
 
-	if is_request:
-		raise NetworkException(
-			"Expected response message but received request message."
-		)
+		if is_request:
+			raise NetworkException(
+				"Expected response message but received request message."
+			)
 
-	if c != command:
-		raise NetworkException(
-			f"Expected command {command!r} but received {c!r}."
-		)
+		if c != command:
+			raise NetworkException(
+				f"Expected command {command!r} but received {c!r}."
+			)
+		
+		if error := h.get('error'):
+			raise NetworkException(error)
+
+		return h
 	
-	if error := h.get('error'):
-		raise NetworkException(error)
-
-	return h
+	except NetworkException:
+		raise
+	except Exception as e:
+		raise pretty_exception(e) from e
 
 
 def respond(s, command, **headers):
@@ -226,36 +254,43 @@ def pluck_header(headers: dict, key: str, type: Type) -> Any:
 
 def recv_files(s: socket.socket, file_table):
 	
-	for checksum, filesize, relpath in file_table:
+	try:
 
-		def _recv_file():
+		for checksum, filesize, relpath in file_table:
 
-			filesize_read: int = 0
-			checksummer = hashlib.md5()
+			def _recv_file():
 
-			while filesize_read < filesize:
+				filesize_read: int = 0
+				checksummer = hashlib.md5()
 
-				filesize_remaining = filesize - filesize_read
-				buffersize = min(filesize_remaining, BUFFER_SIZE)
+				while filesize_read < filesize:
 
-				chunk = s.recv(buffersize)
+					filesize_remaining = filesize - filesize_read
+					buffersize = min(filesize_remaining, BUFFER_SIZE)
 
-				if not chunk:
-					raise ConnectionClosedException()
+					chunk = s.recv(buffersize)
 
-				filesize_read += len(chunk)
-				checksummer.update(chunk)
+					if not chunk:
+						raise ConnectionClosedException()
 
-				yield chunk
+					filesize_read += len(chunk)
+					checksummer.update(chunk)
 
-			checksum_actual = checksummer.hexdigest()
-			if checksum != checksum_actual:
-				raise NetworkException(
-					f"Checksum mismatch for {relpath!r}: "
-					f"expected {checksum!r}, got {checksum_actual!r}."
-				)
+					yield chunk
 
-		yield checksum, filesize, relpath, _recv_file()
+				checksum_actual = checksummer.hexdigest()
+				if checksum != checksum_actual:
+					raise NetworkException(
+						f"Checksum mismatch for {relpath!r}: "
+						f"expected {checksum!r}, got {checksum_actual!r}."
+					)
+
+			yield checksum, filesize, relpath, _recv_file()
+
+	except NetworkException:
+		raise
+	except Exception as e:
+		raise pretty_exception(e) from e
 
 
 def interpret_socket_error(e: BaseException) -> str:
@@ -337,7 +372,19 @@ def interpret_socket_error(e: BaseException) -> str:
         return f"Unrecognized socket error: [Errno {err}] {e.strerror or e}"
 
     # Fallback for unexpected types
-    return f"Unknown error: {e.__class__.__name__!r}: {e}"
+    return f"{e.__class__.__name__!r}: {e}"
+
+
+def pretty_exception(e):
+
+	if isinstance(e, NetworkException):
+		return e
+	elif isinstance(e, socket.timeout):
+		return TimeoutException()
+	else:
+		return NetworkException(
+			interpret_socket_error(e)
+		)
 
 
 class Socket(socket.socket):
@@ -409,13 +456,14 @@ class ClientSocket(Socket):
 
 		super().__init__(**options)
 
-		self.settimeout(timeout)
+		if timeout is not None:
+			self.settimeout(timeout)
 
 		try:
 			if address:
 				self.connect(address)
 		except Exception as e:
-			raise NetworkException(e) from e
+			raise pretty_exception(e) from e
 
 
 	def add_server(self, host, port, **headers) -> bool:
@@ -590,12 +638,10 @@ class ClientSocket(Socket):
 			command=COMMAND_SUBSCRIBE, **headers
 		)
 
-	
-	def events(self, **headers) -> list:
 
-		response = self.request(
-			command=COMMAND_EVENTS, **headers
-		)
+	def events(self) -> list:
+
+		_, _, response = self.recv_message()
 
 		return pluck_header(response, 'events', list)
 
@@ -641,7 +687,6 @@ class BaseRequestHandler(Thread):
 		self.commands = {
 			COMMAND_ADD_SERVER: self.res_add_server,
 			COMMAND_CHECK_PASSWORD: self.res_check_password,
-			COMMAND_EVENTS: self.res_events,
 			COMMAND_INFO: self.res_info,
 			COMMAND_PASSWORD_ENABLED: self.res_password_enabled,
 			COMMAND_PING: self.res_ping,
@@ -662,8 +707,7 @@ class BaseRequestHandler(Thread):
 		self.require_auth = [
 			COMMAND_SAVE,
 			COMMAND_TOKEN,
-			COMMAND_SUBSCRIBE,
-			COMMAND_EVENTS
+			COMMAND_SUBSCRIBE
 		]
 
 		if private:
@@ -738,12 +782,7 @@ class BaseRequestHandler(Thread):
 class NetworkException(Exception):
 	
 
-	def __init__(self, e, *args):
-		
-		if isinstance(e, str):
-			message = e
-		else:
-			message = interpret_socket_error(e)
+	def __init__(self, message, *args):
 
 		super().__init__(message, *args)
 
@@ -760,3 +799,10 @@ class ConnectionClosedException(NetworkException):
 	def __init__(self):
 
 		super().__init__("Connection closed.")
+
+
+class TimeoutException(NetworkException):
+
+	def __init__(self):
+
+		super().__init__("Connection timed out.")

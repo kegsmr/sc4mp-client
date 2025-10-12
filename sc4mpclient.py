@@ -36,7 +36,7 @@ except ImportError:
 
 from core.config import Config
 from core.dbpf import SC4Savegame, SC4Config
-from core.networking import ClientSocket, NetworkException
+from core.networking import ClientSocket, NetworkException, TimeoutException
 from core.util import *
 
 
@@ -1641,9 +1641,9 @@ class Server:
 			return datetime.now()
 
 
-	def socket(self) -> ClientSocket:
+	def socket(self, **options) -> ClientSocket:
 
-		s = ClientSocket((self.host, self.port))
+		s = ClientSocket((self.host, self.port), **options)
 
 		s.set_headers(
 			version=SC4MP_VERSION,
@@ -2677,7 +2677,7 @@ class ServerLoader(th.Thread):
 				if self.server.password != "":
 					self.server.authenticate()
 				break
-			except (socket.error, socket.timeout) as e:
+			except (NetworkException, socket.error, socket.timeout) as e:
 				self.connection_failed_retrying(e)
 		
 
@@ -3211,8 +3211,6 @@ class GameMonitor(th.Thread):
 
 		self.server: Server = server
 		
-		self.socket = None
-		
 		# Get list of city paths and their md5's
 		self.city_paths, self.city_hashcodes = self.get_cities()
 
@@ -3248,6 +3246,10 @@ class GameMonitor(th.Thread):
 		# Start the game launcher thread (starts the game)
 		self.game_launcher = GameLauncher()
 		self.game_launcher.start()
+
+		# Start the event listener (listens for events on the server)
+		self.event_listener = EventListener(self.server)
+		self.event_listener.start()
 
 		# Thread shutsdown when this is set to `True`
 		self.end = False
@@ -3286,9 +3288,7 @@ class GameMonitor(th.Thread):
 				self.ui.url_label["text"] = self.server.server_url
 
 			# Time the server was last pinged (`None` for now)
-			last_ping_time = None
-
-			self.connect()
+			last_ping_time = time.time()
 
 			# Infinite loop that can be broken by the "end" variable (runs an extra time once it's set to `True`)
 			while True:
@@ -3297,39 +3297,31 @@ class GameMonitor(th.Thread):
 				try:
 
 					# Update server ping in UI every 5 seconds
-					# if last_ping_time is None or time.time() - last_ping_time >= 5:
+					if time.time() - last_ping_time >= 15:
 
-					# Ping the server
-					try:
-						request = self.socket.ping if self.server.guest \
-							else self.socket.events
-						ping, events = calculate_latency(request)
-					except Exception as e:
-						show_error(e, no_ui=True)
-						ping, events = None, None
+						# Ping the server
+						ping = self.server.ping()
+
+						# If the server is unresponsive, print a warning in the console and update the ui accordingly
+						if ping is None:
+							print("[WARNING] Disconnected.")
+							if self.ui != None:
+								self.ui.ping_frame.right['text'] = "Disconnected"
+								self.ui.ping_frame.right['fg'] = "red"
+						
+						# If the server is responsive, print the ping in the console and display the ping in the ui
+						else:
+							# print(f"Ping: {ping}")
+							if self.ui != None:
+								self.ui.ping_frame.right['text'] = f"{ping}ms"
+								self.ui.ping_frame.right['fg'] = "gray"
+
+							# Set the last ping time
+							last_ping_time = time.time()
 
 					#TODO Handle events
-					if events:
-						for event in events:
-							print(event)
-
-					# If the server is unresponsive, print a warning in the console and update the ui accordingly
-					if ping is None:
-						print("[WARNING] Disconnected.")
-						if self.ui != None:
-							self.ui.ping_frame.right['text'] = "Disconnected"
-							self.ui.ping_frame.right['fg'] = "red"
-						self.connect()
-					
-					# If the server is responsive, print the ping in the console and display the ping in the ui
-					else:
-						# print(f"Ping: {ping}")
-						if self.ui != None:
-							self.ui.ping_frame.right['text'] = f"{ping}ms"
-							self.ui.ping_frame.right['fg'] = "gray"
-					
-						# Set the last ping time
-						# last_ping_time = time.time()
+					while event := self.event_listener.pop():
+						print(f"RECEIVED: {event}")
 
 					# If not in guest mode
 					if not self.server.guest:
@@ -3539,21 +3531,7 @@ class GameMonitor(th.Thread):
 		
 		finally:
 
-			self.disconnect()
-
-
-	def connect(self):
-		try:
-			self.socket = self.server.socket()
-			self.socket.subscribe()
-		except Exception as e:
-			show_error(e, no_ui=True)
-
-
-	def disconnect(self):
-		if self.socket:
-			self.socket.close()
-		self.socket = None
+			self.event_listener.stop()
 
 
 	def get_cities(self) -> tuple[list[Path], list[str]]:
@@ -3649,40 +3627,42 @@ class GameMonitor(th.Thread):
 		else:
 			region = list(regions)[0]
 
-		# Send save request
-		self.socket.save()
+		with self.server.socket() as s:
 
-		# Send region name and file sizes
-		self.socket.send_json([
-			region,
-			[os.path.getsize(save_city_path) for save_city_path in save_city_paths]
-		])
+			# Send save request
+			s.save()
 
-		# Send file contents
-		total_filesize = sum([save_city_path.stat().st_size for save_city_path in save_city_paths])
-		filesize_sent = 0
-		filesize_reported = None
-		for save_city_path in save_city_paths:
-			with open(save_city_path, "rb") as file:
-				while True:
-					data = file.read(SC4MP_BUFFER_SIZE)
-					if not data:
-						break
-					self.socket.sendall(data)
-					filesize_sent += len(data)
-					if filesize_sent == total_filesize or filesize_reported is None or filesize_sent > filesize_reported + 100000:
-						filesize_reported = filesize_sent
-						self.report_quietly(f'Saving... ({round(filesize_sent / 1000):,}/{round(total_filesize / 1000):,}KB)') 
+			# Send region name and file sizes
+			s.send_json([
+				region,
+				[os.path.getsize(save_city_path) for save_city_path in save_city_paths]
+			])
 
-		# Handle response from server
-		response = self.socket.save_result()
-		if response == "ok":
-			self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green") #TODO keep track locally of the client's claims
-			self.set_overlay_state("saved")
-			shutil.rmtree(salvage_directory) #TODO make configurable
-		else:
-			self.report(self.PREFIX + "[WARNING] ", f"Save push failed! {response}", color="red")
-			self.set_overlay_state("not-saved")
+			# Send file contents
+			total_filesize = sum([save_city_path.stat().st_size for save_city_path in save_city_paths])
+			filesize_sent = 0
+			filesize_reported = None
+			for save_city_path in save_city_paths:
+				with open(save_city_path, "rb") as file:
+					while True:
+						data = file.read(SC4MP_BUFFER_SIZE)
+						if not data:
+							break
+						s.sendall(data)
+						filesize_sent += len(data)
+						if filesize_sent == total_filesize or filesize_reported is None or filesize_sent > filesize_reported + 100000:
+							filesize_reported = filesize_sent
+							self.report_quietly(f'Saving... ({round(filesize_sent / 1000):,}/{round(total_filesize / 1000):,}KB)') 
+
+			# Handle response from server
+			response = s.save_result()
+			if response == "ok":
+				self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green") #TODO keep track locally of the client's claims
+				self.set_overlay_state("saved")
+				shutil.rmtree(salvage_directory) #TODO make configurable
+			else:
+				self.report(self.PREFIX + "[WARNING] ", f"Save push failed! {response}", color="red")
+				self.set_overlay_state("not-saved")
 
 
 	def backup_city(self, city_path: Path) -> None:
@@ -3712,6 +3692,92 @@ class GameMonitor(th.Thread):
 	def set_overlay_state(self, state):
 		if self.overlay_ui is not None:
 			self.overlay_ui.set_state(state)
+
+
+class EventListener(th.Thread):
+
+
+	def __init__(self, server):
+
+		super().__init__(daemon=True)
+
+		self.server: Server = server
+
+		self._socket = None
+
+		self._events: list[dict] = []
+		self._lock = th.Lock()
+
+		self._stop = False
+
+
+	def run(self):
+		
+		try:
+
+			set_thread_name("EvntThread", enumerate=False)
+
+			while not self._stop:
+				try:
+					if not self._connected():
+						self._connect()
+					events = self._socket.events()
+					with self._lock:
+						for event in events:
+							print(event)
+							self._events.append(event)
+				except TimeoutException:
+					pass
+				except NetworkException:
+					self._disconnect()
+					time.sleep(1)
+
+		except Exception as e:
+
+			show_error(f"An unexpected error occurred in the event listener thread.\n\n{e}")
+
+		finally:
+
+			self._disconnect()
+
+
+	def _connect(self):
+
+		self._socket = self.server.socket()
+		self._socket.subscribe()
+
+
+	def _connected(self):
+
+		return self._socket is not None
+
+
+	def _disconnect(self):
+
+		if self._connected():
+			self._socket.close()
+
+		self._socket = None
+
+
+	def stop(self):
+
+		self._stop = True
+		self._disconnect()
+
+	
+	def pop(self, target_event_type=None) -> tuple[str, dict] | None:
+
+		with self._lock:
+			for index in range(len(self._events)):
+				event: dict = self._events[index]
+				event_type: str = event.get('event') or ''
+				if not target_event_type or target_event_type == event_type:
+					self._events.pop(index)
+					return event_type, event
+
+		return None
+
 
 
 class GameLauncher(th.Thread):

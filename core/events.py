@@ -1,23 +1,27 @@
 from __future__ import annotations
 
-from threading import Lock
+import time
+from threading import Lock, Condition
 
 
-class EventsChannel:
+class EventChannel:
 
 
 	def __init__(self):
 
 		self._lock = Lock()
+		self._condition = Condition(self._lock)
 		self._events: dict[str, list[dict]] = {}
 
 
 	def subscribe(self, user_id: str):
 
-		self.push('user_join', {'user_id': user_id})
-
 		with self._lock:
+			if user_id in self._events:
+				return
 			self._events.setdefault(user_id, [])
+
+		self.push('user_join', {'user_id': user_id}, exclude=[user_id])
 
 
 	def unsubscribe(self, user_id: str):
@@ -30,7 +34,7 @@ class EventsChannel:
 				return
 			self._events.pop(user_id)
 		
-		self.push('user_leave', {'user_id': user_id})
+		self.push('user_leave', {'user_id': user_id}, exclude=[user_id])
 
 	
 	def push(self, event_type: str, event_context: dict, exclude=None):
@@ -42,21 +46,28 @@ class EventsChannel:
 
 		print(event)
 
-		with self._lock:
+		with self._condition:
 			user_ids = list(self._events.keys())
 			for user_id in user_ids:
 				if exclude and user_id in exclude:
 					continue
 				self._events[user_id].append(event)
+			self._condition.notify_all()
 
 
-	def get(self, user_id) -> list[dict]:
+	def listen(self, user_id, timeout=5) -> list[dict]:
 
-		with self._lock:
+		with self._condition:
+
 			if user_id not in self._events:
 				raise ValueError(
 					f"User {user_id!r} is not subscribed to the event channel."
 				)
+			
+			while not self._events[user_id]:
+				if not self._condition.wait(timeout):
+					return []
+
 			events = list(self._events[user_id])
 			self._events[user_id].clear()
 
