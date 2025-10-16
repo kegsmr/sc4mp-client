@@ -426,6 +426,9 @@ if __name__ == "__main__":
 
 		cfg = SC4Config(filename, 0, error)
 
+		with open("a9dd6e06.cfg", "wb") as file:
+			file.write(cfg.decompress_subfile("a9dd6e06").read())
+
 		print(cfg.get_simcity_4_cfg())
 
 		#print(f"{dbpf.majorVersion}.{dbpf.minorVersion}")
