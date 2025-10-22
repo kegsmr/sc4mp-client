@@ -35,6 +35,7 @@ except ImportError:
 	sc4mp_has_pil = False
 
 from core.config import Config
+from core.database import Database
 from core.dbpf import SC4Savegame, SC4Config
 from core.networking import ClientSocket, NetworkException
 from core.util import *
@@ -1743,7 +1744,7 @@ class ServerList(th.Thread):
 				else:
 					delete_server_ids.append(server_id)
 			for delete_server_id in delete_server_ids:
-				sc4mp_servers_database.data.pop(delete_server_id)
+				sc4mp_servers_database.pop(delete_server_id)
 
 			if self.kill != None:
 				self.kill.end = True
@@ -3923,7 +3924,36 @@ class RegionsRefresher(th.Thread):
 		print(text)
 
 
-class DatabaseManager(th.Thread):
+class DatabaseManager(th.Thread, Database):
+
+
+	def __init__(self, filename: Path):
+
+		th.Thread.__init__(self)
+		Database.__init__(self, filename)
+
+		self.end = False
+
+
+	def run(self):
+
+		try:
+
+			set_thread_name("DbThread")
+
+			while not self.end:
+				try:
+					time.sleep(SC4MP_DELAY)
+					self.update_json()
+				except Exception as e:
+					show_error(f"An unexpected error occurred in the database thread.\n\n{e}")
+
+		except Exception as e:
+
+			fatal_error()
+
+
+class DatabaseManagerOld(th.Thread):
 	
 
 	

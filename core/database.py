@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import json
 import shutil
-import hashlib
 from threading import Lock
 from pathlib import Path
 
@@ -19,7 +18,6 @@ class Database:
 		self._data = {}
 
 		self._serialized_data = None
-		self._hashed_data = None
 		self._lock = Lock()
 
 		self._load()
@@ -37,29 +35,24 @@ class Database:
 	@staticmethod
 	def _update_file(filename: Path, serialized_data: str):
 		with open(filename, 'w', encoding='utf-8') as file:
-			file.seek(0)
 			file.write(serialized_data)
-			file.truncate()
 
 	
 	@staticmethod
-	def _serialize(data: dict) -> tuple[str, str]:
-		serialized_data = json.dumps(data, indent=4)
-		hashed_data = hashlib.md5(serialized_data.encode()).hexdigest()
-		return serialized_data, hashed_data
+	def _serialize(data: dict) -> str:
+		return json.dumps(data, indent=4)
 	
 
 	@staticmethod
-	def _deserialize(serialized_data: str) -> tuple[dict, str]:
-		data = json.loads(serialized_data)
-		hashed_data = hashlib.md5(serialized_data.encode()).hexdigest()
-		return data, hashed_data
+	def _deserialize(serialized_data: str) -> dict:
+		return json.loads(serialized_data)
 
 
 	def _load(self):
 		for filename in (self.filename, self._backup_filename):
 			try:
-				return self._load_json(filename)
+				self._load_json(filename)
+				return
 			except Exception:
 				continue
 		raise DatabaseException(
@@ -70,13 +63,13 @@ class Database:
 
 	def _load_json(self, filename: Path):
 		self._serialized_data = self._load_file(filename)
-		self._data, self._hashed_data = self._deserialize(self._serialized_data)
+		self._data = self._deserialize(self._serialized_data)
 
 
-	def update(self):
+	def update_json(self):
 		with self._lock:
-			serialized_data, hashed_data = self._serialize(self._data.copy())
-			if hashed_data == self._hashed_data:
+			serialized_data = self._serialize(self._data.copy())
+			if serialized_data == self._serialized_data:
 				return
 			if self.filename.exists():
 				if self._backup_filename.exists():
@@ -84,7 +77,11 @@ class Database:
 				shutil.copy(self.filename, self._backup_filename)
 			self._update_file(self.filename, serialized_data)
 			self._serialized_data = serialized_data
-			self._hashed_data = hashed_data
+
+
+	def __repr__(self):
+		with self._lock:
+			return self._data.__repr__()
 
 
 	def __getitem__(self, key):
@@ -152,7 +149,7 @@ class Database:
 			self._data.clear()
 
 
-	def update_dict(self, other=(), **kwargs):
+	def update(self, other=(), **kwargs):
 		with self._lock:
 			self._data.update(other, **kwargs)
 
