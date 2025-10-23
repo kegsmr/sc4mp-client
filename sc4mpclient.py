@@ -35,6 +35,7 @@ except ImportError:
 	sc4mp_has_pil = False
 
 from core.config import Config
+from core.database import Database
 from core.dbpf import SC4Savegame, SC4Config
 from core.networking import ClientSocket, NetworkException
 from core.util import *
@@ -1743,7 +1744,7 @@ class ServerList(th.Thread):
 				else:
 					delete_server_ids.append(server_id)
 			for delete_server_id in delete_server_ids:
-				sc4mp_servers_database.data.pop(delete_server_id)
+				sc4mp_servers_database.pop(delete_server_id)
 
 			if self.kill != None:
 				self.kill.end = True
@@ -3923,89 +3924,33 @@ class RegionsRefresher(th.Thread):
 		print(text)
 
 
-class DatabaseManager(th.Thread):
-	
+class DatabaseManager(th.Thread, Database):
 
-	
-	def __init__(self, filename: Path) -> None:
-		
 
-		super().__init__()
+	def __init__(self, filename: Path):
+
+		th.Thread.__init__(self)
+		Database.__init__(self, filename)
 
 		self.end = False
 
-		self.filename = filename
-		self.backup_filename = Path(f"{filename}.bak")
-		self.data = self.load_json()
-
 
 	def run(self):
-		
-	
+
 		try:
-			
+
 			set_thread_name("DbThread")
 
-			old_data = str(self.data)
-			
-			while not self.end: #TODO pretty dumb way of checking if a dictionary has been modified
+			while not self.end:
 				try:
-					time.sleep(SC4MP_DELAY * 5)
-					new_data = str(self.data)
-					if old_data != new_data:
-						#report(f'Updating "{self.filename}"...', self)
-						self.update_json()
-						#report("- done.", self)
-					old_data = new_data
+					time.sleep(SC4MP_DELAY)
+					self.update_json()
 				except Exception as e:
 					show_error(f"An unexpected error occurred in the database thread.\n\n{e}")
 
 		except Exception as e:
 
 			fatal_error()
-
-
-	def load_json(self):
-		
-		try:
-			return load_json(self.filename)
-		except Exception as e:
-			show_error(e, no_ui=True)
-			print(f"[WARNING] Falied to load \"{self.filename}\". Attempting to load backup...")
-			try:
-				return load_json(self.backup_filename)
-			except Exception as e:
-				raise ClientException(f"Failed to load \"{self.filename}\". Loading the backup at \"{self.backup_filename}\" also failed.") from e
-
-
-	def update_json(self):
-		
-		if self.filename.exists():
-			if self.backup_filename.exists():
-				os.unlink(self.backup_filename)
-			shutil.copy(self.filename, self.backup_filename)
-
-		return update_json(self.filename, self.data)
-
-
-	def keys(self):
-
-		return self.data.keys()
-
-
-	def get(self, key, default):
-
-		return self.data.get(key, default)
-
-
-	def __getitem__(self, key):
-
-		return self.data.__getitem__(key)
-
-
-	def __setitem__(self, key, value):
-
-		return self.data.__setitem__(key, value)
 
 
 # User Interfaces
