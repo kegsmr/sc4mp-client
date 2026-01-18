@@ -1769,7 +1769,10 @@ class ServerList(th.Thread):
 						self.ui.connect_button['state'] = tk.DISABLED
 						self.ui.details_button['state'] = tk.DISABLED
 						self.ui.address_label["text"] = ""
-						self.ui.description_label["text"] = ""
+						# Clear description text widget
+						self.ui.description_text.config(state=tk.NORMAL)
+						self.ui.description_text.delete(1.0, tk.END)
+						self.ui.description_text.config(state=tk.DISABLED)
 						self.ui.url_label["text"] = ""
 					else:
 						self.ui.connect_button['state'] = tk.NORMAL
@@ -1923,7 +1926,10 @@ class ServerList(th.Thread):
 						#	self.ui.label["text"] = 'No servers found'
 					else:
 						self.ui.address_label["text"] = ""
-						self.ui.description_label["text"] = ""
+						# Clear description text widget
+						self.ui.description_text.config(state=tk.NORMAL)
+						self.ui.description_text.delete(1.0, tk.END)
+						self.ui.description_text.config(state=tk.DISABLED)
 						self.ui.url_label["text"] = ""
 						if self.server_fetchers > 0:
 							self.ui.label["text"] = 'Getting server list...'
@@ -3287,7 +3293,14 @@ class GameMonitor(th.Thread):
 			# Show server description in UI (only for the legacy status window)
 			if sc4mp_ui and not SC4MP_LAUNCHERMAP_ENABLED:
 				self.ui.ping_frame.left["text"] = f"{self.server.host}:{self.server.port}"
-				self.ui.description_label["text"] = self.server.server_description
+				# Handle both legacy GameMonitorUI (description_label) and ServerListUI (description_text)
+				if hasattr(self.ui, 'description_text'):
+					self.ui.description_text.config(state=tk.NORMAL)
+					self.ui.description_text.delete(1.0, tk.END)
+					self.ui.description_text.insert(1.0, self.server.server_description)
+					self.ui.description_text.config(state=tk.DISABLED)
+				else:
+					self.ui.description_label["text"] = self.server.server_description
 				self.ui.url_label["text"] = self.server.server_url
 
 			# Time the server was last pinged (`None` for now)
@@ -5329,26 +5342,23 @@ class ServerListUI(tk.Frame):
 		#TODO add right click context menu
 
 
-		# Description text widget with scrollbar (for long descriptions)
-
-		self.description_frame = tk.Frame(self.server_info)
-		self.description_frame.grid(row=0, column=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="nw")
-
-		self.description_scrollbar = ttk.Scrollbar(self.description_frame)
-		self.description_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+		# Description text widget (scrollable with mouse wheel)
 
 		self.description_text = tk.Text(
-			self.description_frame,
+			self.server_info,
 			wrap=tk.WORD,
-			yscrollcommand=self.description_scrollbar.set,
 			width=65,
 			height=4,
 			borderwidth=0,
 			highlightthickness=0,
 			state=tk.DISABLED
 		)
-		self.description_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-		self.description_scrollbar.config(command=self.description_text.yview)
+		self.description_text.grid(row=0, column=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="nw")
+
+		# Enable mouse wheel scrolling
+		def on_mousewheel(event):
+			self.description_text.yview_scroll(int(-1*(event.delta/120)), "units")
+		self.description_text.bind("<MouseWheel>", on_mousewheel)
 
 
 		# URL label
