@@ -1781,7 +1781,11 @@ class ServerList(th.Thread):
 							self.ui.address_label["text"] = self.servers[server_id].host + ":" + str(self.servers[server_id].port)
 							self.ui.address_label["fg"] = "gray"
 							self.ui.details_button['state'] = tk.NORMAL
-						self.ui.description_label["text"] = self.servers[server_id].server_description
+						# Update description text widget
+						self.ui.description_text.config(state=tk.NORMAL)
+						self.ui.description_text.delete(1.0, tk.END)
+						self.ui.description_text.insert(1.0, self.servers[server_id].server_description)
+						self.ui.description_text.config(state=tk.DISABLED)
 						self.ui.url_label["text"] = self.servers[server_id].server_url
 						
 					# Add all fetched servers to the server dictionary if not already present
@@ -5325,16 +5329,31 @@ class ServerListUI(tk.Frame):
 		#TODO add right click context menu
 
 
-		# Description label
+		# Description text widget with scrollbar (for long descriptions)
 
-		self.description_label = ttk.Label(self.server_info, wraplength=self.server_info["width"])
-		self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="nw")
-		self.description_label['text'] = ""
+		self.description_frame = tk.Frame(self.server_info)
+		self.description_frame.grid(row=0, column=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="nw")
+
+		self.description_scrollbar = ttk.Scrollbar(self.description_frame)
+		self.description_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+		self.description_text = tk.Text(
+			self.description_frame,
+			wrap=tk.WORD,
+			yscrollcommand=self.description_scrollbar.set,
+			width=65,
+			height=4,
+			borderwidth=0,
+			highlightthickness=0,
+			state=tk.DISABLED
+		)
+		self.description_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+		self.description_scrollbar.config(command=self.description_text.yview)
 
 
 		# URL label
 
-		self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2")
+		self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2", wraplength=520, justify="left")
 		self.url_label.grid(row=1, column=0, columnspan=1, padx=0, pady=5, sticky="nw")
 		self.url_label['text'] = ""
 		self.url_label.bind("<Button-1>", lambda e:self.open_server_url())
