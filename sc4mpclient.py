@@ -4517,8 +4517,8 @@ class SC4SettingsUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry('400x400')
-		self.maxsize(385, 305)
-		self.minsize(385, 305)
+		self.maxsize(385, 380)
+		self.minsize(385, 380)
 		self.grid()
 		center_window(self)
 		
@@ -4603,7 +4603,7 @@ class SC4SettingsUI(tk.Toplevel):
 		self.config_update.append((self.cpu_priority_frame.combo_box, "cpu_priority"))
 
 		# Additional properties frame
-		self.additional_properties_frame = tk.LabelFrame(self, text="Additional launch properties")		
+		self.additional_properties_frame = tk.LabelFrame(self, text="Additional launch properties")
 		self.additional_properties_frame.grid(row=2, column=1, columnspan=2, padx=10, pady=5, sticky="w")
 
 		# Additional properties entry
@@ -4611,6 +4611,15 @@ class SC4SettingsUI(tk.Toplevel):
 		self.additional_properties_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
 		self.additional_properties_frame.entry.insert(0, sc4mp_config["SC4"]["additional_properties"])
 		self.config_update.append((self.additional_properties_frame.entry, "additional_properties"))
+
+		# Launch command display frame
+		self.launch_command_frame = tk.LabelFrame(self, text="Launch command (for troubleshooting)")
+		self.launch_command_frame.grid(row=3, column=0, columnspan=3, padx=10, pady=5, sticky="ew")
+
+		# Launch command label
+		self.launch_command_label = ttk.Label(self.launch_command_frame, text="", wraplength=360, justify="left", font=("Courier", 8))
+		self.launch_command_label.grid(row=0, column=0, padx=10, pady=10, sticky="w")
+		self.update_launch_command_display()
 
 		# Reset/Preview frame
 		self.reset_preview = tk.Frame(self)
@@ -4675,8 +4684,29 @@ class SC4SettingsUI(tk.Toplevel):
 		self.destroy()
 
 
+	def update_launch_command_display(self):
+		"""Update the launch command preview label"""
+		try:
+			# Get current values from UI
+			path = get_sc4_path()
+			if not path:
+				path = "SimCity 4.exe"
+
+			resw = sc4mp_config["SC4"]["resw"]
+			resh = sc4mp_config["SC4"]["resh"]
+			if 0 in (resw, resh):
+				resw = 1280
+				resh = 800
+
+			# Build command preview (simplified)
+			cmd = f'{path} -UserDir:"..." -intro:off -r{resw}x{resh}x32 ...'
+			self.launch_command_label.config(text=cmd)
+		except Exception:
+			self.launch_command_label.config(text="(command preview unavailable)")
+
+
 	def reset(self):
-		
+
 		if messagebox.askokcancel(title=SC4MP_TITLE, message="Revert settings to the default configuration?", icon="warning"):
 			self.destroy()
 			sc4mp_config.data.pop("SC4")
