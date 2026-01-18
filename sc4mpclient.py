@@ -24,6 +24,7 @@ import traceback
 import webbrowser
 from datetime import datetime, timedelta
 from pathlib import Path
+from pprint import pformat
 from tkinter import Menu, filedialog, messagebox, ttk
 from tkinter import font as tkfont
 from typing import Optional, Union
@@ -1355,6 +1356,8 @@ class Server:
 		self.categories = ["All"]
 		if self.host == SC4MP_SERVERS_DOMAIN:
 			self.categories.append("Official")
+
+		self.regions: list[Path] = []
 
 
 	def fetch(self):
@@ -3094,10 +3097,6 @@ class ServerLoader(th.Thread):
 
 
 	def prep_regions(self):
-		
-
-		# Declare instance variable to store the paths of the server region subdirectories
-		self.server.regions: list[Path] = []
 
 		# Path to regions directory
 		regions_directory = Path(SC4MP_LAUNCHPATH) / "Regions"
@@ -3202,6 +3201,64 @@ class ServerLoader(th.Thread):
 
 
 class GameMonitor(th.Thread):
+
+
+	def __init__(self, server: Server):
+
+		super().__init__()
+
+		self.server = server
+
+		self.cities = self.get_cities()
+
+		print(pformat(self.cities, sort_dicts=False))
+		fatal_error()
+		
+
+	def get_cities(self) -> dict[str, dict[tuple[int, int], Path]]:
+
+		cities = {}
+
+		for region in self.server.regions:
+
+			cities.setdefault(region, {})
+
+			region_path: Path = Path(SC4MP_LAUNCHPATH) / "Regions" / region
+			region_path.mkdir(parents=True, exist_ok=True)
+
+			if region_path.is_file():
+				continue
+
+			for city in region_path.glob('*.sc4'):
+
+				city_path = region_path / city
+				error = lambda e: show_error(e, no_ui=True)
+
+				with SC4Savegame(city_path, error_callback=error) as savegame:
+
+					SC4ReadRegionalCity: dict = \
+						savegame.get_SC4ReadRegionalCity()
+
+					coords = (
+						SC4ReadRegionalCity.get('tileXLocation'),
+						SC4ReadRegionalCity.get('tileYLocation')
+					)
+
+				if None in coords:
+					continue
+
+				city_entry = {
+					"path": city_path,
+					"size": city_path.stat().st_size,
+					"mtime": city_path.stat().st_mtime
+				}
+
+				cities[region][coords] = city_entry
+
+		return cities
+
+
+class GameMonitorOld(th.Thread):
 	
 
 
@@ -3782,7 +3839,6 @@ class EventListener(th.Thread):
 					return event_type, event
 
 		return None
-
 
 
 class GameLauncher(th.Thread):

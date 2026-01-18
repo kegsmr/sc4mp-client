@@ -66,7 +66,18 @@ class DBPF:
 
 		#print(f"DBPF v{self.majorVersion}.{self.minorVersion}")
 
+
+	def __enter__(self):
+
+		return self
 	
+
+	def __exit__(self, exc_type, exc_value, traceback):
+
+		self.close()
+		return False
+
+
 	def close(self):
 
 		self.file.close()
