@@ -2138,8 +2138,8 @@ class ServerList(th.Thread):
 	
 
 	def in_order_index(self, server):
-
-		if self.get_sort_value(server) is not None:
+		
+		if self.get_sort_value(server):
 			existing_server_ids = self.ui.tree.get_children()
 			for index in range(len(existing_server_ids)):
 				existing_server_id = existing_server_ids[index]
