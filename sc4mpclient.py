@@ -4064,6 +4064,31 @@ class UI(tk.Tk):
 			#self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Connect..." in the menu bar and enter the hostname and port of the server you wish to connect to.')
 			#self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 
+		self.after(100, self.theme)
+
+
+	def theme(self, widget=None):
+
+		if widget is None:
+			widget = self
+
+		try:
+			COLOR = "#1F1F1F"
+			if widget.cget("background") != COLOR:
+				widget.configure(background=COLOR)
+			widget.configure(foreground="white")
+			widget.configure(fg="white")
+		except:
+			pass
+
+		for child in widget.children.values():
+			self.theme(child)
+
+		#sc4mp_ui.update()
+
+		if widget is self:
+			self.after(100, self.theme)
+
 
 	def release_notes(self):
 
