@@ -66,7 +66,18 @@ class DBPF:
 
 		#print(f"DBPF v{self.majorVersion}.{self.minorVersion}")
 
+
+	def __enter__(self):
+
+		return self
 	
+
+	def __exit__(self, exc_type, exc_value, traceback):
+
+		self.close()
+		return False
+
+
 	def close(self):
 
 		self.file.close()
@@ -425,6 +436,9 @@ if __name__ == "__main__":
 	elif filename.endswith(".cfg"):
 
 		cfg = SC4Config(filename, 0, error)
+
+		with open("a9dd6e06.cfg", "wb") as file:
+			file.write(cfg.decompress_subfile("a9dd6e06").read())
 
 		print(cfg.get_simcity_4_cfg())
 
