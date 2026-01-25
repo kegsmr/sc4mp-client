@@ -3211,8 +3211,7 @@ class GameMonitor(th.Thread):
 
 		self.cities = self.get_cities()
 
-		print(pformat(self.cities, sort_dicts=False))
-		fatal_error()
+		#TODO
 		
 
 	def get_cities(self) -> dict[str, dict[tuple[int, int], Path]]:
