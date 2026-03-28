@@ -31,6 +31,8 @@ COMMAND_USER_ID = 'UserId'
 COMMAND_TOKEN = 'Token'
 COMMAND_TIME = 'Time'
 COMMAND_LOADING_BACKGROUND = 'LdgBkg'
+COMMAND_CHECK_ADMIN = 'ChkAdm'
+COMMAND_ADMIN = 'Admin'
 
 
 def send_json(s: socket.socket, data, length_encoding="I"):
@@ -581,6 +583,16 @@ class ClientSocket(Socket):
 
 		return pluck_header(headers, 'result', str)
 
+
+	def check_admin(self, **headers):
+
+		response = self.request(
+			command=COMMAND_CHECK_ADMIN, **headers
+		)
+
+		return pluck_header(response, 'admin', bool)
+
+
 class ServerSocket(Socket):
 
 
@@ -635,12 +647,16 @@ class BaseRequestHandler(Thread):
 			COMMAND_USER_ID: self.res_user_id,
 			COMMAND_TOKEN: self.res_token,
 			COMMAND_TIME: self.res_time,
-			COMMAND_LOADING_BACKGROUND: self.res_loading_background
+			COMMAND_LOADING_BACKGROUND: self.res_loading_background,
+			COMMAND_CHECK_ADMIN: self.res_check_admin,
+			COMMAND_ADMIN: self.res_admin
 		}
 
 		self.require_auth = [
 			COMMAND_SAVE,
-			COMMAND_TOKEN
+			COMMAND_TOKEN,
+			COMMAND_CHECK_ADMIN,
+			COMMAND_ADMIN
 		]
 
 		if private:
@@ -670,6 +686,8 @@ class BaseRequestHandler(Thread):
 	def res_token(self): self.respond()
 	def res_time(self): self.respond()
 	def res_loading_background(self): self.respond()
+	def res_check_admin(self): self.respond()
+	def res_admin(self): self.respond()
 
 
 	def get_header(self, key: str, type: Type):

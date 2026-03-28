@@ -2604,7 +2604,7 @@ class ServerLoader(th.Thread):
 						if messagebox.askokcancel(title=SC4MP_TITLE, icon="error", message="SimCity 4 may not have launched correctly due to invalid settings.\n\nAdjust your settings in the SC4 settings menu before connecting to the server again.\n\nTIP: You can click the \"Preview\" button in the SC4 settings menu to test your settings without connecting to a server."):
 							SC4SettingsUI()
 
-				if game_monitor.ui and game_monitor.ui.winfo_exists() and game_monitor.ui.winfo_viewable():
+				if game_monitor.ui and not game_monitor.admin_ui and game_monitor.ui.winfo_exists() and game_monitor.ui.winfo_viewable():
 					game_monitor.ui.grab_set()
 
 				return
@@ -3246,6 +3246,15 @@ class GameMonitor(th.Thread):
 			# Set window title to server name
 			self.ui.title(server.server_name)
 
+			# Create admin panel
+			self.admin_ui: AdminPanelUI | None = None
+			try:
+				with self.server.socket() as s:
+					if s.check_admin():
+						self.admin_ui = AdminPanelUI(self)
+			except NetworkException as e:
+				show_error(e, no_ui=True)
+
 		# Start the game launcher thread (starts the game)
 		self.game_launcher = GameLauncher()
 		self.game_launcher.start()
@@ -3504,6 +3513,10 @@ class GameMonitor(th.Thread):
 			# Destroy the game overlay ui if running
 			if self.overlay_ui:
 				self.overlay_ui.destroy()
+
+			# Destroy the admin panel ui if running
+			if self.admin_ui:
+				self.admin_ui.destroy()
 
 			# Show the main ui once again	
 			if sc4mp_exit_after:
@@ -7591,6 +7604,38 @@ class ReleaseNotesUI(tk.Toplevel):
 		sc4mp_config.update()
 
 		return super().destroy()
+
+
+class AdminPanelUI(tk.Toplevel):
+
+
+	def __init__(self, parent):
+		
+		print("Initializing...")
+
+		# Init
+		super().__init__()
+		self.parent = parent
+		self.server = parent.server
+
+		# Title
+		self.title(f"Admin: {self.server.server_name}")
+
+		# Icon
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+
+		# Geometry
+		self.geometry("400x400")
+		self.minsize(443, 600)
+		self.maxsize(443, 600)
+		self.grid()
+
+		# Protocol
+		self.protocol("WM_DELETE_WINDOW", self.delete_window)
+
+
+	def delete_window(self):
+		return self.iconify()
 
 
 # Exceptions
