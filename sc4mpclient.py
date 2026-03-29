@@ -7609,20 +7609,16 @@ class ReleaseNotesUI(tk.Toplevel):
 class AdminPanelUI(tk.Toplevel):
 
 	def __init__(self, parent):
-
 		super().__init__()
-
 		self.parent = parent
 		self.server = parent.server
 
 		self.title(f"Admin: {self.server.server_name}")
 		self.geometry("1000x700")
 		self.minsize(900, 600)
-
 		self.protocol("WM_DELETE_WINDOW", self.iconify)
 
 		self._sort_state = {}
-
 		self._build_ui()
 		self.refresh_data()
 
@@ -7631,7 +7627,6 @@ class AdminPanelUI(tk.Toplevel):
 	# =========================================================
 
 	def _build_ui(self):
-
 		container = ttk.Frame(self, padding=10)
 		container.pack(fill="both", expand=True)
 
@@ -7640,7 +7635,6 @@ class AdminPanelUI(tk.Toplevel):
 
 		self._build_cities_tab()
 		self._build_users_tab()
-		# self._build_clients_tab()
 
 	# =========================================================
 	# GENERIC SORTING
@@ -7650,40 +7644,40 @@ class AdminPanelUI(tk.Toplevel):
 		for col in columns:
 			tree.heading(col, command=lambda c=col, t=tree: self._sort_tree(t, c))
 
-
 	def _sort_tree(self, tree, col):
-
 		key = (tree, col)
 		reverse = self._sort_state.get(key, False)
-
-		data = []
-		for iid in tree.get_children():
-			val = tree.set(iid, col)
-			data.append((val, iid))
-
+		data = [(tree.set(iid, col), iid) for iid in tree.get_children()]
 		data.sort(reverse=reverse)
-
 		for index, (_, iid) in enumerate(data):
 			tree.move(iid, "", index)
-
 		self._sort_state[key] = not reverse
 
 	# =========================================================
-	# TREE HELPERS
+	# TREE WITH SCROLLBARS + SINGLE SELECTION
 	# =========================================================
 
 	def _create_tree(self, parent, columns, widths=None):
+		frame = ttk.Frame(parent)
+		frame.pack(fill="both", expand=True)
 
-		tree = ttk.Treeview(parent, columns=columns, show="headings")
+		tree = ttk.Treeview(frame, columns=columns, show="headings", selectmode="browse")
+		vsb = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
+		hsb = ttk.Scrollbar(frame, orient="horizontal", command=tree.xview)
+		tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
 
+		tree.grid(row=0, column=0, sticky="nsew")
+		vsb.grid(row=0, column=1, sticky="ns")
+		hsb.grid(row=1, column=0, sticky="ew")
+		frame.rowconfigure(0, weight=1)
+		frame.columnconfigure(0, weight=1)
+
+		# FIX: enable columns to stretch automatically
 		for i, col in enumerate(columns):
 			tree.heading(col, text=col.title())
-			tree.column(col, anchor="center", width=(widths[i] if widths else 120))
+			tree.column(col, anchor="center", width=(widths[i] if widths else 120), stretch=True)
 
 		self._setup_sorting(tree, columns)
-
-		tree.pack(fill="both", expand=True)
-
 		return tree
 
 	# =========================================================
@@ -7691,7 +7685,6 @@ class AdminPanelUI(tk.Toplevel):
 	# =========================================================
 
 	def _build_cities_tab(self):
-
 		frame = ttk.Frame(self.notebook)
 		self.notebook.add(frame, text="Cities")
 
@@ -7699,33 +7692,22 @@ class AdminPanelUI(tk.Toplevel):
 		container.pack(fill="both", expand=True)
 
 		columns = ("Location", "City Name", "Mayor Name", "Owner", "Last Modified")
-
 		self.cities_tree = self._create_tree(container, columns)
 
-		# Context menu
-		self.cities_menu = Menu(self, tearoff=0)
-
-		delete_menu = Menu(self.cities_menu, tearoff=0)
-		delete_menu.add_command(label="Delete City", command=self._on_delete_city)
-		delete_menu.add_command(label="Delete + Ban User", command=self._on_delete_city_ban_user)
-		delete_menu.add_command(label="Delete + Ban IP", command=self._on_delete_city_ban_ip)
-
-		self.cities_menu.add_cascade(label="Delete", menu=delete_menu)
-
-		self.rollback_menu = Menu(self.cities_menu, tearoff=0)
-		self.cities_menu.add_cascade(label="Rollback", menu=self.rollback_menu)
-
-		self.cities_menu.add_separator()
-		self.cities_menu.add_command(label="Unclaim", command=self._on_unclaim_city)
-
-		self.cities_tree.bind("<Button-3>", self._cities_right_click)
+		# Buttons below treeview
+		btn_frame = ttk.Frame(container)
+		btn_frame.pack(fill="x", pady=5)
+		ttk.Button(btn_frame, text="Delete", command=self._on_delete_city).pack(side="left", padx=5)
+		ttk.Button(btn_frame, text="Delete + Ban User", command=self._on_delete_city_ban_user).pack(side="left", padx=5)
+		ttk.Button(btn_frame, text="Delete + Ban IP", command=self._on_delete_city_ban_ip).pack(side="left", padx=5)
+		ttk.Button(btn_frame, text="Rollback", command=lambda: self._on_rollback_city(1)).pack(side="left", padx=5)
+		ttk.Button(btn_frame, text="Unclaim", command=self._on_unclaim_city).pack(side="left", padx=5)
 
 	# =========================================================
 	# USERS TAB
 	# =========================================================
 
 	def _build_users_tab(self):
-
 		frame = ttk.Frame(self.notebook)
 		self.notebook.add(frame, text="Users")
 
@@ -7733,41 +7715,18 @@ class AdminPanelUI(tk.Toplevel):
 		container.pack(fill="both", expand=True)
 
 		columns = ("User ID", "Client IP", "Admin?", "Banned?", "Last Online")
-
 		self.users_tree = self._create_tree(container, columns)
 
-		self.users_menu = Menu(self, tearoff=0)
-		self.users_menu.add_command(label="Ban User", command=self._on_ban_user)
-
-		self.users_tree.bind("<Button-3>", self._users_right_click)
-
-	# =========================================================
-	# CLIENTS TAB
-	# =========================================================
-
-	def _build_clients_tab(self):
-
-		frame = ttk.Frame(self.notebook)
-		self.notebook.add(frame, text="Clients")
-
-		container = ttk.Frame(frame, padding=10)
-		container.pack(fill="both", expand=True)
-
-		columns = ("ip", "banned", "last_online", "users")
-
-		self.clients_tree = self._create_tree(container, columns)
-
-		self.clients_menu = Menu(self, tearoff=0)
-		self.clients_menu.add_command(label="Ban IP", command=self._on_ban_ip)
-
-		self.clients_tree.bind("<Button-3>", self._clients_right_click)
+		# Buttons below treeview
+		btn_frame = ttk.Frame(container)
+		btn_frame.pack(fill="x", pady=5)
+		ttk.Button(btn_frame, text="Ban User", command=self._on_ban_user).pack(side="left", padx=5)
 
 	# =========================================================
 	# DATA LOAD
 	# =========================================================
 
 	def refresh_data(self):
-
 		for tree in (self.cities_tree, self.users_tree):
 			for item in tree.get_children():
 				tree.delete(item)
@@ -7779,109 +7738,36 @@ class AdminPanelUI(tk.Toplevel):
 			self._load_users(data.get("users", {}))
 		except Exception as e:
 			show_error(f"Failed to populate admin panel: {e}")
-			return
 
 	# =========================================================
 	# LOADERS
 	# =========================================================
 
 	def _load_cities(self, regions):
-
 		for region_name, tiles in regions.items():
-
 			for coord, city in tiles.items():
-
 				if not city:
 					continue
-
 				try:
 					x, y = map(int, coord.split("_"))
 				except:
 					x, y = 0, 0
-
 				location = f"{region_name} ({x:02d}, {y:02d})"
-
 				self.cities_tree.insert(
-					"",
-					"end",
-					iid=f"{region_name}_{coord}",
-					values=(
-						location,
-						city.get("city_name") or "",
-						city.get("mayor_name") or "",
-						city.get("owner") or "",
-						city.get("modified") or ""
-					)
+					"", "end", iid=f"{region_name}_{coord}",
+					values=(location, city.get("city_name") or "", city.get("mayor_name") or "",
+							city.get("owner") or "", city.get("modified") or "")
 				)
 
 	def _load_users(self, users):
-
 		for user_id, user in users.items():
-
 			self.users_tree.insert(
-				"",
-				"end",
-				iid=user_id,
-				values=(
-					user_id,
-					user.get("last_client") or user.get("clients", [""])[-1],
-					"Yes" if user.get("admin") else "",
-					"Yes" if user.get("ban") else "",
-					user.get("last_contact") or "",
-				)
-			)
-
-	def _load_clients(self, clients):
-
-		for ip, client in clients.items():
-
-			self.clients_tree.insert(
-				"",
-				"end",
-				iid=ip,
-				values=(
-					ip,
-					client.get("ban", False),
-					client.get("last_contact", ""),
-					", ".join(client.get("users", []))
-				)
-			)
-
-	# =========================================================
-	# RIGHT CLICK
-	# =========================================================
-
-	def _cities_right_click(self, event):
-		iid = self.cities_tree.identify_row(event.y)
-		if iid:
-			self.cities_tree.selection_set(iid)
-			self._populate_rollback_menu(iid)
-			self.cities_menu.post(event.x_root, event.y_root)
-
-	def _users_right_click(self, event):
-		iid = self.users_tree.identify_row(event.y)
-		if iid:
-			self.users_tree.selection_set(iid)
-			self.users_menu.post(event.x_root, event.y_root)
-
-	def _clients_right_click(self, event):
-		iid = self.clients_tree.identify_row(event.y)
-		if iid:
-			self.clients_tree.selection_set(iid)
-			self.clients_menu.post(event.x_root, event.y_root)
-
-	# =========================================================
-	# ROLLBACK MENU
-	# =========================================================
-
-	def _populate_rollback_menu(self, city_iid):
-		self.rollback_menu.delete(0, "end")
-
-		# stub (replace with real server call later)
-		for i in range(1, 6):
-			self.rollback_menu.add_command(
-				label=f"backup_{i}",
-				command=lambda s=i: self._on_rollback_city(s)
+				"", "end", iid=user_id,
+				values=(user_id,
+						user.get("last_client") or user.get("clients", [""])[-1],
+						"Yes" if user.get("admin") else "",
+						"Yes" if user.get("ban") else "",
+						user.get("last_contact") or "")
 			)
 
 	# =========================================================
@@ -7909,9 +7795,6 @@ class AdminPanelUI(tk.Toplevel):
 
 	def _on_ban_user(self):
 		print("Ban user:", self._get_selected(self.users_tree))
-
-	def _on_ban_ip(self):
-		print("Ban IP:", self._get_selected(self.clients_tree))
 
 
 # Exceptions
