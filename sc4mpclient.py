@@ -3213,7 +3213,7 @@ class GameMonitor(th.Thread):
 		th.Thread.__init__(self)
 
 		self.server: Server = server
-		
+
 		# Get list of city paths and their md5's
 		self.city_paths, self.city_hashcodes = self.get_cities()
 
@@ -3250,7 +3250,7 @@ class GameMonitor(th.Thread):
 			self.admin_ui: AdminPanelUI | None = None
 			try:
 				with self.server.socket() as s:
-					if s.check_admin():
+					if s.is_admin():
 						self.admin_ui = AdminPanelUI(self)
 			except NetworkException as e:
 				show_error(e, no_ui=True)
@@ -7610,21 +7610,17 @@ class AdminPanelUI(tk.Toplevel):
 
 	def __init__(self, parent):
 
-		print("Initializing...")
-
 		super().__init__()
+
 		self.parent = parent
 		self.server = parent.server
 
 		self.title(f"Admin: {self.server.server_name}")
-		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+		self.geometry("1000x700")
+		self.minsize(900, 600)
 
-		self.geometry('400x400')
-		self.minsize(800, 600)
+		self.protocol("WM_DELETE_WINDOW", self.iconify)
 
-		self.protocol("WM_DELETE_WINDOW", self.delete_window)
-
-		# Track sort states
 		self._sort_state = {}
 
 		self._build_ui()
@@ -7644,7 +7640,7 @@ class AdminPanelUI(tk.Toplevel):
 
 		self._build_cities_tab()
 		self._build_users_tab()
-		self._build_clients_tab()
+		# self._build_clients_tab()
 
 	# =========================================================
 	# GENERIC SORTING
@@ -7654,22 +7650,6 @@ class AdminPanelUI(tk.Toplevel):
 		for col in columns:
 			tree.heading(col, command=lambda c=col, t=tree: self._sort_tree(t, c))
 
-	def _parse_value(self, value):
-
-		try:
-			return int(value)
-		except:
-			pass
-
-		try:
-			return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
-		except:
-			pass
-
-		if str(value).lower() in ("true", "false"):
-			return str(value).lower() == "true"
-
-		return str(value).lower()
 
 	def _sort_tree(self, tree, col):
 
@@ -7679,7 +7659,7 @@ class AdminPanelUI(tk.Toplevel):
 		data = []
 		for iid in tree.get_children():
 			val = tree.set(iid, col)
-			data.append((self._parse_value(val), iid))
+			data.append((val, iid))
 
 		data.sort(reverse=reverse)
 
@@ -7687,6 +7667,24 @@ class AdminPanelUI(tk.Toplevel):
 			tree.move(iid, "", index)
 
 		self._sort_state[key] = not reverse
+
+	# =========================================================
+	# TREE HELPERS
+	# =========================================================
+
+	def _create_tree(self, parent, columns, widths=None):
+
+		tree = ttk.Treeview(parent, columns=columns, show="headings")
+
+		for i, col in enumerate(columns):
+			tree.heading(col, text=col.title())
+			tree.column(col, anchor="center", width=(widths[i] if widths else 120))
+
+		self._setup_sorting(tree, columns)
+
+		tree.pack(fill="both", expand=True)
+
+		return tree
 
 	# =========================================================
 	# CITIES TAB
@@ -7700,18 +7698,9 @@ class AdminPanelUI(tk.Toplevel):
 		container = ttk.Frame(frame, padding=10)
 		container.pack(fill="both", expand=True)
 
-		# UPDATED columns
-		columns = ("location", "name", "mayor", "user_id", "ip", "modified")
+		columns = ("Location", "City Name", "Mayor Name", "Owner", "Last Modified")
 
-		self.cities_tree = ttk.Treeview(container, columns=columns, show="headings")
-
-		for col in columns:
-			self.cities_tree.heading(col, text=col.title())
-			self.cities_tree.column(col, anchor="center", width=120)
-
-		self._setup_sorting(self.cities_tree, columns)
-
-		self.cities_tree.pack(fill="both", expand=True)
+		self.cities_tree = self._create_tree(container, columns)
 
 		# Context menu
 		self.cities_menu = Menu(self, tearoff=0)
@@ -7743,21 +7732,12 @@ class AdminPanelUI(tk.Toplevel):
 		container = ttk.Frame(frame, padding=10)
 		container.pack(fill="both", expand=True)
 
-		columns = ("user_id", "name", "banned", "admin", "last_online")
+		columns = ("User ID", "Client IP", "Admin?", "Banned?", "Last Online")
 
-		self.users_tree = ttk.Treeview(container, columns=columns, show="headings")
-
-		for col in columns:
-			self.users_tree.heading(col, text=col.title())
-			self.users_tree.column(col, anchor="center", width=100)
-
-		self._setup_sorting(self.users_tree, columns)
-
-		self.users_tree.pack(fill="both", expand=True)
+		self.users_tree = self._create_tree(container, columns)
 
 		self.users_menu = Menu(self, tearoff=0)
 		self.users_menu.add_command(label="Ban User", command=self._on_ban_user)
-		self.users_menu.add_command(label="Toggle Admin", command=self._on_toggle_admin)
 
 		self.users_tree.bind("<Button-3>", self._users_right_click)
 
@@ -7773,22 +7753,99 @@ class AdminPanelUI(tk.Toplevel):
 		container = ttk.Frame(frame, padding=10)
 		container.pack(fill="both", expand=True)
 
-		columns = ("ip", "banned", "last_online")
+		columns = ("ip", "banned", "last_online", "users")
 
-		self.clients_tree = ttk.Treeview(container, columns=columns, show="headings")
-
-		for col in columns:
-			self.clients_tree.heading(col, text=col.title())
-			self.clients_tree.column(col, anchor="center", width=140)
-
-		self._setup_sorting(self.clients_tree, columns)
-
-		self.clients_tree.pack(fill="both", expand=True)
+		self.clients_tree = self._create_tree(container, columns)
 
 		self.clients_menu = Menu(self, tearoff=0)
 		self.clients_menu.add_command(label="Ban IP", command=self._on_ban_ip)
 
 		self.clients_tree.bind("<Button-3>", self._clients_right_click)
+
+	# =========================================================
+	# DATA LOAD
+	# =========================================================
+
+	def refresh_data(self):
+
+		for tree in (self.cities_tree, self.users_tree):
+			for item in tree.get_children():
+				tree.delete(item)
+
+		try:
+			with self.server.socket() as s:
+				data = s.admin_data()
+			self._load_cities(data.get("regions", {}))
+			self._load_users(data.get("users", {}))
+		except Exception as e:
+			show_error(f"Failed to populate admin panel: {e}")
+			return
+
+	# =========================================================
+	# LOADERS
+	# =========================================================
+
+	def _load_cities(self, regions):
+
+		for region_name, tiles in regions.items():
+
+			for coord, city in tiles.items():
+
+				if not city:
+					continue
+
+				try:
+					x, y = map(int, coord.split("_"))
+				except:
+					x, y = 0, 0
+
+				location = f"{region_name} ({x:02d}, {y:02d})"
+
+				self.cities_tree.insert(
+					"",
+					"end",
+					iid=f"{region_name}_{coord}",
+					values=(
+						location,
+						city.get("city_name") or "",
+						city.get("mayor_name") or "",
+						city.get("owner") or "",
+						city.get("modified") or ""
+					)
+				)
+
+	def _load_users(self, users):
+
+		for user_id, user in users.items():
+
+			self.users_tree.insert(
+				"",
+				"end",
+				iid=user_id,
+				values=(
+					user_id,
+					user.get("last_client") or user.get("clients", [""])[-1],
+					"Yes" if user.get("admin") else "",
+					"Yes" if user.get("ban") else "",
+					user.get("last_contact") or "",
+				)
+			)
+
+	def _load_clients(self, clients):
+
+		for ip, client in clients.items():
+
+			self.clients_tree.insert(
+				"",
+				"end",
+				iid=ip,
+				values=(
+					ip,
+					client.get("ban", False),
+					client.get("last_contact", ""),
+					", ".join(client.get("users", []))
+				)
+			)
 
 	# =========================================================
 	# RIGHT CLICK
@@ -7814,88 +7871,21 @@ class AdminPanelUI(tk.Toplevel):
 			self.clients_menu.post(event.x_root, event.y_root)
 
 	# =========================================================
-	# DUMMY DATA
-	# =========================================================
-
-	def refresh_data(self):
-
-		for tree in (self.cities_tree, self.users_tree, self.clients_tree):
-			for item in tree.get_children():
-				tree.delete(item)
-
-		# --- Cities ---
-		for i in range(20):
-
-			region = f"Region{random.randint(1,3)}"
-			x = random.randint(0, 15)
-			y = random.randint(0, 15)
-
-			# ZERO-PADDED for correct sorting
-			location = f"{region} ({x:02d}, {y:02d})"
-
-			self.cities_tree.insert(
-				"",
-				"end",
-				iid=f"city{i}",
-				values=(
-					location,
-					f"City_{i}",
-					f"Mayor_{i}",
-					f"user{i}",
-					f"192.168.1.{i}",
-					self._rand_time()
-				)
-			)
-
-		# --- Users ---
-		for i in range(15):
-			self.users_tree.insert(
-				"",
-				"end",
-				iid=f"user{i}",
-				values=(
-					f"user{i}",
-					f"UserName{i}",
-					random.choice([True, False]),
-					random.choice([True, False]),
-					self._rand_time()
-				)
-			)
-
-		# --- Clients ---
-		for i in range(15):
-			self.clients_tree.insert(
-				"",
-				"end",
-				iid=f"ip{i}",
-				values=(
-					f"10.0.0.{i}",
-					random.choice([True, False]),
-					self._rand_time()
-				)
-			)
-
-	def _rand_time(self):
-		return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-	def get_city_backups(self, city_iid):
-		return [f"backup_{i}" for i in range(1, 6)]
-
-	# =========================================================
 	# ROLLBACK MENU
 	# =========================================================
 
 	def _populate_rollback_menu(self, city_iid):
 		self.rollback_menu.delete(0, "end")
 
-		for save in self.get_city_backups(city_iid):
+		# stub (replace with real server call later)
+		for i in range(1, 6):
 			self.rollback_menu.add_command(
-				label=save,
-				command=lambda s=save: self._on_rollback_city(s)
+				label=f"backup_{i}",
+				command=lambda s=i: self._on_rollback_city(s)
 			)
 
 	# =========================================================
-	# ACTION STUBS
+	# ACTIONS
 	# =========================================================
 
 	def _get_selected(self, tree):
@@ -7920,16 +7910,9 @@ class AdminPanelUI(tk.Toplevel):
 	def _on_ban_user(self):
 		print("Ban user:", self._get_selected(self.users_tree))
 
-	def _on_toggle_admin(self):
-		print("Toggle admin:", self._get_selected(self.users_tree))
-
 	def _on_ban_ip(self):
 		print("Ban IP:", self._get_selected(self.clients_tree))
 
-	# =========================================================
-
-	def delete_window(self):
-		return self.iconify()
 
 # Exceptions
 

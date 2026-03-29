@@ -79,6 +79,14 @@ class Database:
 			self._serialized_data = serialized_data
 
 
+	def to_dict(self) -> dict:
+
+		if not isinstance(self._data, dict):
+			raise ValueError("Cannot convert data to 'dict'")
+
+		return self._data.copy()
+
+
 	def __repr__(self):
 		with self._lock:
 			return self._data.__repr__()

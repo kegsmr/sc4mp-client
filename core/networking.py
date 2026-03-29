@@ -31,8 +31,9 @@ COMMAND_USER_ID = 'UserId'
 COMMAND_TOKEN = 'Token'
 COMMAND_TIME = 'Time'
 COMMAND_LOADING_BACKGROUND = 'LdgBkg'
-COMMAND_CHECK_ADMIN = 'ChkAdm'
-COMMAND_ADMIN = 'Admin'
+COMMAND_IS_ADMIN = 'isAdmn'
+COMMAND_ADMIN_DATA = 'AdmDat'
+COMMAND_ADMIN_COMMAND = 'AdmCmd'
 
 
 def send_json(s: socket.socket, data, length_encoding="I"):
@@ -584,13 +585,34 @@ class ClientSocket(Socket):
 		return pluck_header(headers, 'result', str)
 
 
-	def check_admin(self, **headers):
+	def is_admin(self, **headers):
 
 		response = self.request(
-			command=COMMAND_CHECK_ADMIN, **headers
+			command=COMMAND_IS_ADMIN, **headers
 		)
 
 		return pluck_header(response, 'admin', bool)
+
+
+	def admin_data(self, types=None, **headers):
+
+		if not types:
+			types = []
+
+		self.request(
+			command=COMMAND_ADMIN_DATA, types=types, **headers
+		)
+
+		return self.recv_json()
+
+
+	def admin_command(self, **headers):
+
+		response = self.request(
+			command=COMMAND_ADMIN_COMMAND, **headers
+		)
+
+		return is_success(response)
 
 
 class ServerSocket(Socket):
@@ -648,15 +670,17 @@ class BaseRequestHandler(Thread):
 			COMMAND_TOKEN: self.res_token,
 			COMMAND_TIME: self.res_time,
 			COMMAND_LOADING_BACKGROUND: self.res_loading_background,
-			COMMAND_CHECK_ADMIN: self.res_check_admin,
-			COMMAND_ADMIN: self.res_admin
+			COMMAND_IS_ADMIN: self.res_is_admin,
+			COMMAND_ADMIN_DATA: self.res_admin_data,
+			COMMAND_ADMIN_COMMAND: self.res_admin_command
 		}
 
 		self.require_auth = [
 			COMMAND_SAVE,
 			COMMAND_TOKEN,
-			COMMAND_CHECK_ADMIN,
-			COMMAND_ADMIN
+			COMMAND_IS_ADMIN,
+			COMMAND_ADMIN_DATA,
+			COMMAND_ADMIN_COMMAND
 		]
 
 		if private:
@@ -686,8 +710,9 @@ class BaseRequestHandler(Thread):
 	def res_token(self): self.respond()
 	def res_time(self): self.respond()
 	def res_loading_background(self): self.respond()
-	def res_check_admin(self): self.respond()
-	def res_admin(self): self.respond()
+	def res_is_admin(self): self.respond()
+	def res_admin_data(self): self.respond()
+	def res_admin_command(self): self.respond()
 
 
 	def get_header(self, key: str, type: Type):
