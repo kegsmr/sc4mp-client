@@ -7608,35 +7608,328 @@ class ReleaseNotesUI(tk.Toplevel):
 
 class AdminPanelUI(tk.Toplevel):
 
-
 	def __init__(self, parent):
-		
+
 		print("Initializing...")
 
-		# Init
 		super().__init__()
 		self.parent = parent
 		self.server = parent.server
 
-		# Title
 		self.title(f"Admin: {self.server.server_name}")
-
-		# Icon
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
-		# Geometry
-		self.geometry("400x400")
-		self.minsize(443, 600)
-		self.maxsize(443, 600)
-		self.grid()
+		self.geometry('400x400')
+		self.minsize(800, 600)
 
-		# Protocol
 		self.protocol("WM_DELETE_WINDOW", self.delete_window)
 
+		# Track sort states
+		self._sort_state = {}
+
+		self._build_ui()
+		self.refresh_data()
+
+	# =========================================================
+	# UI BUILD
+	# =========================================================
+
+	def _build_ui(self):
+
+		container = ttk.Frame(self, padding=10)
+		container.pack(fill="both", expand=True)
+
+		self.notebook = ttk.Notebook(container)
+		self.notebook.pack(fill="both", expand=True)
+
+		self._build_cities_tab()
+		self._build_users_tab()
+		self._build_clients_tab()
+
+	# =========================================================
+	# GENERIC SORTING
+	# =========================================================
+
+	def _setup_sorting(self, tree, columns):
+		for col in columns:
+			tree.heading(col, command=lambda c=col, t=tree: self._sort_tree(t, c))
+
+	def _parse_value(self, value):
+
+		try:
+			return int(value)
+		except:
+			pass
+
+		try:
+			return datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+		except:
+			pass
+
+		if str(value).lower() in ("true", "false"):
+			return str(value).lower() == "true"
+
+		return str(value).lower()
+
+	def _sort_tree(self, tree, col):
+
+		key = (tree, col)
+		reverse = self._sort_state.get(key, False)
+
+		data = []
+		for iid in tree.get_children():
+			val = tree.set(iid, col)
+			data.append((self._parse_value(val), iid))
+
+		data.sort(reverse=reverse)
+
+		for index, (_, iid) in enumerate(data):
+			tree.move(iid, "", index)
+
+		self._sort_state[key] = not reverse
+
+	# =========================================================
+	# CITIES TAB
+	# =========================================================
+
+	def _build_cities_tab(self):
+
+		frame = ttk.Frame(self.notebook)
+		self.notebook.add(frame, text="Cities")
+
+		container = ttk.Frame(frame, padding=10)
+		container.pack(fill="both", expand=True)
+
+		# UPDATED columns
+		columns = ("location", "name", "mayor", "user_id", "ip", "modified")
+
+		self.cities_tree = ttk.Treeview(container, columns=columns, show="headings")
+
+		for col in columns:
+			self.cities_tree.heading(col, text=col.title())
+			self.cities_tree.column(col, anchor="center", width=120)
+
+		self._setup_sorting(self.cities_tree, columns)
+
+		self.cities_tree.pack(fill="both", expand=True)
+
+		# Context menu
+		self.cities_menu = Menu(self, tearoff=0)
+
+		delete_menu = Menu(self.cities_menu, tearoff=0)
+		delete_menu.add_command(label="Delete City", command=self._on_delete_city)
+		delete_menu.add_command(label="Delete + Ban User", command=self._on_delete_city_ban_user)
+		delete_menu.add_command(label="Delete + Ban IP", command=self._on_delete_city_ban_ip)
+
+		self.cities_menu.add_cascade(label="Delete", menu=delete_menu)
+
+		self.rollback_menu = Menu(self.cities_menu, tearoff=0)
+		self.cities_menu.add_cascade(label="Rollback", menu=self.rollback_menu)
+
+		self.cities_menu.add_separator()
+		self.cities_menu.add_command(label="Unclaim", command=self._on_unclaim_city)
+
+		self.cities_tree.bind("<Button-3>", self._cities_right_click)
+
+	# =========================================================
+	# USERS TAB
+	# =========================================================
+
+	def _build_users_tab(self):
+
+		frame = ttk.Frame(self.notebook)
+		self.notebook.add(frame, text="Users")
+
+		container = ttk.Frame(frame, padding=10)
+		container.pack(fill="both", expand=True)
+
+		columns = ("user_id", "name", "banned", "admin", "last_online")
+
+		self.users_tree = ttk.Treeview(container, columns=columns, show="headings")
+
+		for col in columns:
+			self.users_tree.heading(col, text=col.title())
+			self.users_tree.column(col, anchor="center", width=100)
+
+		self._setup_sorting(self.users_tree, columns)
+
+		self.users_tree.pack(fill="both", expand=True)
+
+		self.users_menu = Menu(self, tearoff=0)
+		self.users_menu.add_command(label="Ban User", command=self._on_ban_user)
+		self.users_menu.add_command(label="Toggle Admin", command=self._on_toggle_admin)
+
+		self.users_tree.bind("<Button-3>", self._users_right_click)
+
+	# =========================================================
+	# CLIENTS TAB
+	# =========================================================
+
+	def _build_clients_tab(self):
+
+		frame = ttk.Frame(self.notebook)
+		self.notebook.add(frame, text="Clients")
+
+		container = ttk.Frame(frame, padding=10)
+		container.pack(fill="both", expand=True)
+
+		columns = ("ip", "banned", "last_online")
+
+		self.clients_tree = ttk.Treeview(container, columns=columns, show="headings")
+
+		for col in columns:
+			self.clients_tree.heading(col, text=col.title())
+			self.clients_tree.column(col, anchor="center", width=140)
+
+		self._setup_sorting(self.clients_tree, columns)
+
+		self.clients_tree.pack(fill="both", expand=True)
+
+		self.clients_menu = Menu(self, tearoff=0)
+		self.clients_menu.add_command(label="Ban IP", command=self._on_ban_ip)
+
+		self.clients_tree.bind("<Button-3>", self._clients_right_click)
+
+	# =========================================================
+	# RIGHT CLICK
+	# =========================================================
+
+	def _cities_right_click(self, event):
+		iid = self.cities_tree.identify_row(event.y)
+		if iid:
+			self.cities_tree.selection_set(iid)
+			self._populate_rollback_menu(iid)
+			self.cities_menu.post(event.x_root, event.y_root)
+
+	def _users_right_click(self, event):
+		iid = self.users_tree.identify_row(event.y)
+		if iid:
+			self.users_tree.selection_set(iid)
+			self.users_menu.post(event.x_root, event.y_root)
+
+	def _clients_right_click(self, event):
+		iid = self.clients_tree.identify_row(event.y)
+		if iid:
+			self.clients_tree.selection_set(iid)
+			self.clients_menu.post(event.x_root, event.y_root)
+
+	# =========================================================
+	# DUMMY DATA
+	# =========================================================
+
+	def refresh_data(self):
+
+		for tree in (self.cities_tree, self.users_tree, self.clients_tree):
+			for item in tree.get_children():
+				tree.delete(item)
+
+		# --- Cities ---
+		for i in range(20):
+
+			region = f"Region{random.randint(1,3)}"
+			x = random.randint(0, 15)
+			y = random.randint(0, 15)
+
+			# ZERO-PADDED for correct sorting
+			location = f"{region} ({x:02d}, {y:02d})"
+
+			self.cities_tree.insert(
+				"",
+				"end",
+				iid=f"city{i}",
+				values=(
+					location,
+					f"City_{i}",
+					f"Mayor_{i}",
+					f"user{i}",
+					f"192.168.1.{i}",
+					self._rand_time()
+				)
+			)
+
+		# --- Users ---
+		for i in range(15):
+			self.users_tree.insert(
+				"",
+				"end",
+				iid=f"user{i}",
+				values=(
+					f"user{i}",
+					f"UserName{i}",
+					random.choice([True, False]),
+					random.choice([True, False]),
+					self._rand_time()
+				)
+			)
+
+		# --- Clients ---
+		for i in range(15):
+			self.clients_tree.insert(
+				"",
+				"end",
+				iid=f"ip{i}",
+				values=(
+					f"10.0.0.{i}",
+					random.choice([True, False]),
+					self._rand_time()
+				)
+			)
+
+	def _rand_time(self):
+		return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+	def get_city_backups(self, city_iid):
+		return [f"backup_{i}" for i in range(1, 6)]
+
+	# =========================================================
+	# ROLLBACK MENU
+	# =========================================================
+
+	def _populate_rollback_menu(self, city_iid):
+		self.rollback_menu.delete(0, "end")
+
+		for save in self.get_city_backups(city_iid):
+			self.rollback_menu.add_command(
+				label=save,
+				command=lambda s=save: self._on_rollback_city(s)
+			)
+
+	# =========================================================
+	# ACTION STUBS
+	# =========================================================
+
+	def _get_selected(self, tree):
+		sel = tree.selection()
+		return sel[0] if sel else None
+
+	def _on_delete_city(self):
+		print("Delete:", self._get_selected(self.cities_tree))
+
+	def _on_delete_city_ban_user(self):
+		print("Delete + ban user:", self._get_selected(self.cities_tree))
+
+	def _on_delete_city_ban_ip(self):
+		print("Delete + ban IP:", self._get_selected(self.cities_tree))
+
+	def _on_rollback_city(self, backup):
+		print("Rollback:", self._get_selected(self.cities_tree), backup)
+
+	def _on_unclaim_city(self):
+		print("Unclaim:", self._get_selected(self.cities_tree))
+
+	def _on_ban_user(self):
+		print("Ban user:", self._get_selected(self.users_tree))
+
+	def _on_toggle_admin(self):
+		print("Toggle admin:", self._get_selected(self.users_tree))
+
+	def _on_ban_ip(self):
+		print("Ban IP:", self._get_selected(self.clients_tree))
+
+	# =========================================================
 
 	def delete_window(self):
 		return self.iconify()
-
 
 # Exceptions
 
