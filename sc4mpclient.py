@@ -7697,11 +7697,10 @@ class AdminPanelUI(tk.Toplevel):
 		# Buttons below treeview
 		btn_frame = ttk.Frame(container)
 		btn_frame.pack(fill="x", pady=5)
-		ttk.Button(btn_frame, text="Delete", command=self._on_delete_city).pack(side="left", padx=5)
-		ttk.Button(btn_frame, text="Delete + Ban User", command=self._on_delete_city_ban_user).pack(side="left", padx=5)
-		ttk.Button(btn_frame, text="Delete + Ban IP", command=self._on_delete_city_ban_ip).pack(side="left", padx=5)
-		ttk.Button(btn_frame, text="Rollback", command=lambda: self._on_rollback_city(1)).pack(side="left", padx=5)
-		ttk.Button(btn_frame, text="Unclaim", command=self._on_unclaim_city).pack(side="left", padx=5)
+		ttk.Button(btn_frame, text="Ban User", command=self._on_ban_owner).pack(side="left", padx=5)
+		ttk.Button(btn_frame, text="Delete City", command=self._on_delete_city).pack(side="left", padx=5)
+		ttk.Button(btn_frame, text="Rollback City", command=lambda: self._on_rollback_city(1)).pack(side="left", padx=5)
+		ttk.Button(btn_frame, text="Release Claim", command=self._on_release_claim).pack(side="left", padx=5)
 
 	# =========================================================
 	# USERS TAB
@@ -7720,6 +7719,7 @@ class AdminPanelUI(tk.Toplevel):
 		# Buttons below treeview
 		btn_frame = ttk.Frame(container)
 		btn_frame.pack(fill="x", pady=5)
+		ttk.Button(btn_frame, text="Make Admin", command=self._on_grant_admin).pack(side="left", padx=5)
 		ttk.Button(btn_frame, text="Ban User", command=self._on_ban_user).pack(side="left", padx=5)
 
 	# =========================================================
@@ -7752,7 +7752,7 @@ class AdminPanelUI(tk.Toplevel):
 					x, y = map(int, coord.split("_"))
 				except:
 					x, y = 0, 0
-				location = f"{region_name} ({x:02d}, {y:02d})"
+				location = f"{region_name} ({x:03d}, {y:03d})"
 				self.cities_tree.insert(
 					"", "end", iid=f"{region_name}_{coord}",
 					values=(location, city.get("city_name") or "", city.get("mayor_name") or "",
@@ -7781,7 +7781,7 @@ class AdminPanelUI(tk.Toplevel):
 	def _on_delete_city(self):
 		print("Delete:", self._get_selected(self.cities_tree))
 
-	def _on_delete_city_ban_user(self):
+	def _on_ban_owner(self):
 		print("Delete + ban user:", self._get_selected(self.cities_tree))
 
 	def _on_delete_city_ban_ip(self):
@@ -7790,8 +7790,11 @@ class AdminPanelUI(tk.Toplevel):
 	def _on_rollback_city(self, backup):
 		print("Rollback:", self._get_selected(self.cities_tree), backup)
 
-	def _on_unclaim_city(self):
+	def _on_release_claim(self):
 		print("Unclaim:", self._get_selected(self.cities_tree))
+
+	def _on_grant_admin(self):
+		print("Grant admin:", self._get_selected(self.users_tree))
 
 	def _on_ban_user(self):
 		print("Ban user:", self._get_selected(self.users_tree))
