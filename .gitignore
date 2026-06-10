@@ -18,6 +18,8 @@ api_test.py
 testing.py
 test.json
 version.rc
+profile.html
+profile.json
 
 *.bat
 *.exe
