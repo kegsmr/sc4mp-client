@@ -887,7 +887,7 @@ def start_sc4():
 					time.sleep(1)
 				break
 			except Exception as e:
-				show_error("An error occured while checking if SC4 had exited yet.", no_ui=True)
+				show_error("An error occurred while checking if SC4 had exited yet.", no_ui=True)
 				time.sleep(10)
 	
 	# SimCity 4 has closed
@@ -1435,7 +1435,7 @@ class Server:
 			try:
 				self.update_database()
 			except Exception as e:
-				show_error("An error occured while updating the server database.", no_ui = True)
+				show_error("An error occurred while updating the server database.", no_ui = True)
 
 
 	def fetch_stats(self):
@@ -5404,7 +5404,7 @@ class DirectConnectUI(tk.Toplevel):
 			ServerLoaderUI(Server(host, port))
 			self.destroy()
 		except Exception as e:
-			show_error(f"An unexpected error occured while starting the server loader thread.\n\n{e}")
+			show_error(f"An unexpected error occurred while starting the server loader thread.\n\n{e}")
 
 
 class PasswordDialogUI(tk.Toplevel):
