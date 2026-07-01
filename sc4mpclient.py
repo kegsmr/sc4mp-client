@@ -1379,7 +1379,10 @@ class Server:
 		#else:
 		#	raise ClientException("Unable to find server. Check the IP address and port, then try again.")
 		
-		self.server_id = sanitize_directory_name(server_info["server_id"]) #self.request("server_id")
+		try:
+			self.server_id = sanitize_directory_name(server_info["server_id"]) #self.request("server_id")
+		except ValueError as e:
+			raise ClientException(f"Invalid server ID received from server: {e}")
 		self.server_name = server_info["server_name"] #self.request("server_name")
 		self.server_description = server_info["server_description"] #self.request("server_description")
 		self.server_url = server_info["server_url"] #self.request("server_url")
@@ -2865,7 +2868,12 @@ class ServerLoader(th.Thread):
 				for entry in file_table:
 
 					# Get necessary values from entry
-					checksum = sanitize_directory_name(entry[0])
+					try:
+						checksum = sanitize_directory_name(entry[0])
+					except ValueError:
+						# Skip files with invalid checksums
+						print(f"[WARNING] Skipping file with invalid checksum: {entry[0]}")
+						continue
 					filesize = entry[1]
 					relpath = Path(entry[2])
 
@@ -3777,7 +3785,12 @@ class RegionsRefresher(th.Thread):
 				for entry in file_table:
 
 					# Get necessary values from entry
-					checksum = sanitize_directory_name(entry[0])
+					try:
+						checksum = sanitize_directory_name(entry[0])
+					except ValueError:
+						# Skip files with invalid checksums
+						print(f"[WARNING] Skipping file with invalid checksum: {entry[0]}")
+						continue
 					filesize = entry[1]
 					relpath = Path(entry[2])
 
