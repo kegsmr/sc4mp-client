@@ -2161,7 +2161,9 @@ class ServerList(th.Thread):
 
 		RANK_COLUMN_ID = "#5"
 
-		CUTOFF_Y = 260
+		# Use the actual bounding box of the tree view instead of a constant
+		# This fixes rank bars going out of bounds on different display configurations
+		CUTOFF_Y = self.ui.tree.winfo_height()
 
 		OFFSET_X = 18
 		OFFSET_Y = 154
