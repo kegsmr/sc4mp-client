@@ -24,6 +24,7 @@ import traceback
 import webbrowser
 from datetime import datetime, timedelta
 from pathlib import Path
+from pprint import pformat
 from tkinter import Menu, filedialog, messagebox, ttk
 from tkinter import font as tkfont
 from typing import Optional, Union
@@ -37,7 +38,7 @@ except ImportError:
 from core.config import Config
 from core.database import Database
 from core.dbpf import SC4Savegame, SC4Config
-from core.networking import ClientSocket, NetworkException
+from core.networking import ClientSocket, NetworkException, TimeoutException
 from core.util import *
 
 
@@ -1350,10 +1351,13 @@ class Server:
 		#self.stats = False
 		self.password = None
 		self.user_id = None
+		self.guest = None
 
 		self.categories = ["All"]
 		if self.host == SC4MP_SERVERS_DOMAIN:
 			self.categories.append("Official")
+
+		self.regions: list[Path] = []
 
 
 	def fetch(self):
@@ -1620,10 +1624,7 @@ class Server:
 
 		try:
 			with self.socket() as s:
-				start = time.time()
-				s.ping()
-				end = time.time()
-				self.server_ping = round(1000 * (end - start))
+				self.server_ping, _ = calculate_latency(s.ping)
 				return self.server_ping
 		except (NetworkException, socket.error):
 			return None
@@ -1644,9 +1645,9 @@ class Server:
 			return datetime.now()
 
 
-	def socket(self) -> ClientSocket:
+	def socket(self, **options) -> ClientSocket:
 
-		s = ClientSocket((self.host, self.port))
+		s = ClientSocket((self.host, self.port), **options)
 
 		s.set_headers(
 			version=SC4MP_VERSION,
@@ -2680,7 +2681,7 @@ class ServerLoader(th.Thread):
 				if self.server.password != "":
 					self.server.authenticate()
 				break
-			except (socket.error, socket.timeout) as e:
+			except (NetworkException, socket.error, socket.timeout) as e:
 				self.connection_failed_retrying(e)
 		
 
@@ -3096,10 +3097,6 @@ class ServerLoader(th.Thread):
 
 
 	def prep_regions(self):
-		
-
-		# Declare instance variable to store the paths of the server region subdirectories
-		self.server.regions: list[Path] = []
 
 		# Path to regions directory
 		regions_directory = Path(SC4MP_LAUNCHPATH) / "Regions"
@@ -3204,6 +3201,63 @@ class ServerLoader(th.Thread):
 
 
 class GameMonitor(th.Thread):
+
+
+	def __init__(self, server: Server):
+
+		super().__init__()
+
+		self.server = server
+
+		self.cities = self.get_cities()
+
+		#TODO
+		
+
+	def get_cities(self) -> dict[str, dict[tuple[int, int], Path]]:
+
+		cities = {}
+
+		for region in self.server.regions:
+
+			cities.setdefault(region, {})
+
+			region_path: Path = Path(SC4MP_LAUNCHPATH) / "Regions" / region
+			region_path.mkdir(parents=True, exist_ok=True)
+
+			if region_path.is_file():
+				continue
+
+			for city in region_path.glob('*.sc4'):
+
+				city_path = region_path / city
+				error = lambda e: show_error(e, no_ui=True)
+
+				with SC4Savegame(city_path, error_callback=error) as savegame:
+
+					SC4ReadRegionalCity: dict = \
+						savegame.get_SC4ReadRegionalCity()
+
+					coords = (
+						SC4ReadRegionalCity.get('tileXLocation'),
+						SC4ReadRegionalCity.get('tileYLocation')
+					)
+
+				if None in coords:
+					continue
+
+				city_entry = {
+					"path": city_path,
+					"size": city_path.stat().st_size,
+					"mtime": city_path.stat().st_mtime
+				}
+
+				cities[region][coords] = city_entry
+
+		return cities
+
+
+class GameMonitorOld(th.Thread):
 	
 
 
@@ -3250,6 +3304,10 @@ class GameMonitor(th.Thread):
 		self.game_launcher = GameLauncher()
 		self.game_launcher.start()
 
+		# Start the event listener (listens for events on the server)
+		self.event_listener = EventListener(self.server)
+		self.event_listener.start()
+
 		# Thread shutsdown when this is set to `True`
 		self.end = False
 
@@ -3287,7 +3345,7 @@ class GameMonitor(th.Thread):
 				self.ui.url_label["text"] = self.server.server_url
 
 			# Time the server was last pinged (`None` for now)
-			last_ping_time = None
+			last_ping_time = time.time()
 
 			# Infinite loop that can be broken by the "end" variable (runs an extra time once it's set to `True`)
 			while True:
@@ -3296,30 +3354,34 @@ class GameMonitor(th.Thread):
 				try:
 
 					# Update server ping in UI every 5 seconds
-					if last_ping_time is None or time.time() - last_ping_time >= 5:
+					if time.time() - last_ping_time >= 15:
 
 						# Ping the server
-						ping = self.ping()
+						ping = self.server.ping()
 
-						# If the server is responsive, print the ping in the console and display the ping in the ui
-						if ping != None:
-							print(f"Ping: {ping}")
-							if self.ui != None:
-								self.ui.ping_frame.right['text'] = f"{ping}ms"
-								self.ui.ping_frame.right['fg'] = "gray"
-						
 						# If the server is unresponsive, print a warning in the console and update the ui accordingly
-						else:
+						if ping is None:
 							print("[WARNING] Disconnected.")
 							if self.ui != None:
 								self.ui.ping_frame.right['text'] = "Disconnected"
 								self.ui.ping_frame.right['fg'] = "red"
-					
-						# Set the last ping time
-						last_ping_time = time.time()
+						
+						# If the server is responsive, print the ping in the console and display the ping in the ui
+						else:
+							# print(f"Ping: {ping}")
+							if self.ui != None:
+								self.ui.ping_frame.right['text'] = f"{ping}ms"
+								self.ui.ping_frame.right['fg'] = "gray"
+
+							# Set the last ping time
+							last_ping_time = time.time()
+
+					#TODO Handle save events
+					while event := self.event_listener.pop('save'):
+						pass
 
 					# If not in guest mode
-					if self.server.password != "":
+					if not self.server.guest:
 
 						#new_city_paths, new_city_hashcodes = self.get_cities()
 						
@@ -3522,6 +3584,10 @@ class GameMonitor(th.Thread):
 		except Exception as e:
 			
 			show_error(f"An unexpected error occurred in the game monitor thread.\n\n{e}")
+		
+		finally:
+
+			self.event_listener.stop()
 
 
 	def get_cities(self) -> tuple[list[Path], list[str]]:
@@ -3665,11 +3731,6 @@ class GameMonitor(th.Thread):
 		shutil.copy(city_path, destination.with_suffix(".sc4"))
 
 
-	def ping(self):
-		
-		return self.server.ping()
-
-
 	def report(self, prefix, text, color="black"):
 		
 		if self.ui != None:
@@ -3687,6 +3748,96 @@ class GameMonitor(th.Thread):
 	def set_overlay_state(self, state):
 		if self.overlay_ui is not None:
 			self.overlay_ui.set_state(state)
+
+
+class EventListener(th.Thread):
+
+
+	MAX_EVENTS = 1000
+
+
+	def __init__(self, server):
+
+		super().__init__(daemon=True)
+
+		self.server: Server = server
+
+		self._socket = None
+
+		self._events: list[dict] = []
+		self._lock = th.Lock()
+
+		self._stop = False
+
+
+	def run(self):
+		
+		try:
+
+			set_thread_name("EvntThread", enumerate=False)
+
+			while not self._stop:
+				try:
+					if not self._connected():
+						self._connect()
+					events = self._socket.events()
+					with self._lock:
+						for event in events:
+							print(event)
+							self._events.append(event)
+							while len(self._events) > self.MAX_EVENTS:
+								self._events.pop(0)
+				except TimeoutException:
+					pass
+				except NetworkException:
+					self._disconnect()
+					time.sleep(1)
+
+		except Exception as e:
+
+			show_error(f"An unexpected error occurred in the event listener thread.\n\n{e}")
+
+		finally:
+
+			self._disconnect()
+
+
+	def _connect(self):
+
+		self._socket = self.server.socket()
+		self._socket.subscribe()
+
+
+	def _connected(self):
+
+		return self._socket is not None
+
+
+	def _disconnect(self):
+
+		if self._connected():
+			self._socket.close()
+
+		self._socket = None
+
+
+	def stop(self):
+
+		self._stop = True
+		self._disconnect()
+
+	
+	def pop(self, target_event_type=None) -> tuple[str, dict] | None:
+
+		with self._lock:
+			for index in range(len(self._events)):
+				event: dict = self._events[index]
+				event_type: str = event.get('event') or ''
+				if not target_event_type or target_event_type == event_type:
+					self._events.pop(index)
+					return event_type, event
+
+		return None
 
 
 class GameLauncher(th.Thread):
@@ -5053,6 +5204,7 @@ class PasswordDialogUI(tk.Toplevel):
 				if self.server_loader.ui.background:
 					self.server_loader.ui.background.lift()
 				if not messagebox.askokcancel(self.server_loader.server.server_name, "You are about to join the server as a guest.\n\nAny cities you build will NOT be saved.", icon="info"):
+					self.server_loader.server.guest = True
 					self.deiconify()
 					return
 
