@@ -896,27 +896,26 @@ def start_sc4():
 
 def is_steam_sc4(path: Path):
 
-	#COMMON_STEAM_FILES = ["Steam.dll", "steam_api.dll", "steam_api64.dll", "steam_appid.txt", "steamclient.dll", "steamclient64.dll"]
-
-	#exec_dir = path.parent.parent
-	#exec_dir_filenames = os.listdir(exec_dir)
-
-	#for steam_filename in COMMON_STEAM_FILES:
-	#	if steam_filename in exec_dir_filenames:
-	#		return True
-
 	return "steamapps" in [directory.name.lower() for directory in path.parents]
 
 
 def process_exists(process_name): #TODO add MacOS compatability / deprecate in favor of `process_count`?
-	
+
 	if is_windows():
 		call = 'TASKLIST', '/FI', 'imagename eq %s' % process_name
 		output = subprocess.check_output(call, shell=True).decode()
 		last_line = output.strip().split('\r\n')[-1]
 		return last_line.lower().startswith(process_name.lower())
-	else:
-		return None
+
+	# Unix systems do not have Windows TASKLIST; search the process list instead.
+	# This allows SC4MP to monitor SimCity 4 when running through Wine.
+	result = subprocess.run(
+		["ps", "-A", "-o", "command"],
+		capture_output=True,
+		text=True
+	)
+
+	return process_name.lower() in result.stdout.lower()
 
 
 def get_sc4mp_path(filename: str) -> Path:
@@ -1133,9 +1132,20 @@ def set_server_data(entry, server):
 	entry.setdefault("first_contact", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 	entry["last_contact"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+def get_sc4_cfg_path() -> Path:
+	"""Returns the path to the `SimCity 4.cfg` file."""
 
-def get_sc4_cfg_path() -> Path: #TODO can this find the cfg for the origin version?
-	"""Returns the path to the `SimCity 4.cfg` file"""
+	candidates = [
+			Path.home() / "Documents" / "SimCity 4" / "SimCity 4.cfg",
+			Path.home() / "Documents" / "SimCity 4.backup" / "SC4MP Launcher" / "_SC4MP" / "SimCity 4.cfg",
+			Path(SC4MP_LAUNCHPATH) / "SimCity 4.cfg",
+	]
+
+
+	for path in candidates:
+			if path.exists():
+				return path
+
 	return Path(SC4MP_LAUNCHPATH) / "SimCity 4.cfg"
 
 
@@ -1218,6 +1228,10 @@ def format_url(url: str) -> str:
 		return f"http://{url}"
 	else:
 		return url
+
+def normalize_server_path(path: str) -> Path:
+	"""Converts Windows-style paths received from the server to local OS paths."""
+	return Path(path.replace("\\", os.sep))
 
 
 def sync_simcity_4_cfg(to_mp=False):
@@ -1560,7 +1574,7 @@ class Server:
 
 				# Get necessary values from entry
 				filesize = entry[1]
-				relpath = Path(entry[2])
+				relpath = normalize_server_path(entry[2])
 
 				# Set the destination
 				d = sanitize_relpath(Path(destination), relpath)
@@ -3004,7 +3018,7 @@ class ServerLoader(th.Thread):
 					# Get necessary values from entry
 					checksum = sanitize_directory_name(entry[0])
 					filesize = entry[1]
-					relpath = Path(entry[2])
+					relpath = normalize_server_path(entry[2])
 
 					# Handle risky file types
 					if not sc4mp_config["GENERAL"]["ignore_risky_file_warnings"]:
@@ -3089,7 +3103,7 @@ class ServerLoader(th.Thread):
 					# Get necessary values from entry
 					checksum = sanitize_directory_name(entry[0])
 					filesize = entry[1]
-					relpath = Path(entry[2])
+					relpath = normalize_server_path(entry[2])
 
 					# Report
 					print(f'- caching "{checksum}"...')
@@ -4130,7 +4144,7 @@ class RegionsRefresher(th.Thread):
 					# Get necessary values from entry
 					checksum = sanitize_directory_name(entry[0])
 					filesize = entry[1]
-					relpath = Path(entry[2])
+					relpath = normalize_server_path(entry[2])
 
 					# Get path of cached file
 					t = Path(SC4MP_LAUNCHPATH) / "_Cache" / checksum
@@ -4183,7 +4197,7 @@ class RegionsRefresher(th.Thread):
 					# Get necessary values from entry
 					checksum = sanitize_directory_name(entry[0])
 					filesize = entry[1]
-					relpath = Path(entry[2])
+					relpath = normalize_server_path(entry[2])
 
 					# Report
 					print(f'- caching "{checksum}"...')
@@ -6086,8 +6100,13 @@ class ServerBackgroundUI(tk.Toplevel):
 		self.title(SC4MP_TITLE)
 
 		# Geometry
-		self.state('zoomed')
-		self.wm_attributes("-toolwindow", True)
+		if is_windows():
+			self.state('zoomed')
+			self.wm_attributes("-toolwindow", True)
+		else:
+			self.update_idletasks()
+			self.geometry(f"{self.winfo_screenwidth()}x{self.winfo_screenheight()}+0+0")
+
 		self.attributes("-fullscreen", sc4mp_config["SC4"]["fullscreen"])
 
 		# Load the image
