@@ -815,7 +815,7 @@ def start_sc4():
 		arguments.append('-f')
 	else:
 		arguments.append('-w')
-	arguments.extend(sc4mp_config["SC4"]["additional_properties"].strip().split(' '))  # assumes that properties do not have spaces
+	arguments.extend(sc4mp_config["SC4"]["additional_properties"].split())  # assumes that properties do not have spaces
 
 	# `True` if the game is installed using Steam
 	steam_sc4 = is_steam_sc4(path)
@@ -845,7 +845,7 @@ def start_sc4():
 	if not steam_launch:
 
 		# Regular command
-		command = ' '.join(arguments)
+		command = ' '.join([f'"{arguments[0]}"'] + arguments[1:])	# quote the path to the exe, since it may contain spaces
 
 		# Launch the game
 		print(f"- launching directly ('{command}').")
