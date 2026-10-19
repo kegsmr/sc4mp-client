@@ -3233,6 +3233,9 @@ class GameMonitor(th.Thread):
 
 		# Cached md5's of savegames, by path, with the size and modification time they were computed for
 		self.city_hashcode_cache = {}
+
+		# Cities saved by other mayors that still need to be downloaded
+		self.pending_downloads = []
 		
 		# Get list of city paths and their md5's
 		self.city_paths, self.city_hashcodes = self.get_cities()
@@ -3343,12 +3346,18 @@ class GameMonitor(th.Thread):
 							# Set the last ping time
 							last_ping_time = time.time()
 
-					# Download cities saved by other mayors
+					# Download cities saved by other mayors (if a savegame can't be replaced yet, eg. because SC4 has it open, try again later)
 					while event := self.event_listener.pop('save'):
+						self.pending_downloads.append(event[1])
+					for event in list(self.pending_downloads):
 						try:
-							self.download_city(event[1])
+							self.download_city(event)
+						except PermissionError as e:
+							print(f"[WARNING] Unable to replace the savegame yet, trying again later. {e}")
+							continue
 						except Exception as e:
 							show_error(f"An error occurred while downloading a city saved by another mayor.\n\n{e}", no_ui=True)
+						self.pending_downloads.remove(event)
 
 					# If not in guest mode
 					if not self.server.guest:
