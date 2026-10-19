@@ -3242,8 +3242,8 @@ class GameMonitor(th.Thread):
 		# The md5's of the savegames in the server's regions, by path
 		self.cities: dict[Path, str] = self.get_cities()
 
-		# The md5's of the savegames that match the server's copy (ie. not changed by the player since they were downloaded or pushed), by path
-		self.synced_cities: dict[Path, str] = dict(self.cities)
+		# Savegames the player changed that couldn't be pushed (eg. the server was unreachable), so they aren't overwritten by downloads
+		self.unpushed_cities: set[Path] = set()
 
 		# Cities saved by other mayors that still need to be downloaded (`save` events), and whether to compare all savegames with the server's
 		self.pending_downloads: list[dict] = []
@@ -3401,15 +3401,14 @@ class GameMonitor(th.Thread):
 			return
 
 		# Push them. If errors occur, log them in the console and display a warning
+		self.unpushed_cities.update(save_city_paths)
 		tries = 0
 		while True:
 			try:
 				self.report("", "Saving...")
 				self.set_overlay_state('saving')
-				if self.save(save_city_paths):
-					for path in save_city_paths:
-						if path in self.cities:
-							self.synced_cities[path] = self.cities[path]
+				self.save(save_city_paths)
+				self.unpushed_cities.difference_update(save_city_paths)	# pushed (or rejected by the server, in which case they're salvaged)
 				break
 			except (NetworkException, socket.timeout, socket.error) as e: # Is `ConnectionResetError` a `socket.error`?
 				show_error(e, no_ui=True)
@@ -3521,7 +3520,7 @@ class GameMonitor(th.Thread):
 
 		# All savegames now match the server's
 		self.cities = self.get_cities()
-		self.synced_cities = dict(self.cities)
+		self.unpushed_cities.clear()
 
 		if sc4mp_game_launcher.game_running:
 			self.report("", "Regions refreshed at " + datetime.now().strftime("%H:%M") + ".", color="green")
@@ -3643,10 +3642,10 @@ class GameMonitor(th.Thread):
 			if (SC4ReadRegionalCity["tileXLocation"], SC4ReadRegionalCity["tileYLocation"]) == coords:
 				city_paths.append(city_path)
 
-		# Don't overwrite the player's changes that haven't been pushed (eg. if the server was unreachable). They'll be replaced by the next refresh
+		# Don't overwrite the player's changes that couldn't be pushed (eg. if the server was unreachable). They'll be replaced by the next refresh
 		for city_path in city_paths:
-			if self.cities.get(city_path) != self.synced_cities.get(city_path):
-				print(f'[WARNING] Not replacing "{city_path.name}", since it has changes that weren\'t pushed.')
+			if city_path in self.unpushed_cities:
+				print(f'[WARNING] Not replacing "{city_path.name}", since it has changes that couldn\'t be pushed.')
 				return
 
 		# Already up to date
@@ -3662,11 +3661,9 @@ class GameMonitor(th.Thread):
 		for city_path in city_paths:
 			city_path.unlink()
 			self.cities.pop(city_path, None)
-			self.synced_cities.pop(city_path, None)
 
 		# Update the savegames the game monitor knows about, so the downloaded savegame isn't pushed back to the server
 		self.cities[destination] = self.get_city_hashcode(destination)
-		self.synced_cities[destination] = self.cities[destination]
 
 		print(f'- downloaded "{relpath}" at {coords} to "{destination.name}"')
 		self.report_quietly(f"A city in {region_path.name} was updated at {datetime.now().strftime('%H:%M')}.")
@@ -3803,8 +3800,7 @@ class GameMonitor(th.Thread):
 		return filtered_savegames
 
 
-	def save(self, save_city_paths: list[Path]) -> bool:
-		"""Pushes savegames to the server. Returns `True` if the server accepted them."""
+	def save(self, save_city_paths: list[Path]) -> None:
 
 		# Update overlay
 		self.set_overlay_state("saving")
@@ -3823,7 +3819,7 @@ class GameMonitor(th.Thread):
 		if len(regions) > 1:
 			self.report(self.PREFIX, 'Save push failed! Too many regions.', color="red") 
 			self.set_overlay_state("not-saved")
-			return False
+			return
 		else:
 			region = list(regions)[0]
 
@@ -3860,11 +3856,9 @@ class GameMonitor(th.Thread):
 				self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green") #TODO keep track locally of the client's claims
 				self.set_overlay_state("saved")
 				shutil.rmtree(salvage_directory) #TODO make configurable
-				return True
 			else:
 				self.report(self.PREFIX + "[WARNING] ", f"Save push failed! {response}", color="red")
 				self.set_overlay_state("not-saved")
-				return False
 
 
 	def backup_city(self, city_path: Path) -> None:
