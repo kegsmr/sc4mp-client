@@ -29,7 +29,7 @@ def recv_json(s, length_encoding="I"):
 
 		else:
 
-			time.sleep(.1)
+			raise ConnectionError("Connection closed.")
 
 	data_size = struct.unpack(length_encoding, length_header)[0]
 	data_size_read = 0
@@ -50,6 +50,6 @@ def recv_json(s, length_encoding="I"):
 
 		else:
 			
-			time.sleep(.1)
+			raise ConnectionError("Connection closed.")
 
 	return json.loads(data.decode())
