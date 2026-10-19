@@ -3638,40 +3638,54 @@ class GameMonitor(th.Thread):
 
 
 	def update_chat(self):
-		"""Shows new chat messages in the game monitor and the game overlay."""
+		"""Shows new chat messages, and players joining and leaving, in the game monitor and the game overlay. A message that can't be shown is skipped and logged, never shown as an error."""
 
 		while event := self.event_listener.pop(('chat', 'user_join', 'user_leave')):
-
-			# Players joining and leaving
-			if event[0] in ('user_join', 'user_leave'):
-				name = event[1].get('name') or "Defacto"
-				text = f"{name} {'joined' if event[0] == 'user_join' else 'left'} the server."
-				print(text)
-				if isinstance(self.ui, GameMonitorUI):
-					self.ui.add_chat_info(text)
-				continue
-
-			chat = event[1]
-			key = (chat.get('time'), chat.get('user_id'), chat.get('message'))
-			if key in self.chat_messages:
-				continue
-			self.chat_messages.add(key)
-
-			name = chat.get('name') or "Mayor"
-			message = chat.get('message') or ""
-			print(f"[CHAT] {name}: {message}")
-
 			try:
-				timestamp = float(chat['time'])
-			except Exception:
-				timestamp = None
+				self.show_chat_event(*event)
+			except Exception as e:
+				show_error(f"Unable to show a chat message.\n\n{e}", no_ui=True)
 
+
+	def show_chat_event(self, event_type: str, event: dict):
+
+		def text(value, default=""):
+			return value if isinstance(value, str) else default
+
+		name = text(event.get('name')) or "Defacto"
+		user_id = text(event.get('user_id')) or None
+
+		# Players joining and leaving
+		if event_type in ('user_join', 'user_leave'):
+			line = f"{name} {'joined' if event_type == 'user_join' else 'left'} the server."
+			print(line)
 			if isinstance(self.ui, GameMonitorUI):
-				self.ui.add_chat_message(name, message, timestamp, chat.get('user_id'))
+				self.ui.add_chat_info(line)
+			return
 
-			# Only pop up new messages, not the recent ones sent when joining
-			if self.overlay_ui is not None and not chat.get('history'):
-				self.overlay_ui.show_message(f"{name}: {message}")
+		message = text(event.get('message'))
+		if not message:
+			return
+		try:
+			timestamp = float(event.get('time'))
+			datetime.fromtimestamp(timestamp)	# out of range, nan, etc. raise an error
+		except Exception:
+			timestamp = None
+
+		# Skip messages already shown (recent messages are sent again when the event listener reconnects)
+		key = (timestamp, user_id, message)
+		if key in self.chat_messages:
+			return
+		self.chat_messages.add(key)
+
+		print(f"[CHAT] {name}: {message}")
+
+		if isinstance(self.ui, GameMonitorUI):
+			self.ui.add_chat_message(name, message, timestamp, user_id)
+
+		# Only pop up new messages, not the recent ones sent when joining
+		if self.overlay_ui is not None and not event.get('history'):
+			self.overlay_ui.show_message(f"{name}: {message}")
 
 
 	def replace_city(self, region_path: Path, coords: tuple, cache_path: Path, relpath: str) -> None:
@@ -3986,7 +4000,7 @@ class EventListener(th.Thread):
 
 		except Exception as e:
 
-			show_error(f"An unexpected error occurred in the event listener thread.\n\n{e}")
+			show_error(f"An unexpected error occurred in the event listener thread.\n\n{e}", no_ui=True)	# never show a popup because of an event
 
 		finally:
 
