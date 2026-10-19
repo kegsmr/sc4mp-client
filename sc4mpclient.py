@@ -1368,6 +1368,7 @@ class Server:
 		self.password = None
 		self.user_id = None
 		self.guest = None
+		self.chat_enabled = False
 
 		self.categories = ["All"]
 		if self.host == SC4MP_SERVERS_DOMAIN:
@@ -1407,6 +1408,7 @@ class Server:
 		self.password_enabled = server_info["password_enabled"] #self.request("password_enabled") == "y"
 		self.private = server_info["private"] #self.request("private") == "y"
 		self.user_plugins_enabled = server_info["user_plugins_enabled"] #self.request("user_plugins_enabled") == "y"
+		self.chat_enabled = server_info.get("chat_enabled", False)	# servers without chat don't send it
 		try:
 			self.claim_duration = server_info["claim_duration"]
 			self.max_region_claims = server_info["max_region_claims"]
@@ -3651,12 +3653,12 @@ class GameMonitor(th.Thread):
 			print(f"[CHAT] {name}: {message}")
 
 			try:
-				time_text = datetime.fromtimestamp(float(chat['time'])).strftime("%H:%M")
+				timestamp = float(chat['time'])
 			except Exception:
-				time_text = None
+				timestamp = None
 
 			if isinstance(self.ui, GameMonitorUI):
-				self.ui.add_chat_message(name, message, time_text)
+				self.ui.add_chat_message(name, message, timestamp, chat.get('user_id'))
 
 			# Only pop up new messages, not the recent ones sent when joining
 			if self.overlay_ui is not None and not chat.get('history'):
@@ -7366,13 +7368,30 @@ class StatisticsTreeUI(tk.Frame):
 
 
 class GameMonitorUI(tk.Toplevel):
-	
+
+
+	# Colors for player names in chat, from SimCity 4's zone and data view colors (darkened to read on white)
+	CHAT_NAME_COLORS = [
+		"#2e7d32",	# residential
+		"#1565c0",	# commercial
+		"#a66300",	# industrial
+		"#6a3d9a",	# civic
+		"#00796b",	# utilities
+		"#b23a1e",	# fire
+		"#5d7a1f",	# parks
+		"#0d47a1",	# water
+		"#8d4f2b",	# transportation
+		"#ad1457",	# health
+		"#37474f",	# police
+		"#7b5e00",	# farms
+	]
+
+	# Messages from the same player within this many seconds are grouped under one name
+	CHAT_GROUP_SECONDS = 300
 
 
 	def __init__(self, parent):
 		
-
-		# print("Initializing...")
 
 		# Parameters
 		self.parent = parent
@@ -7388,123 +7407,203 @@ class GameMonitorUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.geometry(f"400x400+{sc4mp_game_monitor_x}+{sc4mp_game_monitor_y}")
+		self.geometry(f"460x560+{sc4mp_game_monitor_x}+{sc4mp_game_monitor_y}")
 		self.minsize(420, 480)
-		self.maxsize(420, 480)
-		self.grid()
-
-		# Iconify
-		# if sc4mp_config["SC4"]["fullscreen"]:
-		# 	self.iconify()
-
-		# Priority
-		# self.grab_set()
+		self.columnconfigure(0, weight=1)
+		self.rowconfigure(1, weight=1)
 
 		# Protocol
 		self.protocol("WM_DELETE_WINDOW", self.delete_window)
 
-		# Status frame
-		self.status_frame = tk.Frame(self)
-		self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=2, padx=0, pady=20, sticky="n")
+		# Status label
+		self.label = tk.Label(self, text="")
+		self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=(12,8), sticky="n")
 
-		# Status label left
-		#self.status_frame.left = tk.Label(self.status_frame, text="Status:")
-		#self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
+		# Tabs
+		self.notebook = ttk.Notebook(self)
+		self.notebook.grid(column=0, row=1, columnspan=2, padx=10, pady=0, sticky="nsew")
+		self.notebook.bind("<<NotebookTabChanged>>", lambda event: self.chat_tab_changed())
 
-		# Status label right
-		self.status_frame.right = tk.Label(self.status_frame, text="")
-		self.status_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="n")
-		self.label = self.status_frame.right
+		# Chat tab
+		self.chat_frame = tk.Frame(self.notebook)
+		self.chat_frame.columnconfigure(0, weight=1)
+		self.chat_frame.rowconfigure(0, weight=1)
+		self.notebook.add(self.chat_frame, text="Chat")
 
-		# Server info frame
-		self.server_info = tk.Frame(self, width=400, height=180, background="white", highlightbackground="gray", highlightthickness=1)
-		self.server_info.grid(row=1, column=0, columnspan=2, padx=10, pady=0, sticky="nw")
-		self.server_info.grid_propagate(0)
+		# Chat messages
+		font = tkfont.nametofont("TkDefaultFont")
+		self.chat_fonts = {
+			"name": font.copy(),
+			"time": font.copy(),
+			"day": font.copy(),
+			"info": font.copy(),
+		}
+		self.chat_fonts["name"].configure(weight="bold")
+		size = font.cget("size")
+		self.chat_fonts["time"].configure(size=size - 1 if size > 0 else size + 1)	# negative sizes are in pixels
+		self.chat_fonts["day"].configure(size=self.chat_fonts["time"].cget("size"))
+		self.chat_fonts["info"].configure(slant="italic")
+		self.chat_frame.text = tk.Text(self.chat_frame, wrap="word", state="disabled", font=font, background="white", relief="flat", borderwidth=0, highlightthickness=0, padx=12, pady=8, cursor="arrow", spacing1=0, spacing3=2)
+		self.chat_frame.text.grid(column=0, row=0, sticky="nsew")
+		self.chat_frame.text.tag_configure("header", spacing1=8)
+		self.chat_frame.text.tag_configure("time", font=self.chat_fonts["time"], foreground="#8a8a8a")
+		self.chat_frame.text.tag_configure("day", font=self.chat_fonts["day"], foreground="#8a8a8a", justify="center", spacing1=10, spacing3=2)
+		self.chat_frame.text.tag_configure("info", font=self.chat_fonts["info"], foreground="#8a8a8a", spacing1=6)
+		for index, color in enumerate(self.CHAT_NAME_COLORS):
+			self.chat_frame.text.tag_configure(f"name{index}", font=self.chat_fonts["name"], foreground=color)
+
+		# Chat scrollbar
+		self.chat_frame.scrollbar = ttk.Scrollbar(self.chat_frame, orient="vertical", command=self.chat_frame.text.yview)
+		self.chat_frame.scrollbar.grid(column=1, row=0, sticky="ns")
+		self.chat_frame.text["yscrollcommand"] = self.chat_frame.scrollbar.set
+
+		# Chat input
+		self.chat_frame.input = tk.Frame(self.chat_frame, background="white", highlightbackground="#c8c8c8", highlightcolor="#7a9cc6", highlightthickness=1)
+		self.chat_frame.input.grid(column=0, row=1, columnspan=2, padx=8, pady=8, sticky="ew")
+		self.chat_frame.input.columnconfigure(0, weight=1)
+		validate = (self.register(lambda text: len(text) <= 200), "%P")
+		self.chat_frame.entry = tk.Entry(self.chat_frame.input, relief="flat", borderwidth=0, background="white", font=font, validate="key", validatecommand=validate)
+		self.chat_frame.entry.grid(column=0, row=0, padx=(8,4), pady=6, sticky="ew")
+		self.chat_frame.entry.bind("<Return>", lambda event: self.send_chat())
+		self.chat_frame.entry.bind("<FocusIn>", lambda event: self.chat_placeholder(False))
+		self.chat_frame.entry.bind("<FocusOut>", lambda event: self.chat_placeholder(True))
+		self.chat_frame.button = ttk.Button(self.chat_frame.input, text="Send", width=7, command=self.send_chat)
+		self.chat_frame.button.grid(column=1, row=0, padx=(0,4), pady=4, sticky="e")
+		self.chat_placeholder_text = "Message other mayors"
+		self.chat_placeholder_shown = False
+		self.chat_placeholder(True)
+
+		# Chat state
+		self.chat_last_user_id = None
+		self.chat_last_time = None
+		self.chat_unread = 0
+
+		# Guests can't chat, and neither can players on servers with chat turned off
+		if self.parent.guest or not getattr(self.parent.server, "chat_enabled", False):
+			if self.parent.guest:
+				self.chat_placeholder_text = "Guests can't chat"
+			else:
+				self.chat_placeholder_text = "Chat is turned off on this server"
+			self.chat_placeholder(True)
+			self.chat_frame.entry["state"] = tk.DISABLED
+			self.chat_frame.button["state"] = tk.DISABLED
+
+		# Server tab
+		self.server_info = tk.Frame(self.notebook, background="white")
+		self.server_info.columnconfigure(0, weight=1)
+		self.notebook.add(self.server_info, text="Server")
 
 		# Description label
-		self.description_label = ttk.Label(self.server_info, background="white", wraplength=(self.server_info["width"] - 20))
-		self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=10, pady=(10,0), sticky="nw")
+		self.description_label = ttk.Label(self.server_info, background="white", wraplength=400)
+		self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=12, pady=(12,0), sticky="nw")
 		self.description_label['text'] = ""
 
 		# URL label
 		self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2", background="white")
-		self.url_label.grid(row=1, column=0, columnspan=1, padx=10, pady=5, sticky="nw")
+		self.url_label.grid(row=1, column=0, columnspan=1, padx=12, pady=8, sticky="nw")
 		self.url_label['text'] = ""
 		self.url_label.bind("<Button-1>", lambda e:webbrowser.open_new_tab(format_url(self.url_label["text"])))
 
-		# Ping frame
-		self.ping_frame = tk.Frame(self, width=420, height=0)
-		self.ping_frame.grid(column=0, row=2, rowspan=1, columnspan=2, padx=0, pady=4, sticky="ew")
-		self.ping_frame.grid_propagate(0)
-
-		# Ping label left
-		self.ping_frame.left = tk.Label(self, text="", fg="gray")
-		self.ping_frame.left.grid(column=0, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
-
-		# Ping label right
-		self.ping_frame.right = tk.Label(self, text="", fg="gray")
-		self.ping_frame.right.grid(column=1, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="e")		
-
-		# Chat frame
-		self.chat_frame = tk.Frame(self)
-		self.chat_frame.grid(column=0, row=4, rowspan=1, columnspan=2, padx=10, pady=(10,0), sticky="nw")
-
-		# Chat messages
-		font = tkfont.nametofont("TkDefaultFont")
-		self.chat_frame.bold_font = font.copy()
-		self.chat_frame.bold_font.configure(weight="bold")
-		self.chat_frame.text = tk.Text(self.chat_frame, width=58, height=9, wrap="word", state="disabled", font=font, highlightbackground="gray", highlightthickness=1, borderwidth=0)
-		self.chat_frame.text.grid(column=0, row=0, columnspan=2, sticky="nw")
-		self.chat_frame.text.tag_configure("name", font=self.chat_frame.bold_font)
-		self.chat_frame.text.tag_configure("info", foreground="gray")
-
-		# Chat scrollbar
-		self.chat_frame.scrollbar = ttk.Scrollbar(self.chat_frame, orient="vertical", command=self.chat_frame.text.yview)
-		self.chat_frame.scrollbar.grid(column=2, row=0, sticky="ns")
-		self.chat_frame.text["yscrollcommand"] = self.chat_frame.scrollbar.set
-
-		# Chat entry
-		self.chat_frame.entry = ttk.Entry(self.chat_frame, width=47)
-		self.chat_frame.entry.grid(column=0, row=1, padx=0, pady=(5,0), sticky="w")
-		self.chat_frame.entry.bind("<Return>", lambda event: self.send_chat())
-
-		# Chat send button
-		self.chat_frame.button = ttk.Button(self.chat_frame, text="Send", width=7, command=self.send_chat)
-		self.chat_frame.button.grid(column=1, row=1, columnspan=2, padx=(5,0), pady=(5,0), sticky="e")
-
-		# Guests can't chat
-		if self.parent.guest:
-			self.add_chat_info("Guests can't chat.")
-			self.chat_frame.entry["state"] = tk.DISABLED
-			self.chat_frame.button["state"] = tk.DISABLED
+		# Ping frame (address on the left, ping on the right)
+		self.ping_frame = tk.Frame(self)
+		self.ping_frame.grid(column=0, row=2, columnspan=2, padx=10, pady=(4,8), sticky="ew")
+		self.ping_frame.columnconfigure(1, weight=1)
+		self.ping_frame.left = tk.Label(self.ping_frame, text="", fg="gray")
+		self.ping_frame.left.grid(column=0, row=0, sticky="w")
+		self.ping_frame.right = tk.Label(self.ping_frame, text="", fg="gray")
+		self.ping_frame.right.grid(column=1, row=0, sticky="e")
 
 
-	def add_chat_message(self, name, message, time_text=None):
+	def chat_placeholder(self, show):
+
+		entry = self.chat_frame.entry
+		state = entry["state"]
+		entry["state"] = tk.NORMAL
+		if show and not entry.get():
+			entry.insert(0, self.chat_placeholder_text)
+			entry["foreground"] = "#9a9a9a"
+			self.chat_placeholder_shown = True
+		elif not show and self.chat_placeholder_shown:
+			entry.delete(0, "end")
+			entry["foreground"] = "black"
+			self.chat_placeholder_shown = False
+		entry["state"] = state
+
+
+	def add_chat_message(self, name, message, timestamp=None, user_id=None):
+		"""Adds a chat message. Messages from the same player close together are grouped under one name, and a line with the day is added when the day changes."""
 
 		text = self.chat_frame.text
+		sent = datetime.fromtimestamp(timestamp) if timestamp else datetime.now()
+
+		# Only scroll to the new message if the player hasn't scrolled up to read older ones
+		at_bottom = text.yview()[1] >= 0.999
+
 		text["state"] = tk.NORMAL
-		if text.index("end-1c") != "1.0":
-			text.insert("end", "\n")
-		if time_text:
-			text.insert("end", f"{time_text} ", "info")
-		text.insert("end", f"{name}: ", "name")
-		text.insert("end", message)
+
+		# Day
+		if self.chat_last_time is None or sent.date() != self.chat_last_time.date():
+			today = datetime.now().date()
+			if sent.date() == today:
+				day = "Today"
+			elif sent.date() == today - timedelta(days=1):
+				day = "Yesterday"
+			else:
+				day = f"{sent.strftime('%A, %B')} {sent.day}"
+			self.chat_insert_line(day, "day")
+			self.chat_last_user_id = None
+
+		# Name and time, unless the same player sent the last message a moment ago
+		if user_id is None or user_id != self.chat_last_user_id or (sent - self.chat_last_time).total_seconds() > self.CHAT_GROUP_SECONDS:
+			color = int(hashlib.md5((user_id or name).encode()).hexdigest(), 16) % len(self.CHAT_NAME_COLORS)
+			self.chat_insert_line(name, (f"name{color}", "header"))
+			text.insert("end", "  " + sent.strftime("%H:%M"), ("time", "header"))
+
+		self.chat_insert_line(message, "message")
+
 		text["state"] = tk.DISABLED
-		text.see("end")
+
+		if at_bottom:
+			text.see("end")
+
+		self.chat_last_user_id = user_id
+		self.chat_last_time = sent
+
+		# Count unread messages on the tab while another tab is open
+		if self.notebook.select() != str(self.chat_frame):
+			self.chat_unread += 1
+			self.notebook.tab(self.chat_frame, text=f"Chat ({self.chat_unread})")
 
 
 	def add_chat_info(self, message):
 
 		text = self.chat_frame.text
 		text["state"] = tk.NORMAL
-		if text.index("end-1c") != "1.0":
-			text.insert("end", "\n")
-		text.insert("end", message, "info")
+		self.chat_insert_line(message, "info")
 		text["state"] = tk.DISABLED
 		text.see("end")
+		self.chat_last_user_id = None
+
+
+	def chat_insert_line(self, line, tags):
+
+		text = self.chat_frame.text
+		if text.index("end-1c") != "1.0":
+			text.insert("end", "\n")
+		text.insert("end", line, tags)
+
+
+	def chat_tab_changed(self):
+
+		if self.notebook.select() == str(self.chat_frame):
+			self.chat_unread = 0
+			self.notebook.tab(self.chat_frame, text="Chat")
 
 
 	def send_chat(self):
+
+		if self.chat_placeholder_shown:
+			return
 
 		message = self.chat_frame.entry.get().strip()
 		if not message:
@@ -7520,7 +7619,7 @@ class GameMonitorUI(tk.Toplevel):
 			except Exception as e:
 				show_error(e, no_ui=True)
 				try:
-					self.add_chat_info(f"Message not sent. {e}")
+					self.add_chat_info(f"Your message wasn't sent. {e}")
 				except Exception:
 					pass
 
