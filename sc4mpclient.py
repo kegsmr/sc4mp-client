@@ -2913,9 +2913,9 @@ class ServerLoader(th.Thread):
 					try:
 						self.ui.progress_label["text"] = relpath.name
 						if linking:
-							self.ui.duration_label["text"] = "Link 🡒 SC4" #"(linking)"
+							self.ui.duration_label["text"] = "Link → SC4" #"(linking)"
 						else:
-							self.ui.duration_label["text"] = "Disk 🡒 SC4" #"(copying)"
+							self.ui.duration_label["text"] = "Disk → SC4" #"(copying)"
 					except Exception:
 						pass
 
@@ -3050,7 +3050,7 @@ class ServerLoader(th.Thread):
 						# Display current file in UI
 						try:
 							self.ui.progress_label["text"] = d.name #.relative_to(destination)
-							self.ui.duration_label["text"] = "Cache 🡒 SC4" #"(cached)"
+							self.ui.duration_label["text"] = "Cache → SC4" #"(cached)"
 						except Exception:
 							pass
 
@@ -3079,7 +3079,7 @@ class ServerLoader(th.Thread):
 				file_table = ft
 
 				if sc4mp_ui:
-					self.ui.duration_label["text"] = "Server 🡒 SC4" #"(downloading)"
+					self.ui.duration_label["text"] = "Server → SC4" #"(downloading)"
 
 				download_start_time = time.time() + 2
 
@@ -4156,7 +4156,7 @@ class RegionsRefresher(th.Thread):
 						# Display current file in UI
 						try:
 							self.ui.progress_label["text"] = d.name #.relative_to(destination)
-							self.ui.duration_label["text"] = "Cache 🡒 SC4" #"(cached)"
+							self.ui.duration_label["text"] = "Cache → SC4" #"(cached)"
 						except Exception:
 							pass
 
@@ -4203,7 +4203,7 @@ class RegionsRefresher(th.Thread):
 					# Display current file in UI
 					try:
 						self.ui.progress_label["text"] = d.name #.relative_to(destination)
-						self.ui.duration_label["text"] = "Server 🡒 SC4" #"(downloading)"
+						self.ui.duration_label["text"] = "Server → SC4" #"(downloading)"
 					except Exception:
 						pass
 
