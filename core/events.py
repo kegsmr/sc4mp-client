@@ -20,13 +20,13 @@ class EventChannel:
 		self._subscription_ids = count()
 
 
-	def subscribe(self, user_id: str) -> int:
-		"""Returns a subscription ID to pass to `listen` and `unsubscribe`. A user can have several subscriptions (eg. a reconnect before the old connection is noticed to be closed)."""
+	def subscribe(self, user_id: str, events=None) -> int:
+		"""Returns a subscription ID to pass to `listen` and `unsubscribe`. A user can have several subscriptions (eg. a reconnect before the old connection is noticed to be closed). `events` are sent to the new subscription first (eg. recent chat messages)."""
 
 		with self._lock:
 			subscription_id = next(self._subscription_ids)
 			joined = user_id not in self._users.values()
-			self._events[subscription_id] = []
+			self._events[subscription_id] = list(events or [])
 			self._users[subscription_id] = user_id
 
 		if joined:

@@ -3291,9 +3291,12 @@ class GameMonitor(th.Thread):
 		self.game_launcher = GameLauncher()
 		self.game_launcher.start()
 
-		# Start the event listener (listens for events on the server)
+		# Chat messages already shown (recent messages are sent again when the event listener reconnects)
+		self.chat_messages = set()
+
+		# Start the event listener (listens for events on the server, eg. saves and chat messages)
 		self.event_listener = EventListener(self.server)
-		if not self.guest and sc4mp_config["GENERAL"]["download_new_saves"]:
+		if not self.guest:
 			self.event_listener.start()
 
 		# Thread shutsdown when this is set to `True`
@@ -3325,6 +3328,8 @@ class GameMonitor(th.Thread):
 						self.push_cities()
 
 					self.download_cities()
+
+					self.update_chat()
 
 					# Break the loop the iteration after the game closes
 					if game_closed:
@@ -3536,6 +3541,11 @@ class GameMonitor(th.Thread):
 		while self.event_listener.pop('subscribed'):
 			self.resync = True
 
+		if not sc4mp_config["GENERAL"]["download_new_saves"]:
+			self.pending_downloads.clear()
+			self.resync = False
+			return
+
 		if not (self.pending_downloads or self.resync):
 			return
 		if self.download_retry_time is not None and time.time() < self.download_retry_time:
@@ -3623,6 +3633,34 @@ class GameMonitor(th.Thread):
 				self.download_retry_time = time.time() + self.DOWNLOAD_RETRY_DELAY
 			except Exception as e:
 				show_error(f"An error occurred while downloading a city saved by another mayor.\n\n{e}", no_ui=True)
+
+
+	def update_chat(self):
+		"""Shows new chat messages in the game monitor and the game overlay."""
+
+		while event := self.event_listener.pop('chat'):
+
+			chat = event[1]
+			key = (chat.get('time'), chat.get('user_id'), chat.get('message'))
+			if key in self.chat_messages:
+				continue
+			self.chat_messages.add(key)
+
+			name = chat.get('name') or "Mayor"
+			message = chat.get('message') or ""
+			print(f"[CHAT] {name}: {message}")
+
+			try:
+				time_text = datetime.fromtimestamp(float(chat['time'])).strftime("%H:%M")
+			except Exception:
+				time_text = None
+
+			if isinstance(self.ui, GameMonitorUI):
+				self.ui.add_chat_message(name, message, time_text)
+
+			# Only pop up new messages, not the recent ones sent when joining
+			if self.overlay_ui is not None and not chat.get('history'):
+				self.overlay_ui.show_message(f"{name}: {message}")
 
 
 	def replace_city(self, region_path: Path, coords: tuple, cache_path: Path, relpath: str) -> None:
@@ -7351,8 +7389,8 @@ class GameMonitorUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry(f"400x400+{sc4mp_game_monitor_x}+{sc4mp_game_monitor_y}")
-		self.minsize(420, 280)
-		self.maxsize(420, 280)
+		self.minsize(420, 480)
+		self.maxsize(420, 480)
 		self.grid()
 
 		# Iconify
@@ -7406,6 +7444,84 @@ class GameMonitorUI(tk.Toplevel):
 		# Ping label right
 		self.ping_frame.right = tk.Label(self, text="", fg="gray")
 		self.ping_frame.right.grid(column=1, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="e")		
+
+		# Chat frame
+		self.chat_frame = tk.Frame(self)
+		self.chat_frame.grid(column=0, row=4, rowspan=1, columnspan=2, padx=10, pady=(10,0), sticky="nw")
+
+		# Chat messages
+		self.chat_frame.text = tk.Text(self.chat_frame, width=48, height=9, wrap="word", state="disabled", highlightbackground="gray", highlightthickness=1, borderwidth=0)
+		self.chat_frame.text.grid(column=0, row=0, columnspan=2, sticky="nw")
+		self.chat_frame.text.tag_configure("name", font=(None, 9, "bold"))
+		self.chat_frame.text.tag_configure("info", foreground="gray")
+
+		# Chat scrollbar
+		self.chat_frame.scrollbar = ttk.Scrollbar(self.chat_frame, orient="vertical", command=self.chat_frame.text.yview)
+		self.chat_frame.scrollbar.grid(column=2, row=0, sticky="ns")
+		self.chat_frame.text["yscrollcommand"] = self.chat_frame.scrollbar.set
+
+		# Chat entry
+		self.chat_frame.entry = ttk.Entry(self.chat_frame, width=47)
+		self.chat_frame.entry.grid(column=0, row=1, padx=0, pady=(5,0), sticky="w")
+		self.chat_frame.entry.bind("<Return>", lambda event: self.send_chat())
+
+		# Chat send button
+		self.chat_frame.button = ttk.Button(self.chat_frame, text="Send", width=7, command=self.send_chat)
+		self.chat_frame.button.grid(column=1, row=1, columnspan=2, padx=(5,0), pady=(5,0), sticky="e")
+
+		# Guests can't chat
+		if self.parent.guest:
+			self.add_chat_info("Guests can't chat.")
+			self.chat_frame.entry["state"] = tk.DISABLED
+			self.chat_frame.button["state"] = tk.DISABLED
+
+
+	def add_chat_message(self, name, message, time_text=None):
+
+		text = self.chat_frame.text
+		text["state"] = tk.NORMAL
+		if text.index("end-1c") != "1.0":
+			text.insert("end", "\n")
+		if time_text:
+			text.insert("end", f"{time_text} ", "info")
+		text.insert("end", f"{name}: ", "name")
+		text.insert("end", message)
+		text["state"] = tk.DISABLED
+		text.see("end")
+
+
+	def add_chat_info(self, message):
+
+		text = self.chat_frame.text
+		text["state"] = tk.NORMAL
+		if text.index("end-1c") != "1.0":
+			text.insert("end", "\n")
+		text.insert("end", message, "info")
+		text["state"] = tk.DISABLED
+		text.see("end")
+
+
+	def send_chat(self):
+
+		message = self.chat_frame.entry.get().strip()
+		if not message:
+			return
+
+		self.chat_frame.entry.delete(0, "end")
+
+		# Send in the background, so the window doesn't freeze while connecting
+		def send():
+			try:
+				with self.parent.server.socket() as s:
+					s.chat(message)
+			except Exception as e:
+				show_error(e, no_ui=True)
+				try:
+					self.add_chat_info(f"Message not sent. {e}")
+				except Exception:
+					pass
+
+		th.Thread(target=send, daemon=True).start()
 
 
 	def delete_window(self):
@@ -7630,6 +7746,34 @@ class GameOverlayUI(tk.Toplevel):
 			self.game_monitor_ui.grab_set()
 		except Exception as e:
 			show_error(e, no_ui=True)
+
+
+	def show_message(self, text, duration=8000):
+		"""Shows a message (eg. a chat message) above the overlay for a few seconds. Click it to open the game monitor."""
+
+		try:
+
+			if sc4mp_ui.focus_get() is self.game_monitor_ui:
+				return	# the player can already see it
+
+			popup = tk.Toplevel(self)
+			popup.overrideredirect(True)
+			popup.wm_attributes("-topmost", True)
+
+			label = tk.Label(popup, text=text, bg="black", fg="white", wraplength=400, justify="left", padx=8, pady=4, cursor="hand2")
+			label.pack()
+			label.bind("<Button-1>", self.click)
+
+			popup.update_idletasks()
+			width = popup.winfo_reqwidth()
+			height = popup.winfo_reqheight()
+			popup.geometry(f"{width}x{height}+{self.winfo_screenwidth() - width}+{self.winfo_screenheight() - 20 - height}")
+
+			popup.after(duration, popup.destroy)
+
+		except Exception as e:
+
+			show_error(f"Cannot show the message in the game overlay.\n\n{e}", no_ui=True)
 
 
 class RegionsRefresherUI(tk.Toplevel):
