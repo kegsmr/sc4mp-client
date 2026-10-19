@@ -73,6 +73,8 @@ SC4MP_BUFFER_SIZE = 4096
 
 SC4MP_DELAY = .1
 
+SC4MP_ARROW = "→" if is_windows() and platform.release() == "7" else "🡒"	# Windows 7 can't display "🡒"
+
 SC4MP_LAUNCHERMAP_ENABLED = False  #TODO replace with config setting eventually
 
 SC4MP_CONFIG_DEFAULTS = [
@@ -816,7 +818,7 @@ def start_sc4():
 		arguments.append('-f')
 	else:
 		arguments.append('-w')
-	arguments.extend(sc4mp_config["SC4"]["additional_properties"].strip().split(' '))  # assumes that properties do not have spaces
+	arguments.extend(sc4mp_config["SC4"]["additional_properties"].split())  # assumes that properties do not have spaces
 
 	# `True` if the game is installed using Steam
 	steam_sc4 = is_steam_sc4(path)
@@ -852,7 +854,7 @@ def start_sc4():
 		print(f"- launching directly ('{command}').")
 		try:
 			if is_windows():
-				subprocess.run(command) 			# `subprocess.run(arguments)` won't work on Windows for some unknowable reason
+				subprocess.run(command, executable=arguments[0]) 			# `subprocess.run(arguments)` won't work on Windows for some unknowable reason; `executable` stops Windows guessing where the exe path ends
 			else:
 				subprocess.run(arguments)  			# on Linux, the first String passed as argument must be a file that exists
 		except PermissionError as e:
@@ -888,7 +890,7 @@ def start_sc4():
 					time.sleep(1)
 				break
 			except Exception as e:
-				show_error("An error occured while checking if SC4 had exited yet.", no_ui=True)
+				show_error("An error occurred while checking if SC4 had exited yet.", no_ui=True)
 				time.sleep(10)
 	
 	# SimCity 4 has closed
@@ -933,14 +935,18 @@ def random_string(length):
 def purge_directory(directory: Path, recursive=True) -> None:
 	"""Deletes all files and subdirectories of a directory"""
 	for path in directory.iterdir():
-		try:
-			if path.is_file():
-				path.unlink()
-			elif path.is_dir():
-				if recursive:
-					shutil.rmtree(path)
-		except PermissionError as e:
-			raise ClientException(f'Failed to delete "{path}" because the file is being used by another process.') from e #\n\n' + str(e)
+		for attempt in range(5):	# retry, since another process (e.g. OneDrive or antivirus) may only be using the file briefly
+			try:
+				if path.is_file():
+					path.unlink()
+				elif path.is_dir():
+					if recursive:
+						shutil.rmtree(path)
+				break
+			except PermissionError as e:
+				if attempt == 4:
+					raise ClientException(f'Failed to delete "{path}" because the file is being used by another process.') from e #\n\n' + str(e)
+				time.sleep(.5)
 
 
 def directory_size(directory: Path) -> int:
@@ -973,10 +979,19 @@ def load_json(filename):
 
 def update_json(filename, data):
 	"""Writes data as a dictionary to a json file."""
-	with open(filename, 'w') as file:
-		file.seek(0)
+	# Write to a temporary file first so a crash or error mid-write can't truncate the original
+	temp_filename = f"{filename}.tmp"
+	with open(temp_filename, 'w') as file:
 		json.dump(data, file, indent=4)
-		file.truncate()
+		file.flush()
+		os.fsync(file.fileno())
+	try:
+		os.replace(temp_filename, filename)
+	except PermissionError:
+		# On Windows, the replace fails while another process (antivirus, OneDrive, etc.) has the file open, so fall back to writing in place
+		with open(filename, 'w') as file:
+			json.dump(data, file, indent=4)
+		os.unlink(temp_filename)
 
 
 def show_error(e, no_ui=False):
@@ -1409,7 +1424,7 @@ class Server:
 			try:
 				self.update_database()
 			except Exception as e:
-				show_error("An error occured while updating the server database.", no_ui = True)
+				show_error("An error occurred while updating the server database.", no_ui = True)
 
 
 	def fetch_stats(self):
@@ -2776,9 +2791,9 @@ class ServerLoader(th.Thread):
 					try:
 						self.ui.progress_label["text"] = relpath.name
 						if linking:
-							self.ui.duration_label["text"] = "Link 🡒 SC4" #"(linking)"
+							self.ui.duration_label["text"] = f"Link {SC4MP_ARROW} SC4" #"(linking)"
 						else:
-							self.ui.duration_label["text"] = "Disk 🡒 SC4" #"(copying)"
+							self.ui.duration_label["text"] = f"Disk {SC4MP_ARROW} SC4" #"(copying)"
 					except Exception:
 						pass
 
@@ -2838,8 +2853,10 @@ class ServerLoader(th.Thread):
 				self.report("", f"Synchronizing {target}...") #"", "Purging " + type + " directory...")
 				try:
 					purge_directory(destination)
-				except ClientException as e: 											# This is stupid
-					raise ClientException("SimCity 4 is already running!") from e		# #TODO better to check if the process is actually running
+				except ClientException as e:
+					if process_exists("simcity 4.exe"):
+						raise ClientException("SimCity 4 is already running!") from e
+					raise
 
 				# Report
 				self.report("", f"Synchronizing {target}...")
@@ -2904,7 +2921,7 @@ class ServerLoader(th.Thread):
 						# Display current file in UI
 						try:
 							self.ui.progress_label["text"] = d.name #.relative_to(destination)
-							self.ui.duration_label["text"] = "Cache 🡒 SC4" #"(cached)"
+							self.ui.duration_label["text"] = f"Cache {SC4MP_ARROW} SC4" #"(cached)"
 						except Exception:
 							pass
 
@@ -2932,7 +2949,7 @@ class ServerLoader(th.Thread):
 				file_table = ft
 
 				if sc4mp_ui:
-					self.ui.duration_label["text"] = "Server 🡒 SC4" #"(downloading)"
+					self.ui.duration_label["text"] = f"Server {SC4MP_ARROW} SC4" #"(downloading)"
 
 				download_start_time = time.time() + 2
 
@@ -3053,7 +3070,9 @@ class ServerLoader(th.Thread):
 		try:
 			purge_directory(default_plugins_destination, recursive=False)
 		except Exception as e:
-			raise ClientException("SimCity 4 is already running!") from e
+			if process_exists("simcity 4.exe"):
+				raise ClientException("SimCity 4 is already running!") from e
+			raise
 
 		resw = sc4mp_config['SC4']['resw']
 		resh = sc4mp_config['SC4']['resh']
@@ -3213,6 +3232,9 @@ class GameMonitor(th.Thread):
 		th.Thread.__init__(self)
 
 		self.server: Server = server
+
+		# Cached md5's of savegames, by path, with the size and modification time they were computed for
+		self.city_hashcode_cache = {}
 		
 		# Get list of city paths and their md5's
 		self.city_paths, self.city_hashcodes = self.get_cities()
@@ -3536,9 +3558,25 @@ class GameMonitor(th.Thread):
 				continue
 			for city in region_path.glob('*.sc4'):
 				city_path = region_path / city
+				try:
+					city_hashcode = self.get_city_hashcode(city_path)
+				except FileNotFoundError:
+					continue	# the game may rename or delete a savegame while we're looping
 				city_paths.append(city_path)
-				city_hashcodes.append(md5(city_path))
+				city_hashcodes.append(city_hashcode)
 		return city_paths, city_hashcodes
+
+
+	def get_city_hashcode(self, city_path: Path) -> str:
+
+		# Only rehash savegames that changed, since reading a savegame while SC4 overwrites it causes "Error saving city"
+		stat = city_path.stat()
+		key = (stat.st_size, stat.st_mtime_ns)
+		cached = self.city_hashcode_cache.get(city_path)
+		if cached is None or cached[0] != key:
+			cached = (key, md5(city_path))
+			self.city_hashcode_cache[city_path] = cached
+		return cached[1]
 
 
 	def filter_bordering_tiles(self, savegames):
@@ -3796,7 +3834,7 @@ class RegionsRefresher(th.Thread):
 						# Display current file in UI
 						try:
 							self.ui.progress_label["text"] = d.name #.relative_to(destination)
-							self.ui.duration_label["text"] = "Cache 🡒 SC4" #"(cached)"
+							self.ui.duration_label["text"] = f"Cache {SC4MP_ARROW} SC4" #"(cached)"
 						except Exception:
 							pass
 
@@ -3844,7 +3882,7 @@ class RegionsRefresher(th.Thread):
 						# Display current file in UI
 						try:
 							self.ui.progress_label["text"] = d.name #.relative_to(destination)
-							self.ui.duration_label["text"] = "Server 🡒 SC4" #"(downloading)"
+							self.ui.duration_label["text"] = f"Server {SC4MP_ARROW} SC4" #"(downloading)"
 						except Exception:
 							pass
 
@@ -4952,7 +4990,7 @@ class DirectConnectUI(tk.Toplevel):
 			ServerLoaderUI(Server(host, port))
 			self.destroy()
 		except Exception as e:
-			show_error(f"An unexpected error occured while starting the server loader thread.\n\n{e}")
+			show_error(f"An unexpected error occurred while starting the server loader thread.\n\n{e}")
 
 
 class PasswordDialogUI(tk.Toplevel):
@@ -6115,7 +6153,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 			#print(f"Resized to {new_window_width}x{new_window_height}.")
 
-			self.after(1, self.update_window_size)
+			self.after(100, self.update_window_size)
 
 		except Exception as e:
 
@@ -6130,7 +6168,7 @@ class ServerDetailsUI(tk.Toplevel):
 				entrybox.delete(0, "end")
 				entrybox.insert(0, text)
 
-			self.after(1, lambda: self.reset_entrybox(entrybox, text))
+			self.after(100, lambda: self.reset_entrybox(entrybox, text))
 
 		except Exception as e:
 

@@ -28,7 +28,7 @@ except ImportError:
 	pass
 
 
-#TODO add MacOS compatability
+#TODO add MacOS compatibility
 def process_count(process_name):
 
 	if platform.system() == "Windows":
@@ -213,8 +213,8 @@ def update_server_list(maximum=100):
 	with server_file.open("r") as file:
 		lines = file.readlines()
 	
-	# If the file has more than `maxiumum`, slice the list to keep only the 
-	# last `maxiumum` lines
+	# If the file has more than `maximum`, slice the list to keep only the
+	# last `maximum` lines
 	if len(lines) > maximum:
 
 		lines = lines[-maximum:]
