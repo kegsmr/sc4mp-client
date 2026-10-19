@@ -3225,7 +3225,8 @@ class ServerLoader(th.Thread):
 class GameMonitor(th.Thread):
 
 
-	PING_INTERVAL = 15			# seconds between pings
+	PING_INTERVAL = 60			# seconds between pings (players who aren't guests are also kept connected by the event listener)
+	GUEST_PING_INTERVAL = 15	# seconds between pings for guests, where pings are the only way to tell whether the server is reachable
 	DOWNLOAD_RETRY_DELAY = 10	# seconds to wait before trying again when downloading cities saved by other mayors fails
 
 
@@ -3377,9 +3378,26 @@ class GameMonitor(th.Thread):
 
 
 	def update_ping(self):
-		"""Pings the server every `PING_INTERVAL` seconds (every loop while disconnected) and shows the ping in the UI."""
+		"""Shows the ping in the UI. Each ping is a new connection, which counts toward the server's request limit, so while the event listener is running, it tells whether the server is reachable, and the ping is only measured every `PING_INTERVAL` seconds and after reconnecting. Guests ping every `GUEST_PING_INTERVAL` seconds (every loop while disconnected)."""
 
-		if self.last_ping_time is not None and time.time() - self.last_ping_time < self.PING_INTERVAL:
+		if self.event_listener.is_alive():
+			connected = self.event_listener.connected()
+			if connected is None:	# hasn't tried to connect yet
+				return
+			if not connected:
+				if self.last_ping_time is not None or self.ping is not None:
+					print("[WARNING] Disconnected.")
+				self.ping = None
+				self.last_ping_time = None	# ping as soon as the listener reconnects
+				if self.ui != None:
+					self.ui.ping_frame.right['text'] = "Disconnected"
+					self.ui.ping_frame.right['fg'] = "red"
+				return
+			interval = self.PING_INTERVAL
+		else:
+			interval = self.GUEST_PING_INTERVAL
+
+		if self.last_ping_time is not None and time.time() - self.last_ping_time < interval:
 			return
 
 		self.ping = self.server.ping()
@@ -3966,6 +3984,7 @@ class EventListener(th.Thread):
 		self.server: Server = server
 
 		self._socket = None
+		self._tried = False
 
 		self._events: list[dict] = []
 		self._lock = th.Lock()
@@ -3982,7 +4001,10 @@ class EventListener(th.Thread):
 			while not self._stop:
 				try:
 					if not self._connected():
-						self._connect()
+						try:
+							self._connect()
+						finally:
+							self._tried = True
 					events = self._socket.events()
 					with self._lock:
 						for event in events:
@@ -4020,6 +4042,15 @@ class EventListener(th.Thread):
 	def _connected(self):
 
 		return self._socket is not None
+
+
+	def connected(self):
+		"""Whether the listener is subscribed to the server, or `None` if it hasn't tried to subscribe yet. The server sends something every 5 seconds, so a lost connection is noticed within the socket's timeout."""
+
+		if not self._tried:
+			return None
+
+		return self._connected()
 
 
 	def _disconnect(self):
