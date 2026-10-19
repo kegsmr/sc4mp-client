@@ -972,10 +972,19 @@ def load_json(filename):
 
 def update_json(filename, data):
 	"""Writes data as a dictionary to a json file."""
-	with open(filename, 'w') as file:
-		file.seek(0)
+	# Write to a temporary file first so a crash or error mid-write can't truncate the original
+	temp_filename = f"{filename}.tmp"
+	with open(temp_filename, 'w') as file:
 		json.dump(data, file, indent=4)
-		file.truncate()
+		file.flush()
+		os.fsync(file.fileno())
+	try:
+		os.replace(temp_filename, filename)
+	except PermissionError:
+		# On Windows, the replace fails while another process (antivirus, OneDrive, etc.) has the file open, so fall back to writing in place
+		with open(filename, 'w') as file:
+			json.dump(data, file, indent=4)
+		os.unlink(temp_filename)
 
 
 def show_error(e, no_ui=False):
