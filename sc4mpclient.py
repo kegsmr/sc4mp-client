@@ -932,14 +932,18 @@ def random_string(length):
 def purge_directory(directory: Path, recursive=True) -> None:
 	"""Deletes all files and subdirectories of a directory"""
 	for path in directory.iterdir():
-		try:
-			if path.is_file():
-				path.unlink()
-			elif path.is_dir():
-				if recursive:
-					shutil.rmtree(path)
-		except PermissionError as e:
-			raise ClientException(f'Failed to delete "{path}" because the file is being used by another process.') from e #\n\n' + str(e)
+		for attempt in range(5):	# retry, since another process (e.g. OneDrive or antivirus) may only be using the file briefly
+			try:
+				if path.is_file():
+					path.unlink()
+				elif path.is_dir():
+					if recursive:
+						shutil.rmtree(path)
+				break
+			except PermissionError as e:
+				if attempt == 4:
+					raise ClientException(f'Failed to delete "{path}" because the file is being used by another process.') from e #\n\n' + str(e)
+				time.sleep(.5)
 
 
 def directory_size(directory: Path) -> int:
@@ -2975,8 +2979,10 @@ class ServerLoader(th.Thread):
 				self.report("", f"Synchronizing {target}...") #"", "Purging " + type + " directory...")
 				try:
 					purge_directory(destination)
-				except ClientException as e: 											# This is stupid
-					raise ClientException("SimCity 4 is already running!") from e		# #TODO better to check if the process is actually running
+				except ClientException as e:
+					if process_exists("simcity 4.exe"):
+						raise ClientException("SimCity 4 is already running!") from e
+					raise
 
 				# Create the socket
 				s = self.create_socket()
@@ -3264,7 +3270,9 @@ class ServerLoader(th.Thread):
 		try:
 			purge_directory(default_plugins_destination, recursive=False)
 		except Exception as e:
-			raise ClientException("SimCity 4 is already running!") from e
+			if process_exists("simcity 4.exe"):
+				raise ClientException("SimCity 4 is already running!") from e
+			raise
 
 		resw = sc4mp_config['SC4']['resw']
 		resh = sc4mp_config['SC4']['resh']
