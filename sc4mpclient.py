@@ -3745,8 +3745,8 @@ class GameMonitor(th.Thread):
 							file.write(chunk)
 			os.replace(temp_path, cache_path)
 
-		# Delete the savegames at the same coordinates (the old savegame may have a different file name)
-		deleted_city_paths = []
+		# Find the savegames at the same coordinates (the local savegame may have a different file name than the server's)
+		city_paths = []
 		for city_path in region_path.glob('*.sc4'):
 			try:
 				with SC4Savegame(city_path, error_callback=None) as savegame:
@@ -3755,16 +3755,19 @@ class GameMonitor(th.Thread):
 				show_error(e, no_ui=True)
 				continue
 			if (SC4ReadRegionalCity["tileXLocation"], SC4ReadRegionalCity["tileYLocation"]) == coords:
-				city_path.unlink()
-				deleted_city_paths.append(city_path)
+				city_paths.append(city_path)
 
-		# Copy the savegame into the region
-		destination = sanitize_relpath(regions_path, relpath)
-		destination.unlink(missing_ok=True)
+		# Overwrite the savegame at those coordinates, keeping its file name, since SC4 only reloads the savegames it already knows about. Use the server's file name if there isn't one
+		if city_paths:
+			destination = city_paths.pop(0)
+		else:
+			destination = sanitize_relpath(regions_path, relpath)
+		for city_path in city_paths:
+			city_path.unlink()
 		shutil.copy(cache_path, destination)
 
 		# Update the savegames the game monitor knows about, so the downloaded savegame isn't pushed back to the server
-		for city_path in deleted_city_paths + [destination]:
+		for city_path in city_paths + [destination]:
 			if city_path in self.city_paths:
 				index = self.city_paths.index(city_path)
 				self.city_paths.pop(index)
@@ -3772,7 +3775,7 @@ class GameMonitor(th.Thread):
 		self.city_paths.append(destination)
 		self.city_hashcodes.append(self.get_city_hashcode(destination))
 
-		print(f'- downloaded "{relpath}" at {coords}')
+		print(f'- downloaded "{relpath}" at {coords} to "{destination.name}"')
 		self.report_quietly(f"A city in {region} was updated at {datetime.now().strftime('%H:%M')}.")
 
 
