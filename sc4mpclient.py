@@ -815,7 +815,7 @@ def start_sc4():
 		arguments.append('-f')
 	else:
 		arguments.append('-w')
-	arguments.extend(sc4mp_config["SC4"]["additional_properties"].strip().split(' '))  # assumes that properties do not have spaces
+	arguments.extend(sc4mp_config["SC4"]["additional_properties"].split())  # assumes that properties do not have spaces
 
 	# `True` if the game is installed using Steam
 	steam_sc4 = is_steam_sc4(path)
@@ -851,7 +851,7 @@ def start_sc4():
 		print(f"- launching directly ('{command}').")
 		try:
 			if is_windows():
-				subprocess.run(command) 			# `subprocess.run(arguments)` won't work on Windows for some unknowable reason
+				subprocess.run(command, executable=arguments[0]) 			# `subprocess.run(arguments)` won't work on Windows for some unknowable reason; `executable` stops Windows guessing where the exe path ends
 			else:
 				subprocess.run(arguments)  			# on Linux, the first String passed as argument must be a file that exists
 		except PermissionError as e:
