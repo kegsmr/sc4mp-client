@@ -3757,8 +3757,12 @@ class GameMonitor(th.Thread):
 				continue
 			for city in region_path.glob('*.sc4'):
 				city_path = region_path / city
+				try:
+					city_hashcode = md5(city_path)
+				except FileNotFoundError:
+					continue	# the game may rename or delete a savegame while we're looping
 				city_paths.append(city_path)
-				city_hashcodes.append(md5(city_path))
+				city_hashcodes.append(city_hashcode)
 		return city_paths, city_hashcodes
 
 
