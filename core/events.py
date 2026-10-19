@@ -17,20 +17,24 @@ class EventChannel:
 		self._condition = Condition(self._lock)
 		self._events: dict[int, list[dict]] = {}
 		self._users: dict[int, str] = {}	# the user ID of each subscription
+		self._contexts: dict[int, dict] = {}	# extra values for the user's `user_join` and `user_leave` events (eg. their name)
 		self._subscription_ids = count()
 
 
-	def subscribe(self, user_id: str, events=None) -> int:
-		"""Returns a subscription ID to pass to `listen` and `unsubscribe`. A user can have several subscriptions (eg. a reconnect before the old connection is noticed to be closed). `events` are sent to the new subscription first (eg. recent chat messages)."""
+	def subscribe(self, user_id: str, events=None, context=None) -> int:
+		"""Returns a subscription ID to pass to `listen` and `unsubscribe`. A user can have several subscriptions (eg. a reconnect before the old connection is noticed to be closed). `events` are sent to the new subscription first (eg. recent chat messages). `context` is added to the user's `user_join` and `user_leave` events."""
+
+		context = context or {}
 
 		with self._lock:
 			subscription_id = next(self._subscription_ids)
 			joined = user_id not in self._users.values()
 			self._events[subscription_id] = list(events or [])
 			self._users[subscription_id] = user_id
+			self._contexts[subscription_id] = context
 
 		if joined:
-			self.push('user_join', {'user_id': user_id}, exclude=[user_id])
+			self.push('user_join', {**context, 'user_id': user_id}, exclude=[user_id])
 
 		return subscription_id
 
@@ -42,10 +46,11 @@ class EventChannel:
 				return
 			self._events.pop(subscription_id)
 			user_id = self._users.pop(subscription_id)
+			context = self._contexts.pop(subscription_id)
 			left = user_id not in self._users.values()
 
 		if left:
-			self.push('user_leave', {'user_id': user_id}, exclude=[user_id])
+			self.push('user_leave', {**context, 'user_id': user_id}, exclude=[user_id])
 
 
 	def push(self, event_type: str, event_context: dict, exclude=None):

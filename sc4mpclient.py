@@ -3640,7 +3640,16 @@ class GameMonitor(th.Thread):
 	def update_chat(self):
 		"""Shows new chat messages in the game monitor and the game overlay."""
 
-		while event := self.event_listener.pop('chat'):
+		while event := self.event_listener.pop(('chat', 'user_join', 'user_leave')):
+
+			# Players joining and leaving
+			if event[0] in ('user_join', 'user_leave'):
+				name = event[1].get('name') or "Defacto"
+				text = f"{name} {'joined' if event[0] == 'user_join' else 'left'} the server."
+				print(text)
+				if isinstance(self.ui, GameMonitorUI):
+					self.ui.add_chat_info(text)
+				continue
 
 			chat = event[1]
 			key = (chat.get('time'), chat.get('user_id'), chat.get('message'))
@@ -4010,12 +4019,16 @@ class EventListener(th.Thread):
 
 	
 	def pop(self, target_event_type=None) -> tuple[str, dict] | None:
+		"""Returns the oldest event of the given type (or one of the given types, if a tuple), or any type if `None`."""
+
+		if isinstance(target_event_type, str):
+			target_event_type = (target_event_type,)
 
 		with self._lock:
 			for index in range(len(self._events)):
 				event: dict = self._events[index]
 				event_type: str = event.get('event') or ''
-				if not target_event_type or target_event_type == event_type:
+				if not target_event_type or event_type in target_event_type:
 					self._events.pop(index)
 					return event_type, event
 
