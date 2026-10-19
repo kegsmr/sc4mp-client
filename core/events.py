@@ -8,7 +8,7 @@ from threading import Lock, Condition
 class EventChannel:
 
 
-	MAX_EVENTS = 1000
+	MAX_EVENTS = 10000	# more than a server's chat history
 
 
 	def __init__(self):

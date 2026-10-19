@@ -3942,7 +3942,7 @@ class GameMonitor(th.Thread):
 class EventListener(th.Thread):
 
 
-	MAX_EVENTS = 1000
+	MAX_EVENTS = 10000	# more than a server's chat history
 
 
 	def __init__(self, server):
@@ -3977,6 +3977,10 @@ class EventListener(th.Thread):
 							while len(self._events) > self.MAX_EVENTS:
 								self._events.pop(0)
 				except NetworkException:	# includes timeouts, since the server sends events (or an empty list) every 5 seconds
+					self._disconnect()
+					time.sleep(5)
+				except Exception as e:
+					show_error(f"An unexpected error occurred in the event listener.\n\n{e}", no_ui=True)
 					self._disconnect()
 					time.sleep(5)
 
@@ -7380,6 +7384,12 @@ class StatisticsTreeUI(tk.Frame):
 		return 361
 
 
+def tk_safe(text: str) -> str:
+	"""Replaces characters Tk can't show (eg. emoji, which are above U+FFFF) with U+FFFD, since inserting them raises an error."""
+
+	return "".join(character if ord(character) <= 0xFFFF else "\ufffd" for character in str(text))
+
+
 class GameMonitorUI(tk.Toplevel):
 
 
@@ -7548,6 +7558,8 @@ class GameMonitorUI(tk.Toplevel):
 
 		text = self.chat_frame.text
 		sent = datetime.fromtimestamp(timestamp) if timestamp else datetime.now()
+		name = tk_safe(name)
+		message = tk_safe(message)
 
 		# Only scroll to the new message if the player hasn't scrolled up to read older ones
 		at_bottom = text.yview()[1] >= 0.999
@@ -7590,6 +7602,7 @@ class GameMonitorUI(tk.Toplevel):
 
 	def add_chat_info(self, message):
 
+		message = tk_safe(message)
 		text = self.chat_frame.text
 		text["state"] = tk.NORMAL
 		self.chat_insert_line(message, "info")
@@ -7875,7 +7888,7 @@ class GameOverlayUI(tk.Toplevel):
 			popup.overrideredirect(True)
 			popup.wm_attributes("-topmost", True)
 
-			label = tk.Label(popup, text=text, bg="black", fg="white", wraplength=400, justify="left", padx=8, pady=4, cursor="hand2")
+			label = tk.Label(popup, text=tk_safe(text), bg="black", fg="white", wraplength=400, justify="left", padx=8, pady=4, cursor="hand2")
 			label.pack()
 			label.bind("<Button-1>", self.click)
 
@@ -8222,8 +8235,13 @@ class Logger:
 
 		# Print
 		if self.terminal is not None:
-			self.terminal.write(output)
-		with open(self.log, "a") as log:
+			try:
+				self.terminal.write(output)
+			except UnicodeEncodeError:
+				# The console can't show some characters (eg. emoji in a chat message on a cp1252 console)
+				encoding = getattr(self.terminal, "encoding", None) or "ascii"
+				self.terminal.write(output.encode(encoding, errors="replace").decode(encoding))
+		with open(self.log, "a", encoding="utf-8") as log:
 			log.write(output)
 			log.close()  
 
