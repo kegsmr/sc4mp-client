@@ -6591,7 +6591,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 			#print(f"Resized to {new_window_width}x{new_window_height}.")
 
-			self.after(1, self.update_window_size)
+			self.after(100, self.update_window_size)
 
 		except Exception as e:
 
@@ -6606,7 +6606,7 @@ class ServerDetailsUI(tk.Toplevel):
 				entrybox.delete(0, "end")
 				entrybox.insert(0, text)
 
-			self.after(1, lambda: self.reset_entrybox(entrybox, text))
+			self.after(100, lambda: self.reset_entrybox(entrybox, text))
 
 		except Exception as e:
 
