@@ -7450,9 +7450,12 @@ class GameMonitorUI(tk.Toplevel):
 		self.chat_frame.grid(column=0, row=4, rowspan=1, columnspan=2, padx=10, pady=(10,0), sticky="nw")
 
 		# Chat messages
-		self.chat_frame.text = tk.Text(self.chat_frame, width=48, height=9, wrap="word", state="disabled", highlightbackground="gray", highlightthickness=1, borderwidth=0)
+		font = tkfont.nametofont("TkDefaultFont")
+		self.chat_frame.bold_font = font.copy()
+		self.chat_frame.bold_font.configure(weight="bold")
+		self.chat_frame.text = tk.Text(self.chat_frame, width=58, height=9, wrap="word", state="disabled", font=font, highlightbackground="gray", highlightthickness=1, borderwidth=0)
 		self.chat_frame.text.grid(column=0, row=0, columnspan=2, sticky="nw")
-		self.chat_frame.text.tag_configure("name", font=(None, 9, "bold"))
+		self.chat_frame.text.tag_configure("name", font=self.chat_frame.bold_font)
 		self.chat_frame.text.tag_configure("info", foreground="gray")
 
 		# Chat scrollbar
