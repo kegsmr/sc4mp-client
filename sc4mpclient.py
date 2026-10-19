@@ -1024,7 +1024,7 @@ def open_logs():
 	if has_powershell():
 		subprocess.Popen([
 			"cmd.exe", "/c", "start", "cmd.exe", "/k",
-			f"@echo off && powershell -NoProfile -ExecutionPolicy Bypass -Command $Host.UI.RawUI.WindowTitle = \"{SC4MP_TITLE}\"; gc sc4mpclient.log -Wait -Tail 1000"
+			f"@echo off && powershell -NoProfile -ExecutionPolicy Bypass -Command $Host.UI.RawUI.WindowTitle = \"{SC4MP_TITLE}\"; gc sc4mpclient.log -Encoding UTF8 -Wait -Tail 1000"
 		])
 	else:
 		startfile(SC4MP_LOG_PATH)
@@ -8176,8 +8176,13 @@ class Logger:
 
 		# Print
 		if self.terminal is not None:
-			self.terminal.write(output)
-		with open(self.log, "a") as log:
+			try:
+				self.terminal.write(output)
+			except UnicodeEncodeError:
+				# The console can't show some characters (eg. emoji on a cp1252 console)
+				encoding = getattr(self.terminal, "encoding", None) or "ascii"
+				self.terminal.write(output.encode(encoding, errors="replace").decode(encoding))
+		with open(self.log, "a", encoding="utf-8") as log:
 			log.write(output)
 			log.close()  
 
