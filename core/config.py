@@ -42,11 +42,11 @@ class Config:
 						except (configparser.NoSectionError, configparser.NoOptionError):
 							print(f"[WARNING] Option \"{item_name}\" missing from section \"{section_name}\" of the config file at \"{self.PATH}\". Using default value.")
 						except Exception as e:
-							self.show_error("An error occured while reading a config item.", no_ui=True)
+							self.show_error("An error occurred while reading a config item.", no_ui=True)
 				except Exception as e:
-					self.show_error("An error occured while reading a config section.", no_ui=True)
+					self.show_error("An error occurred while reading a config section.", no_ui=True)
 		except Exception as e:
-			self.show_error("An error occured while reading the config.", no_ui=True)
+			self.show_error("An error occurred while reading the config.", no_ui=True)
 
 		# Update config file
 		self.update()
