@@ -3434,6 +3434,9 @@ class GameMonitor(th.Thread):
 		th.Thread.__init__(self)
 
 		self.server = server
+
+		# Cached md5's of savegames, by path, with the size and modification time they were computed for
+		self.city_hashcode_cache = {}
 		
 		# Get list of city paths and their md5's
 		self.city_paths, self.city_hashcodes = self.get_cities()
@@ -3758,12 +3761,24 @@ class GameMonitor(th.Thread):
 			for city in region_path.glob('*.sc4'):
 				city_path = region_path / city
 				try:
-					city_hashcode = md5(city_path)
+					city_hashcode = self.get_city_hashcode(city_path)
 				except FileNotFoundError:
 					continue	# the game may rename or delete a savegame while we're looping
 				city_paths.append(city_path)
 				city_hashcodes.append(city_hashcode)
 		return city_paths, city_hashcodes
+
+
+	def get_city_hashcode(self, city_path: Path) -> str:
+
+		# Only rehash savegames that changed, since reading a savegame while SC4 overwrites it causes "Error saving city"
+		stat = city_path.stat()
+		key = (stat.st_size, stat.st_mtime_ns)
+		cached = self.city_hashcode_cache.get(city_path)
+		if cached is None or cached[0] != key:
+			cached = (key, md5(city_path))
+			self.city_hashcode_cache[city_path] = cached
+		return cached[1]
 
 
 	def receive_file(self, s: socket.socket, filename: Path):
