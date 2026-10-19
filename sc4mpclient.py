@@ -845,13 +845,13 @@ def start_sc4():
 	if not steam_launch:
 
 		# Regular command
-		command = ' '.join([f'"{arguments[0]}"'] + arguments[1:])	# quote the path to the exe, since it may contain spaces
+		command = ' '.join(arguments)
 
 		# Launch the game
 		print(f"- launching directly ('{command}').")
 		try:
 			if is_windows():
-				subprocess.run(command) 			# `subprocess.run(arguments)` won't work on Windows for some unknowable reason
+				subprocess.run(command, executable=arguments[0]) 			# `subprocess.run(arguments)` won't work on Windows for some unknowable reason; `executable` stops Windows guessing where the exe path ends
 			else:
 				subprocess.run(arguments)  			# on Linux, the first String passed as argument must be a file that exists
 		except PermissionError as e:
