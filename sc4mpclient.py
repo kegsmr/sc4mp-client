@@ -38,7 +38,7 @@ except ImportError:
 from core.config import Config
 from core.database import Database
 from core.dbpf import SC4Savegame, SC4Config
-from core.networking import ClientSocket, NetworkException, TimeoutException
+from core.networking import ClientSocket, NetworkException
 from core.util import *
 
 
@@ -110,6 +110,7 @@ SC4MP_CONFIG_DEFAULTS = [
    			.expanduser()),	
 
 		("sync_simcity_4_cfg", True),
+		("download_new_saves", True),
 
 	]),
 	("STORAGE", [
@@ -3220,63 +3221,6 @@ class ServerLoader(th.Thread):
 
 
 class GameMonitor(th.Thread):
-
-
-	def __init__(self, server: Server):
-
-		super().__init__()
-
-		self.server = server
-
-		self.cities = self.get_cities()
-
-		#TODO
-		
-
-	def get_cities(self) -> dict[str, dict[tuple[int, int], Path]]:
-
-		cities = {}
-
-		for region in self.server.regions:
-
-			cities.setdefault(region, {})
-
-			region_path: Path = Path(SC4MP_LAUNCHPATH) / "Regions" / region
-			region_path.mkdir(parents=True, exist_ok=True)
-
-			if region_path.is_file():
-				continue
-
-			for city in region_path.glob('*.sc4'):
-
-				city_path = region_path / city
-				error = lambda e: show_error(e, no_ui=True)
-
-				with SC4Savegame(city_path, error_callback=error) as savegame:
-
-					SC4ReadRegionalCity: dict = \
-						savegame.get_SC4ReadRegionalCity()
-
-					coords = (
-						SC4ReadRegionalCity.get('tileXLocation'),
-						SC4ReadRegionalCity.get('tileYLocation')
-					)
-
-				if None in coords:
-					continue
-
-				city_entry = {
-					"path": city_path,
-					"size": city_path.stat().st_size,
-					"mtime": city_path.stat().st_mtime
-				}
-
-				cities[region][coords] = city_entry
-
-		return cities
-
-
-class GameMonitorOld(th.Thread):
 	
 
 
@@ -3328,7 +3272,8 @@ class GameMonitorOld(th.Thread):
 
 		# Start the event listener (listens for events on the server)
 		self.event_listener = EventListener(self.server)
-		self.event_listener.start()
+		if not self.server.guest and sc4mp_config["GENERAL"]["download_new_saves"]:
+			self.event_listener.start()
 
 		# Thread shutsdown when this is set to `True`
 		self.end = False
@@ -3367,7 +3312,7 @@ class GameMonitorOld(th.Thread):
 				self.ui.url_label["text"] = self.server.server_url
 
 			# Time the server was last pinged (`None` for now)
-			last_ping_time = time.time()
+			last_ping_time = None
 
 			# Infinite loop that can be broken by the "end" variable (runs an extra time once it's set to `True`)
 			while True:
@@ -3376,7 +3321,7 @@ class GameMonitorOld(th.Thread):
 				try:
 
 					# Update server ping in UI every 5 seconds
-					if time.time() - last_ping_time >= 15:
+					if last_ping_time is None or time.time() - last_ping_time >= 15:
 
 						# Ping the server
 						ping = self.server.ping()
@@ -3398,9 +3343,12 @@ class GameMonitorOld(th.Thread):
 							# Set the last ping time
 							last_ping_time = time.time()
 
-					#TODO Handle save events
+					# Download cities saved by other mayors
 					while event := self.event_listener.pop('save'):
-						pass
+						try:
+							self.download_city(event[1])
+						except Exception as e:
+							show_error(f"An error occurred while downloading a city saved by another mayor.\n\n{e}", no_ui=True)
 
 					# If not in guest mode
 					if not self.server.guest:
@@ -3759,6 +3707,75 @@ class GameMonitorOld(th.Thread):
 				self.set_overlay_state("not-saved")
 
 
+	def download_city(self, event: dict) -> None:
+		"""Replaces the savegame at the coordinates of a city saved by another mayor with the one on the server."""
+
+		region = sanitize_directory_name(event['region'])
+		coords = tuple(event['coords'])
+		relpath = f"{region}/{event['filename']}"
+
+		regions_path = Path(SC4MP_LAUNCHPATH) / "Regions"
+		region_path = regions_path / region
+		if not region_path.is_dir():
+			return
+
+		# Find the savegame in the server's file table
+		with self.server.socket() as s:
+			file_table = s.regions_table()
+		entry = next((entry for entry in file_table if entry[2] == relpath), None)
+		if entry is None:
+			print(f'[WARNING] "{relpath}" is not in the regions file table.')
+			return
+		checksum = sanitize_directory_name(entry[0])
+		filesize = entry[1]
+
+		# Download the savegame into the cache, unless it's already cached
+		cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
+		cache_path = cache_directory / checksum
+		if not (cache_path.exists() and cache_path.stat().st_size == filesize):
+			print(f'- caching "{checksum}"...')
+			while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
+				random_cache = random.choice(list(cache_directory.iterdir()))
+				random_cache.unlink()
+			temp_path = cache_path.with_suffix(".part")	# so a failed download doesn't leave a corrupted file in the cache
+			with self.server.socket() as s:
+				for _, _, _, chunks in s.regions_data([entry]):
+					with temp_path.open("wb") as file:
+						for chunk in chunks:
+							file.write(chunk)
+			os.replace(temp_path, cache_path)
+
+		# Delete the savegames at the same coordinates (the old savegame may have a different file name)
+		deleted_city_paths = []
+		for city_path in region_path.glob('*.sc4'):
+			try:
+				with SC4Savegame(city_path, error_callback=None) as savegame:
+					SC4ReadRegionalCity = savegame.get_SC4ReadRegionalCity()
+			except Exception as e:
+				show_error(e, no_ui=True)
+				continue
+			if (SC4ReadRegionalCity["tileXLocation"], SC4ReadRegionalCity["tileYLocation"]) == coords:
+				city_path.unlink()
+				deleted_city_paths.append(city_path)
+
+		# Copy the savegame into the region
+		destination = sanitize_relpath(regions_path, relpath)
+		destination.unlink(missing_ok=True)
+		shutil.copy(cache_path, destination)
+
+		# Update the savegames the game monitor knows about, so the downloaded savegame isn't pushed back to the server
+		for city_path in deleted_city_paths + [destination]:
+			if city_path in self.city_paths:
+				index = self.city_paths.index(city_path)
+				self.city_paths.pop(index)
+				self.city_hashcodes.pop(index)
+		self.city_paths.append(destination)
+		self.city_hashcodes.append(self.get_city_hashcode(destination))
+
+		print(f'- downloaded "{relpath}" at {coords}')
+		self.report_quietly(f"A city in {region} was updated at {datetime.now().strftime('%H:%M')}.")
+
+
 	def backup_city(self, city_path: Path) -> None:
 		
 		region = city_path.parent.name
@@ -3825,11 +3842,9 @@ class EventListener(th.Thread):
 							self._events.append(event)
 							while len(self._events) > self.MAX_EVENTS:
 								self._events.pop(0)
-				except TimeoutException:
-					pass
-				except NetworkException:
+				except NetworkException:	# includes timeouts, since the server sends events (or an empty list) every 5 seconds
 					self._disconnect()
-					time.sleep(1)
+					time.sleep(5)
 
 		except Exception as e:
 
@@ -5242,9 +5257,9 @@ class PasswordDialogUI(tk.Toplevel):
 				if self.server_loader.ui.background:
 					self.server_loader.ui.background.lift()
 				if not messagebox.askokcancel(self.server_loader.server.server_name, "You are about to join the server as a guest.\n\nAny cities you build will NOT be saved.", icon="info"):
-					self.server_loader.server.guest = True
 					self.deiconify()
 					return
+				self.server_loader.server.guest = True
 
 		self.server_loader.server.password = password
 		self.wait = False

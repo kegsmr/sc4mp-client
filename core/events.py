@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from itertools import count
 from threading import Lock, Condition
 
 
@@ -14,32 +15,39 @@ class EventChannel:
 
 		self._lock = Lock()
 		self._condition = Condition(self._lock)
-		self._events: dict[str, list[dict]] = {}
+		self._events: dict[int, list[dict]] = {}
+		self._users: dict[int, str] = {}	# the user ID of each subscription
+		self._subscription_ids = count()
 
 
-	def subscribe(self, user_id: str):
-
-		with self._lock:
-			if user_id in self._events:
-				return
-			self._events.setdefault(user_id, [])
-
-		self.push('user_join', {'user_id': user_id}, exclude=[user_id])
-
-
-	def unsubscribe(self, user_id: str):
-
-		if not user_id:
-			return
+	def subscribe(self, user_id: str) -> int:
+		"""Returns a subscription ID to pass to `listen` and `unsubscribe`. A user can have several subscriptions (eg. a reconnect before the old connection is noticed to be closed)."""
 
 		with self._lock:
-			if not user_id in self._events:
-				return
-			self._events.pop(user_id)
-		
-		self.push('user_leave', {'user_id': user_id}, exclude=[user_id])
+			subscription_id = next(self._subscription_ids)
+			joined = user_id not in self._users.values()
+			self._events[subscription_id] = []
+			self._users[subscription_id] = user_id
 
-	
+		if joined:
+			self.push('user_join', {'user_id': user_id}, exclude=[user_id])
+
+		return subscription_id
+
+
+	def unsubscribe(self, subscription_id: int):
+
+		with self._lock:
+			if not subscription_id in self._events:
+				return
+			self._events.pop(subscription_id)
+			user_id = self._users.pop(subscription_id)
+			left = user_id not in self._users.values()
+
+		if left:
+			self.push('user_leave', {'user_id': user_id}, exclude=[user_id])
+
+
 	def push(self, event_type: str, event_context: dict, exclude=None):
 
 		event = {
@@ -50,30 +58,29 @@ class EventChannel:
 		print(event)
 
 		with self._condition:
-			user_ids = list(self._events.keys())
-			for user_id in user_ids:
-				if exclude and user_id in exclude:
+			for subscription_id, events in self._events.items():
+				if exclude and self._users[subscription_id] in exclude:
 					continue
-				self._events[user_id].append(event)
-				while len(self._events[user_id]) > self.MAX_EVENTS:
-					self._events[user_id].pop(0)
+				events.append(event)
+				while len(events) > self.MAX_EVENTS:
+					events.pop(0)
 			self._condition.notify_all()
 
 
-	def listen(self, user_id, timeout=5) -> list[dict]:
+	def listen(self, subscription_id: int, timeout=5) -> list[dict]:
 
 		with self._condition:
 
-			if user_id not in self._events:
+			if subscription_id not in self._events:
 				raise ValueError(
-					f"User {user_id!r} is not subscribed to the event channel."
+					f"Subscription {subscription_id!r} is not subscribed to the event channel."
 				)
-			
-			while not self._events[user_id]:
+
+			while not self._events[subscription_id]:
 				if not self._condition.wait(timeout):
 					return []
 
-			events = list(self._events[user_id])
-			self._events[user_id].clear()
+			events = list(self._events[subscription_id])
+			self._events[subscription_id].clear()
 
 		return events
