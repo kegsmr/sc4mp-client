@@ -3221,24 +3221,42 @@ class ServerLoader(th.Thread):
 
 
 class GameMonitor(th.Thread):
-	
+
+
+	PING_INTERVAL = 15			# seconds between pings
+	DOWNLOAD_RETRY_DELAY = 10	# seconds to wait before trying again when downloading cities saved by other mayors fails
 
 
 	def __init__(self, server):
-		
 
-		th.Thread.__init__(self)
+		super().__init__()
 
 		self.server: Server = server
+
+		# Guests join with an empty password (`server.guest` is only set by the password dialog)
+		self.guest = bool(self.server.guest) or self.server.password == ""
 
 		# Cached md5's of savegames, by path, with the size and modification time they were computed for
 		self.city_hashcode_cache = {}
 
-		# Cities saved by other mayors that still need to be downloaded
-		self.pending_downloads = []
-		
-		# Get list of city paths and their md5's
-		self.city_paths, self.city_hashcodes = self.get_cities()
+		# The md5's of the savegames in the server's regions, by path
+		self.cities: dict[Path, str] = self.get_cities()
+
+		# The md5's of the savegames that match the server's copy (ie. not changed by the player since they were downloaded or pushed), by path
+		self.synced_cities: dict[Path, str] = dict(self.cities)
+
+		# Cities saved by other mayors that still need to be downloaded (`save` events), and whether to compare all savegames with the server's
+		self.pending_downloads: list[dict] = []
+		self.resync = False
+		self.download_retry_time = None
+
+		# Ping
+		self.ping = None
+		self.last_ping_time = None
+
+		# Used to detect when the player opens the refresh region (`cfg_hashcode` is the md5 of `SimCity 4.cfg`)
+		self.cfg_hashcode = None
+		self.refresh_region_open = False
 
 		# For backwards compatability
 		self.PREFIX = ""
@@ -3260,7 +3278,7 @@ class GameMonitor(th.Thread):
 
 			# Create game overlay window if the game overlay is enabled (`1` is fullscreen-mode only; `2` is always enabled)
 			if (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
-				self.overlay_ui = GameOverlayUI(self.ui, guest=(server.password == ""))
+				self.overlay_ui = GameOverlayUI(self.ui, guest=self.guest)
 				if sc4mp_game_monitor_x > 0:
 					self.ui.withdraw()
 			else:
@@ -3275,7 +3293,7 @@ class GameMonitor(th.Thread):
 
 		# Start the event listener (listens for events on the server)
 		self.event_listener = EventListener(self.server)
-		if not self.server.guest and sc4mp_config["GENERAL"]["download_new_saves"]:
+		if not self.guest and sc4mp_config["GENERAL"]["download_new_saves"]:
 			self.event_listener.start()
 
 		# Thread shutsdown when this is set to `True`
@@ -3283,7 +3301,6 @@ class GameMonitor(th.Thread):
 
 
 	def run(self):
-		
 
 		# Catch all errors and show an error message
 		try:
@@ -3291,274 +3308,43 @@ class GameMonitor(th.Thread):
 			# Thead name for logging
 			set_thread_name("GmThread", enumerate=False)
 
-			# if self.ui:
-				# self.ui.deiconify()
-				# self.ui.grab_set()
-
-			# Declare variable to break loop after the game closes
-			end = False
-
-			# Used for refresh stuff (`cfg_hashcode` is the md5 of `SimCity 4.cfg`)
-			cfg_hashcode = None
-			old_refresh_region_open = False
-
 			# Set initial status in UI
-			if self.server.password == "":
-				self.report_quietly("Welcome, you've joined as a guest.")
-			else:
-				self.report_quietly("Welcome, start a city and save to claim a tile.") #Ready. #"Monitoring for changes...")
-				
-			# Show server description in UI (only for the legacy status window)
-			if sc4mp_ui and not SC4MP_LAUNCHERMAP_ENABLED:
-				self.ui.ping_frame.left["text"] = f"{self.server.host}:{self.server.port}"
-				self.ui.description_label["text"] = self.server.server_description
-				self.ui.url_label["text"] = self.server.server_url
+			self.welcome()
 
-			# Time the server was last pinged (`None` for now)
-			last_ping_time = None
-
-			# Infinite loop that can be broken by the "end" variable (runs an extra time once it's set to `True`)
+			# Loop until the game closes (runs an extra time after it closes, so the last saves are pushed)
+			game_closed = False
 			while True:
 
 				# Catch all errors and show an error message in the console
 				try:
 
-					# Update server ping in UI every 5 seconds
-					if last_ping_time is None or time.time() - last_ping_time >= 15:
+					self.update_ping()
 
-						# Ping the server
-						ping = self.server.ping()
+					# Push the player's saves before downloading other mayors' cities, so the player's changes are never overwritten before being pushed
+					if not self.guest:
+						self.push_cities()
 
-						# If the server is unresponsive, print a warning in the console and update the ui accordingly
-						if ping is None:
-							print("[WARNING] Disconnected.")
-							if self.ui != None:
-								self.ui.ping_frame.right['text'] = "Disconnected"
-								self.ui.ping_frame.right['fg'] = "red"
-						
-						# If the server is responsive, print the ping in the console and display the ping in the ui
-						else:
-							# print(f"Ping: {ping}")
-							if self.ui != None:
-								self.ui.ping_frame.right['text'] = f"{ping}ms"
-								self.ui.ping_frame.right['fg'] = "gray"
+					self.download_cities()
 
-							# Set the last ping time
-							last_ping_time = time.time()
-
-					# Download cities saved by other mayors (if a savegame can't be replaced yet, eg. because SC4 has it open, try again later)
-					while event := self.event_listener.pop('save'):
-						self.pending_downloads.append(event[1])
-					for event in list(self.pending_downloads):
-						try:
-							self.download_city(event)
-						except PermissionError as e:
-							print(f"[WARNING] Unable to replace the savegame yet, trying again later. {e}")
-							continue
-						except Exception as e:
-							show_error(f"An error occurred while downloading a city saved by another mayor.\n\n{e}", no_ui=True)
-						self.pending_downloads.remove(event)
-
-					# If not in guest mode
-					if not self.server.guest:
-
-						#new_city_paths, new_city_hashcodes = self.get_cities()
-						
-						# Array of savegames to push to the server
-						save_city_paths = []
-
-						# Print statements for debugging
-						#print("Old cities: " + str(self.city_paths))
-						#print("New cities: " + str(new_city_paths))
-
-						# Will be used to store the amount of savegames detected in the previous iteration of the following while loop (-1 means the while loop will always run at least one time!)
-						save_city_paths_length = -1
-
-						# Loop until no new/modified savegames were found in the last iteration of the loop (meant to prevent fragmented save pushes, not the best solution because it relies somewhat on the loop delay)
-						while len(save_city_paths) != save_city_paths_length:
-
-							# Update the new/modified savegame counter
-							save_city_paths_length = len(save_city_paths)
-
-							# Store the paths and hashcodes of savegames in the "Regions" directory to two local arrays
-							new_city_paths, new_city_hashcodes = self.get_cities() #TODO I think this should be here...?
-							
-							# Loop through the paths of the savegames currently found in the "Regions" directory
-							for new_city_path in new_city_paths:
-								
-								# If it's a new savegame, add it to the list of savegames to be pushed to the server
-								if not new_city_path in self.city_paths:
-									save_city_paths.append(new_city_path)
-								
-								# If it's not a new savegame, check if it's a modified savegame. If so, add it to the same list
-								else:
-									city_hashcode = self.city_hashcodes[self.city_paths.index(new_city_path)]
-									new_city_hashcode = new_city_hashcodes[new_city_paths.index(new_city_path)]
-									if city_hashcode != new_city_hashcode:
-										save_city_paths.append(new_city_path)
-
-							# For future comparisons
-							self.city_paths = new_city_paths
-							self.city_hashcodes = new_city_hashcodes
-
-							# If modified savegames are found
-							if len(save_city_paths) > 0:	
-
-								# Report waiting to sync if new/modified savegames found
-								self.report("", "Saving...")
-								self.set_overlay_state("saving")
-
-								# Wait
-								time.sleep(1) #5 #6 #5 #6 #10 #3 #TODO make configurable?
-
-								# Filter the savegames if more than two are found
-								if len(save_city_paths) > 2:
-									try:
-										savegames = []
-										for save_city_path in save_city_paths:
-											savegame = SC4Savegame(save_city_path, error_callback=None)
-											savegame.get_SC4ReadRegionalCity()
-											savegames.append(savegame)
-										filtered_savegames = self.filter_bordering_tiles(savegames)
-										if len(filtered_savegames) == 1:
-											save_city_paths = [savegame.filename for savegame in filtered_savegames]
-											[savegame.close() for savegame in savegames]
-											break
-									except Exception as e:
-										show_error(e, no_ui=True)
-
-						# If there are any new/modified savegame files, push them to the server. If errors occur, log them in the console and display a warning
-						if len(save_city_paths) > 0:
-							tries = 0
-							while True:
-								try:
-									self.report("", "Saving...")
-									self.set_overlay_state('saving')
-									self.save(save_city_paths)
-									break
-								except (NetworkException, socket.timeout, socket.error) as e: # Is `ConnectionResetError` a `socket.error`?
-									show_error(e, no_ui=True)
-								except Exception as e:
-									show_error(e, no_ui=True)
-									self.report("[WARNING] ", "Save push failed! Unexpected client-side error.", color="red")
-									self.set_overlay_state("not-saved")
-									break
-								tries += 1
-								for count in range(5):
-									self.report("[WARNING] ", f"Connection failed. Retrying {5 - count}...")
-									time.sleep(1)
-								if tries >= 3:
-									self.report("[WARNING] ", "Save push failed! Server unreachable.", color="red")
-									self.set_overlay_state("not-saved")
-									break
-							time.sleep(5)
-
-					# Break the loop when signaled
-					if end == True:
+					# Break the loop the iteration after the game closes
+					if game_closed:
 						break
-
-					# Signal to break the loop when the game is no longer running
-					if not self.game_launcher.game_running:
-						end = True
-						# if self.ui:
-						# 	self.ui.deiconify()
-						# 	self.ui.deiconify()
-						# 	self.ui.lift()
-						# 	self.ui.grab_set()
-						# 	self.ui.focus_set()
-						# 	# I tried everything...
+					game_closed = not self.game_launcher.game_running
 
 					# Wait
-					time.sleep(1) #3 #1 #3
+					time.sleep(1)
 
-					# Refresh
-					cfg_path = get_sc4_cfg_path()
-					try:
-						new_cfg_hashcode = md5(cfg_path)
-						if cfg_hashcode != None and new_cfg_hashcode != cfg_hashcode:
-							#print("Region switched!")
-							sync_simcity_4_cfg()
-							new_refresh_region_open = refresh_region_open()
-							if new_refresh_region_open and (not old_refresh_region_open):
-								#print("Refresh regions!")
-								if ping == None:
-									self.report("[WARNING] ", "Unable to refresh regions at this time.", color="red")
-								else:
-									old_text = self.ui.label["text"]
-									self.report("", "Refreshing...")
-									self.set_overlay_state("refreshing")
-									if sc4mp_ui:
-										regions_refresher_ui = RegionsRefresherUI(self.server)
-										regions_refresher_ui.worker.run()
-										try:
-											regions_refresher_ui.destroy()
-										except Exception:
-											pass
-									else:
-										regions_refresher = RegionsRefresher(None, self.server)
-										regions_refresher.run()
-									self.city_paths, self.city_hashcodes = self.get_cities()
-									if sc4mp_game_launcher.game_running:
-										self.report("", "Regions refreshed at " + datetime.now().strftime("%H:%M") + ".", color="green")
-										self.set_overlay_state("refreshed")
-									#self.ui.label["text"] = old_text
-							old_refresh_region_open = new_refresh_region_open
-						cfg_hashcode = new_cfg_hashcode
-					except Exception as e:
-						show_error(f"An unexpected error occurred while refreshing regions.\n\n{e}", no_ui=True)
-					
+					self.check_refresh()
+
 				except Exception as e:
 					if self.end:
 						break
 					else:
 						show_error("An unexpected error occurred in the game monitor loop.", no_ui=True)
-						time.sleep(5) #3
+						time.sleep(5)
 
-			# Save the config used on the server to the `_Configs` directory and restore the singleplayer config
-			if sc4mp_config["GENERAL"]["sync_simcity_4_cfg"]:
-				try:
-					source = SC4MP_LAUNCHPATH / "SimCity 4.cfg"
-					destination = SC4MP_LAUNCHPATH / "_Configs" / f"{self.server.server_id}.cfg"
-					if destination.exists():
-						destination.unlink()
-					shutil.copy(source, destination)
-				except Exception as e:
-					show_error(f"An error occurred while saving the SimCity 4 config.\n\n{e}", no_ui=True)
-
-			# Restore the singleplayer config backup
-			if sc4mp_config["GENERAL"]["sync_simcity_4_cfg"]:
-				try:
-					sp_config_path = Path("~/Documents/SimCity 4/SimCity 4.cfg").expanduser()
-					sp_config_backup_path = Path("~/Documents/SimCity 4/SimCity 4.cfg.bak").expanduser()
-					if sp_config_backup_path.exists():
-						if sp_config_path.exists():
-							os.unlink(sp_config_path)
-						shutil.copy(sp_config_backup_path, sp_config_path)
-						os.unlink(sp_config_backup_path)
-				except Exception as e:
-					show_error(f"An error occurred while restoring the SimCity 4 config backup.\n\n{e}", no_ui=True)
-
-			# Destroy the game monitor ui if running
-			if self.ui:
-				self.ui.destroy()
-
-			# Destroy the game overlay ui if running
-			if self.overlay_ui:
-				self.overlay_ui.destroy()
-
-			# Show the main ui once again	
-			if sc4mp_exit_after:
-				if sc4mp_ui is not None:
-					sc4mp_ui.destroy()
-			else:
-				if sc4mp_ui is not None:
-					if sc4mp_exit_after:
-						sc4mp_ui.destroy()
-					else:
-						sc4mp_ui.deiconify()
-						sc4mp_ui.lift()
-						sc4mp_ui.focus_set()
-						sc4mp_ui.grab_set()
+			self.save_simcity_4_cfg()
+			self.close()
 
 		except Exception as e:
 			
@@ -3569,10 +3355,374 @@ class GameMonitor(th.Thread):
 			self.event_listener.stop()
 
 
-	def get_cities(self) -> tuple[list[Path], list[str]]:
+	def welcome(self):
+
+		if self.guest:
+			self.report_quietly("Welcome, you've joined as a guest.")
+		else:
+			self.report_quietly("Welcome, start a city and save to claim a tile.")
+			
+		# Show server description in UI (only for the legacy status window)
+		if sc4mp_ui and not SC4MP_LAUNCHERMAP_ENABLED:
+			self.ui.ping_frame.left["text"] = f"{self.server.host}:{self.server.port}"
+			self.ui.description_label["text"] = self.server.server_description
+			self.ui.url_label["text"] = self.server.server_url
+
+
+	def update_ping(self):
+		"""Pings the server every `PING_INTERVAL` seconds (every loop while disconnected) and shows the ping in the UI."""
+
+		if self.last_ping_time is not None and time.time() - self.last_ping_time < self.PING_INTERVAL:
+			return
+
+		self.ping = self.server.ping()
+
+		# If the server is unresponsive, print a warning in the console and update the ui accordingly
+		if self.ping is None:
+			print("[WARNING] Disconnected.")
+			if self.ui != None:
+				self.ui.ping_frame.right['text'] = "Disconnected"
+				self.ui.ping_frame.right['fg'] = "red"
 		
+		# If the server is responsive, display the ping in the ui
+		else:
+			if self.ui != None:
+				self.ui.ping_frame.right['text'] = f"{self.ping}ms"
+				self.ui.ping_frame.right['fg'] = "gray"
+			self.last_ping_time = time.time()
+
+
+	def push_cities(self):
+		"""Pushes new and modified savegames to the server."""
+
+		save_city_paths = self.get_modified_cities()
+
+		if not save_city_paths:
+			return
+
+		# Push them. If errors occur, log them in the console and display a warning
+		tries = 0
+		while True:
+			try:
+				self.report("", "Saving...")
+				self.set_overlay_state('saving')
+				if self.save(save_city_paths):
+					for path in save_city_paths:
+						if path in self.cities:
+							self.synced_cities[path] = self.cities[path]
+				break
+			except (NetworkException, socket.timeout, socket.error) as e: # Is `ConnectionResetError` a `socket.error`?
+				show_error(e, no_ui=True)
+			except Exception as e:
+				show_error(e, no_ui=True)
+				self.report("[WARNING] ", "Save push failed! Unexpected client-side error.", color="red")
+				self.set_overlay_state("not-saved")
+				break
+			tries += 1
+			for count in range(5):
+				self.report("[WARNING] ", f"Connection failed. Retrying {5 - count}...")
+				time.sleep(1)
+			if tries >= 3:
+				self.report("[WARNING] ", "Save push failed! Server unreachable.", color="red")
+				self.set_overlay_state("not-saved")
+				break
+
+		time.sleep(5)
+
+
+	def get_modified_cities(self) -> list[Path]:
+		"""Returns the paths of new and modified savegames, waiting until SC4 stops writing savegames so a save isn't pushed in pieces."""
+
+		save_city_paths = []
+
+		# Loop until no new/modified savegames were found in the last iteration of the loop (meant to prevent fragmented save pushes, not the best solution because it relies somewhat on the loop delay)
+		save_city_paths_length = -1
+		while len(save_city_paths) != save_city_paths_length:
+
+			save_city_paths_length = len(save_city_paths)
+
+			# Compare the savegames in the regions with the ones from the last loop
+			cities = self.get_cities()
+			for path, hashcode in cities.items():
+				if self.cities.get(path) != hashcode and path not in save_city_paths:
+					save_city_paths.append(path)
+			self.cities = cities
+
+			# If new/modified savegames were found, wait to see if SC4 writes more
+			if save_city_paths:
+
+				self.report("", "Saving...")
+				self.set_overlay_state("saving")
+
+				time.sleep(1) #TODO make configurable?
+
+				# Filter the savegames if more than two are found
+				if len(save_city_paths) > 2:
+					savegames = []
+					try:
+						for save_city_path in save_city_paths:
+							savegame = SC4Savegame(save_city_path, error_callback=None)
+							savegames.append(savegame)
+							savegame.get_SC4ReadRegionalCity()
+						filtered_savegames = self.filter_bordering_tiles(savegames)
+						if len(filtered_savegames) == 1:
+							save_city_paths = [savegame.filename for savegame in filtered_savegames]
+							break
+					except Exception as e:
+						show_error(e, no_ui=True)
+					finally:
+						for savegame in savegames:
+							savegame.close()	# an open savegame can't be saved by SC4
+
+		return save_city_paths
+
+
+	def check_refresh(self):
+		"""Refreshes the regions when the player opens the refresh region in SC4."""
+
+		try:
+
+			new_cfg_hashcode = md5(get_sc4_cfg_path())
+
+			# The config changes when the player switches regions
+			if self.cfg_hashcode is not None and new_cfg_hashcode != self.cfg_hashcode:
+				sync_simcity_4_cfg()
+				new_refresh_region_open = refresh_region_open()
+				if new_refresh_region_open and not self.refresh_region_open:
+					self.refresh()
+				self.refresh_region_open = new_refresh_region_open
+
+			self.cfg_hashcode = new_cfg_hashcode
+
+		except Exception as e:
+
+			show_error(f"An unexpected error occurred while refreshing regions.\n\n{e}", no_ui=True)
+
+
+	def refresh(self):
+
+		if self.ping is None:
+			self.report("[WARNING] ", "Unable to refresh regions at this time.", color="red")
+			return
+
+		self.report("", "Refreshing...")
+		self.set_overlay_state("refreshing")
+
+		if sc4mp_ui:
+			regions_refresher_ui = RegionsRefresherUI(self.server)
+			regions_refresher_ui.worker.run()
+			try:
+				regions_refresher_ui.destroy()
+			except Exception:
+				pass
+		else:
+			regions_refresher = RegionsRefresher(None, self.server)
+			regions_refresher.run()
+
+		# All savegames now match the server's
+		self.cities = self.get_cities()
+		self.synced_cities = dict(self.cities)
+
+		if sc4mp_game_launcher.game_running:
+			self.report("", "Regions refreshed at " + datetime.now().strftime("%H:%M") + ".", color="green")
+			self.set_overlay_state("refreshed")
+
+
+	def download_cities(self):
+		"""Downloads cities saved by other mayors and puts them in the regions."""
+
+		# Collect `save` events, and compare all savegames with the server's after (re)subscribing, since events may have been missed while not subscribed
+		while event := self.event_listener.pop('save'):
+			self.pending_downloads.append(event[1])
+		while self.event_listener.pop('subscribed'):
+			self.resync = True
+
+		if not (self.pending_downloads or self.resync):
+			return
+		if self.download_retry_time is not None and time.time() < self.download_retry_time:
+			return
+
+		pending_downloads = self.pending_downloads
+		resync = self.resync
+		self.pending_downloads = []
+		self.resync = False
+		self.download_retry_time = None
+
+		try:
+
+			regions_path = Path(SC4MP_LAUNCHPATH) / "Regions"
+			region_names = [region.name for region in self.server.regions]
+
+			# One request for the file table and one for the savegames, so many saves don't use up the server's request limit
+			with self.server.socket() as s:
+				file_table = s.regions_table()
+			entries = {entry[2]: entry for entry in file_table}
+
+			# Savegames to download: (region, coordinates or `None` if unknown, file table entry)
+			downloads = []
+			for event in pending_downloads:
+				region = sanitize_directory_name(event['region'])
+				entry = entries.get(f"{region}/{event['filename']}")
+				if region not in region_names or entry is None:
+					continue	# not one of the player's regions, or the savegame was replaced again since (another event will follow)
+				downloads.append((region, tuple(event['coords']), entry))
+			if resync:
+				for relpath, entry in entries.items():
+					region, _, filename = relpath.partition("/")
+					if region not in region_names or "/" in filename or not filename.endswith(".sc4"):
+						continue
+					if entry[0] not in [hashcode for path, hashcode in self.cities.items() if path.parent.name == region]:
+						downloads.append((region, None, entry))
+
+			if not downloads:
+				return
+
+			# Download the savegames that aren't cached yet
+			cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
+			uncached = []
+			for _, _, entry in downloads:
+				cache_path = cache_directory / sanitize_directory_name(entry[0])
+				if not (cache_path.exists() and cache_path.stat().st_size == entry[1]) and entry not in uncached:
+					uncached.append(entry)
+			if uncached:
+				size = sum(entry[1] for entry in uncached)
+				while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - size:
+					random_cache = random.choice(list(cache_directory.iterdir()))
+					random_cache.unlink()
+				with self.server.socket() as s:
+					for checksum, _, _, chunks in s.regions_data(uncached):
+						cache_path = cache_directory / sanitize_directory_name(checksum)
+						print(f'- caching "{cache_path.name}"...')
+						temp_path = cache_path.with_suffix(".part")	# so a failed download doesn't leave a corrupted file in the cache
+						with temp_path.open("wb") as file:
+							for chunk in chunks:
+								file.write(chunk)
+						os.replace(temp_path, cache_path)
+
+		except (NetworkException, socket.error) as e:
+
+			# Try again later
+			show_error(f"Unable to download cities saved by other mayors, trying again later.\n\n{e}", no_ui=True)
+			self.pending_downloads = pending_downloads + self.pending_downloads
+			self.resync = self.resync or resync
+			self.download_retry_time = time.time() + self.DOWNLOAD_RETRY_DELAY
+			return
+
+		# Put the savegames in the regions
+		for region, coords, entry in downloads:
+			cache_path = cache_directory / sanitize_directory_name(entry[0])
+			try:
+				if coords is None:
+					with SC4Savegame(cache_path, error_callback=None) as savegame:
+						SC4ReadRegionalCity = savegame.get_SC4ReadRegionalCity()
+					coords = (SC4ReadRegionalCity["tileXLocation"], SC4ReadRegionalCity["tileYLocation"])
+				self.replace_city(regions_path / region, coords, cache_path, entry[2])
+			except PermissionError as e:
+				# eg. SC4 has the savegame open, so try again later
+				print(f"[WARNING] Unable to replace the savegame yet, trying again later. {e}")
+				self.pending_downloads.append({'region': region, 'coords': coords, 'filename': entry[2].partition("/")[2]})
+				self.download_retry_time = time.time() + self.DOWNLOAD_RETRY_DELAY
+			except Exception as e:
+				show_error(f"An error occurred while downloading a city saved by another mayor.\n\n{e}", no_ui=True)
+
+
+	def replace_city(self, region_path: Path, coords: tuple, cache_path: Path, relpath: str) -> None:
+		"""Replaces the savegame at the given coordinates with a downloaded one."""
+
+		hashcode = cache_path.name
+
+		# Find the savegames at the same coordinates (the local savegame may have a different file name than the server's)
 		city_paths = []
-		city_hashcodes = []
+		for city_path in region_path.glob('*.sc4'):
+			try:
+				with SC4Savegame(city_path, error_callback=None) as savegame:
+					SC4ReadRegionalCity = savegame.get_SC4ReadRegionalCity()
+			except Exception as e:
+				show_error(e, no_ui=True)
+				continue
+			if (SC4ReadRegionalCity["tileXLocation"], SC4ReadRegionalCity["tileYLocation"]) == coords:
+				city_paths.append(city_path)
+
+		# Don't overwrite the player's changes that haven't been pushed (eg. if the server was unreachable). They'll be replaced by the next refresh
+		for city_path in city_paths:
+			if self.cities.get(city_path) != self.synced_cities.get(city_path):
+				print(f'[WARNING] Not replacing "{city_path.name}", since it has changes that weren\'t pushed.')
+				return
+
+		# Already up to date
+		if city_paths and all(self.cities.get(city_path) == hashcode for city_path in city_paths):
+			return
+
+		# Overwrite the savegame at those coordinates, keeping its file name, since SC4 only reloads the savegames it already knows about. Use the server's file name if there isn't one
+		if city_paths:
+			destination = city_paths.pop(0)
+		else:
+			destination = sanitize_relpath(region_path.parent, relpath)
+		shutil.copy(cache_path, destination)
+		for city_path in city_paths:
+			city_path.unlink()
+			self.cities.pop(city_path, None)
+			self.synced_cities.pop(city_path, None)
+
+		# Update the savegames the game monitor knows about, so the downloaded savegame isn't pushed back to the server
+		self.cities[destination] = self.get_city_hashcode(destination)
+		self.synced_cities[destination] = self.cities[destination]
+
+		print(f'- downloaded "{relpath}" at {coords} to "{destination.name}"')
+		self.report_quietly(f"A city in {region_path.name} was updated at {datetime.now().strftime('%H:%M')}.")
+
+
+	def save_simcity_4_cfg(self):
+		"""Saves the config used on the server to the `_Configs` directory and restores the singleplayer config."""
+
+		if not sc4mp_config["GENERAL"]["sync_simcity_4_cfg"]:
+			return
+
+		try:
+			source = SC4MP_LAUNCHPATH / "SimCity 4.cfg"
+			destination = SC4MP_LAUNCHPATH / "_Configs" / f"{self.server.server_id}.cfg"
+			if destination.exists():
+				destination.unlink()
+			shutil.copy(source, destination)
+		except Exception as e:
+			show_error(f"An error occurred while saving the SimCity 4 config.\n\n{e}", no_ui=True)
+
+		# Restore the singleplayer config backup
+		try:
+			sp_config_path = Path("~/Documents/SimCity 4/SimCity 4.cfg").expanduser()
+			sp_config_backup_path = Path("~/Documents/SimCity 4/SimCity 4.cfg.bak").expanduser()
+			if sp_config_backup_path.exists():
+				if sp_config_path.exists():
+					os.unlink(sp_config_path)
+				shutil.copy(sp_config_backup_path, sp_config_path)
+				os.unlink(sp_config_backup_path)
+		except Exception as e:
+			show_error(f"An error occurred while restoring the SimCity 4 config backup.\n\n{e}", no_ui=True)
+
+
+	def close(self):
+		"""Destroys the game monitor UIs and shows the main UI again (or exits if requested)."""
+
+		if self.ui:
+			self.ui.destroy()
+
+		if self.overlay_ui:
+			self.overlay_ui.destroy()
+
+		if sc4mp_ui is not None:
+			if sc4mp_exit_after:
+				sc4mp_ui.destroy()
+			else:
+				sc4mp_ui.deiconify()
+				sc4mp_ui.lift()
+				sc4mp_ui.focus_set()
+				sc4mp_ui.grab_set()
+
+
+	def get_cities(self) -> dict[Path, str]:
+		"""Returns the md5's of the savegames in the server's regions, by path."""
+		
+		cities = {}
 		regions_path = Path(SC4MP_LAUNCHPATH) / "Regions"
 		for region in self.server.regions:
 			region_path: Path = regions_path / region
@@ -3582,12 +3732,10 @@ class GameMonitor(th.Thread):
 			for city in region_path.glob('*.sc4'):
 				city_path = region_path / city
 				try:
-					city_hashcode = self.get_city_hashcode(city_path)
+					cities[city_path] = self.get_city_hashcode(city_path)
 				except FileNotFoundError:
 					continue	# the game may rename or delete a savegame while we're looping
-				city_paths.append(city_path)
-				city_hashcodes.append(city_hashcode)
-		return city_paths, city_hashcodes
+		return cities
 
 
 	def get_city_hashcode(self, city_path: Path) -> str:
@@ -3655,7 +3803,8 @@ class GameMonitor(th.Thread):
 		return filtered_savegames
 
 
-	def save(self, save_city_paths: list[Path]) -> None:
+	def save(self, save_city_paths: list[Path]) -> bool:
+		"""Pushes savegames to the server. Returns `True` if the server accepted them."""
 
 		# Update overlay
 		self.set_overlay_state("saving")
@@ -3674,7 +3823,7 @@ class GameMonitor(th.Thread):
 		if len(regions) > 1:
 			self.report(self.PREFIX, 'Save push failed! Too many regions.', color="red") 
 			self.set_overlay_state("not-saved")
-			return
+			return False
 		else:
 			region = list(regions)[0]
 
@@ -3711,81 +3860,11 @@ class GameMonitor(th.Thread):
 				self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green") #TODO keep track locally of the client's claims
 				self.set_overlay_state("saved")
 				shutil.rmtree(salvage_directory) #TODO make configurable
+				return True
 			else:
 				self.report(self.PREFIX + "[WARNING] ", f"Save push failed! {response}", color="red")
 				self.set_overlay_state("not-saved")
-
-
-	def download_city(self, event: dict) -> None:
-		"""Replaces the savegame at the coordinates of a city saved by another mayor with the one on the server."""
-
-		region = sanitize_directory_name(event['region'])
-		coords = tuple(event['coords'])
-		relpath = f"{region}/{event['filename']}"
-
-		regions_path = Path(SC4MP_LAUNCHPATH) / "Regions"
-		region_path = regions_path / region
-		if not region_path.is_dir():
-			return
-
-		# Find the savegame in the server's file table
-		with self.server.socket() as s:
-			file_table = s.regions_table()
-		entry = next((entry for entry in file_table if entry[2] == relpath), None)
-		if entry is None:
-			print(f'[WARNING] "{relpath}" is not in the regions file table.')
-			return
-		checksum = sanitize_directory_name(entry[0])
-		filesize = entry[1]
-
-		# Download the savegame into the cache, unless it's already cached
-		cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
-		cache_path = cache_directory / checksum
-		if not (cache_path.exists() and cache_path.stat().st_size == filesize):
-			print(f'- caching "{checksum}"...')
-			while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
-				random_cache = random.choice(list(cache_directory.iterdir()))
-				random_cache.unlink()
-			temp_path = cache_path.with_suffix(".part")	# so a failed download doesn't leave a corrupted file in the cache
-			with self.server.socket() as s:
-				for _, _, _, chunks in s.regions_data([entry]):
-					with temp_path.open("wb") as file:
-						for chunk in chunks:
-							file.write(chunk)
-			os.replace(temp_path, cache_path)
-
-		# Find the savegames at the same coordinates (the local savegame may have a different file name than the server's)
-		city_paths = []
-		for city_path in region_path.glob('*.sc4'):
-			try:
-				with SC4Savegame(city_path, error_callback=None) as savegame:
-					SC4ReadRegionalCity = savegame.get_SC4ReadRegionalCity()
-			except Exception as e:
-				show_error(e, no_ui=True)
-				continue
-			if (SC4ReadRegionalCity["tileXLocation"], SC4ReadRegionalCity["tileYLocation"]) == coords:
-				city_paths.append(city_path)
-
-		# Overwrite the savegame at those coordinates, keeping its file name, since SC4 only reloads the savegames it already knows about. Use the server's file name if there isn't one
-		if city_paths:
-			destination = city_paths.pop(0)
-		else:
-			destination = sanitize_relpath(regions_path, relpath)
-		for city_path in city_paths:
-			city_path.unlink()
-		shutil.copy(cache_path, destination)
-
-		# Update the savegames the game monitor knows about, so the downloaded savegame isn't pushed back to the server
-		for city_path in city_paths + [destination]:
-			if city_path in self.city_paths:
-				index = self.city_paths.index(city_path)
-				self.city_paths.pop(index)
-				self.city_hashcodes.pop(index)
-		self.city_paths.append(destination)
-		self.city_hashcodes.append(self.get_city_hashcode(destination))
-
-		print(f'- downloaded "{relpath}" at {coords} to "{destination.name}"')
-		self.report_quietly(f"A city in {region} was updated at {datetime.now().strftime('%H:%M')}.")
+				return False
 
 
 	def backup_city(self, city_path: Path) -> None:
@@ -3871,6 +3950,10 @@ class EventListener(th.Thread):
 
 		self._socket = self.server.socket()
 		self._socket.subscribe()
+
+		# Events may have been missed while not subscribed
+		with self._lock:
+			self._events.append({'event': 'subscribed'})
 
 
 	def _connected(self):
