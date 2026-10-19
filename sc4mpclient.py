@@ -978,7 +978,13 @@ def update_json(filename, data):
 		json.dump(data, file, indent=4)
 		file.flush()
 		os.fsync(file.fileno())
-	os.replace(temp_filename, filename)
+	try:
+		os.replace(temp_filename, filename)
+	except PermissionError:
+		# On Windows, the replace fails while another process (antivirus, OneDrive, etc.) has the file open, so fall back to writing in place
+		with open(filename, 'w') as file:
+			json.dump(data, file, indent=4)
+		os.unlink(temp_filename)
 
 
 def show_error(e, no_ui=False):
