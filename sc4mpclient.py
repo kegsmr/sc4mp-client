@@ -3297,6 +3297,7 @@ class GameMonitor(th.Thread):
 		# Chat messages already shown (recent messages are sent again when the event listener reconnects)
 		self.chat_messages = set()
 		self.chat_welcomed = False	# whether "You joined" and the message of the day were shown
+		self.chat_motd_last = False	# whether the last line in chat is the message of the day
 
 		# Start the event listener (listens for events on the server, eg. saves and chat messages)
 		self.event_listener = EventListener(self.server)
@@ -3675,13 +3676,15 @@ class GameMonitor(th.Thread):
 			if isinstance(self.ui, GameMonitorUI):
 				for line in lines:
 					self.ui.add_chat_info(line)
+			self.chat_motd_last = bool(motd)
 			return
 
-		# The message of the day again (servers can repeat it every so often)
+		# The message of the day again (servers can repeat it every so often), unless it's already the last line in chat
 		if event_type == 'motd':
 			motd = text(event.get('motd')).strip()
-			if not motd:
+			if not motd or self.chat_motd_last:
 				return
+			self.chat_motd_last = True
 			if isinstance(self.ui, GameMonitorUI):
 				self.ui.add_chat_info(motd)
 			if self.overlay_ui is not None:
@@ -3694,6 +3697,7 @@ class GameMonitor(th.Thread):
 			print(line)
 			if isinstance(self.ui, GameMonitorUI):
 				self.ui.add_chat_info(line)
+			self.chat_motd_last = False
 			return
 
 		# New cities
@@ -3705,6 +3709,7 @@ class GameMonitor(th.Thread):
 			if key in self.chat_messages:
 				return
 			self.chat_messages.add(key)
+			self.chat_motd_last = False
 			print(line)
 			if isinstance(self.ui, GameMonitorUI):
 				self.ui.add_chat_info(line)
@@ -3726,6 +3731,7 @@ class GameMonitor(th.Thread):
 		if key in self.chat_messages:
 			return
 		self.chat_messages.add(key)
+		self.chat_motd_last = False
 
 		print(f"[CHAT] {name}: {message}")
 
