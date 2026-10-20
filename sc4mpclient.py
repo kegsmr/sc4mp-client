@@ -3234,6 +3234,8 @@ class ServerLoader(th.Thread):
 class GameMonitor(th.Thread):
 	
 
+	SAVE_TIMEOUT = 60	# seconds to wait for SC4 to write the saved city before pushing what it wrote
+
 
 	def __init__(self, server):
 		
@@ -3361,14 +3363,16 @@ class GameMonitor(th.Thread):
 						#print("Old cities: " + str(self.city_paths))
 						#print("New cities: " + str(new_city_paths))
 
-						# Will be used to store the amount of savegames detected in the previous iteration of the following while loop (-1 means the while loop will always run at least one time!)
-						save_city_paths_length = -1
+						# `changed` is `True` so the while loop runs at least one time
+						changed = True
+						incomplete = False
+						start_time = time.time()
 
 						# Loop until no new/modified savegames were found in the last iteration of the loop (meant to prevent fragmented save pushes, not the best solution because it relies somewhat on the loop delay)
-						while len(save_city_paths) != save_city_paths_length:
+						while changed or (incomplete and time.time() - start_time < self.SAVE_TIMEOUT):
 
-							# Update the new/modified savegame counter
-							save_city_paths_length = len(save_city_paths)
+							# Reset the new/modified savegame flag
+							changed = False
 
 							# Store the paths and hashcodes of savegames in the "Regions" directory to two local arrays
 							new_city_paths, new_city_hashcodes = self.get_cities() #TODO I think this should be here...?
@@ -3378,6 +3382,7 @@ class GameMonitor(th.Thread):
 								
 								# If it's a new savegame, add it to the list of savegames to be pushed to the server
 								if not new_city_path in self.city_paths:
+									changed = True
 									save_city_paths.append(new_city_path)
 								
 								# If it's not a new savegame, check if it's a modified savegame. If so, add it to the same list
@@ -3385,7 +3390,9 @@ class GameMonitor(th.Thread):
 									city_hashcode = self.city_hashcodes[self.city_paths.index(new_city_path)]
 									new_city_hashcode = new_city_hashcodes[new_city_paths.index(new_city_path)]
 									if city_hashcode != new_city_hashcode:
-										save_city_paths.append(new_city_path)
+										changed = True
+										if not new_city_path in save_city_paths:
+											save_city_paths.append(new_city_path)
 
 							# For future comparisons
 							self.city_paths = new_city_paths
@@ -3401,21 +3408,25 @@ class GameMonitor(th.Thread):
 								# Wait
 								time.sleep(1) #5 #6 #5 #6 #10 #3 #TODO make configurable?
 
-								# Filter the savegames if more than two are found
-								if len(save_city_paths) > 2:
+								# SC4 also rewrites the neighbouring cities when saving, so filter the savegames if more than one is found
+								if changed and len(save_city_paths) > 1:
+									savegames = []
 									try:
-										savegames = []
 										for save_city_path in save_city_paths:
 											savegame = SC4Savegame(save_city_path, error_callback=None)
-											savegame.get_SC4ReadRegionalCity()
 											savegames.append(savegame)
+											savegame.get_SC4ReadRegionalCity()
 										filtered_savegames = self.filter_bordering_tiles(savegames)
 										if len(filtered_savegames) == 1:
 											save_city_paths = [savegame.filename for savegame in filtered_savegames]
-											[savegame.close() for savegame in savegames]
 											break
+										# If none of them borders all the others, SC4 has only written the neighbours so far, so wait for the saved city
+										incomplete = not filtered_savegames
 									except Exception as e:
 										show_error(e, no_ui=True)
+									finally:
+										for savegame in savegames:
+											savegame.close()	# an open savegame can't be saved by SC4
 
 						# If there are any new/modified savegame files, push them to the server. If errors occur, log them in the console and display a warning
 						if len(save_city_paths) > 0:
