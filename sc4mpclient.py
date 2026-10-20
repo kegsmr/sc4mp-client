@@ -22,6 +22,7 @@ import tkinter as tk
 import tkinter.font as tkfont
 import traceback
 import webbrowser
+from collections import deque
 from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
@@ -3095,6 +3096,7 @@ class ServerLoader(th.Thread):
 			"sc4-fix.dll", 
 			"sc4-fix-license.txt", 
 			"sc4mp.dll",
+			"sc4mp-dll-ui.dat",
 			"sc4mp-third-party-notices.txt",
 			"sc4-thumbnail-fix.dll", 
 			"sc4-thumbnail-fix-license.txt", 
@@ -3731,6 +3733,7 @@ class GameMonitor(th.Thread):
 			print(line)
 			if isinstance(self.ui, GameMonitorUI):
 				self.ui.add_chat_info(line)
+			self.bridge.notify(line)	# only to the game's chat panel, not the overlay, since these would pop up a lot
 			self.chat_motd_last = False
 			return
 
@@ -3749,8 +3752,7 @@ class GameMonitor(th.Thread):
 				self.ui.add_chat_info(line)
 			if self.overlay_ui is not None and not event.get('history'):
 				self.overlay_ui.show_message(line)
-			if not event.get('history'):
-				self.bridge.notify(line)
+			self.bridge.notify(line, history=bool(event.get('history')))
 			return
 
 		message = text(event.get('message'))
@@ -3777,8 +3779,7 @@ class GameMonitor(th.Thread):
 		# Only pop up new messages, not the recent ones sent when joining
 		if self.overlay_ui is not None and not event.get('history'):
 			self.overlay_ui.show_message(f"{name}: {message}")
-		if not event.get('history'):
-			self.bridge.notify(f"{name}: {message}")
+		self.bridge.notify(f"{name}: {message}", history=bool(event.get('history')))
 
 
 	def send_chat(self, message: str) -> None:
@@ -4197,13 +4198,18 @@ class EventListener(th.Thread):
 class GameBridge(th.Thread):
 	"""Talks to the SC4MP DLL (`sc4mp.dll`) running inside SimCity 4.
 
-	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed with the `say` cheat code, and the launcher sends back `notify` (chat and save results) and `alert` (shown in a message box).
+	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat and save results, shown in the chat panel) and `alert` (shown in a message box).
+
+	The game starts after the player joins, so when the DLL connects it's sent the last few lines again, with `history` set, to fill its chat panel.
 
 	Everything keeps working without the DLL (eg. when the game is started through Steam), since the game monitor still watches the savegame files.
 	"""
 
 
 	MAX_LINE_LENGTH = 65536
+
+	# As many lines as the DLL's chat panel shows
+	RECENT_LINES = 8
 
 
 	def __init__(self, game_monitor):
@@ -4231,6 +4237,9 @@ class GameBridge(th.Thread):
 
 		# The city open in game, or `None` in the region view
 		self.city = None
+
+		# The last lines for the game, including the ones from before it connected, to send again when it connects
+		self.recent = deque(maxlen=self.RECENT_LINES)
 
 
 	def run(self):
@@ -4309,6 +4318,7 @@ class GameBridge(th.Thread):
 
 		if message_type == 'hello':
 			print(f"- the SC4MP DLL {text('version')} connected")
+			self.send_recent()
 
 		elif message_type == 'region_loaded':
 			print(f'- the game loaded the region "{name}"')
@@ -4384,15 +4394,30 @@ class GameBridge(th.Thread):
 				lines.append(f"Status: {self.game_monitor.ui.label['text']}")
 			self.alert("\n".join(lines))
 		elif command == 'help':
-			self.alert("SC4MP cheat codes:\n\nsay <message>: send a chat message\nsc4mp status: show the server and save status")
+			self.alert("Press Enter in game to chat. Messages starting with / run these commands, eg. /status.\n\nSC4MP cheat codes:\n\nsay <message>: send a chat message\nsc4mp status: show the server and save status")
 		else:
 			self.alert(f'Unknown command "{command}". Type "sc4mp help" for help.')
 
 
-	def notify(self, text: str) -> None:
-		"""Sends a chat message or save result to the game."""
+	def notify(self, text: str, history: bool = False) -> None:
+		"""Sends a chat message or save result to the game, and keeps it to send again when the game connects. `history` marks old lines (eg. chat from before the player joined), which the game doesn't count as new."""
 
-		self.send({'type': 'notify', 'text': text})
+		with self._send_lock:
+			self.recent.append(text)
+
+		message = {'type': 'notify', 'text': text}
+		if history:
+			message['history'] = True
+		self.send(message)
+
+
+	def send_recent(self) -> None:
+		"""Sends the last lines again, eg. when the game connects, marked as history so they aren't shown as new."""
+
+		with self._send_lock:
+			lines = list(self.recent)
+		for line in lines:
+			self.send({'type': 'notify', 'text': line, 'history': True})
 
 
 	def alert(self, text: str) -> None:
