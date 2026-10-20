@@ -3225,8 +3225,8 @@ class ServerLoader(th.Thread):
 class GameMonitor(th.Thread):
 
 
-	PING_INTERVAL = 60			# seconds between pings (players who aren't guests are also kept connected by the event listener)
-	GUEST_PING_INTERVAL = 15	# seconds between pings for guests, where pings are the only way to tell whether the server is reachable
+	PING_INTERVAL = 15			# seconds between pings
+	CONNECTED_PING_INTERVAL = 60	# seconds between pings while the event listener is connected (so the server is reachable)
 	DOWNLOAD_RETRY_DELAY = 10	# seconds to wait before trying again when downloading cities saved by other mayors fails
 
 
@@ -3378,24 +3378,11 @@ class GameMonitor(th.Thread):
 
 
 	def update_ping(self):
-		"""Shows the ping in the UI. Each ping is a new connection, which counts toward the server's request limit, so while the event listener is running, it tells whether the server is reachable, and the ping is only measured every `PING_INTERVAL` seconds and after reconnecting. Guests ping every `GUEST_PING_INTERVAL` seconds (every loop while disconnected)."""
+		"""Pings the server every `PING_INTERVAL` seconds (every loop while disconnected, and every `CONNECTED_PING_INTERVAL` seconds while the event listener is connected, since each ping counts toward the server's request limit) and shows the ping in the UI."""
 
-		if self.event_listener.is_alive():
-			connected = self.event_listener.connected()
-			if connected is None:	# hasn't tried to connect yet
-				return
-			if not connected:
-				if self.last_ping_time is not None or self.ping is not None:
-					print("[WARNING] Disconnected.")
-				self.ping = None
-				self.last_ping_time = None	# ping as soon as the listener reconnects
-				if self.ui != None:
-					self.ui.ping_frame.right['text'] = "Disconnected"
-					self.ui.ping_frame.right['fg'] = "red"
-				return
-			interval = self.PING_INTERVAL
-		else:
-			interval = self.GUEST_PING_INTERVAL
+		interval = self.PING_INTERVAL
+		if self.event_listener.connected():
+			interval = self.CONNECTED_PING_INTERVAL
 
 		if self.last_ping_time is not None and time.time() - self.last_ping_time < interval:
 			return
@@ -3658,7 +3645,7 @@ class GameMonitor(th.Thread):
 	def update_chat(self):
 		"""Shows new chat messages, and players joining and leaving, in the game monitor and the game overlay. A message that can't be shown is skipped and logged, never shown as an error."""
 
-		while event := self.event_listener.pop(('chat', 'user_join', 'user_leave')):
+		while event := self.event_listener.pop(('chat', 'user_join', 'user_leave', 'city_founded')):
 			try:
 				self.show_chat_event(*event)
 			except Exception as e:
@@ -3681,6 +3668,22 @@ class GameMonitor(th.Thread):
 				self.ui.add_chat_info(line)
 			return
 
+		# New cities
+		if event_type == 'city_founded':
+			city = text(event.get('city')) or "a city"
+			region = text(event.get('region'))
+			line = f"{name} {'took over' if event.get('reclaimed') is True else 'founded'} {city}" + (f" in {region}." if region else ".")
+			key = (str(event.get('time')), user_id, line)	# skip the ones already shown (recent ones are sent again when the event listener reconnects)
+			if key in self.chat_messages:
+				return
+			self.chat_messages.add(key)
+			print(line)
+			if isinstance(self.ui, GameMonitorUI):
+				self.ui.add_chat_info(line)
+			if self.overlay_ui is not None and not event.get('history'):
+				self.overlay_ui.show_message(line)
+			return
+
 		message = text(event.get('message'))
 		if not message:
 			return
@@ -3699,7 +3702,7 @@ class GameMonitor(th.Thread):
 		print(f"[CHAT] {name}: {message}")
 
 		if isinstance(self.ui, GameMonitorUI):
-			self.ui.add_chat_message(name, message, timestamp, user_id)
+			self.ui.add_chat_message(name, message, timestamp, user_id, text(event.get('city')) or None)
 
 		# Only pop up new messages, not the recent ones sent when joining
 		if self.overlay_ui is not None and not event.get('history'):
@@ -3984,7 +3987,6 @@ class EventListener(th.Thread):
 		self.server: Server = server
 
 		self._socket = None
-		self._tried = False
 
 		self._events: list[dict] = []
 		self._lock = th.Lock()
@@ -4001,10 +4003,7 @@ class EventListener(th.Thread):
 			while not self._stop:
 				try:
 					if not self._connected():
-						try:
-							self._connect()
-						finally:
-							self._tried = True
+						self._connect()
 					events = self._socket.events()
 					with self._lock:
 						for event in events:
@@ -4045,10 +4044,7 @@ class EventListener(th.Thread):
 
 
 	def connected(self):
-		"""Whether the listener is subscribed to the server, or `None` if it hasn't tried to subscribe yet. The server sends something every 5 seconds, so a lost connection is noticed within the socket's timeout."""
-
-		if not self._tried:
-			return None
+		"""Whether the listener is subscribed to the server (the server sends something every 5 seconds, so a lost connection is noticed within the socket's timeout)."""
 
 		return self._connected()
 
@@ -7543,6 +7539,7 @@ class GameMonitorUI(tk.Toplevel):
 
 		# Chat state
 		self.chat_last_user_id = None
+		self.chat_last_city = None
 		self.chat_last_time = None
 		self.chat_unread = 0
 
@@ -7598,13 +7595,14 @@ class GameMonitorUI(tk.Toplevel):
 		entry["state"] = state
 
 
-	def add_chat_message(self, name, message, timestamp=None, user_id=None):
-		"""Adds a chat message. Messages from the same player close together are grouped under one name, and a line with the day is added when the day changes."""
+	def add_chat_message(self, name, message, timestamp=None, user_id=None, city=None):
+		"""Adds a chat message. Messages from the same player close together are grouped under one name (with the city they saved most recently, if any), and a line with the day is added when the day changes."""
 
 		text = self.chat_frame.text
 		sent = datetime.fromtimestamp(timestamp) if timestamp else datetime.now()
 		name = tk_safe(name)
 		message = tk_safe(message)
+		city = tk_safe(city) if city else None
 
 		# Only scroll to the new message if the player hasn't scrolled up to read older ones
 		at_bottom = text.yview()[1] >= 0.999
@@ -7624,9 +7622,11 @@ class GameMonitorUI(tk.Toplevel):
 			self.chat_last_user_id = None
 
 		# Name and time, unless the same player sent the last message a moment ago
-		if user_id is None or user_id != self.chat_last_user_id or (sent - self.chat_last_time).total_seconds() > self.CHAT_GROUP_SECONDS:
+		if user_id is None or user_id != self.chat_last_user_id or city != self.chat_last_city or (sent - self.chat_last_time).total_seconds() > self.CHAT_GROUP_SECONDS:
 			color = int(hashlib.md5((user_id or name).encode()).hexdigest(), 16) % len(self.CHAT_NAME_COLORS)
 			self.chat_insert_line(name, (f"name{color}", "header"))
+			if city:
+				text.insert("end", " of " + city, ("time", "header"))
 			text.insert("end", "  " + sent.strftime("%H:%M"), ("time", "header"))
 
 		self.chat_insert_line(message, "message")
@@ -7637,6 +7637,7 @@ class GameMonitorUI(tk.Toplevel):
 			text.see("end")
 
 		self.chat_last_user_id = user_id
+		self.chat_last_city = city
 		self.chat_last_time = sent
 
 		# Count unread messages on the tab while another tab is open
