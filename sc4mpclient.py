@@ -3909,6 +3909,8 @@ class EventListener(th.Thread):
 
 
 	MAX_EVENTS = 1000
+	RETRY_DELAY = 5			# seconds to wait before reconnecting
+	MAX_RETRY_DELAY = 300	# the delay doubles up to this while reconnecting fails (eg. servers without the `Subscr` command)
 
 
 	def __init__(self, server):
@@ -3922,7 +3924,7 @@ class EventListener(th.Thread):
 		self._events: list[dict] = []
 		self._lock = th.Lock()
 
-		self._stopping = False
+		self._stopping = th.Event()
 
 
 	def run(self):
@@ -3931,19 +3933,30 @@ class EventListener(th.Thread):
 
 			set_thread_name("EvntThread", enumerate=False)
 
-			while not self._stopping:
+			delay = self.RETRY_DELAY
+
+			while not self._stopping.is_set():
 				try:
 					if not self._connected():
 						self._connect()
+						delay = self.RETRY_DELAY
 					events = self._socket.events()
 					with self._lock:
 						for event in events:
+							if not isinstance(event, dict):
+								continue	# malformed
 							self._events.append(event)
 							while len(self._events) > self.MAX_EVENTS:
 								self._events.pop(0)
 				except NetworkException:	# includes timeouts, since the server sends events (or an empty list) every 5 seconds
 					self._disconnect()
-					time.sleep(5)
+					self._stopping.wait(delay)
+					delay = min(delay * 2, self.MAX_RETRY_DELAY)
+				except Exception as e:
+					show_error(f"An unexpected error occurred in the event listener.\n\n{e}", no_ui=True)
+					self._disconnect()
+					self._stopping.wait(delay)
+					delay = min(delay * 2, self.MAX_RETRY_DELAY)
 
 		except Exception as e:
 
@@ -3979,7 +3992,7 @@ class EventListener(th.Thread):
 
 	def stop(self):
 
-		self._stopping = True
+		self._stopping.set()
 		self._disconnect()
 
 	
