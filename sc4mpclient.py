@@ -3641,7 +3641,7 @@ class GameMonitor(th.Thread):
 	def update_chat(self):
 		"""Shows new chat messages, and players joining and leaving, in the game monitor and the game overlay. A message that can't be shown is skipped and logged, never shown as an error."""
 
-		while event := self.event_listener.pop(('chat', 'user_join', 'user_leave', 'welcome')):
+		while event := self.event_listener.pop(('chat', 'user_join', 'user_leave', 'welcome', 'motd')):
 			try:
 				self.show_chat_event(*event)
 			except Exception as e:
@@ -3670,6 +3670,17 @@ class GameMonitor(th.Thread):
 			if isinstance(self.ui, GameMonitorUI):
 				for line in lines:
 					self.ui.add_chat_info(line)
+			return
+
+		# The message of the day again (servers can repeat it every so often)
+		if event_type == 'motd':
+			motd = text(event.get('motd')).strip()
+			if not motd:
+				return
+			if isinstance(self.ui, GameMonitorUI):
+				self.ui.add_chat_info(motd)
+			if self.overlay_ui is not None:
+				self.overlay_ui.show_message(motd)
 			return
 
 		# Players joining and leaving
