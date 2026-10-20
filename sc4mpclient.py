@@ -752,7 +752,15 @@ def get_sc4_path() -> Optional[Path]:
 	else:
 
 		# This list could be expanded if Linux/MacOS users want to put what paths they use
-		possible_paths: list[Path] = [config_path]
+		possible_paths: list[Path] = [
+
+			# Custom (specified by the user)
+			config_path,
+
+			# Steam on Linux (runs through Proton)
+			Path("~/.local/share/Steam/steamapps/common/SimCity 4 Deluxe/Apps/SimCity 4.exe").expanduser(),
+
+		]
 
 	# for possible_path in possible_paths:
 	# 	if possible_path.is_file():
