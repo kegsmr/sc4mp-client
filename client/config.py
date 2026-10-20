@@ -116,4 +116,7 @@ def update_config_value(section, item, value):
         t = type(state.sc4mp_config[section][item])
         state.sc4mp_config[section][item] = t(value)
     except Exception:
-        show_error(f'Invalid config value for "{item}" in section "{section}"', no_ui=True)
+        show_error(
+            f'Invalid config value for "{item}" in section "{section}"',
+            no_ui=True
+        )

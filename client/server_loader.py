@@ -256,7 +256,10 @@ class ServerLoader(th.Thread):
 
         except Exception as e:
 
-            show_error(f"An unexpected error occurred in the server loader thread.\n\n{e}")
+            show_error(
+                "An unexpected error occurred in the server loader "
+                f"thread.\n\n{e}"
+            )
 
     def report(self, prefix, text):
 
@@ -286,7 +289,8 @@ class ServerLoader(th.Thread):
             self.server.fetch()
             if not self.server.fetched:
                 raise ClientException(
-                    "Unable to find server. Check the IP address and port, then try again."
+                    "Unable to find server. Check the IP address and port, "
+                    "then try again."
                 )
         if not state.sc4mp_config["DEBUG"]["ignore_incompatable_versions"]:
             # Compare major and minor versions only
@@ -377,7 +381,9 @@ class ServerLoader(th.Thread):
             self.dll_plugin_paths = []
 
             # Set source and destination for custom plugins
-            client_plugins_source = Path(state.sc4mp_config["GENERAL"]["custom_plugins_path"])
+            client_plugins_source = Path(
+                state.sc4mp_config["GENERAL"]["custom_plugins_path"]
+            )
             client_plugins_destination = Path(state.SC4MP_LAUNCHPATH) / "Plugins" / "client"
 
             # Synchronize custom plugins if the server permits custom plugins
@@ -390,7 +396,9 @@ class ServerLoader(th.Thread):
                 # self.ui.duration_label["text"] = "(verifying)" # doesn't work :(
 
                 # Get the paths to all files in the destination directory
-                destination_relpaths = get_fullpaths_recursively(client_plugins_destination)
+                destination_relpaths = get_fullpaths_recursively(
+                    client_plugins_destination
+                )
 
                 # Delete all files in the destination directory that are not
                 # present in the source directory
@@ -401,12 +409,15 @@ class ServerLoader(th.Thread):
                         filename.unlink()
 
                 # Get the paths to all files in the source directory
-                source_relpaths = get_relpaths_recursively(client_plugins_source)
+                source_relpaths = get_relpaths_recursively(
+                    client_plugins_source
+                )
 
                 # Get the size of the source directory
                 source_size = directory_size(client_plugins_source)
 
-                # These variables will be used to calculate the percentage for the progress bar
+                # These variables will be used to calculate the percentage for
+                # the progress bar
                 destination_size = 0
                 percent = -1
 
@@ -419,7 +430,9 @@ class ServerLoader(th.Thread):
 
                     # Progress bar stuff
                     old_percent = percent
-                    percent = math.floor(100 * (destination_size / source_size))
+                    percent = math.floor(
+                        100 * (destination_size / source_size)
+                    )
                     if percent > old_percent:
                         self.report_progress(
                             f'Synchronizing custom plugins... ({percent}%)', percent, 100
@@ -446,7 +459,8 @@ class ServerLoader(th.Thread):
                     # More progress bar stuff
                     destination_size += src.stat().st_size
 
-                    # If the destination file exists, check the md5's to see if they match
+                    # If the destination file exists, check the md5's to see if
+                    # they match
                     if dest.exists():
 
                         # If the destination file is a link, or the md5's
@@ -608,7 +622,9 @@ class ServerLoader(th.Thread):
 
                 download_start_time = time.time() + 2
 
-                total_size_to_download = sum([entry[1] for entry in file_table])
+                total_size_to_download = sum(
+                    [entry[1] for entry in file_table]
+                )
                 total_size_already_downloaded = 0.0
 
                 old_eta = None
@@ -649,7 +665,8 @@ class ServerLoader(th.Thread):
                         # Delete the cache file if it exists
                         t.unlink(missing_ok=True)
 
-                        # Delete cache files if cache too large to accomadate the new cache file
+                        # Delete cache files if cache too large to accomadate
+                        # the new cache file
                         cache_directory = Path(state.SC4MP_LAUNCHPATH) / "_Cache"
                         cache_size = int(state.sc4mp_config["STORAGE"]["cache_size"])
                         max_cache_size = (1000000 * cache_size) - filesize
@@ -658,7 +675,8 @@ class ServerLoader(th.Thread):
                             random_cache = random.choice(list(cache_directory.iterdir()))
                             random_cache.unlink()
 
-                        # Receive the file. Write to both the destination and cache
+                        # Receive the file. Write to both the destination and
+                        # cache
                         filesize_read = 0
                         temp_cache = t.with_name(t.name + ".tmp")
                         with d.open("wb") as dest, temp_cache.open("wb") as cache:
@@ -683,8 +701,9 @@ class ServerLoader(th.Thread):
                                         speed = downloaded / elapsed
                                         eta = int(remaining / speed)
 
-                                        # Only update the shown ETA when it drops, every
-                                        # 5 seconds otherwise, and at most every 0.8 s
+                                        # Only update the shown ETA when it
+                                        # drops, every 5 seconds otherwise, and
+                                        # at most every 0.8 s
                                         since_display = now - old_eta_display_time
                                         if old_eta is None:
                                             eta_changed = True
@@ -710,7 +729,9 @@ class ServerLoader(th.Thread):
                         # verified
                         t.with_name(t.name + ".tmp").replace(t)
 
-                self.report_progress(f"Synchronizing {target}... (100%)", 100, 100)
+                self.report_progress(
+                    f"Synchronizing {target}... (100%)", 100, 100
+                )
 
                 break
 
@@ -790,7 +811,10 @@ class ServerLoader(th.Thread):
         for path, basename in self.dll_plugin_paths:
             checksum = md5(path)
             if checksum not in toplevel_plugins_checksums:
-                shutil.copy(path, default_plugins_destination / f"{basename}-{checksum}.dll")
+                shutil.copy(
+                    path,
+                    default_plugins_destination / f"{basename}-{checksum}.dll"
+                )
                 toplevel_plugins_checksums.append(checksum)
 
         # Write server URL local plugin file
@@ -802,7 +826,8 @@ class ServerLoader(th.Thread):
 
     def prep_regions(self):
 
-        # Declare instance variable to store the paths of the server region subdirectories
+        # Declare instance variable to store the paths of the server region
+        # subdirectories
         self.server.regions: list[Path] = []
 
         # Path to regions directory
@@ -828,13 +853,18 @@ class ServerLoader(th.Thread):
             salvage_directory = Path(state.SC4MP_LAUNCHPATH) / "_Salvage" / self.server.server_id
 
             # Pick the directory corresponding to the latest failed save push
-            save_directory = os.path.join(salvage_directory, os.listdir(salvage_directory)[-1])
+            save_directory = os.path.join(
+                salvage_directory, os.listdir(salvage_directory)[-1]
+            )
 
             # Pick the directory corresponding to the first region in the
             # failed save push (there should only be one anyway)
-            region_directory = os.path.join(save_directory, os.listdir(save_directory)[0])
+            region_directory = os.path.join(
+                save_directory, os.listdir(save_directory)[0]
+            )
 
-            # Copy each file from the region directory to the `Downloads` directory
+            # Copy each file from the region directory to the `Downloads`
+            # directory
             for filename in os.listdir(region_directory):
                 shutil.copy(
                     os.path.join(region_directory, filename),
@@ -854,8 +884,12 @@ class ServerLoader(th.Thread):
             auxiliary_region_path = regions_directory / f"_{auxiliary_region}"
             auxiliary_region_path.mkdir(parents=True)
 
-            # Copy the blank `config.bmp` file to the auxiliary region directory
-            shutil.copy(get_sc4mp_path("config.bmp"), auxiliary_region_path / "config.bmp")
+            # Copy the blank `config.bmp` file to the auxiliary region
+            # directory
+            shutil.copy(
+                get_sc4mp_path("config.bmp"),
+                auxiliary_region_path / "config.bmp"
+            )
 
             # Create a `region.ini` file for the auxiliary region
             with open(get_sc4mp_path("region.ini"), "r") as template_config_file:
@@ -898,18 +932,25 @@ class ServerLoader(th.Thread):
 
             else:
 
-                # Copy the singleplayer config to multiplayer if it does not exist
+                # Copy the singleplayer config to multiplayer if it does not
+                # exist
                 if not mp_config_path.exists():
                     sync_simcity_4_cfg(to_mp=True)
 
         except Exception as e:
 
-            show_error(f"An error occurred while preparing the config.\n\n{e}", no_ui=True)
+            show_error(
+                f"An error occurred while preparing the config.\n\n{e}",
+                no_ui=True
+            )
 
     def connection_failed_retrying(self, e, duration=5):
 
         show_error(e, no_ui=True)
 
         for count in range(duration):
-            self.report("[WARNING] ", f"Connection failed. Retrying in {duration - count}...")
+            self.report(
+                "[WARNING] ",
+                f"Connection failed. Retrying in {duration - count}..."
+            )
             time.sleep(1)

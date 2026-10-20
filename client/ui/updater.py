@@ -58,14 +58,18 @@ class UpdaterUI(tk.Toplevel):
             length=380,
             maximum=100
         )
-        self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10, 5))
+        self.progress_bar.grid(
+            column=0, row=1, columnspan=2, padx=10, pady=(10, 5)
+        )
         self.progress_bar.start(2)
 
         # Small label
         self.label_small = tk.Label(
             self, fg="gray", font=("Segoe UI", 8), text="Press <ESC> to cancel"
         )
-        self.label_small.grid(column=0, row=2, columnspan=2, padx=10, pady=(0, 5))
+        self.label_small.grid(
+            column=0, row=2, columnspan=2, padx=10, pady=(0, 5)
+        )
 
         # Pause underlying thread
         self.pause = False
@@ -83,7 +87,9 @@ class UpdaterUI(tk.Toplevel):
         if choice is None:
             sys.exit()
         elif choice is True:
-            subprocess.Popen([sys.executable, "-skip-update", "-allow-multiple"])
+            subprocess.Popen(
+                [sys.executable, "-skip-update", "-allow-multiple"]
+            )
             sys.exit()
         elif choice is False:
             self.pause = False
@@ -136,7 +142,9 @@ class ReleaseNotesUI(tk.Toplevel):
 
             # Release notes label
             self.subtitle = ttk.Label(self, text="Release notes")
-            self.subtitle.grid(row=19, column=0, columnspan=99, sticky="w", padx=10, pady=5)
+            self.subtitle.grid(
+                row=19, column=0, columnspan=99, sticky="w", padx=10, pady=5
+            )
 
             # Body
             self.body = tk.Frame(
@@ -158,7 +166,9 @@ class ReleaseNotesUI(tk.Toplevel):
                 background="white",
                 font=("Segoe UI", 8, "bold")
             )
-            self.body.title.grid(row=0, column=0, columnspan=99, padx=10, pady=10, sticky="nw")
+            self.body.title.grid(
+                row=0, column=0, columnspan=99, padx=10, pady=10, sticky="nw"
+            )
 
             # Body text
             lines = body.splitlines()
@@ -218,9 +228,12 @@ class ReleaseNotesUI(tk.Toplevel):
                 background="white",
                 cursor="hand2"
             )
-            self.body.link.grid(row=99, column=0, columnspan=99, padx=10, pady=10, sticky="nw")
+            self.body.link.grid(
+                row=99, column=0, columnspan=99, padx=10, pady=10, sticky="nw"
+            )
             self.body.link.bind(
-                "<Button-1>", lambda e: webbrowser.open_new_tab(SC4MP_RELEASES_URL)
+                "<Button-1>",
+                lambda e: webbrowser.open_new_tab(SC4MP_RELEASES_URL)
             )
 
             # Resize body and window to fit content
@@ -237,8 +250,12 @@ class ReleaseNotesUI(tk.Toplevel):
             # self.scrollbar.grid(row=20, column=1, padx=0, pady=10)
 
             # Ok button
-            self.ok_button = ttk.Button(self, text="Ok", command=self.destroy, default="active")
-            self.ok_button.grid(row=99, column=0, columnspan=99, padx=0, pady=10, sticky="s")
+            self.ok_button = ttk.Button(
+                self, text="Ok", command=self.destroy, default="active"
+            )
+            self.ok_button.grid(
+                row=99, column=0, columnspan=99, padx=0, pady=10, sticky="s"
+            )
 
             # Center window
             center_window(self)

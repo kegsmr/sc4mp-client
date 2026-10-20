@@ -51,7 +51,9 @@ def check_updates():
                 latest_release_info = get_release_info()
 
                 # Download the update if the version is newer
-                latest_version = unformat_version(latest_release_info["tag_name"])
+                latest_version = unformat_version(
+                    latest_release_info["tag_name"]
+                )
                 if state.sc4mp_force_update or latest_version > unformat_version(SC4MP_VERSION):
 
                     # Local function for update thread
@@ -119,7 +121,8 @@ def check_updates():
                                             destination = os.path.join("update", asset["name"])
                                             break
 
-                                    # Raise an exception if the download URL was not found
+                                    # Raise an exception if the download URL
+                                    # was not found
                                     if download_url is None:
                                         raise ClientException(
                                             "The correct release asset was not found."
@@ -176,7 +179,8 @@ def check_updates():
                                     # Pause if necessary
                                     pause()
 
-                                    # Start installer in very silent mode and exit
+                                    # Start installer in very silent mode and
+                                    # exit
                                     subprocess.Popen([
                                         os.path.abspath(destination),
                                         f"/dir={os.getcwd()}",
@@ -201,7 +205,8 @@ def check_updates():
 
                         except Exception:
 
-                            # All uncaught errors in thread trigger a fatal error
+                            # All uncaught errors in thread trigger a fatal
+                            # error
                             fatal_error()
 
                     # Prepare the UI if not running in command-line mode

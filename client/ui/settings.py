@@ -54,7 +54,9 @@ class GeneralSettingsUI(tk.Toplevel):
 
         # Updates frame
         self.updates_frame = tk.LabelFrame(self, text="Updates", width=50)
-        self.updates_frame.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="nw")
+        self.updates_frame.grid(
+            row=0, column=0, columnspan=1, padx=10, pady=10, sticky="nw"
+        )
 
         # Updates checkbutton
         self.updates_frame.checkbutton_variable = tk.BooleanVar(
@@ -70,11 +72,15 @@ class GeneralSettingsUI(tk.Toplevel):
         self.updates_frame.checkbutton.grid(
             row=0, column=0, columnspan=1, padx=10, pady=(10, 10), sticky="w"
         )
-        self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
+        self.config_update.append(
+            (self.updates_frame.checkbutton_variable, "auto_update")
+        )
 
         # UI frame
         self.ui_frame = tk.LabelFrame(self, text="UI")
-        self.ui_frame.grid(row=1, column=0, columnspan=1, padx=10, pady=0, sticky="nw")
+        self.ui_frame.grid(
+            row=1, column=0, columnspan=1, padx=10, pady=0, sticky="nw"
+        )
 
         # Use game overlay
         self.ui_frame.checkbutton_variable = tk.BooleanVar(
@@ -88,9 +94,16 @@ class GeneralSettingsUI(tk.Toplevel):
             variable=self.ui_frame.checkbutton_variable
         )
         self.ui_frame.checkbutton.grid(
-            row=0, column=0, columnspan=1, padx=(10, 65), pady=(10, 5), sticky="w"
+            row=0,
+            column=0,
+            columnspan=1,
+            padx=(10, 65),
+            pady=(10, 5),
+            sticky="w"
         )
-        self.config_update.append((self.ui_frame.checkbutton_variable, "use_game_overlay"))
+        self.config_update.append(
+            (self.ui_frame.checkbutton_variable, "use_game_overlay")
+        )
 
         # Use launcher map
         # self.ui_frame.checkbutton_variable =
@@ -132,7 +145,13 @@ class GeneralSettingsUI(tk.Toplevel):
         # Security frame
         self.security_frame = tk.LabelFrame(self, text="Security")
         self.security_frame.grid(
-            row=0, column=1, columnspan=1, rowspan=2, padx=10, pady=10, sticky="nw"
+            row=0,
+            column=1,
+            columnspan=1,
+            rowspan=2,
+            padx=10,
+            pady=10,
+            sticky="nw"
         )
 
         # Save server passwords checkbutton
@@ -209,7 +228,9 @@ class GeneralSettingsUI(tk.Toplevel):
 
         # Path frame
         self.path_frame = tk.LabelFrame(self, text="Custom plugins")
-        self.path_frame.grid(row=10, column=0, columnspan=3, padx=10, pady=10, sticky="w")
+        self.path_frame.grid(
+            row=10, column=0, columnspan=3, padx=10, pady=10, sticky="w"
+        )
 
         # Path checkbutton
         self.path_frame.checkbutton_variable = tk.BooleanVar(
@@ -225,19 +246,29 @@ class GeneralSettingsUI(tk.Toplevel):
         self.path_frame.checkbutton.grid(
             row=0, column=0, columnspan=1, padx=10, pady=(10, 5), sticky="w"
         )
-        self.config_update.append((self.path_frame.checkbutton_variable, "custom_plugins"))
+        self.config_update.append(
+            (self.path_frame.checkbutton_variable, "custom_plugins")
+        )
 
         # Path entry
         self.path_frame.entry = ttk.Entry(self.path_frame, width=50)
-        self.path_frame.entry.grid(row=1, column=0, columnspan=1, padx=10, pady=10)
-        self.path_frame.entry.insert(0, state.sc4mp_config["GENERAL"]["custom_plugins_path"])
-        self.config_update.append((self.path_frame.entry, "custom_plugins_path"))
+        self.path_frame.entry.grid(
+            row=1, column=0, columnspan=1, padx=10, pady=10
+        )
+        self.path_frame.entry.insert(
+            0, state.sc4mp_config["GENERAL"]["custom_plugins_path"]
+        )
+        self.config_update.append(
+            (self.path_frame.entry, "custom_plugins_path")
+        )
 
         # Path browse button
         self.path_frame.button = ttk.Button(
             self.path_frame, text="Browse...", command=self.browse_path
         )
-        self.path_frame.button.grid(row=1, column=1, columnspan=1, padx=10, pady=10)
+        self.path_frame.button.grid(
+            row=1, column=1, columnspan=1, padx=10, pady=10
+        )
 
         # Path label
         self.path_frame.label = ttk.Label(
@@ -254,7 +285,9 @@ class GeneralSettingsUI(tk.Toplevel):
 
         # Reset button
         self.reset_button = ttk.Button(self, text="Reset", command=self.reset)
-        self.reset_button.grid(row=99, column=0, columnspan=1, padx=10, pady=10, sticky="sw")
+        self.reset_button.grid(
+            row=99, column=0, columnspan=1, padx=10, pady=10, sticky="sw"
+        )
 
         # Ok/Cancel frame
         self.ok_cancel = tk.Frame(self)
@@ -264,7 +297,9 @@ class GeneralSettingsUI(tk.Toplevel):
         self.ok_cancel.ok_button = ttk.Button(
             self.ok_cancel, text="Ok", command=self.ok, default="active"
         )
-        self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
+        self.ok_cancel.ok_button.grid(
+            row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w"
+        )
 
         # Cancel button
         self.ok_cancel.cancel_button = ttk.Button(
@@ -346,19 +381,27 @@ class StorageSettingsUI(tk.Toplevel):
 
         # Path frame
         self.path_frame = tk.LabelFrame(self, text="Launch path")
-        self.path_frame.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="w")
+        self.path_frame.grid(
+            row=0, column=0, columnspan=3, padx=10, pady=10, sticky="w"
+        )
 
         # Path entry
         self.path_frame.entry = ttk.Entry(self.path_frame, width=50)
-        self.path_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
-        self.path_frame.entry.insert(0, state.sc4mp_config["STORAGE"]["storage_path"])
+        self.path_frame.entry.grid(
+            row=0, column=0, columnspan=1, padx=10, pady=10
+        )
+        self.path_frame.entry.insert(
+            0, state.sc4mp_config["STORAGE"]["storage_path"]
+        )
         self.config_update.append((self.path_frame.entry, "storage_path"))
 
         # Path browse button
         self.path_frame.button = ttk.Button(
             self.path_frame, text="Browse...", command=self.browse_path
         )
-        self.path_frame.button.grid(row=0, column=1, columnspan=1, padx=10, pady=10)
+        self.path_frame.button.grid(
+            row=0, column=1, columnspan=1, padx=10, pady=10
+        )
 
         # Path label
         self.path_frame.label = ttk.Label(
@@ -374,10 +417,14 @@ class StorageSettingsUI(tk.Toplevel):
 
         # Cache size frame
         self.cache_size_frame = tk.LabelFrame(self, text="Cache size")
-        self.cache_size_frame.grid(row=99, column=0, columnspan=1, padx=10, pady=10, sticky="w")
+        self.cache_size_frame.grid(
+            row=99, column=0, columnspan=1, padx=10, pady=10, sticky="w"
+        )
 
         # Cache size entry
-        self.cache_size_frame.entry = ttk.Entry(self.cache_size_frame, width=10)
+        self.cache_size_frame.entry = ttk.Entry(
+            self.cache_size_frame, width=10
+        )
         self.cache_size_frame.entry.insert(
             0, format_filesize(state.sc4mp_config["STORAGE"]["cache_size"] * 1000000)
         )
@@ -401,7 +448,9 @@ class StorageSettingsUI(tk.Toplevel):
 
         # Reset button
         self.reset_button = ttk.Button(self, text="Reset", command=self.reset)
-        self.reset_button.grid(row=99, column=1, columnspan=1, padx=10, pady=10, sticky="sw")
+        self.reset_button.grid(
+            row=99, column=1, columnspan=1, padx=10, pady=10, sticky="sw"
+        )
 
         # Ok/Cancel frame
         self.ok_cancel = tk.Frame(self)
@@ -411,7 +460,9 @@ class StorageSettingsUI(tk.Toplevel):
         self.ok_cancel.ok_button = ttk.Button(
             self.ok_cancel, text="Ok", command=self.ok, default="active"
         )
-        self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
+        self.ok_cancel.ok_button.grid(
+            row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w"
+        )
 
         # Cancel button
         self.ok_cancel.cancel_button = ttk.Button(
@@ -477,13 +528,17 @@ class StorageSettingsUI(tk.Toplevel):
             update_config_value("STORAGE", key, data)
         if restart:
             if Path(sys.executable).name == "sc4mpclient.exe":
-                subprocess.Popen([sys.executable, "-skip-update", "-allow-multiple"])
+                subprocess.Popen(
+                    [sys.executable, "-skip-update", "-allow-multiple"]
+                )
             else:
                 # Restart from the entry script (sc4mpclient.py), which is
                 # two folders up from this file
                 ui_dir = os.path.dirname(os.path.abspath(__file__))
                 client_dir = os.path.dirname(ui_dir)
-                entry_path = os.path.join(os.path.dirname(client_dir), "sc4mpclient.py")
+                entry_path = os.path.join(
+                    os.path.dirname(client_dir), "sc4mpclient.py"
+                )
                 subprocess.Popen([sys.executable, entry_path])
             state.sc4mp_ui.quit()
         # create_subdirectories()
@@ -550,11 +605,15 @@ class SC4SettingsUI(tk.Toplevel):
 
         # Path frame
         self.path_frame = tk.LabelFrame(self, text="Custom installation path")
-        self.path_frame.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="w")
+        self.path_frame.grid(
+            row=0, column=0, columnspan=3, padx=10, pady=10, sticky="w"
+        )
 
         # Path entry
         self.path_frame.entry = ttk.Entry(self.path_frame, width=40)
-        self.path_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
+        self.path_frame.entry.grid(
+            row=0, column=0, columnspan=1, padx=10, pady=10
+        )
         self.path_frame.entry.insert(0, state.sc4mp_config["SC4"]["game_path"])
         self.config_update.append((self.path_frame.entry, "game_path"))
 
@@ -562,7 +621,9 @@ class SC4SettingsUI(tk.Toplevel):
         self.path_frame.button = ttk.Button(
             self.path_frame, text="Browse...", command=self.browse_path
         )
-        self.path_frame.button.grid(row=0, column=1, columnspan=1, padx=10, pady=10)
+        self.path_frame.button.grid(
+            row=0, column=1, columnspan=1, padx=10, pady=10
+        )
 
         # Path label
         self.path_frame.label = ttk.Label(
@@ -572,16 +633,26 @@ class SC4SettingsUI(tk.Toplevel):
                 'specify the path to the game installation here.'
             )
         )
-        self.path_frame.label.grid(row=1, column=0, columnspan=2, padx=10, pady=(0, 10))
+        self.path_frame.label.grid(
+            row=1, column=0, columnspan=2, padx=10, pady=(0, 10)
+        )
 
         # Resolution frame
         self.resolution_frame = tk.LabelFrame(self, text="Resolution")
         self.resolution_frame.grid(
-            row=1, column=0, columnspan=1, rowspan=2, padx=10, pady=5, sticky="w"
+            row=1,
+            column=0,
+            columnspan=1,
+            rowspan=2,
+            padx=10,
+            pady=5,
+            sticky="w"
         )
 
         # Resolution combo box
-        self.resolution_frame.combo_box = ttk.Combobox(self.resolution_frame, width=15)
+        self.resolution_frame.combo_box = ttk.Combobox(
+            self.resolution_frame, width=15
+        )
         if 0 in (state.sc4mp_config["SC4"]["resw"], state.sc4mp_config["SC4"]["resh"]):
             self.resolution_frame.combo_box.insert(0, "Automatic")
         else:
@@ -628,32 +699,56 @@ class SC4SettingsUI(tk.Toplevel):
         # CPU count frame
         self.cpu_count_frame = tk.LabelFrame(self, text="CPU count")
         self.cpu_count_frame.grid(
-            row=1, column=1, columnspan=1, rowspan=1, padx=10, pady=5, sticky="w"
+            row=1,
+            column=1,
+            columnspan=1,
+            rowspan=1,
+            padx=10,
+            pady=5,
+            sticky="w"
         )
 
         # CPU count entry
         self.cpu_count_frame.entry = ttk.Entry(self.cpu_count_frame, width=10)
-        self.cpu_count_frame.entry.insert(0, str(state.sc4mp_config["SC4"]["cpu_count"]))
-        self.cpu_count_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
+        self.cpu_count_frame.entry.insert(
+            0, str(state.sc4mp_config["SC4"]["cpu_count"])
+        )
+        self.cpu_count_frame.entry.grid(
+            row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w"
+        )
         self.config_update.append((self.cpu_count_frame.entry, "cpu_count"))
 
         # CPU priority frame
         self.cpu_priority_frame = tk.LabelFrame(self, text="CPU priority")
         self.cpu_priority_frame.grid(
-            row=1, column=2, columnspan=1, rowspan=1, padx=10, pady=5, sticky="e"
+            row=1,
+            column=2,
+            columnspan=1,
+            rowspan=1,
+            padx=10,
+            pady=5,
+            sticky="e"
         )
 
         # CPU priority entry
-        self.cpu_priority_frame.combo_box = ttk.Combobox(self.cpu_priority_frame, width=8)
-        self.cpu_priority_frame.combo_box.insert(0, state.sc4mp_config["SC4"]["cpu_priority"])
+        self.cpu_priority_frame.combo_box = ttk.Combobox(
+            self.cpu_priority_frame, width=8
+        )
+        self.cpu_priority_frame.combo_box.insert(
+            0, state.sc4mp_config["SC4"]["cpu_priority"]
+        )
         self.cpu_priority_frame.combo_box["values"] = ("low", "normal", "high")
         self.cpu_priority_frame.combo_box.grid(
             row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w"
         )
-        self.config_update.append((self.cpu_priority_frame.combo_box, "cpu_priority"))
+        self.config_update.append(
+            (self.cpu_priority_frame.combo_box, "cpu_priority")
+        )
 
         # Additional properties frame
-        self.additional_properties_frame = tk.LabelFrame(self, text="Additional launch properties")
+        self.additional_properties_frame = tk.LabelFrame(
+            self, text="Additional launch properties"
+        )
         self.additional_properties_frame.grid(
             row=2, column=1, columnspan=2, padx=10, pady=5, sticky="w"
         )
@@ -700,7 +795,9 @@ class SC4SettingsUI(tk.Toplevel):
         self.ok_cancel.ok_button = ttk.Button(
             self.ok_cancel, text="Ok", command=self.ok, default="active"
         )
-        self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w")
+        self.ok_cancel.ok_button.grid(
+            row=0, column=0, columnspan=1, padx=0, pady=5, sticky="w"
+        )
 
         # Cancel button
         self.ok_cancel.cancel_button = ttk.Button(
@@ -781,7 +878,8 @@ class SC4SettingsUI(tk.Toplevel):
         # Load the game
         try:
 
-            # Check if a path to SimCity 4 can be found, prompt for a custom path if needed
+            # Check if a path to SimCity 4 can be found, prompt for a custom
+            # path if needed
             while get_sc4_path() is None:
                 show_warning(
                     'No SimCity 4 installation found. \n\n'
@@ -829,7 +927,10 @@ class SC4SettingsUI(tk.Toplevel):
         except Exception as e:
 
             # Show an error popup
-            show_error(f"An error occurred while launching the game in preview mode.\n\n{e}")
+            show_error(
+                "An error occurred while launching the game in preview "
+                f"mode.\n\n{e}"
+            )
 
         # Restore the old config data
         state.sc4mp_config["SC4"] = config_data_backup

@@ -6,7 +6,9 @@ import sys
 from datetime import datetime
 
 if sys.version_info[:2] != (3, 8):
-    raise RuntimeError(f"Unsupported Python version: {sys.version}. Please use Python 3.8.")
+    raise RuntimeError(
+        f"Unsupported Python version: {sys.version}. Please use Python 3.8."
+    )
 
 # subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
@@ -20,7 +22,9 @@ import core.util as utils
 
 TITLE = "SC4MP Launcher"
 NAME = "sc4mpclient.exe"
-VERSION = sc4mpclient.SC4MP_VERSION + "." + datetime.now().strftime("%Y%m%d%H%M%S")
+VERSION = sc4mpclient.SC4MP_VERSION + "." + datetime.now().strftime(
+    "%Y%m%d%H%M%S"
+)
 PUBLISHER = "SimCity 4 Multiplayer Project"
 DESCRIPTION = "Multiplayer launcher for SimCity 4"
 LICENSE = "MIT-0"
@@ -91,11 +95,15 @@ def main():
     ])
 
     # Copy binary files to distribution directory
-    shutil.copytree(os.path.join("dist", "sc4mpclient"), DIST, dirs_exist_ok=True)
+    shutil.copytree(
+        os.path.join("dist", "sc4mpclient"), DIST, dirs_exist_ok=True
+    )
 
     # Copy extra files to distribution directory
     print(f'Copying extra files to "{DIST}"...')
-    shutil.copytree("resources", os.path.join(DIST, "resources"), dirs_exist_ok=True)
+    shutil.copytree(
+        "resources", os.path.join(DIST, "resources"), dirs_exist_ok=True
+    )
     shutil.copy("License.txt", DIST)
     shutil.copy("Readme.html", DIST)
 

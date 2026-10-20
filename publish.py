@@ -30,9 +30,13 @@ elif target == "feature":
     ])
     prerelease = True
 else:
-    raise Exception("Releases can only be published from the `main` or `feature` branch.")
+    raise Exception(
+        "Releases can only be published from the `main` or `feature` branch."
+    )
 
-assets = [get_release_asset_path(directory, prefix) for directory, prefix in assets]
+assets = [
+    get_release_asset_path(directory, prefix) for directory, prefix in assets
+]
 assets = [asset for asset in assets if asset is not None]
 
 publish_release(

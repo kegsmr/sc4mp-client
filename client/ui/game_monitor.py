@@ -58,7 +58,13 @@ class GameMonitorUI(tk.Toplevel):
         # Status frame
         self.status_frame = tk.Frame(self)
         self.status_frame.grid(
-            column=0, row=0, rowspan=1, columnspan=2, padx=0, pady=20, sticky="n"
+            column=0,
+            row=0,
+            rowspan=1,
+            columnspan=2,
+            padx=0,
+            pady=20,
+            sticky="n"
         )
 
         # Status label left
@@ -69,7 +75,13 @@ class GameMonitorUI(tk.Toplevel):
         # Status label right
         self.status_frame.right = tk.Label(self.status_frame, text="")
         self.status_frame.right.grid(
-            column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="n"
+            column=1,
+            row=0,
+            rowspan=1,
+            columnspan=1,
+            padx=0,
+            pady=0,
+            sticky="n"
         )
         self.label = self.status_frame.right
 
@@ -82,21 +94,35 @@ class GameMonitorUI(tk.Toplevel):
             highlightbackground="gray",
             highlightthickness=1
         )
-        self.server_info.grid(row=1, column=0, columnspan=2, padx=10, pady=0, sticky="nw")
+        self.server_info.grid(
+            row=1, column=0, columnspan=2, padx=10, pady=0, sticky="nw"
+        )
         self.server_info.grid_propagate(0)
 
         # Description label
         self.description_label = ttk.Label(
-            self.server_info, background="white", wraplength=(self.server_info["width"] - 20)
+            self.server_info,
+            background="white",
+            wraplength=(self.server_info["width"] - 20)
         )
         self.description_label.grid(
-            row=0, column=0, rowspan=1, columnspan=1, padx=10, pady=(10, 0), sticky="nw"
+            row=0,
+            column=0,
+            rowspan=1,
+            columnspan=1,
+            padx=10,
+            pady=(10, 0),
+            sticky="nw"
         )
         self.description_label['text'] = ""
 
         # URL label
-        self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2", background="white")
-        self.url_label.grid(row=1, column=0, columnspan=1, padx=10, pady=5, sticky="nw")
+        self.url_label = tk.Label(
+            self.server_info, fg="blue", cursor="hand2", background="white"
+        )
+        self.url_label.grid(
+            row=1, column=0, columnspan=1, padx=10, pady=5, sticky="nw"
+        )
         self.url_label['text'] = ""
         self.url_label.bind(
             "<Button-1>", lambda e: webbrowser.open_new_tab(format_url(self.url_label["text"]))
@@ -104,19 +130,39 @@ class GameMonitorUI(tk.Toplevel):
 
         # Ping frame
         self.ping_frame = tk.Frame(self, width=420, height=0)
-        self.ping_frame.grid(column=0, row=2, rowspan=1, columnspan=2, padx=0, pady=4, sticky="ew")
+        self.ping_frame.grid(
+            column=0,
+            row=2,
+            rowspan=1,
+            columnspan=2,
+            padx=0,
+            pady=4,
+            sticky="ew"
+        )
         self.ping_frame.grid_propagate(0)
 
         # Ping label left
         self.ping_frame.left = tk.Label(self, text="", fg="gray")
         self.ping_frame.left.grid(
-            column=0, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w"
+            column=0,
+            row=3,
+            rowspan=1,
+            columnspan=1,
+            padx=10,
+            pady=0,
+            sticky="w"
         )
 
         # Ping label right
         self.ping_frame.right = tk.Label(self, text="", fg="gray")
         self.ping_frame.right.grid(
-            column=1, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="e"
+            column=1,
+            row=3,
+            rowspan=1,
+            columnspan=1,
+            padx=10,
+            pady=0,
+            sticky="e"
         )
 
     def delete_window(self):
@@ -181,9 +227,15 @@ class GameMonitorMapUI(tk.Toplevel):
         self.canvas_frame = tk.Frame(self)
         self.canvas_frame.grid(row=1, column=0, padx=15, pady=0, sticky="nw")  # , sticky="ewns")
         self.canvas = tk.Canvas(
-            self.canvas_frame, width=408, height=408, bg="white", highlightthickness=0
+            self.canvas_frame,
+            width=408,
+            height=408,
+            bg="white",
+            highlightthickness=0
         )
-        self.canvas_horizontal_scrollbar = tk.Scrollbar(self.canvas_frame, orient="horizontal")
+        self.canvas_horizontal_scrollbar = tk.Scrollbar(
+            self.canvas_frame, orient="horizontal"
+        )
         self.canvas_horizontal_scrollbar.pack(side="bottom", fill="x")
         self.canvas_horizontal_scrollbar.config(command=self.canvas.xview)
         self.canvas_vertical_scrollbar = tk.Scrollbar(self.canvas_frame)
@@ -248,7 +300,9 @@ class GameMonitorMapUI(tk.Toplevel):
         WIDTH = TILE_SIZE * REGION_WIDTH
         HEIGHT = TILE_SIZE * REGION_HEIGHT
 
-        self.canvas.configure(scrollregion=(-.5 * WIDTH, -.5 * HEIGHT, .5 * WIDTH, .5 * HEIGHT))
+        self.canvas.configure(
+            scrollregion=(-.5 * WIDTH, -.5 * HEIGHT, .5 * WIDTH, .5 * HEIGHT)
+        )
 
         # VIEWPORT_WIDTH = 408 / WIDTH
         # VIEWPORT_HEIGHT = 408 / HEIGHT
@@ -264,8 +318,12 @@ class GameMonitorMapUI(tk.Toplevel):
         LARGE_TILE_COUNT_X = REGION_WIDTH / 4
         LARGE_TILE_COUNT_Y = REGION_HEIGHT / 4
 
-        for y in range(int(-.5 * LARGE_TILE_COUNT_Y), int(.5 * LARGE_TILE_COUNT_Y)):
-            for x in range(int(-.5 * LARGE_TILE_COUNT_X), int(.5 * LARGE_TILE_COUNT_X)):
+        for y in range(
+                int(-.5 * LARGE_TILE_COUNT_Y), int(.5 * LARGE_TILE_COUNT_Y)
+        ):
+            for x in range(
+                    int(-.5 * LARGE_TILE_COUNT_X), int(.5 * LARGE_TILE_COUNT_X)
+            ):
                 self.canvas.images[f"{x}_{y}"] = self.canvas.create_image(
                     x * 68,
                     y * 68,
@@ -296,14 +354,22 @@ class GameOverlayUI(tk.Toplevel):
         # Images
         self.images = {}
         for overlay_state in [
-                "connected", "guest", "not-saved", "refreshed", "refreshing", "saved", "saving"
+                "connected",
+                "guest",
+                "not-saved",
+                "refreshed",
+                "refreshing",
+                "saved",
+                "saving"
         ]:
             self.images[overlay_state] = tk.PhotoImage(
                 file=get_sc4mp_path(f"overlay-{overlay_state}.png")
             )
 
         # Canvas
-        self.canvas = tk.Canvas(self, bg="black", highlightthickness=0, cursor="hand2")
+        self.canvas = tk.Canvas(
+            self, bg="black", highlightthickness=0, cursor="hand2"
+        )
         self.canvas.bind("<Button-1>", self.click)
         if guest:
             self.set_state("guest")
@@ -342,11 +408,15 @@ class GameOverlayUI(tk.Toplevel):
 
             if type(e) is not tk.TclError or "bad window path name" not in str(e):
 
-                show_error(f"Cannot overlay the game overlay.\n\n{e}", no_ui=True)
+                show_error(
+                    f"Cannot overlay the game overlay.\n\n{e}", no_ui=True
+                )
 
     def set_state(self, state):
 
-        self.canvas.image = self.canvas.create_image(0, 0, anchor="nw", image=self.images[state])
+        self.canvas.image = self.canvas.create_image(
+            0, 0, anchor="nw", image=self.images[state]
+        )
         self.canvas.pack()
 
     def click(self, event):

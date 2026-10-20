@@ -40,7 +40,9 @@ def get_sc4mp_path(filename: str) -> Path:
 def random_string(length):
     """Returns a random string of ascii letters of the specified length."""
     characters = string.ascii_letters + string.digits
-    return ''.join(random.SystemRandom().choice(characters) for i in range(length))
+    return ''.join(
+        random.SystemRandom().choice(characters) for i in range(length)
+    )
 
 
 def purge_directory(directory: Path, recursive=True) -> None:
@@ -95,7 +97,8 @@ def load_json(filename):
 
 def update_json(filename, data):
     """Writes data as a dictionary to a json file."""
-    # Write to a temporary file first so a crash or error mid-write can't truncate the original
+    # Write to a temporary file first so a crash or error mid-write can't
+    # truncate the original
     temp_filename = f"{filename}.tmp"
     with open(temp_filename, 'w') as file:
         json.dump(data, file, indent=4)
@@ -214,12 +217,18 @@ def get_image_pids(image_name) -> list[int] | None:
 
             # Use tasklist to get the list of processes
             result = subprocess.run(
-                ["tasklist"], capture_output=True, text=True, check=True, shell=True
+                ["tasklist"],
+                capture_output=True,
+                text=True,
+                check=True,
+                shell=True
             )
             lines = result.stdout.splitlines()
 
             # Regex pattern to match process name followed by its PID
-            pattern = re.compile(rf"^{re.escape(image_name)}\s+(\d+)", re.IGNORECASE)
+            pattern = re.compile(
+                rf"^{re.escape(image_name)}\s+(\d+)", re.IGNORECASE
+            )
 
             for line in lines:
                 match = pattern.match(line)
@@ -280,7 +289,9 @@ def window_open(image_name):
     found = ctypes.c_bool(False)
 
     # Convert callback to proper function pointer type
-    CALLBACK_TYPE = ctypes.WINFUNCTYPE(ctypes.c_bool, ctypes.c_int, ctypes.c_void_p)
+    CALLBACK_TYPE = ctypes.WINFUNCTYPE(
+        ctypes.c_bool, ctypes.c_int, ctypes.c_void_p
+    )
     EnumWindows(CALLBACK_TYPE(callback), ctypes.byref(found))
 
     return found.value

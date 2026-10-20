@@ -158,7 +158,8 @@ class RegionsRefresher(th.Thread):
                         # Delete the cache file if it exists
                         t.unlink(missing_ok=True)
 
-                        # Delete cache files if cache too large to accomadate the new cache file
+                        # Delete cache files if cache too large to accomadate
+                        # the new cache file
                         cache_directory = Path(state.SC4MP_LAUNCHPATH) / "_Cache"
                         cache_size = int(state.sc4mp_config["STORAGE"]["cache_size"])
                         max_cache_size = (1000000 * cache_size) - filesize
@@ -167,7 +168,8 @@ class RegionsRefresher(th.Thread):
                             random_cache = random.choice(list(cache_directory.iterdir()))
                             random_cache.unlink()
 
-                        # Receive the file. Write to both the destination and cache
+                        # Receive the file. Write to both the destination and
+                        # cache
                         filesize_read = 0
                         temp_cache = t.with_name(t.name + ".tmp")
                         with d.open("wb") as dest, temp_cache.open("wb") as cache:
@@ -205,7 +207,10 @@ class RegionsRefresher(th.Thread):
                 # if self.ui != None:
                 #    self.ui.withdraw()
 
-                show_error("An error occurred while refreshing regions.\n\n" + str(e), no_ui=True)
+                show_error(
+                    "An error occurred while refreshing regions.\n\n" + str(e),
+                    no_ui=True
+                )
 
     def report(self, prefix, text):
 

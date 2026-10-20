@@ -58,19 +58,31 @@ class ServerListUI(tk.Frame):
         self.canvas.create_image(400, 50, image=self.canvas.image)
         self.canvas["borderwidth"] = 0
         self.canvas["highlightthickness"] = 0
-        self.canvas.grid(row=0, column=0, rowspan=1, columnspan=3, padx=0, pady=0)
+        self.canvas.grid(
+            row=0, column=0, rowspan=1, columnspan=3, padx=0, pady=0
+        )
 
         # Label
 
         self.label = ttk.Label(self)
-        self.label.grid(row=1, column=0, rowspan=1, columnspan=3, padx=10, pady=(15, 10))
+        self.label.grid(
+            row=1, column=0, rowspan=1, columnspan=3, padx=10, pady=(15, 10)
+        )
         # self.label['text'] = 'Loading...' #'To get started, select a server
         # below and click "Connect."' #"Loading server list..."
 
         # Frame
 
         self.frame = tk.Frame(self)
-        self.frame.grid(row=2, column=0, rowspan=1, columnspan=3, padx=15, pady=10, sticky="n")
+        self.frame.grid(
+            row=2,
+            column=0,
+            rowspan=1,
+            columnspan=3,
+            padx=15,
+            pady=10,
+            sticky="n"
+        )
 
         # Tree
 
@@ -125,14 +137,21 @@ class ServerListUI(tk.Frame):
             column_ids.append(column[0])
         column_ids = tuple(column_ids[1:])
 
-        self.tree = ttk.Treeview(self.frame, columns=column_ids, selectmode="browse", height=12)
+        self.tree = ttk.Treeview(
+            self.frame, columns=column_ids, selectmode="browse", height=12
+        )
 
         for column in COLUMNS:
             column_id = column[0]
             column_name = column[1]
             column_width = column[2]
             column_anchor = column[3]
-            self.tree.column(column_id, width=column_width, anchor=column_anchor, stretch=False)
+            self.tree.column(
+                column_id,
+                width=column_width,
+                anchor=column_anchor,
+                stretch=False
+            )
             self.tree.heading(
                 column_id,
                 text=column_name,
@@ -168,30 +187,44 @@ class ServerListUI(tk.Frame):
             self.worker.update_rank_bars()
             self.tree.yview(*args, **kwargs)
 
-        self.scrollbar = ttk.Scrollbar(self.frame, orient="vertical", command=yview)
+        self.scrollbar = ttk.Scrollbar(
+            self.frame, orient="vertical", command=yview
+        )
         self.scrollbar.pack(side="right", fill="y")
         self.tree.configure(yscrollcommand=self.scrollbar.set)
 
         # Server info frame
 
         self.server_info = tk.Frame(self, width=540, height=120)
-        self.server_info.grid(row=3, column=0, columnspan=2, padx=20, pady=0, sticky="nw")
+        self.server_info.grid(
+            row=3, column=0, columnspan=2, padx=20, pady=0, sticky="nw"
+        )
         self.server_info.grid_propagate(0)
 
         # TODO add right click context menu
 
         # Description label
 
-        self.description_label = ttk.Label(self.server_info, wraplength=self.server_info["width"])
+        self.description_label = ttk.Label(
+            self.server_info, wraplength=self.server_info["width"]
+        )
         self.description_label.grid(
-            row=0, column=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="nw"
+            row=0,
+            column=0,
+            rowspan=1,
+            columnspan=1,
+            padx=0,
+            pady=0,
+            sticky="nw"
         )
         self.description_label['text'] = ""
 
         # URL label
 
         self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2")
-        self.url_label.grid(row=1, column=0, columnspan=1, padx=0, pady=5, sticky="nw")
+        self.url_label.grid(
+            row=1, column=0, columnspan=1, padx=0, pady=5, sticky="nw"
+        )
         self.url_label['text'] = ""
         self.url_label.bind("<Button-1>", lambda e: self.open_server_url())
 
@@ -227,32 +260,50 @@ class ServerListUI(tk.Frame):
         self.combo_box.bind("<KeyRelease>", on_key_release)
 
         if state.sc4mp_config["GENERAL"]["server_browser_filter"]:
-            self.combo_box.insert(0, state.sc4mp_config["GENERAL"]["server_browser_filter"])
+            self.combo_box.insert(
+                0, state.sc4mp_config["GENERAL"]["server_browser_filter"]
+            )
             self.combo_box.configure(foreground="black")
         else:
             self.combo_box.insert(0, self.combo_box.PLACEHOLDER_TEXT)
             self.combo_box.configure(foreground="gray")
 
         self.combo_box.grid(
-            row=3, column=2, rowspan=1, columnspan=1, padx=(0, 16), pady=(5, 10), sticky="ne"
+            row=3,
+            column=2,
+            rowspan=1,
+            columnspan=1,
+            padx=(0, 16),
+            pady=(5, 10),
+            sticky="ne"
         )
 
         # Address label
 
         self.address_label = tk.Label(self, fg="gray")
-        self.address_label.grid(row=4, column=0, columnspan=1, padx=20, pady=10, sticky="sw")
+        self.address_label.grid(
+            row=4, column=0, columnspan=1, padx=20, pady=10, sticky="sw"
+        )
         self.address_label['text'] = ""
 
         # Server options frame
 
         self.server_options = tk.Frame(self)
         self.server_options.grid(
-            row=4, column=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="se"
+            row=4,
+            column=1,
+            rowspan=1,
+            columnspan=1,
+            padx=0,
+            pady=0,
+            sticky="se"
         )
 
         # Details button
 
-        self.details_button = ttk.Button(self.server_options, text="Details", command=self.details)
+        self.details_button = ttk.Button(
+            self.server_options, text="Details", command=self.details
+        )
         self.details_button['state'] = tk.DISABLED
         self.details_button.grid(
             row=0, column=99, columnspan=1, padx=(15, 20), pady=10, sticky="se"
@@ -262,7 +313,13 @@ class ServerListUI(tk.Frame):
 
         self.refresh_connect = tk.Frame(self)
         self.refresh_connect.grid(
-            row=4, column=2, rowspan=1, columnspan=1, padx=0, pady=0, sticky="se"
+            row=4,
+            column=2,
+            rowspan=1,
+            columnspan=1,
+            padx=0,
+            pady=0,
+            sticky="se"
         )
 
         # Refresh button
@@ -270,15 +327,22 @@ class ServerListUI(tk.Frame):
         self.refresh_button = ttk.Button(
             self.refresh_connect, text="Refresh", command=self.root.refresh
         )
-        self.refresh_button.grid(row=0, column=0, columnspan=1, padx=11, pady=10, sticky="se")
+        self.refresh_button.grid(
+            row=0, column=0, columnspan=1, padx=11, pady=10, sticky="se"
+        )
 
         # Connect button
 
         self.connect_button = ttk.Button(
-            self.refresh_connect, text="Connect", command=self.connect, default="active"
+            self.refresh_connect,
+            text="Connect",
+            command=self.connect,
+            default="active"
         )
         self.connect_button['state'] = tk.DISABLED
-        self.connect_button.grid(row=0, column=1, columnspan=1, padx=(0, 15), pady=10, sticky="se")
+        self.connect_button.grid(
+            row=0, column=1, columnspan=1, padx=(0, 15), pady=10, sticky="se"
+        )
 
         # Worker
         self.worker = ServerList(self)
@@ -320,7 +384,9 @@ class ServerListUI(tk.Frame):
         self.tree.focus(server_id)
 
         # Create the context menu
-        menu.add_command(label="Connect", command=self.connect, font=("Segoe UI", 9, "bold"))
+        menu.add_command(
+            label="Connect", command=self.connect, font=("Segoe UI", 9, "bold")
+        )
         menu.add_command(label="Refresh", command=self.root.refresh)
         if "Offline" not in self.worker.servers[server_id].categories:
             menu.add_separator()
@@ -378,7 +444,9 @@ class ServerListUI(tk.Frame):
                 "downloaded from third-party servers. Only join third-party servers "
                 "you trust."
             )
-            if not messagebox.askokcancel(title=SC4MP_TITLE, message=message, icon="warning"):
+            if not messagebox.askokcancel(
+                    title=SC4MP_TITLE, message=message, icon="warning"
+            ):
                 return
         host = server.host
         port = server.port
@@ -392,7 +460,10 @@ class ServerListUI(tk.Frame):
             ServerLoaderUI(Server(host, port))
             self.tree.focus_set()
         except Exception as e:
-            show_error(f"An error occurred before the server loader thread could start.\n\n{e}")
+            show_error(
+                "An error occurred before the server loader thread could "
+                f"start.\n\n{e}"
+            )
 
     def open_server_url(self):
 

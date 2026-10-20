@@ -13,7 +13,16 @@ from client.errors import show_error
 
 class StatisticsTreeUI(tk.Frame):
 
-    def __init__(self, *args, columns=[], formats=[], data={}, sort=-1, reverse=True, **kwargs):
+    def __init__(
+            self,
+            *args,
+            columns=[],
+            formats=[],
+            data={},
+            sort=-1,
+            reverse=True,
+            **kwargs
+    ):
 
         super().__init__(*args, **kwargs)
 
@@ -32,7 +41,11 @@ class StatisticsTreeUI(tk.Frame):
         # Tree canvas
 
         self.tree_canvas = tk.Canvas(
-            self.tree_frame, width=350, height=323, bg="white", highlightthickness=0
+            self.tree_frame,
+            width=350,
+            height=323,
+            bg="white",
+            highlightthickness=0
         )
         self.tree_canvas.pack(side="left")
 
@@ -44,7 +57,10 @@ class StatisticsTreeUI(tk.Frame):
         column_ids = tuple(column_ids[1:])
 
         self.tree = ttk.Treeview(
-            self.tree_canvas, columns=column_ids, selectmode="browse", height=15
+            self.tree_canvas,
+            columns=column_ids,
+            selectmode="browse",
+            height=15
         )
         self.tree.bind("<<TreeviewOpen>>", self.on_item_expand)
         self.tree.bind("<<TreeviewClose>>", self.on_item_expand)
@@ -57,7 +73,10 @@ class StatisticsTreeUI(tk.Frame):
             column_width = column[2]
             column_anchor = column[3]
             self.tree.column(
-                column_id, width=column_width, anchor=column_anchor, stretch=False
+                column_id,
+                width=column_width,
+                anchor=column_anchor,
+                stretch=False
             )
             self.tree.heading(
                 column_id,
@@ -76,24 +95,32 @@ class StatisticsTreeUI(tk.Frame):
 
         # Scrollbar
 
-        self.scrollbar = ttk.Scrollbar(self.tree_frame, orient="vertical", command=self.tree.yview)
+        self.scrollbar = ttk.Scrollbar(
+            self.tree_frame, orient="vertical", command=self.tree.yview
+        )
         self.scrollbar.pack(side="right", fill="y")
         self.tree.configure(yscrollcommand=self.scrollbar.set)
 
         # Button
 
         self.button = ttk.Button(self, text="Button")
-        self.button.grid(row=1, column=0, sticky="nw", padx=(0, 10), pady=(10, 0))
+        self.button.grid(
+            row=1, column=0, sticky="nw", padx=(0, 10), pady=(10, 0)
+        )
 
         # Entry
 
         self.entry = ttk.Entry(self)
-        self.entry.grid(row=1, column=1, sticky="ne", padx=(10, 15), pady=(12, 0))
+        self.entry.grid(
+            row=1, column=1, sticky="ne", padx=(10, 15), pady=(12, 0)
+        )
 
     def sort_data(self):
 
         sorted_items = sorted(
-            self.data.items(), key=lambda item: item[1][self.sort], reverse=self.reverse
+            self.data.items(),
+            key=lambda item: item[1][self.sort],
+            reverse=self.reverse
         )
         self.data = {key: entry for key, entry in sorted_items}
 
@@ -133,7 +160,9 @@ class StatisticsTreeUI(tk.Frame):
                 if item not in children:
 
                     # Insert the item into the tree
-                    self.tree.insert("", index, id=item, text=text, values=values)
+                    self.tree.insert(
+                        "", index, id=item, text=text, values=values
+                    )
                     children.insert(index, item)
 
                 # Increment the index for insertion
@@ -163,7 +192,9 @@ class StatisticsTreeUI(tk.Frame):
 
         except Exception as e:
 
-            show_error(f"An error occurred while filtering.\n\n{e}", no_ui=True)
+            show_error(
+                f"An error occurred while filtering.\n\n{e}", no_ui=True
+            )
 
             # self.query = query
 

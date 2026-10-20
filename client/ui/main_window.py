@@ -83,7 +83,9 @@ class UI(tk.Tk):
         settings_submenu.add_command(
             label="Storage...", accelerator="F6", command=self.storage_settings
         )
-        settings_submenu.add_command(label="SC4...", accelerator="F7", command=self.SC4_settings)
+        settings_submenu.add_command(
+            label="SC4...", accelerator="F7", command=self.SC4_settings
+        )
         launcher.add_cascade(label="Settings", menu=settings_submenu)
         launcher.add_separator()
         launcher.add_command(
@@ -97,8 +99,12 @@ class UI(tk.Tk):
 
         servers = Menu(menu, tearoff=0)
 
-        servers.add_command(label="Connect...", accelerator="F1", command=self.direct_connect)
-        servers.add_command(label="Refresh", accelerator="F2", command=self.refresh)
+        servers.add_command(
+            label="Connect...", accelerator="F1", command=self.direct_connect
+        )
+        servers.add_command(
+            label="Refresh", accelerator="F2", command=self.refresh
+        )
         # servers.add_separator()
         # servers.add_command(label="Host...", accelerator="F3", command=self.host)
         menu.add_cascade(label="Servers", menu=servers)
@@ -165,7 +171,9 @@ class UI(tk.Tk):
             general_config = state.sc4mp_config["GENERAL"]
             if (general_config["show_release_notes"]
                     and general_config["release_notes_version"] != SC4MP_VERSION):
-                ReleaseNotesUI(version, release_info["name"], release_info["body"])
+                ReleaseNotesUI(
+                    version, release_info["name"], release_info["body"]
+                )
 
         except Exception as e:
 
@@ -227,7 +235,9 @@ class UI(tk.Tk):
     def refresh(self):
 
         if state.sc4mp_config["GENERAL"]["use_server_browser"]:
-            self.server_list.worker = ServerList(self.server_list, kill=self.server_list.worker)
+            self.server_list.worker = ServerList(
+                self.server_list, kill=self.server_list.worker
+            )
             self.server_list.worker.start()
 
     def about(self):

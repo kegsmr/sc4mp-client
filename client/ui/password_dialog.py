@@ -55,12 +55,16 @@ class PasswordDialogUI(tk.Toplevel):
 
         # Password label
         self.password_label = ttk.Label(self, text="Password")
-        self.password_label.grid(row=0, column=0, columnspan=1, padx=10, pady=20)
+        self.password_label.grid(
+            row=0, column=0, columnspan=1, padx=10, pady=20
+        )
 
         # Password entry
         self.password_entry = ttk.Entry(self, width=38)
         # self.password_entry.insert(0, sc4mp_config["GENERAL"]["default_host"])
-        self.password_entry.grid(row=0, column=1, columnspan=3, padx=10, pady=20, sticky="w")
+        self.password_entry.grid(
+            row=0, column=1, columnspan=3, padx=10, pady=20, sticky="w"
+        )
         self.password_entry.config(show="*")
         self.password_entry.focus()
         # try:

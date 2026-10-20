@@ -69,18 +69,24 @@ class ServerLoaderUI(tk.Toplevel):
             length=780,
             maximum=100
         )
-        self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10, 5))
+        self.progress_bar.grid(
+            column=0, row=1, columnspan=2, padx=10, pady=(10, 5)
+        )
         self.progress_bar.start(2)
 
         # Progress label
         self.progress_label = tk.Label(self, fg="gray", font=("Segoe UI", 8))
         self.progress_label['text'] = ""
-        self.progress_label.grid(column=0, row=2, columnspan=1, padx=10, pady=0, sticky="w")
+        self.progress_label.grid(
+            column=0, row=2, columnspan=1, padx=10, pady=0, sticky="w"
+        )
 
         # Duration label
         self.duration_label = tk.Label(self, fg="gray", font=("Segoe UI", 8))
         self.duration_label['text'] = ""
-        self.duration_label.grid(column=1, row=2, columnspan=1, padx=10, pady=0, sticky="e")
+        self.duration_label.grid(
+            column=1, row=2, columnspan=1, padx=10, pady=0, sticky="e"
+        )
 
         # Worker
         self.worker = ServerLoader(self, server)
@@ -150,7 +156,9 @@ class ServerBackgroundUI(tk.Toplevel):
 
             # Convert to PhotoImage and update the canvas
             self.image_resized_tk = ImageTk.PhotoImage(self.image_resized)
-            self.canvas.create_image(0, 0, anchor=tk.NW, image=self.image_resized_tk)
+            self.canvas.create_image(
+                0, 0, anchor=tk.NW, image=self.image_resized_tk
+            )
             self.canvas.image = self.image_resized_tk
 
         except Exception as e:
@@ -187,7 +195,10 @@ class ServerBackgroundUI(tk.Toplevel):
 
         except Exception as e:
 
-            show_error(f"An error occurred while fetching server background.\n\n{e}", no_ui=True)
+            show_error(
+                f"An error occurred while fetching server background.\n\n{e}",
+                no_ui=True
+            )
 
             self.retry_fetch_background()
 

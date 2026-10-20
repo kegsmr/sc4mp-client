@@ -189,11 +189,15 @@ def main():
             if state.sc4mp_host is None:
                 state.sc4mp_host = input("[PROMPT] - Enter server address... ")
             if state.sc4mp_port is None:
-                state.sc4mp_port = int(input("[PROMPT] - Enter server port... "))
+                state.sc4mp_port = int(
+                    input("[PROMPT] - Enter server port... ")
+                )
             server = Server(state.sc4mp_host, state.sc4mp_port)
             server.fetch()
             if state.sc4mp_password is None and server.password_enabled:
-                state.sc4mp_password = input("[PROMPT] - Enter server password... ")
+                state.sc4mp_password = input(
+                    "[PROMPT] - Enter server password... "
+                )
             server.password = state.sc4mp_password
             ServerLoader(None, server).run()
 

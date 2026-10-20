@@ -28,7 +28,9 @@ def set_server_data(entry, server):
     entry["server_version"] = server.server_version
     entry["password_enabled"] = server.password_enabled
     entry["user_plugins"] = server.user_plugins_enabled
-    entry.setdefault("first_contact", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    entry.setdefault(
+        "first_contact", datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    )
     entry["last_contact"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
@@ -62,7 +64,8 @@ class Server:
                 server_info = s.info()
         except Exception as e:
             raise ClientException(
-                "Unable to find server. Check the IP address and port, then try again."
+                "Unable to find server. Check the IP address and port, then "
+                "try again."
             ) from e
 
         # server_info = self.request("info")
@@ -97,7 +100,9 @@ class Server:
 
         if self.server_id in state.sc4mp_servers_database.keys():
             # Needed for stat fetching private servers
-            self.password = state.sc4mp_servers_database[self.server_id].get("password", None)
+            self.password = state.sc4mp_servers_database[self.server_id].get(
+                "password", None
+            )
 
         if self.password_enabled:
             self.categories.append("Private")
@@ -111,7 +116,10 @@ class Server:
             try:
                 self.update_database()
             except Exception:
-                show_error("An error occurred while updating the server database.", no_ui=True)
+                show_error(
+                    "An error occurred while updating the server database.",
+                    no_ui=True
+                )
 
     def fetch_stats(self):
 
@@ -132,7 +140,9 @@ class Server:
                 try:
                     region_path = regions_path / region
                     region_config_path = region_path / "config.bmp"
-                    region_dimensions = get_bitmap_dimensions(region_config_path)
+                    region_dimensions = get_bitmap_dimensions(
+                        region_config_path
+                    )
                     region_database_path = region_path / "_Database" / "region.json"
                     region_database = load_json(region_database_path)
                     for coords in region_database.keys():
@@ -198,7 +208,9 @@ class Server:
         total_size = 0
         download_size = 0
 
-        cache_files = os.listdir(os.path.join(state.SC4MP_LAUNCHPATH, "_Cache"))
+        cache_files = os.listdir(
+            os.path.join(state.SC4MP_LAUNCHPATH, "_Cache")
+        )
 
         for type_, directory in zip(REQUESTS, DIRECTORIES):
 
@@ -287,7 +299,8 @@ class Server:
         except Exception:
             pass
 
-        # Verify server can produce the user_id from the hash of the user_id and token combined
+        # Verify server can produce the user_id from the hash of the user_id
+        # and token combined
         if token is not None:
             user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()[:32]
             hash = hashlib.sha256((user_id_hash + token).encode()).hexdigest()
@@ -331,7 +344,9 @@ class Server:
         # Set user_id and token in the database entry
         entry["user_id"] = user_id
         entry["token"] = token
-        entry.setdefault("first_logon", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        entry.setdefault(
+            "first_logon", datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        )
         entry["last_logon"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     def ping(self):
@@ -355,7 +370,10 @@ class Server:
 
         except Exception:
 
-            show_error("Unable to get server time, using local time instead.", no_ui=True)
+            show_error(
+                "Unable to get server time, using local time instead.",
+                no_ui=True
+            )
 
             return datetime.now()
 

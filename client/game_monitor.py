@@ -71,7 +71,9 @@ class GameMonitor(th.Thread):
             use_game_overlay = state.sc4mp_config["GENERAL"]["use_game_overlay"]
             fullscreen = state.sc4mp_config["SC4"]["fullscreen"]
             if (use_game_overlay == 1 and fullscreen) or use_game_overlay == 2:
-                self.overlay_ui = GameOverlayUI(self.ui, guest=(server.password == ""))
+                self.overlay_ui = GameOverlayUI(
+                    self.ui, guest=(server.password == "")
+                )
                 if state.sc4mp_game_monitor_x > 0:
                     self.ui.withdraw()
             else:
@@ -111,7 +113,9 @@ class GameMonitor(th.Thread):
                 self.report_quietly("Welcome, you've joined as a guest.")
             else:
                 # Ready. #"Monitoring for changes...")
-                self.report_quietly("Welcome, start a city and save to claim a tile.")
+                self.report_quietly(
+                    "Welcome, start a city and save to claim a tile."
+                )
 
             # Show server description in UI (only for the legacy status window)
             if state.sc4mp_ui and not SC4MP_LAUNCHERMAP_ENABLED:
@@ -213,14 +217,16 @@ class GameMonitor(th.Thread):
                             # If modified savegames are found
                             if len(save_city_paths) > 0:
 
-                                # Report waiting to sync if new/modified savegames found
+                                # Report waiting to sync if new/modified
+                                # savegames found
                                 self.report("", "Saving...")
                                 self.set_overlay_state("saving")
 
                                 # Wait
                                 time.sleep(1)  # 5 #6 #5 #6 #10 #3 #TODO make configurable?
 
-                                # Filter the savegames if more than two are found
+                                # Filter the savegames if more than two are
+                                # found
                                 if len(save_city_paths) > 2:
                                     try:
                                         savegames = []
@@ -283,7 +289,8 @@ class GameMonitor(th.Thread):
                     if end:
                         break
 
-                    # Signal to break the loop when the game is no longer running
+                    # Signal to break the loop when the game is no longer
+                    # running
                     if not self.game_launcher.game_running:
                         end = True
                         # if self.ui:
@@ -314,9 +321,9 @@ class GameMonitor(th.Thread):
                                         color="red"
                                     )
                                 else:
-                                    # Unused, but in command-line mode (no UI) this
-                                    # line raises and skips the refresh, so removing
-                                    # it would change behaviour
+                                    # Unused, but in command-line mode (no UI)
+                                    # this line raises and skips the refresh,
+                                    # so removing it would change behaviour
                                     old_text = self.ui.label["text"]  # noqa: F841
                                     self.report("", "Refreshing...")
                                     self.set_overlay_state("refreshing")
@@ -374,7 +381,9 @@ class GameMonitor(th.Thread):
             # Restore the singleplayer config backup
             if state.sc4mp_config["GENERAL"]["sync_simcity_4_cfg"]:
                 try:
-                    sp_config_path = Path("~/Documents/SimCity 4/SimCity 4.cfg").expanduser()
+                    sp_config_path = Path(
+                        "~/Documents/SimCity 4/SimCity 4.cfg"
+                    ).expanduser()
                     sp_config_backup_path = Path(
                         "~/Documents/SimCity 4/SimCity 4.cfg.bak"
                     ).expanduser()
@@ -413,7 +422,10 @@ class GameMonitor(th.Thread):
 
         except Exception as e:
 
-            show_error(f"An unexpected error occurred in the game monitor thread.\n\n{e}")
+            show_error(
+                "An unexpected error occurred in the game monitor "
+                f"thread.\n\n{e}"
+            )
 
     def get_cities(self) -> tuple[list[Path], list[str]]:
 
@@ -514,16 +526,22 @@ class GameMonitor(th.Thread):
             Path(state.SC4MP_LAUNCHPATH) / "_Salvage" / self.server.server_id / timestamp
         )
         for path in save_city_paths:
-            relpath = path.relative_to(Path(state.SC4MP_LAUNCHPATH) / "Regions")
+            relpath = path.relative_to(
+                Path(state.SC4MP_LAUNCHPATH) / "Regions"
+            )
             filename = salvage_directory / relpath
             directory = filename.parent
             directory.mkdir(exist_ok=True, parents=True)
             shutil.copy(path, filename)
 
         # Verify that all saves come from the same region
-        regions = set([save_city_path.parent.name for save_city_path in save_city_paths])
+        regions = set(
+            [save_city_path.parent.name for save_city_path in save_city_paths]
+        )
         if len(regions) > 1:
-            self.report(self.PREFIX, 'Save push failed! Too many regions.', color="red")
+            self.report(
+                self.PREFIX, 'Save push failed! Too many regions.', color="red"
+            )
             self.set_overlay_state("not-saved")
             return
         else:
@@ -575,7 +593,9 @@ class GameMonitor(th.Thread):
                 shutil.rmtree(salvage_directory)  # TODO make configurable
             else:
                 self.report(
-                    self.PREFIX + "[WARNING] ", f"Save push failed! {response}", color="red"
+                    self.PREFIX + "[WARNING] ",
+                    f"Save push failed! {response}",
+                    color="red"
                 )
                 self.set_overlay_state("not-saved")
 
@@ -587,7 +607,9 @@ class GameMonitor(th.Thread):
             Path(state.SC4MP_LAUNCHPATH) / "SC4MPBackups" / self.server.server_id / region / city
         )
         backup_directory.mkdir(exist_ok=True, parents=True)
-        destination = backup_directory / datetime.now().strftime("%Y%m%d%H%M%S")
+        destination = backup_directory / datetime.now().strftime(
+            "%Y%m%d%H%M%S"
+        )
         shutil.copy(city_path, destination.with_suffix(".sc4"))
 
     def ping(self):
@@ -632,7 +654,10 @@ class GameLauncher(th.Thread):
 
         except Exception as e:
 
-            show_error(f"An unexpected error occurred while launching SimCity 4.\n\n{e}")
+            show_error(
+                "An unexpected error occurred while launching SimCity "
+                f"4.\n\n{e}"
+            )
 
         finally:
 

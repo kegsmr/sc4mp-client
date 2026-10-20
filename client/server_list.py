@@ -63,10 +63,18 @@ class ServerList(th.Thread):
 
         if self.ui:
 
-            self.blank_icon = tk.PhotoImage(file=get_sc4mp_path("blank-icon.png"))
-            self.lock_icon = tk.PhotoImage(file=get_sc4mp_path("lock-icon.png"))
-            self.official_icon = tk.PhotoImage(file=get_sc4mp_path("official-icon.png"))
-            self.error_icon = tk.PhotoImage(file=get_sc4mp_path("error-icon.png"))
+            self.blank_icon = tk.PhotoImage(
+                file=get_sc4mp_path("blank-icon.png")
+            )
+            self.lock_icon = tk.PhotoImage(
+                file=get_sc4mp_path("lock-icon.png")
+            )
+            self.official_icon = tk.PhotoImage(
+                file=get_sc4mp_path("official-icon.png")
+            )
+            self.error_icon = tk.PhotoImage(
+                file=get_sc4mp_path("error-icon.png")
+            )
 
             self.rank_bars = {}
             self.rank_bar_images = [
@@ -163,7 +171,8 @@ class ServerList(th.Thread):
                         )
                         self.ui.url_label["text"] = self.servers[server_id].server_url
 
-                    # Add all fetched servers to the server dictionary if not already present
+                    # Add all fetched servers to the server dictionary if not
+                    # already present
                     while len(self.fetched_servers) > 0:
                         fetched_server = self.fetched_servers.pop(0)
                         fetched_id = fetched_server.server_id
@@ -528,7 +537,9 @@ class ServerList(th.Thread):
         try:
             last_logon = server.last_logon
         except AttributeError:
-            server_entry = state.sc4mp_servers_database.get(server.server_id, {})
+            server_entry = state.sc4mp_servers_database.get(
+                server.server_id, {}
+            )
             last_logon = server_entry.get("last_logon", None)
 
         server.last_logon = last_logon
@@ -543,7 +554,9 @@ class ServerList(th.Thread):
         try:
 
             try:
-                mayors = self.max_category(server.stat_mayors, self.stat_mayors.values())
+                mayors = self.max_category(
+                    server.stat_mayors, self.stat_mayors.values()
+                )
                 mayors_online = self.max_category(
                     server.stat_mayors_online, self.stat_mayors_online.values()
                 )
@@ -557,7 +570,9 @@ class ServerList(th.Thread):
                 ]
                 rating = 1 + sum(categories)
             except Exception:
-                rating = 1 + self.min_category(server.stat_ping, self.stat_ping.values())
+                rating = 1 + self.min_category(
+                    server.stat_ping, self.stat_ping.values()
+                )
 
             try:
                 server.rating = ((99 * server.rating) + rating) / 100
@@ -617,7 +632,8 @@ class ServerList(th.Thread):
             # Allow the function to be scheduled again
             self.ui.rank_bar_update_scheduled = False
 
-            # Keep the old rank bars so they can be deleted after the new ones are created
+            # Keep the old rank bars so they can be deleted after the new ones
+            # are created
             r = self.rank_bars
 
             # Reset the list for new rank bars
@@ -631,7 +647,8 @@ class ServerList(th.Thread):
 
                     try:
 
-                        # Try to get the server rank, if it blows up (no stats, probably), use `0`
+                        # Try to get the server rank, if it blows up (no stats,
+                        # probably), use `0`
                         try:
                             rank = round(self.servers[server_id].rating)
                         except Exception:
@@ -649,7 +666,8 @@ class ServerList(th.Thread):
                             # Unique identifier for the canvas
                             key = (x, y, w, h, rank, selected)
 
-                            # If the canvas doesn't need to be updated, use the old one
+                            # If the canvas doesn't need to be updated, use the
+                            # old one
                             if key in r.keys():
 
                                 self.rank_bars[key] = r.pop(key)
@@ -674,7 +692,8 @@ class ServerList(th.Thread):
                                 canvas.server_id = server_id
                                 canvas.bind("<Button-1>", handle_click)
 
-                                # Create the rank bar image associated with the rank value
+                                # Create the rank bar image associated with the
+                                # rank value
                                 canvas.image = self.rank_bar_images[rank]
                                 canvas.create_image(0, 0, anchor="nw", image=canvas.image)
                                 canvas.place(
@@ -682,10 +701,12 @@ class ServerList(th.Thread):
                                     y=y + OFFSET_Y + ((CELL_H - IMAGE_H) / 2),
                                 )
 
-                                # Store the canvas so it can be deleted later, when needed
+                                # Store the canvas so it can be deleted later,
+                                # when needed
                                 self.rank_bars[key] = canvas
 
-                    # Can't remember why I put this here. I guess we don't care about `ValueErrors`
+                    # Can't remember why I put this here. I guess we don't care
+                    # about `ValueErrors`
                     except ValueError:
                         pass
 
@@ -765,7 +786,9 @@ class ServerFetcher(th.Thread):
                     raise ClientException("Server not found.") from e
 
                 if self.parent.end:
-                    raise ClientException("The parent thread was signaled to end.")
+                    raise ClientException(
+                        "The parent thread was signaled to end."
+                    )
 
                 self.server.categories.append("Online")
 
@@ -849,7 +872,10 @@ class ServerFetcher(th.Thread):
 
         except Exception as e:
 
-            show_error(f"A server fetcher thread encountered an unexpected error.\n\n{e}")
+            show_error(
+                "A server fetcher thread encountered an unexpected "
+                f"error.\n\n{e}"
+            )
 
     def fetch_stats(self):
 
@@ -891,5 +917,7 @@ class ServerPinger(th.Thread):
         except Exception as e:
 
             show_error(
-                f"A server pinger thread encountered an unexpected error\n\n{e}", no_ui=True
+                "A server pinger thread encountered an unexpected "
+                f"error\n\n{e}",
+                no_ui=True
             )

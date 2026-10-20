@@ -128,7 +128,8 @@ def get_sc4_path() -> Optional[Path]:
 
     else:
 
-        # This list could be expanded if Linux/MacOS users want to put what paths they use
+        # This list could be expanded if Linux/MacOS users want to put what
+        # paths they use
         possible_paths: list[Path] = [
 
             # Custom (specified by the user)
@@ -178,7 +179,10 @@ def start_sc4():
 
     # Cancel launch if path to SC4 not found
     if not path:
-        show_error("Path to SimCity 4 not found. Specify the correct path in settings.")
+        show_error(
+            "Path to SimCity 4 not found. Specify the correct path in "
+            "settings."
+        )
         return
 
     resw = state.sc4mp_config["SC4"]["resw"]
@@ -207,15 +211,19 @@ def start_sc4():
     else:
         arguments.append('-w')
     # assumes that properties do not have spaces
-    arguments.extend(state.sc4mp_config["SC4"]["additional_properties"].split())
+    arguments.extend(
+        state.sc4mp_config["SC4"]["additional_properties"].split()
+    )
 
     # `True` if the game is installed using Steam
     steam_sc4 = is_steam_sc4(path)
 
-    # Set to `True` once the game is launched successfully with the Steam browser protocol
+    # Set to `True` once the game is launched successfully with the Steam
+    # browser protocol
     steam_launch = False
 
-    # If SC4 is installed through Steam, try to launch it using the Steam browser protocol
+    # If SC4 is installed through Steam, try to launch it using the Steam
+    # browser protocol
     use_steam_browser_protocol = state.sc4mp_config["SC4"]["use_steam_browser_protocol"]
     if use_steam_browser_protocol == 2 or (use_steam_browser_protocol == 1 and steam_sc4):
 
@@ -296,14 +304,19 @@ def start_sc4():
         time.sleep(5)
         while True:
             if state.sc4mp_game_exit_ovveride:
-                print("Exiting without checking whether SC4 is still running...")
+                print(
+                    "Exiting without checking whether SC4 is still running..."
+                )
                 return
             try:
                 while process_exists("simcity 4.exe"):
                     time.sleep(1)
                 break
             except Exception:
-                show_error("An error occurred while checking if SC4 had exited yet.", no_ui=True)
+                show_error(
+                    "An error occurred while checking if SC4 had exited yet.",
+                    no_ui=True
+                )
                 time.sleep(10)
 
     # SimCity 4 has closed
@@ -322,7 +335,9 @@ def is_steam_sc4(path: Path):
     #    if steam_filename in exec_dir_filenames:
     #        return True
 
-    return "steamapps" in [directory.name.lower() for directory in path.parents]
+    return "steamapps" in [
+        directory.name.lower() for directory in path.parents
+    ]
 
 
 def get_sc4_cfg_path() -> Path:  # TODO can this find the cfg for the origin version?
@@ -332,7 +347,9 @@ def get_sc4_cfg_path() -> Path:  # TODO can this find the cfg for the origin ver
 
 def get_sc4_cfg() -> dict:
     """Returns data parsed from the SimCity 4.cfg file"""
-    return SC4Config(get_sc4_cfg_path(), error_callback=show_error).get_simcity_4_cfg()
+    return SC4Config(
+        get_sc4_cfg_path(), error_callback=show_error
+    ).get_simcity_4_cfg()
 
 
 def get_last_region_name() -> str:
@@ -363,7 +380,9 @@ def prep_region_config(path):
 
         if not region_name.startswith(REGION_NAME_PREFIX):
 
-            config.set("Regional Settings", "Name", REGION_NAME_PREFIX + region_name)
+            config.set(
+                "Regional Settings", "Name", REGION_NAME_PREFIX + region_name
+            )
 
             with open(path, 'wt') as config_file:
                 config.write(config_file)
@@ -378,10 +397,13 @@ def sync_simcity_4_cfg(to_mp=False):
     try:
 
         # Get paths to singleplayer and multiplayer `SimCity 4.cfg` files
-        sp_config_path = Path("~/Documents/SimCity 4/SimCity 4.cfg").expanduser()
+        sp_config_path = Path(
+            "~/Documents/SimCity 4/SimCity 4.cfg"
+        ).expanduser()
         mp_config_path = state.SC4MP_LAUNCHPATH / "SimCity 4.cfg"
 
-        # Pick the source and destination based on whether the transfer is to or from multiplayer
+        # Pick the source and destination based on whether the transfer is to
+        # or from multiplayer
         if to_mp:
             source = sp_config_path
             destination = mp_config_path
@@ -401,4 +423,8 @@ def sync_simcity_4_cfg(to_mp=False):
 
     except Exception as e:
 
-        show_error(f"An error occurred while transfering the SimCity 4 config.\n\n{e}", no_ui=True)
+        show_error(
+            "An error occurred while transfering the SimCity 4 "
+            f"config.\n\n{e}",
+            no_ui=True
+        )

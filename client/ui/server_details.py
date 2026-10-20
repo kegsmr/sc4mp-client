@@ -34,7 +34,9 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
 
         self.server = server
         self.destroyed = False
-        self.folder_icon = tk.PhotoImage(file=get_sc4mp_path("folder-icon.png"))
+        self.folder_icon = tk.PhotoImage(
+            file=get_sc4mp_path("folder-icon.png")
+        )
         self.file_icon = tk.PhotoImage(file=get_sc4mp_path("file-icon.png"))
 
         # Title
@@ -67,14 +69,18 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
         # Notebook
 
         self.notebook = ttk.Notebook(self, width=370, height=361)
-        self.notebook.bind("<<NotebookTabChanged>>", self.on_notebook_tab_changed)
+        self.notebook.bind(
+            "<<NotebookTabChanged>>", self.on_notebook_tab_changed
+        )
         self.notebook.grid(row=0, column=0, padx=10, pady=5)
 
         # Info frame
 
         self.info_frame = tk.Frame(self.notebook)
 
-        canvas = tk.Canvas(self.info_frame, width=350, height=341, highlightthickness=0)
+        canvas = tk.Canvas(
+            self.info_frame, width=350, height=341, highlightthickness=0
+        )
         canvas.grid(row=0, column=0, padx=10, pady=10, sticky="n")
         inner_frame = tk.Frame(canvas)
         canvas.create_window(0, 0, window=inner_frame, anchor="nw")
@@ -84,16 +90,24 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
         invite_link_label = ttk.Label(
             inner_frame, text="Invite link", font=("Segoe UI", 9, "bold")
         )
-        invite_link_label.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 0))
+        invite_link_label.grid(
+            row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 0)
+        )
 
         invite_link_entry = ttk.Entry(inner_frame, width=40)
         invite_link_entry.insert(0, invite_link)
-        invite_link_entry.after(100, lambda: self.reset_entrybox(invite_link_entry, invite_link))
+        invite_link_entry.after(
+            100, lambda: self.reset_entrybox(invite_link_entry, invite_link)
+        )
         # invite_link_entry.configure(state="disabled")
-        invite_link_entry.grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=0)
+        invite_link_entry.grid(
+            row=1, column=0, columnspan=2, sticky="w", padx=10, pady=0
+        )
 
         invite_link_copy_button = ttk.Button(
-            inner_frame, text="Copy", command=lambda: copy_to_clipboard(invite_link)
+            inner_frame,
+            text="Copy",
+            command=lambda: copy_to_clipboard(invite_link)
         )
         invite_link_copy_button.grid(row=1, column=2)
 
@@ -114,8 +128,12 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
         left_frame = ttk.Frame(inner_frame)
         left_frame.grid(row=10, column=0, pady=20, sticky="nw")
 
-        version_label_1 = ttk.Label(left_frame, text="Version", font=("Segoe UI", 9, "bold"))
-        version_label_1.grid(row=1, column=0, sticky="w", padx=10, pady=(10, 0))
+        version_label_1 = ttk.Label(
+            left_frame, text="Version", font=("Segoe UI", 9, "bold")
+        )
+        version_label_1.grid(
+            row=1, column=0, sticky="w", padx=10, pady=(10, 0)
+        )
 
         # Red if the major/minor version differs from the launcher's
         server_version = unformat_version(self.server.server_version)
@@ -124,14 +142,18 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
         else:
             version_color = "black"
         version_label_2 = ttk.Label(
-            left_frame, text=self.server.server_version, foreground=version_color
+            left_frame,
+            text=self.server.server_version,
+            foreground=version_color
         )
         version_label_2.grid(row=2, column=0, sticky="w", padx=10, pady=0)
 
         password_enabled_label_1 = ttk.Label(
             left_frame, text="Public", font=("Segoe UI", 9, "bold")
         )
-        password_enabled_label_1.grid(row=3, column=0, sticky="w", padx=10, pady=(10, 0))
+        password_enabled_label_1.grid(
+            row=3, column=0, sticky="w", padx=10, pady=(10, 0)
+        )
 
         if self.server.password_enabled:
             public_text = "No"
@@ -142,12 +164,18 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
         password_enabled_label_2 = ttk.Label(
             left_frame, text=public_text, foreground=public_color
         )
-        password_enabled_label_2.grid(row=4, column=0, sticky="w", padx=10, pady=0)
+        password_enabled_label_2.grid(
+            row=4, column=0, sticky="w", padx=10, pady=0
+        )
 
         if self.server.password_enabled:
 
-            private_label_1 = ttk.Label(left_frame, text="Guests", font=("Segoe UI", 9, "bold"))
-            private_label_1.grid(row=5, column=0, sticky="w", padx=10, pady=(10, 0))
+            private_label_1 = ttk.Label(
+                left_frame, text="Guests", font=("Segoe UI", 9, "bold")
+            )
+            private_label_1.grid(
+                row=5, column=0, sticky="w", padx=10, pady=(10, 0)
+            )
 
             if self.server.private:
                 guests_text = "No"
@@ -166,7 +194,9 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
         custom_plugins_label_1 = ttk.Label(
             right_frame, text="Custom plugins", font=("Segoe UI", 9, "bold")
         )
-        custom_plugins_label_1.grid(row=1, column=0, sticky="w", padx=10, pady=(10, 0))
+        custom_plugins_label_1.grid(
+            row=1, column=0, sticky="w", padx=10, pady=(10, 0)
+        )
 
         if self.server.user_plugins_enabled:
             custom_plugins_text = "Yes"
@@ -175,9 +205,13 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
             custom_plugins_text = "No"
             custom_plugins_color = "red"
         custom_plugins_label_2 = ttk.Label(
-            right_frame, text=custom_plugins_text, foreground=custom_plugins_color
+            right_frame,
+            text=custom_plugins_text,
+            foreground=custom_plugins_color
         )
-        custom_plugins_label_2.grid(row=2, column=0, sticky="w", padx=10, pady=0)
+        custom_plugins_label_2.grid(
+            row=2, column=0, sticky="w", padx=10, pady=0
+        )
 
         try:
 
@@ -196,39 +230,57 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
                 max_region_claims = f"{max_region_claims} per region"
 
             claim_duration_label_1 = ttk.Label(
-                right_frame, text="Claim duration", font=("Segoe UI", 9, "bold")
+                right_frame,
+                text="Claim duration",
+                font=("Segoe UI", 9, "bold")
             )
-            claim_duration_label_1.grid(row=3, column=0, sticky="w", padx=10, pady=(10, 0))
+            claim_duration_label_1.grid(
+                row=3, column=0, sticky="w", padx=10, pady=(10, 0)
+            )
 
             if claim_duration == "Forever":
                 claim_duration_color = "green"
             else:
                 claim_duration_color = "black"
             claim_duration_label_2 = ttk.Label(
-                right_frame, text=claim_duration, foreground=claim_duration_color
+                right_frame,
+                text=claim_duration,
+                foreground=claim_duration_color
             )
-            claim_duration_label_2.grid(row=4, column=0, sticky="w", padx=10, pady=0)
+            claim_duration_label_2.grid(
+                row=4, column=0, sticky="w", padx=10, pady=0
+            )
 
             claim_limit_label_1 = ttk.Label(
                 right_frame, text="Claim limit", font=("Segoe UI", 9, "bold")
             )
-            claim_limit_label_1.grid(row=5, column=0, sticky="w", padx=10, pady=(10, 0))
+            claim_limit_label_1.grid(
+                row=5, column=0, sticky="w", padx=10, pady=(10, 0)
+            )
 
             if max_region_claims == "None":
                 claim_limit_color = "green"
             else:
                 claim_limit_color = "black"
             claim_limit_label_2 = ttk.Label(
-                right_frame, text=max_region_claims, foreground=claim_limit_color
+                right_frame,
+                text=max_region_claims,
+                foreground=claim_limit_color
             )
-            claim_limit_label_2.grid(row=6, column=0, sticky="w", padx=10, pady=0)
+            claim_limit_label_2.grid(
+                row=6, column=0, sticky="w", padx=10, pady=0
+            )
 
             if not godmode_filter:
 
                 godmode_claims_label_1 = ttk.Label(
-                    right_frame, text="Godmode claims", font=("Segoe UI", 9, "bold")
+                    right_frame,
+                    text="Godmode claims",
+                    font=("Segoe UI", 9, "bold")
                 )
-                godmode_claims_label_1.grid(row=7, column=0, sticky="w", padx=10, pady=(10, 0))
+                godmode_claims_label_1.grid(
+                    row=7, column=0, sticky="w", padx=10, pady=(10, 0)
+                )
 
                 if godmode_filter:
                     godmode_text = "No"
@@ -239,7 +291,9 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
                 godmode_claims_label_2 = ttk.Label(
                     right_frame, text=godmode_text, foreground=godmode_color
                 )
-                godmode_claims_label_2.grid(row=8, column=0, sticky="w", padx=10, pady=0)
+                godmode_claims_label_2.grid(
+                    row=8, column=0, sticky="w", padx=10, pady=0
+                )
 
         except AttributeError:
 
@@ -271,7 +325,9 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
 
         # Ok button
 
-        self.ok_button = ttk.Button(self, text="Ok", command=self.destroy, default="active")
+        self.ok_button = ttk.Button(
+            self, text="Ok", command=self.destroy, default="active"
+        )
         self.ok_button.grid(row=1, column=0, padx=10, pady=5, sticky="se")
 
         # Create notebook frames asynchronously
@@ -423,7 +479,9 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
             else:
                 notebook_width = inner_frame.winfo_width()
                 notebook_height = inner_frame.winfo_height()
-            self.notebook.configure(width=notebook_width, height=notebook_height)
+            self.notebook.configure(
+                width=notebook_width, height=notebook_height
+            )
 
             # Get old window width, height, x, y
             old_window_width = self.winfo_width()
@@ -434,8 +492,12 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
             # Set new window width, height, x, y
             new_window_width = notebook_width + 20
             new_window_height = notebook_height + 80
-            new_window_x = old_window_x + int((old_window_width - new_window_width) / 2)
-            new_window_y = old_window_y + int((old_window_height - new_window_height) / 2)
+            new_window_x = old_window_x + int(
+                (old_window_width - new_window_width) / 2
+            )
+            new_window_y = old_window_y + int(
+                (old_window_height - new_window_height) / 2
+            )
 
             # Resize the window
             self.maxsize(new_window_width, new_window_height)
@@ -485,11 +547,16 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
             try:
                 functions[0]()
             except Exception:
-                self.after(delay, lambda: self.chain_functions(functions, delay=delay))
+                self.after(
+                    delay, lambda: self.chain_functions(functions, delay=delay)
+                )
             else:
                 functions.pop(0)
                 if len(functions) > 0:
-                    self.after(delay, lambda: self.chain_functions(functions, delay=delay))
+                    self.after(
+                        delay,
+                        lambda: self.chain_functions(functions, delay=delay)
+                    )
 
     def load_json(self, *args, **kwargs):
 

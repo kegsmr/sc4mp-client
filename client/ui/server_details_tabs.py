@@ -35,7 +35,10 @@ class ServerDetailsTabs:
 
         except Exception as e:
 
-            show_error(f"An error occurred while creating notebook frames.\n\n{e}", no_ui=True)
+            show_error(
+                f"An error occurred while creating notebook frames.\n\n{e}",
+                no_ui=True
+            )
 
     def create_mayors_frame(self):
 
@@ -201,14 +204,18 @@ class ServerDetailsTabs:
         )
 
         self.mayors_frame.tree["displaycolumns"] = ["#7", "#8"]
-        self.mayors_frame.button.configure(command=self.expand_mayors_treeview, text="Expand")
+        self.mayors_frame.button.configure(
+            command=self.expand_mayors_treeview, text="Expand"
+        )
 
         self.notebook.add(self.mayors_frame, text="Mayors")
 
     def expand_mayors_treeview(self):
 
         self.mayors_frame.tree["displaycolumns"] = "#all"
-        self.mayors_frame.button.configure(command=self.collapse_mayors_treeview, text="Collapse")
+        self.mayors_frame.button.configure(
+            command=self.collapse_mayors_treeview, text="Collapse"
+        )
 
         # self.notebook.bind("<<NotebookTabChanged>>", lambda event:
         # self.on_notebook_tab_changed(self.collapse_mayors_treeview))
@@ -218,7 +225,9 @@ class ServerDetailsTabs:
     def collapse_mayors_treeview(self):
 
         self.mayors_frame.tree["displaycolumns"] = ["#7", "#8"]
-        self.mayors_frame.button.configure(command=self.expand_mayors_treeview, text="Expand")
+        self.mayors_frame.button.configure(
+            command=self.expand_mayors_treeview, text="Expand"
+        )
 
         # self.after(200, lambda: center_window(self))
 
@@ -361,19 +370,25 @@ class ServerDetailsTabs:
 
         self.cities_frame.tree["displaycolumns"] = ["#8", "#9"]
 
-        self.cities_frame.button.configure(command=self.expand_cities_treeview, text="Expand")
+        self.cities_frame.button.configure(
+            command=self.expand_cities_treeview, text="Expand"
+        )
 
         self.notebook.add(self.cities_frame, text="Cities")
 
     def expand_cities_treeview(self):
 
         self.cities_frame.tree["displaycolumns"] = "#all"
-        self.cities_frame.button.configure(command=self.collapse_cities_treeview, text="Collapse")
+        self.cities_frame.button.configure(
+            command=self.collapse_cities_treeview, text="Collapse"
+        )
 
     def collapse_cities_treeview(self):
 
         self.cities_frame.tree["displaycolumns"] = ["#8", "#9"]
-        self.cities_frame.button.configure(command=self.expand_cities_treeview, text="Expand")
+        self.cities_frame.button.configure(
+            command=self.expand_cities_treeview, text="Expand"
+        )
 
     def create_files_frame(self):
 
@@ -452,7 +467,9 @@ class ServerDetailsTabs:
 
             self.populate_files_treeview(self.files_frame.tree, data=files)
 
-            self.files_frame.button.configure(command=self.expand_files_treeview, text="Expand")
+            self.files_frame.button.configure(
+                command=self.expand_files_treeview, text="Expand"
+            )
 
             self.notebook.add(self.files_frame, text="Files")
 
@@ -473,7 +490,13 @@ class ServerDetailsTabs:
             if isinstance(value, dict):
 
                 # Insert parent node
-                node = tree.insert(parent, 'end', text=key, values=[""], image=self.folder_icon)
+                node = tree.insert(
+                    parent,
+                    'end',
+                    text=key,
+                    values=[""],
+                    image=self.folder_icon
+                )
 
                 # Recursively add children
                 download_size = self.populate_files_treeview(tree, node, value)
@@ -496,7 +519,9 @@ class ServerDetailsTabs:
             total_download_size += download_size
 
         if parent:
-            tree.item(parent, values=[format_download_size(total_download_size)])
+            tree.item(
+                parent, values=[format_download_size(total_download_size)]
+            )
 
         return total_download_size
 
@@ -506,7 +531,9 @@ class ServerDetailsTabs:
 
         self.files_frame.adjust_tree_column_widths()
 
-        self.files_frame.button.configure(text="Collapse", command=self.collapse_files_treeview)
+        self.files_frame.button.configure(
+            text="Collapse", command=self.collapse_files_treeview
+        )
 
     def expand_files_treeview_helper(self, tree, parent=""):
 
@@ -522,7 +549,9 @@ class ServerDetailsTabs:
 
         self.files_frame.tree.column("#0", width=250)
 
-        self.files_frame.button.configure(text="Expand", command=self.expand_files_treeview)
+        self.files_frame.button.configure(
+            text="Expand", command=self.expand_files_treeview
+        )
 
     def collapse_files_treeview_helper(self, tree, parent=""):
 
