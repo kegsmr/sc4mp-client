@@ -483,14 +483,22 @@ def check_updates():
 										with open(destination, "wb") as wfile:
 											download_size_downloaded = 0
 											while download_size_downloaded < download_size:
-												while ui.pause:
-													time.sleep(.1)
+												pause()
+												if ui is not None and ui.cancel:
+													break
 												if ui is not None:
 													ui.label["text"] = f"Downloading update... ({int(100 * (download_size_downloaded / download_size))}%)"
 													ui.progress_bar["value"] = download_size_downloaded
 												bytes_read = rfile.read(SC4MP_BUFFER_SIZE) 
 												download_size_downloaded += len(bytes_read)
 												wfile.write(bytes_read)
+
+									# Delete the partial download and go back to the launcher if the user cancelled
+									if ui is not None and ui.cancel:
+										os.unlink(destination)
+										report("Update cancelled.")
+										ui.destroy()
+										return
 
 									# Pause if necessary
 									pause()
@@ -513,6 +521,11 @@ def check_updates():
 
 									show_error(f"An error occurred in the update thread.\n\n{e}", no_ui=True)
 
+									# Don't retry if the user cancelled
+									if ui is not None and ui.cancel:
+										ui.destroy()
+										return
+
 									# Retry
 									if ui is not None:
 										ui.progress_bar['mode'] = "indeterminate"
@@ -534,6 +547,14 @@ def check_updates():
 						sc4mp_ui.iconphoto(True, tk.PhotoImage(file=SC4MP_ICON))
 						sc4mp_ui.withdraw()
 
+						# Ask the user before downloading and installing the update
+						close_splash()
+						if not messagebox.askyesno(SC4MP_TITLE, f"Version {latest_release_info['tag_name']} of the SC4MP Launcher is available. You are currently using v{SC4MP_VERSION}.\n\nWould you like to update now?"):
+							print("Update declined.")
+							sc4mp_ui.destroy()
+							sc4mp_ui = True
+							return
+
 						# Create updater UI
 						updater_ui = UpdaterUI(sc4mp_ui)
 
@@ -541,8 +562,12 @@ def check_updates():
 						th.Thread(target=update, kwargs={"ui": updater_ui}, daemon=True).start()
 
 						# Run the UI main loop
-						close_splash()
 						sc4mp_ui.mainloop()
+
+						# Continue to the launcher if the update was cancelled
+						if updater_ui.cancel:
+							sc4mp_ui = True
+							return
 
 						# Exit when complete
 						sys.exit()
@@ -7455,8 +7480,8 @@ class UpdaterUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.minsize(400, 95)
-		self.maxsize(400, 95)
+		self.minsize(400, 110)
+		self.maxsize(400, 110)
 		self.grid()
 		center_window(self)
 
@@ -7486,12 +7511,15 @@ class UpdaterUI(tk.Toplevel):
 		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10,5))
 		self.progress_bar.start(2)
 
-		# Small label
-		self.label_small = tk.Label(self, fg="gray", font=("Segoe UI", 8), text="Press <ESC> to cancel")
-		self.label_small.grid(column=0, row=2, columnspan=2, padx=10, pady=(0,5))
+		# Cancel button
+		self.cancel_button = ttk.Button(self, text="Cancel", command=self.delete_window)
+		self.cancel_button.grid(column=0, row=2, columnspan=2, padx=10, pady=(5,10))
 
 		# Pause underlying thread
 		self.pause = False
+
+		# Cancel underlying thread
+		self.cancel = False
 
 
 	def delete_window(self):
@@ -7503,8 +7531,9 @@ class UpdaterUI(tk.Toplevel):
 		if choice is None:
 			sys.exit()
 		elif choice is True:
-			subprocess.Popen([sys.executable, "-skip-update", "-allow-multiple"])
-			sys.exit()
+			self.cancel = True
+			self.cancel_button["state"] = tk.DISABLED
+			self.pause = False
 		elif choice is False:
 			self.pause = False
 
