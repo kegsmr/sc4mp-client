@@ -134,7 +134,9 @@ def send_message(s: socket.socket, is_request=True, command="Ping", headers=None
 		while len(message) < 14:
 			message += b'\x00'
 
-		h = json.dumps(headers).encode() if headers else b''
+		h = b''	# no headers are sent as an empty header block
+		if headers:
+			h = json.dumps(headers).encode()
 		l = struct.pack("H", len(h))
 
 		message += l + h
@@ -179,7 +181,9 @@ def recv_message(s: socket.socket):
 		# 2 bytes header length
 		l = struct.unpack("H", recv_exact(s, 2))[0]
 
-		headers = json.loads(recv_exact(s, l).decode()) if l else {}
+		headers = {}
+		if l:
+			headers = json.loads(recv_exact(s, l).decode())
 
 		return is_request, command, headers
 
