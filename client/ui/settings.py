@@ -537,7 +537,7 @@ class SC4SettingsUI(tk.Toplevel):
         try:
 
             # Check if a path to SimCity 4 can be found, prompt for a custom path if needed
-            while get_sc4_path() == None:
+            while get_sc4_path() is None:
                 show_warning('No SimCity 4 installation found. \n\nPlease provide the correct installation path.')
                 path = filedialog.askdirectory(parent=state.sc4mp_ui)
                 if len(path) > 0:
@@ -548,7 +548,7 @@ class SC4SettingsUI(tk.Toplevel):
                     break
 
             # Load the game if a path to SimCity 4 can be found
-            if get_sc4_path() != None:
+            if get_sc4_path() is not None:
 
                 # Informational dialog
                 if not messagebox.askokcancel(title=SC4MP_TITLE, message='You are about to launch SimCity 4 in preview mode.\n\nThe purpose of preview mode is to test your SC4 launch configuration before joining a server. Any cities you build in preview mode will NOT be saved.\n\nOnce the game exits, the SC4 settings window will reappear. If the game does not launch, your SC4 settings are invalid.', icon="info"):

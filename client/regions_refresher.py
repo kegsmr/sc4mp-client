@@ -163,7 +163,6 @@ class RegionsRefresher(th.Thread):
                         filesize_read = 0
                         with d.open("wb") as dest, t.with_name(t.name + ".tmp").open("wb") as cache:
                             for chunk in chunks:
-                                filesize_remaining = filesize - filesize_read
                                 for file in [dest, cache]:
                                     file.write(chunk)
                                 filesize_read += len(chunk)
@@ -197,7 +196,7 @@ class RegionsRefresher(th.Thread):
 
     def report(self, prefix, text):
 
-        if self.ui != None:
+        if self.ui is not None:
             self.ui.label['text'] = text
             self.ui.progress_bar.start(2)
             self.ui.progress_bar['mode'] = "indeterminate"
@@ -207,7 +206,7 @@ class RegionsRefresher(th.Thread):
 
     def report_progress(self, text, value, maximum):
 
-        if self.ui != None:
+        if self.ui is not None:
             self.ui.label['text'] = text
             self.ui.progress_bar.stop()
             self.ui.progress_bar['mode'] = "determinate"

@@ -15,7 +15,6 @@ from client.errors import ClientException, show_error
 def load_config():
     """Loads settings from the configuration file."""
 
-
     print("Loading config...")
 
     state.sc4mp_config = Config(
@@ -28,7 +27,6 @@ def load_config():
 
 def update_config_constants(config):
     """For backwards compatibility. Updates the global config constants that are sometimes used internally."""
-
 
     state.SC4MP_LAUNCHPATH = config['STORAGE']['storage_path']
     state.SC4MP_LAUNCHRESW = config['SC4']['resw']

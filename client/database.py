@@ -34,6 +34,6 @@ class DatabaseManager(th.Thread, Database):
                 except Exception as e:
                     show_error(f"An unexpected error occurred in the database thread.\n\n{e}")
 
-        except Exception as e:
+        except Exception:
 
             fatal_error()

@@ -89,13 +89,13 @@ class ServerList(th.Thread):
             if state.sc4mp_config["GENERAL"]["scan_lan"]:
                 try:
                     self.lan_servers = [(row[0], port) for port in range(7240, 7250) for row in [("localhost", None, None)] + arp()]
-                except Exception as e:
+                except Exception:
                     show_error("An error occurred while scanning for LAN servers, only internet servers will be shown.", no_ui=True)
 
             delete_server_ids = []
             for server_id in reversed(state.sc4mp_servers_database.keys()):
                 server_entry = state.sc4mp_servers_database[server_id]
-                if (server_entry.get("user_id", None) != None) or ("last_contact" not in server_entry.keys()) or (datetime.strptime(server_entry["last_contact"], "%Y-%m-%d %H:%M:%S") + timedelta(days=30) > datetime.now()):
+                if (server_entry.get("user_id", None) is not None) or ("last_contact" not in server_entry.keys()) or (datetime.strptime(server_entry["last_contact"], "%Y-%m-%d %H:%M:%S") + timedelta(days=30) > datetime.now()):
                     host = server_entry["host"]
                     port = server_entry["port"]
                     self.unfetched_servers.append((host, port))
@@ -106,7 +106,7 @@ class ServerList(th.Thread):
             for delete_server_id in delete_server_ids:
                 state.sc4mp_servers_database.pop(delete_server_id)
 
-            if self.kill != None:
+            if self.kill is not None:
                 self.kill.end = True
                 while not self.kill.ended:
                     time.sleep(SC4MP_DELAY)
@@ -119,9 +119,9 @@ class ServerList(th.Thread):
 
             print("Fetching servers...")
 
-            while self.end == False:
+            while not self.end:
 
-                if self.pause == False:
+                if not self.pause:
 
                     # Enable or disable buttons and update labels
                     server_id = self.ui.tree.focus()
@@ -238,7 +238,7 @@ class ServerList(th.Thread):
                             elif (not hide) and (server_id in self.hidden_servers):
                                 self.hidden_servers.remove(server_id)
                                 # self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
-                    except Exception as e:
+                    except Exception:
                         show_error("An error occurred while filtering the server list.", no_ui=True)
                     # elif len(self.hidden_servers) > 0:
                     #    server_ids = self.hidden_servers
@@ -445,7 +445,7 @@ class ServerList(th.Thread):
         for function in functions:
             try:
                 cells.append(function())
-            except Exception as e:  # Exception as e:
+            except Exception:  # Exception as e:
                 # show_error(e)
                 cells.append("...")  # cells.append("")
         return cells
@@ -781,7 +781,7 @@ class ServerPinger(th.Thread):
                 if not self.parent.pause:
                     # print(f"Pinging {self.server.host}:{self.server.port}")
                     ping = self.server.ping()
-                    if ping != None:
+                    if ping is not None:
                         self.server.stat_ping = ping  # int((self.server.stat_ping + ping) / 2)
                         state.sc4mp_servers_database[self.server.server_id]["stat_ping"] = ping
 

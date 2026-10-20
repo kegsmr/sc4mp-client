@@ -39,7 +39,6 @@ def check_updates():
 
         try:
 
-
             # Get the path of the executable file which is currently running
             exec_path = Path(sys.executable)
             exec_file = exec_path.name

@@ -36,9 +36,9 @@ def get_sc4_path() -> Optional[Path]:
 
         # Drive letters
         drives: list[Path] = []
-        for l in range(65, 91):
+        for letter_code in range(65, 91):
             try:
-                letter: str = chr(l)
+                letter: str = chr(letter_code)
                 drive = Path(f"{letter}:\\")
                 if drive.exists():
                     drives += [drive]
@@ -239,8 +239,8 @@ def start_sc4():
                 subprocess.run(command, executable=arguments[0])  # `subprocess.run(arguments)` won't work on Windows for some unknowable reason; `executable` stops Windows guessing where the exe path ends
             else:
                 subprocess.run(arguments)  # on Linux, the first String passed as argument must be a file that exists
-        except PermissionError as e:
-            show_error(f"The launcher does not have the necessary privileges to launch SimCity 4. Try running the SC4MP Launcher as administrator.")
+        except PermissionError:
+            show_error("The launcher does not have the necessary privileges to launch SimCity 4. Try running the SC4MP Launcher as administrator.")
 
     else:
 
@@ -271,7 +271,7 @@ def start_sc4():
                 while process_exists("simcity 4.exe"):
                     time.sleep(1)
                 break
-            except Exception as e:
+            except Exception:
                 show_error("An error occurred while checking if SC4 had exited yet.", no_ui=True)
                 time.sleep(10)
 

@@ -2,7 +2,6 @@ import os
 import platform
 import shutil
 import struct
-import subprocess
 import sys
 from datetime import datetime
 
@@ -11,7 +10,8 @@ if sys.version_info[:2] != (3, 8):
 
 # subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
 
-import requests
+# Not used here, but core.util needs it to update the server list
+import requests  # noqa: F401
 import PyInstaller.__main__ as pyinstaller
 from pyinstaller_versionfile import create_versionfile
 
@@ -54,7 +54,7 @@ def main():
             shutil.rmtree(item)
 
     # Create version file
-    print(f"Creating version file...")
+    print("Creating version file...")
     create_versionfile(
         output_file="version.rc",
         version=VERSION,
@@ -69,25 +69,25 @@ def main():
     # Run setup
     print("Running setup...")
     pyinstaller.run([
-        f"sc4mpclient.py",
-        f"--specpath",
+        "sc4mpclient.py",
+        "--specpath",
         f"{os.path.join('temp', 'spec')}",
-        f"--distpath",
-        f"dist",
-        f"--workpath",
+        "--distpath",
+        "dist",
+        "--workpath",
         f"{os.path.join('temp', 'build')}",
-        f"--onedir",
-        f"--contents-directory",
-        f"resources",
-        f"--noconfirm",
-        f"--noupx",
-        f"--windowed",
-        f"-i",
+        "--onedir",
+        "--contents-directory",
+        "resources",
+        "--noconfirm",
+        "--noupx",
+        "--windowed",
+        "-i",
         f"{os.path.abspath(os.path.join('resources', 'icon.ico'))}",
-        f"--version-file",
+        "--version-file",
         f"{os.path.abspath('version.rc')}",
-        f"--exclude=numpy",
-        f"--exclude=cryptography",
+        "--exclude=numpy",
+        "--exclude=cryptography",
     ])
 
     # Copy binary files to distribution directory

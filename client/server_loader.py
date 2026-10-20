@@ -65,7 +65,7 @@ class ServerLoader(th.Thread):
 
         self.setDaemon(True)
 
-        if state.sc4mp_ui != None:
+        if state.sc4mp_ui is not None:
             state.sc4mp_ui.withdraw()
 
     def run(self):
@@ -74,7 +74,7 @@ class ServerLoader(th.Thread):
 
             set_thread_name("SldThread", enumerate=False)
 
-            if self.ui != None:
+            if self.ui is not None:
 
                 # Prompt the SC4 intallation directory while not found
                 while get_sc4_path() is None:
@@ -156,7 +156,7 @@ class ServerLoader(th.Thread):
 
                 state.sc4mp_current_server = self.server
 
-            except tk.TclError as e:
+            except tk.TclError:
 
                 pass
 
@@ -220,7 +220,7 @@ class ServerLoader(th.Thread):
 
     def report(self, prefix, text):
 
-        if self.ui != None:
+        if self.ui is not None:
             self.ui.label['text'] = text
             self.ui.progress_bar.start(2)
             self.ui.progress_bar['mode'] = "indeterminate"
@@ -232,7 +232,7 @@ class ServerLoader(th.Thread):
 
     def report_progress(self, text, value, maximum):
 
-        if self.ui != None:
+        if self.ui is not None:
             self.ui.label['text'] = text
             self.ui.progress_bar.stop()
             self.ui.progress_bar['mode'] = "determinate"
@@ -242,9 +242,9 @@ class ServerLoader(th.Thread):
 
     def fetch_server(self):
 
-        if self.server.fetched == False:
+        if not self.server.fetched:
             self.server.fetch()
-            if self.server.fetched == False:
+            if not self.server.fetched:
                 raise ClientException("Unable to find server. Check the IP address and port, then try again.")
         if not state.sc4mp_config["DEBUG"]["ignore_incompatable_versions"]:
             if unformat_version(self.server.server_version)[:2] < unformat_version(SC4MP_VERSION)[:2]:
@@ -252,7 +252,7 @@ class ServerLoader(th.Thread):
                     raise ClientException(f"The server requires an outdated version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please contact the server administrators.")
             if unformat_version(self.server.server_version)[:2] > unformat_version(SC4MP_VERSION)[:2]:
                 raise ClientException(f"The server requires a newer version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please update the launcher to connect to this server.")
-        if self.ui != None:
+        if self.ui is not None:
             self.ui.title(self.server.server_name)
 
     def authenticate(self):
@@ -414,9 +414,6 @@ class ServerLoader(th.Thread):
                     purge_directory(client_plugins_destination)
                 except Exception as e:
                     show_error(f"Unable to delete \"{e}\"!", no_ui=True)
-
-        # For keeping track of number of times the download is attempter
-        tries = 0
 
         # Loop broken when the loading is successful, an unexpected error occurs, or the amount of tries is exceeded
         while True:
@@ -668,7 +665,7 @@ class ServerLoader(th.Thread):
             try:
                 default_plugin_file_path = default_plugins_source / default_plugin_file_name
                 default_plugin_checksum = md5(default_plugin_file_path)
-                if not default_plugin_checksum in toplevel_plugins_checksums:
+                if default_plugin_checksum not in toplevel_plugins_checksums:
                     shutil.copy(default_plugin_file_path, default_plugins_destination / f"default-{default_plugin_file_name}")
                     toplevel_plugins_checksums.append(default_plugin_checksum)
             except Exception as e:
@@ -677,7 +674,7 @@ class ServerLoader(th.Thread):
         # Copy DLLs from subfolders (DLL plugins do not load in subfolders)
         for path, basename in self.dll_plugin_paths:
             checksum = md5(path)
-            if not checksum in toplevel_plugins_checksums:
+            if checksum not in toplevel_plugins_checksums:
                 shutil.copy(path, default_plugins_destination / f"{basename}-{checksum}.dll")
                 toplevel_plugins_checksums.append(checksum)
 
@@ -722,7 +719,7 @@ class ServerLoader(th.Thread):
             for filename in os.listdir(region_directory):
                 shutil.copy(os.path.join(region_directory, filename), os.path.join(downloads_path, filename))
 
-        except Exception as e:
+        except Exception:
 
             pass  # show_error(e, no_ui=True)
 

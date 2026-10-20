@@ -78,7 +78,7 @@ def load_json(filename):
     try:
         with open(filename, 'r') as file:
             data = json.load(file)
-            if data == None:
+            if data is None:
                 return dict()
             else:
                 return data
@@ -166,7 +166,7 @@ def arp():
     if is_windows():
         call = 'arp', '-a'
         output = subprocess.check_output(call, shell=True).decode()
-        return [line for line in re.findall('([-.0-9]+)\s+([-0-9a-f]{17})\s+(\w+)', output)]
+        return [line for line in re.findall(r'([-.0-9]+)\s+([-0-9a-f]{17})\s+(\w+)', output)]
     else:  # TODO make this work on other platforms besides Windows
         return []
 

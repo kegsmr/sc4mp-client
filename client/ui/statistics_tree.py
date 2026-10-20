@@ -337,7 +337,7 @@ class StatisticsTreeUI(tk.Frame):
             try:
                 if self.tree.heading(column, "text") != "⠀":
                     width += self.tree.column(column, option="width")
-            except:
+            except BaseException:
                 pass
 
         return width

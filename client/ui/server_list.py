@@ -286,7 +286,8 @@ class ServerListUI(tk.Frame):
 
         menu = tk.Menu(self, tearoff=0)
 
-        if not server_id: return
+        if not server_id:
+            return
 
         self.tree.selection_set(server_id)
         self.tree.focus(server_id)
@@ -325,7 +326,7 @@ class ServerListUI(tk.Frame):
             if self.tree.focus() == "" and len(children) > 0:
                 self.tree.focus(children[0])
                 self.tree.selection_add([children[0]])
-        except Exception as e:
+        except Exception:
             show_error("Error setting focus on server list UI.", no_ui=True)  # Method not all that important so we'll just toss an error in the console and call it a day
 
     def details(self):

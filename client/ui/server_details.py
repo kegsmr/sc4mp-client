@@ -232,7 +232,7 @@ class ServerDetailsUI(tk.Toplevel):
 
         try:
             self.notebook.select(state.sc4mp_server_details_ui_last_tab_index)
-        except Exception as e:
+        except Exception:
             pass
 
     def on_notebook_tab_changed(self, function: Callable):
@@ -396,7 +396,6 @@ class ServerDetailsUI(tk.Toplevel):
             show_error(e, no_ui=True)
 
     def destroy(self):
-
 
         try:
             state.sc4mp_server_details_ui_last_tab_index = self.notebook.index(self.notebook.select())

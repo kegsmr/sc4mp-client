@@ -113,7 +113,6 @@ class GameMonitorUI(tk.Toplevel):
 
     def destroy(self):
 
-
         try:
             state.sc4mp_game_monitor_x = self.winfo_x()
             state.sc4mp_game_monitor_y = self.winfo_y()
@@ -358,5 +357,5 @@ class RegionsRefresherUI(tk.Toplevel):
             self.overrideredirect(True)
             self.lift()
             self.after(100, self.overlay)
-        except Exception as e:
+        except Exception:
             show_error("Unable to overlay region refresher UI.", no_ui=True)

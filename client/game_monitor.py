@@ -130,16 +130,16 @@ class GameMonitor(th.Thread):
                         ping = self.ping()
 
                         # If the server is responsive, print the ping in the console and display the ping in the ui
-                        if ping != None:
+                        if ping is not None:
                             print(f"Ping: {ping}")
-                            if self.ui != None:
+                            if self.ui is not None:
                                 self.ui.ping_frame.right['text'] = f"{ping}ms"
                                 self.ui.ping_frame.right['fg'] = "gray"
 
                         # If the server is unresponsive, print a warning in the console and update the ui accordingly
                         else:
                             print("[WARNING] Disconnected.")
-                            if self.ui != None:
+                            if self.ui is not None:
                                 self.ui.ping_frame.right['text'] = "Disconnected"
                                 self.ui.ping_frame.right['fg'] = "red"
 
@@ -174,7 +174,7 @@ class GameMonitor(th.Thread):
                             for new_city_path in new_city_paths:
 
                                 # If it's a new savegame, add it to the list of savegames to be pushed to the server
-                                if not new_city_path in self.city_paths:
+                                if new_city_path not in self.city_paths:
                                     save_city_paths.append(new_city_path)
 
                                 # If it's not a new savegame, check if it's a modified savegame. If so, add it to the same list
@@ -241,7 +241,7 @@ class GameMonitor(th.Thread):
                             time.sleep(5)
 
                     # Break the loop when signaled
-                    if end == True:
+                    if end:
                         break
 
                     # Signal to break the loop when the game is no longer running
@@ -262,16 +262,16 @@ class GameMonitor(th.Thread):
                     cfg_path = get_sc4_cfg_path()
                     try:
                         new_cfg_hashcode = md5(cfg_path)
-                        if cfg_hashcode != None and new_cfg_hashcode != cfg_hashcode:
+                        if cfg_hashcode is not None and new_cfg_hashcode != cfg_hashcode:
                             # print("Region switched!")
                             sync_simcity_4_cfg()
                             new_refresh_region_open = refresh_region_open()
                             if new_refresh_region_open and (not old_refresh_region_open):
                                 # print("Refresh regions!")
-                                if ping == None:
+                                if ping is None:
                                     self.report("[WARNING] ", "Unable to refresh regions at this time.", color="red")
                                 else:
-                                    old_text = self.ui.label["text"]
+                                    old_text = self.ui.label["text"]  # noqa: F841 (unused, kept as is)
                                     self.report("", "Refreshing...")
                                     self.set_overlay_state("refreshing")
                                     if state.sc4mp_ui:
@@ -294,7 +294,7 @@ class GameMonitor(th.Thread):
                     except Exception as e:
                         show_error(f"An unexpected error occurred while refreshing regions.\n\n{e}", no_ui=True)
 
-                except Exception as e:
+                except Exception:
                     if self.end:
                         break
                     else:
@@ -509,14 +509,14 @@ class GameMonitor(th.Thread):
 
     def report(self, prefix, text, color="black"):
 
-        if self.ui != None:
+        if self.ui is not None:
             self.ui.label['text'] = text
             self.ui.label.config(fg=color)
         print(prefix + text)
 
     def report_quietly(self, text):
 
-        if self.ui != None:
+        if self.ui is not None:
             self.ui.label['text'] = text
 
     def set_overlay_state(self, state):

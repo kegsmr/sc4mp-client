@@ -98,10 +98,10 @@ class Server:
         # if (self.server_version != None):
         #    self.server_version = unformat_version(self.server_version)
 
-        if self.fetched == True:
+        if self.fetched:
             try:
                 self.update_database()
-            except Exception as e:
+            except Exception:
                 show_error("An error occurred while updating the server database.", no_ui=True)
 
     def fetch_stats(self):
@@ -127,24 +127,24 @@ class Server:
                     region_database = load_json(region_database_path)
                     for coords in region_database.keys():
                         city_entry = region_database[coords]
-                        if city_entry != None:
+                        if city_entry is not None:
                             owner = city_entry["owner"]
                             locked = city_entry.get("locked", False)
                             area = city_entry["size"] ** 2
                             if locked:
                                 total_area -= area
-                            if owner != None:
+                            if owner is not None:
                                 if not locked:
                                     claimed_area += area
                                 if owner not in mayors:
                                     mayors.append(owner)
                                 modified = city_entry["modified"]
-                                if modified != None:
+                                if modified is not None:
                                     modified = datetime.strptime(modified, "%Y-%m-%d %H:%M:%S")
                                     if modified > server_time - timedelta(minutes=state.sc4mp_config["GENERAL"]["stat_mayors_online_cutoff"]) and owner not in mayors_online:
                                         mayors_online.append(owner)
                     total_area += region_dimensions[0] * region_dimensions[1]
-                except Exception as e:
+                except Exception:
                     show_error(f"An error occurred while calculating region statistics for \"{region}\".", no_ui=True)
 
             self.stat_mayors = len(mayors)  # (random.randint(0,1000))
@@ -159,7 +159,7 @@ class Server:
             self.stat_download, self.stat_actual_download = download  # (random.randint(0, 10 ** 11))
 
         ping = self.ping()
-        if ping != None:
+        if ping is not None:
             self.stat_ping = ping
 
         state.sc4mp_servers_database[self.server_id]["stat_mayors"] = self.stat_mayors
@@ -208,7 +208,6 @@ class Server:
                 for entry in s.file_table_data(type_, file_table):
 
                     # Get necessary values from entry
-                    filesize = entry[1]
                     relpath = Path(entry[2])
                     chunks = entry[3]
 
@@ -267,7 +266,7 @@ class Server:
             pass
 
         # Verify server can produce the user_id from the hash of the user_id and token combined
-        if token != None:
+        if token is not None:
             hash = hashlib.sha256(((hashlib.sha256(user_id.encode()).hexdigest()[:32]) + token).encode()).hexdigest()
             with self.socket() as s:
                 if s.user_id(hash) == hashlib.sha256(user_id.encode()).hexdigest()[:32]:
@@ -320,7 +319,7 @@ class Server:
             with self.socket() as s:
                 return s.time()
 
-        except Exception as e:
+        except Exception:
 
             show_error("Unable to get server time, using local time instead.", no_ui=True)
 

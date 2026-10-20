@@ -60,7 +60,7 @@ def main():
         url_launch_exit_after = True
 
         # Exit if already runnning (unless launching using URL)
-        if not "-allow-multiple" in sc4mp_args:
+        if "-allow-multiple" not in sc4mp_args:
             try:
                 count = process_count("sc4mpclient.exe")
                 if count is not None and count > 1:
@@ -111,7 +111,7 @@ def main():
             or (len(sc4mp_args) > 1 and not state.sc4mp_force_update)
 
         # "-no-ui" flag
-        state.sc4mp_ui = not "-no-ui" in sc4mp_args
+        state.sc4mp_ui = "-no-ui" not in sc4mp_args
 
         # "-exit-after" flag
         state.sc4mp_exit_after = "-exit-after" in sc4mp_args
@@ -179,15 +179,15 @@ def main():
             state.sc4mp_ui.mainloop()
         else:
             state.sc4mp_ui = None
-            if state.sc4mp_host == None or state.sc4mp_port == None:
+            if state.sc4mp_host is None or state.sc4mp_port is None:
                 print("[PROMPT] Connect to server:")
-            if state.sc4mp_host == None:
+            if state.sc4mp_host is None:
                 state.sc4mp_host = input("[PROMPT] - Enter server address... ")
-            if state.sc4mp_port == None:
+            if state.sc4mp_port is None:
                 state.sc4mp_port = int(input("[PROMPT] - Enter server port... "))
             server = Server(state.sc4mp_host, state.sc4mp_port)
             server.fetch()
-            if state.sc4mp_password == None and server.password_enabled:
+            if state.sc4mp_password is None and server.password_enabled:
                 state.sc4mp_password = input("[PROMPT] - Enter server password... ")
             server.password = state.sc4mp_password
             ServerLoader(None, server).run()
@@ -196,7 +196,7 @@ def main():
 
         pass
 
-    except Exception as e:
+    except Exception:
 
         # Fatal error
         fatal_error()

@@ -32,8 +32,8 @@ def show_error(e, no_ui=False):
     print(f"[ERROR] {message}\n\n{traceback.format_exc()}")
 
     if not no_ui:
-        if state.sc4mp_ui != None:
-            if state.sc4mp_ui == True:
+        if state.sc4mp_ui is not None:
+            if state.sc4mp_ui is True:
                 tk.Tk().withdraw()
                 close_splash()
             messagebox.showerror(SC4MP_TITLE, message)
@@ -65,8 +65,8 @@ def fatal_error():
 
     print(f"[FATAL] {message}")
 
-    if state.sc4mp_ui != None:
-        if state.sc4mp_ui == True:
+    if state.sc4mp_ui is not None:
+        if state.sc4mp_ui is True:
             tk.Tk().withdraw()
             close_splash()
         messagebox.showerror(SC4MP_TITLE, message)
@@ -90,8 +90,8 @@ def show_warning(e):
 
     print(f"[WARNING] {message}")
 
-    if state.sc4mp_ui != None:
-        if state.sc4mp_ui == True:
+    if state.sc4mp_ui is not None:
+        if state.sc4mp_ui is True:
             tk.Tk().withdraw()
             close_splash()
         messagebox.showwarning(SC4MP_TITLE, message)

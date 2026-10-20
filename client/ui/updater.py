@@ -152,7 +152,6 @@ class ReleaseNotesUI(tk.Toplevel):
             else:
                 for line_number in range(len(lines)):
                     line = lines[line_number]
-                    bold = "**" in line
                     bulleted = line.startswith("- ")
                     for sequence in ["**", "- "]:
                         line = line.replace(sequence, "")

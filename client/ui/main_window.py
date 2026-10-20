@@ -129,7 +129,6 @@ class UI(tk.Tk):
 
     def release_notes(self):
 
-
         try:
 
             # Set version for release info
@@ -205,12 +204,12 @@ class UI(tk.Tk):
         super().withdraw()
         try:
             self.server_list.worker.pause = True
-        except Exception as e:
+        except Exception:
             show_error("Unable to pause server list thread.", no_ui=True)
 
     def deiconify(self):
         super().deiconify()
         try:
             self.server_list.worker.pause = False
-        except Exception as e:
+        except Exception:
             pass
