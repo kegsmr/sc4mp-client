@@ -1,5 +1,6 @@
-"""Threads that fill the server browser: fetching, pinging and ranking
-servers."""
+"""ServerList thread: fills the server browser, then filters, sorts and
+ranks its servers. The per-server fetcher and pinger threads are in
+server_fetcher.py."""
 
 from __future__ import annotations
 
