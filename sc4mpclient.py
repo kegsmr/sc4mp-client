@@ -3224,6 +3224,7 @@ class GameMonitor(th.Thread):
 
 	PING_INTERVAL = 15			# seconds between pings
 	DOWNLOAD_RETRY_DELAY = 10	# seconds to wait before trying again when downloading cities saved by other mayors fails
+	SAVE_TIMEOUT = 60			# seconds to wait for SC4 to finish writing a save before pushing what it wrote
 
 
 	def __init__(self, server):
@@ -3432,18 +3433,21 @@ class GameMonitor(th.Thread):
 		"""Returns the paths of new and modified savegames, waiting until SC4 stops writing savegames so a save isn't pushed in pieces."""
 
 		save_city_paths = []
+		start_time = time.time()
 
-		# Loop until no new/modified savegames were found in the last iteration of the loop (meant to prevent fragmented save pushes, not the best solution because it relies somewhat on the loop delay)
-		save_city_paths_length = -1
-		while len(save_city_paths) != save_city_paths_length:
-
-			save_city_paths_length = len(save_city_paths)
+		# Loop until SC4 stops writing savegames (meant to prevent fragmented save pushes, not the best solution because it relies somewhat on the loop delay)
+		changed = True
+		incomplete = False
+		while changed or (incomplete and time.time() - start_time < self.SAVE_TIMEOUT):
 
 			# Compare the savegames in the regions with the ones from the last loop
+			changed = False
 			cities = self.get_cities()
 			for path, hashcode in cities.items():
-				if self.cities.get(path) != hashcode and path not in save_city_paths:
-					save_city_paths.append(path)
+				if self.cities.get(path) != hashcode:
+					changed = True
+					if path not in save_city_paths:
+						save_city_paths.append(path)
 			self.cities = cities
 
 			# If new/modified savegames were found, wait to see if SC4 writes more
@@ -3454,8 +3458,8 @@ class GameMonitor(th.Thread):
 
 				time.sleep(1) #TODO make configurable?
 
-				# Filter the savegames if more than two are found
-				if len(save_city_paths) > 2:
+				# SC4 also rewrites neighbouring cities when saving, so filter the savegames if more than one is found
+				if changed and len(save_city_paths) > 1:
 					savegames = []
 					try:
 						for save_city_path in save_city_paths:
@@ -3466,6 +3470,8 @@ class GameMonitor(th.Thread):
 						if len(filtered_savegames) == 1:
 							save_city_paths = [savegame.filename for savegame in filtered_savegames]
 							break
+						# If none of them borders all the others, SC4 has only written the neighbours so far, so wait for the saved city
+						incomplete = not filtered_savegames
 					except Exception as e:
 						show_error(e, no_ui=True)
 					finally:
