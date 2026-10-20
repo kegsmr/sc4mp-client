@@ -3010,7 +3010,7 @@ class ServerLoader(th.Thread):
 
 						# Receive the file. Write to both the destination and cache
 						filesize_read = 0
-						with d.open("wb") as dest, t.open("wb") as cache:
+						with d.open("wb") as dest, t.with_name(t.name + ".tmp").open("wb") as cache:
 							for chunk in chunks:
 								for file in [dest, cache]:
 									file.write(chunk)
@@ -3039,6 +3039,7 @@ class ServerLoader(th.Thread):
 												self.ui.duration_label["text"] = f"{minutes}:{seconds:0>{2}}"
 									except ZeroDivisionError as e:
 										show_error(e, no_ui=True) # Lazy solution
+						t.with_name(t.name + ".tmp").replace(t)	# only cache the file once its checksum has been verified
 
 				self.report_progress(f"Synchronizing {target}... (100%)", 100, 100)
 
@@ -3914,7 +3915,7 @@ class RegionsRefresher(th.Thread):
 
 						# Receive the file. Write to both the destination and cache
 						filesize_read = 0
-						with d.open("wb") as dest, t.open("wb") as cache:
+						with d.open("wb") as dest, t.with_name(t.name + ".tmp").open("wb") as cache:
 							for chunk in chunks:
 								filesize_remaining = filesize - filesize_read
 								for file in [dest, cache]:
@@ -3925,6 +3926,7 @@ class RegionsRefresher(th.Thread):
 								percent = math.floor(100 * (size_downloaded / (size + 1)))
 								if percent > old_percent:
 									self.report_progress(f"Refreshing regions... ({percent}%)", percent, 100)
+						t.with_name(t.name + ".tmp").replace(t)	# only cache the file once its checksum has been verified
 
 				self.report_progress("Refreshing regions... (100%)", 100, 100)
 
