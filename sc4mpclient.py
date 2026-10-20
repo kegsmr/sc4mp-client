@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import configparser
 import ctypes
+import gc
 import hashlib
 import inspect
 import json
@@ -410,6 +411,19 @@ def check_updates():
 								print(message)
 								ui.label["text"] = message
 
+							# Function to stop the update if the user cancelled it
+							def cancelled():
+								if ui is None or not ui.cancel:
+									return False
+								if destination is not None and os.path.exists(destination):
+									os.unlink(destination)
+								report("Update cancelled.")
+								ui.parent.quit()
+								return True
+
+							# Path of the installer, set once the download starts
+							destination = None
+
 							# Change working directory to the one where the 
 							# executable can be found
 							if exec_file == "sc4mpclient.exe":
@@ -448,6 +462,10 @@ def check_updates():
 
 									# Pause if necessary
 									pause()
+
+									# Stop if the user cancelled
+									if cancelled():
+										return
 
 									# Get download URL
 									download_url = None
@@ -493,11 +511,8 @@ def check_updates():
 												download_size_downloaded += len(bytes_read)
 												wfile.write(bytes_read)
 
-									# Delete the partial download and go back to the launcher if the user cancelled
-									if ui is not None and ui.cancel:
-										os.unlink(destination)
-										report("Update cancelled.")
-										ui.destroy()
+									# Stop and delete the partial download if the user cancelled
+									if cancelled():
 										return
 
 									# Pause if necessary
@@ -513,6 +528,10 @@ def check_updates():
 									# Pause if necessary
 									pause()
 
+									# Stop if the user cancelled
+									if cancelled():
+										return
+
 									# Start installer in very silent mode and exit
 									subprocess.Popen([os.path.abspath(destination), f"/dir={os.getcwd()}", "/verysilent"])
 									ui.destroy()
@@ -522,8 +541,7 @@ def check_updates():
 									show_error(f"An error occurred in the update thread.\n\n{e}", no_ui=True)
 
 									# Don't retry if the user cancelled
-									if ui is not None and ui.cancel:
-										ui.destroy()
+									if cancelled():
 										return
 
 									# Retry
@@ -559,14 +577,27 @@ def check_updates():
 						updater_ui = UpdaterUI(sc4mp_ui)
 
 						# Start update thread
-						th.Thread(target=update, kwargs={"ui": updater_ui}, daemon=True).start()
+						update_thread = th.Thread(target=update, kwargs={"ui": updater_ui}, daemon=True)
+						update_thread.start()
 
 						# Run the UI main loop
 						sc4mp_ui.mainloop()
 
 						# Continue to the launcher if the update was cancelled
 						if updater_ui.cancel:
+
+							# Wait for the update thread to let go of the Tk root, it must be freed on this thread
+							update_thread.join()
+
+							# Stop the progress bar's timer so it doesn't fire after the Tk root is destroyed
+							updater_ui.progress_bar.stop()
+							updater_ui.destroy()
+
+							# Free the old Tk root now, on this thread (Tcl aborts if another thread's garbage collection frees it)
+							updater_ui = None
 							sc4mp_ui = True
+							gc.collect()
+
 							return
 
 						# Exit when complete
@@ -7523,6 +7554,10 @@ class UpdaterUI(tk.Toplevel):
 
 
 	def delete_window(self):
+
+		# Already cancelled, waiting for the update thread to stop
+		if self.cancel:
+			return
 
 		self.pause = True
 
