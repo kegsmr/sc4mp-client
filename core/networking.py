@@ -1,3 +1,6 @@
+"""The SC4MP network protocol: message framing, sockets and the request
+handler base class shared by the launcher and the server."""
+
 import errno
 import socket
 import json
@@ -35,231 +38,233 @@ COMMAND_LOADING_BACKGROUND = 'LdgBkg'
 
 def send_json(s: socket.socket, data, length_encoding="I"):
 
-	if data is None:
-		data = {}
+    if data is None:
+        data = {}
 
-	data = json.dumps(data).encode()
+    data = json.dumps(data).encode()
 
-	s.sendall(struct.pack(length_encoding, len(data)) + data)
+    s.sendall(struct.pack(length_encoding, len(data)) + data)
 
 
 def recv_json(s: socket.socket, length_encoding="I"):
 
-	length_header_size = struct.calcsize(length_encoding)
-	length_header = b""
+    length_header_size = struct.calcsize(length_encoding)
+    length_header = b""
 
-	while len(length_header) < length_header_size:
-		if d := s.recv(length_header_size - len(length_header)):
-			length_header += d
-		else:
-			raise ConnectionClosedException()
+    while len(length_header) < length_header_size:
+        if d := s.recv(length_header_size - len(length_header)):
+            length_header += d
+        else:
+            raise ConnectionClosedException()
 
-	data_size = struct.unpack(length_encoding, length_header)[0]
-	data_size_read = 0
+    data_size = struct.unpack(length_encoding, length_header)[0]
+    data_size_read = 0
 
-	data = b""
-	
-	while data_size_read < data_size:
+    data = b""
 
-		buffer_size = min(BUFFER_SIZE, data_size - data_size_read)
+    while data_size_read < data_size:
 
-		if d := s.recv(buffer_size):
-			data += d
-			data_size_read += len(d)
-		else:
-			raise ConnectionClosedException()
+        buffer_size = min(BUFFER_SIZE, data_size - data_size_read)
 
-	if len(data) < 1:
-		raise NetworkException('No data received.')
-	
-	return json.loads(data.decode())
+        if d := s.recv(buffer_size):
+            data += d
+            data_size_read += len(d)
+        else:
+            raise ConnectionClosedException()
+
+    if len(data) < 1:
+        raise NetworkException('No data received.')
+
+    return json.loads(data.decode())
 
 
 def recv_exact(s: socket.socket, length: int) -> bytes:
 
-	data = bytearray()
-	remaining = length
+    data = bytearray()
+    remaining = length
 
-	while remaining > 0:
+    while remaining > 0:
 
-		chunk = s.recv(remaining)
+        chunk = s.recv(remaining)
 
-		if not chunk:
-			raise ConnectionClosedException()
-		
-		data += chunk
-		remaining -= len(chunk)
+        if not chunk:
+            raise ConnectionClosedException()
 
-	return bytes(data)
-	
+        data += chunk
+        remaining -= len(chunk)
 
-def send_message(s: socket.socket, is_request=True, command="Ping", headers=None):
+    return bytes(data)
 
-	try:
 
-		if headers is None:
-			headers = {}
+def send_message(s: socket.socket, is_request=True, command="Ping",
+                 headers=None):
 
-		m = MESSAGE_PROTOCOL
-		if is_request:
-			m += MESSAGE_TYPE_REQUEST
-		else:
-			m += MESSAGE_TYPE_RESPONSE
-		m += command
+    try:
 
-		message = m.encode('ascii')
+        if headers is None:
+            headers = {}
 
-		while len(message) < 14:
-			message += b"\x00"
+        m = MESSAGE_PROTOCOL
+        if is_request:
+            m += MESSAGE_TYPE_REQUEST
+        else:
+            m += MESSAGE_TYPE_RESPONSE
+        m += command
 
-		h = json.dumps(headers).encode()
-		l = struct.pack("H", len(h))
+        message = m.encode('ascii')
 
-		message += l + h
+        while len(message) < 14:
+            message += b"\x00"
 
-		s.sendall(message)
+        h = json.dumps(headers).encode()
+        length = struct.pack("H", len(h))
 
-	except NetworkException as e:
-		raise e
-	except Exception as e:
-		raise NetworkException(e) from e
+        message += length + h
+
+        s.sendall(message)
+
+    except NetworkException as e:
+        raise e
+    except Exception as e:
+        raise NetworkException(e) from e
 
 
 def recv_message(s: socket.socket):
 
-	try:
+    try:
 
-		# 5 bytes protocol (b'SC4MP')
-		pb = recv_exact(s, 5)
-		p = pb.decode('ascii')
-		if p != MESSAGE_PROTOCOL:
-			raise NetworkException(
-				f"Expected {MESSAGE_PROTOCOL!r}, but received {p!r}."
-			)
+        # 5 bytes protocol (b'SC4MP')
+        pb = recv_exact(s, 5)
+        p = pb.decode('ascii')
+        if p != MESSAGE_PROTOCOL:
+            raise NetworkException(
+                f"Expected {MESSAGE_PROTOCOL!r}, but received {p!r}."
+            )
 
-		# 3 bytes message type (b'Req' or b'Res')
-		tb = recv_exact(s, 3)
-		t = tb.rstrip(b"\x00").decode('ascii')
-		if t == MESSAGE_TYPE_REQUEST:
-			is_request = True
-		elif t == MESSAGE_TYPE_RESPONSE:
-			is_request = False
-		else:
-			raise NetworkException(
-				f"Expected message type {MESSAGE_TYPE_REQUEST!r} or "
-				f"{MESSAGE_TYPE_RESPONSE!r} but received {t!r}."
-			)
+        # 3 bytes message type (b'Req' or b'Res')
+        tb = recv_exact(s, 3)
+        t = tb.rstrip(b"\x00").decode('ascii')
+        if t == MESSAGE_TYPE_REQUEST:
+            is_request = True
+        elif t == MESSAGE_TYPE_RESPONSE:
+            is_request = False
+        else:
+            raise NetworkException(
+                f"Expected message type {MESSAGE_TYPE_REQUEST!r} or "
+                f"{MESSAGE_TYPE_RESPONSE!r} but received {t!r}."
+            )
 
-		# 6 bytes command
-		c = recv_exact(s, 6)
-		command = c.rstrip(b"\x00").decode('ascii')
+        # 6 bytes command
+        c = recv_exact(s, 6)
+        command = c.rstrip(b"\x00").decode('ascii')
 
-		# 2 bytes header length
-		l = struct.unpack("H", recv_exact(s, 2))[0]
+        # 2 bytes header length
+        length = struct.unpack("H", recv_exact(s, 2))[0]
 
-		headers = json.loads(recv_exact(s, l).decode())
+        headers = json.loads(recv_exact(s, length).decode())
 
-	except NetworkException:
-		raise
-	except Exception as e:
-		raise NetworkException(e) from e
+    except NetworkException:
+        raise
+    except Exception as e:
+        raise NetworkException(e) from e
 
-	return is_request, command, headers
-	
+    return is_request, command, headers
+
 
 def request(s, command, **headers) -> dict:
 
-	send_message(s, True, command, headers)
+    send_message(s, True, command, headers)
 
-	is_request, c, h = recv_message(s)
+    is_request, c, h = recv_message(s)
 
-	if is_request:
-		raise NetworkException(
-			"Expected response message but received request message."
-		)
+    if is_request:
+        raise NetworkException(
+            "Expected response message but received request message."
+        )
 
-	if c != command:
-		raise NetworkException(
-			f"Expected command {command!r} but received {c!r}."
-		)
-	
-	if error := h.get('error'):
-		raise NetworkException(error)
+    if c != command:
+        raise NetworkException(
+            f"Expected command {command!r} but received {c!r}."
+        )
 
-	return h
+    if error := h.get('error'):
+        raise NetworkException(error)
+
+    return h
 
 
 def respond(s, command, **headers):
 
-	return send_message(s, False, command, headers)
+    return send_message(s, False, command, headers)
 
 
 def is_success(headers: dict):
 
-	STATUS = 'status'
-	SUCCESS = 'success'
+    STATUS = 'status'
+    SUCCESS = 'success'
 
-	if STATUS not in headers:
-		raise NetworkException(f"Response headers missing {STATUS!r}.")
+    if STATUS not in headers:
+        raise NetworkException(f"Response headers missing {STATUS!r}.")
 
-	return headers[STATUS] == SUCCESS
+    return headers[STATUS] == SUCCESS
 
 
 def pluck_header(headers: dict, key: str, type: Type) -> Any:
 
-	if key not in headers:
-		raise NetworkException(f"Headers missing {key!r}.")
-	
-	data = headers[key]
-	if not isinstance(data, type):
-		try:
-			data = type(data)
-		except Exception as e:
-			raise NetworkException(
-				f"Expected type {type!r} for header {key!r}."
-			) from e
+    if key not in headers:
+        raise NetworkException(f"Headers missing {key!r}.")
 
-	return data
+    data = headers[key]
+    if not isinstance(data, type):
+        try:
+            data = type(data)
+        except Exception as e:
+            raise NetworkException(
+                f"Expected type {type!r} for header {key!r}."
+            ) from e
+
+    return data
 
 
 def recv_files(s: socket.socket, file_table):
-	
-	for checksum, filesize, relpath in file_table:
 
-		def _recv_file():
+    for checksum, filesize, relpath in file_table:
 
-			filesize_read: int = 0
-			checksummer = hashlib.md5()
+        def _recv_file():
 
-			while filesize_read < filesize:
+            filesize_read: int = 0
+            checksummer = hashlib.md5()
 
-				filesize_remaining = filesize - filesize_read
-				buffersize = min(filesize_remaining, BUFFER_SIZE)
+            while filesize_read < filesize:
 
-				chunk = s.recv(buffersize)
+                filesize_remaining = filesize - filesize_read
+                buffersize = min(filesize_remaining, BUFFER_SIZE)
 
-				if not chunk:
-					raise ConnectionClosedException()
+                chunk = s.recv(buffersize)
 
-				filesize_read += len(chunk)
-				checksummer.update(chunk)
+                if not chunk:
+                    raise ConnectionClosedException()
 
-				yield chunk
+                filesize_read += len(chunk)
+                checksummer.update(chunk)
 
-			checksum_actual = checksummer.hexdigest()
-			if checksum != checksum_actual:
-				raise NetworkException(
-					f"Checksum mismatch for {relpath!r}: "
-					f"expected {checksum!r}, got {checksum_actual!r}."
-				)
+                yield chunk
 
-		yield checksum, filesize, relpath, _recv_file()
+            checksum_actual = checksummer.hexdigest()
+            if checksum != checksum_actual:
+                raise NetworkException(
+                    f"Checksum mismatch for {relpath!r}: "
+                    f"expected {checksum!r}, got {checksum_actual!r}."
+                )
+
+        yield checksum, filesize, relpath, _recv_file()
 
 
 def interpret_socket_error(e: BaseException) -> str:
     """
-    Inspect a socket-related exception and return a human-readable description
-    of what went wrong. Useful for logging or rethrowing as a higher-level error.
+    Inspect a socket-related exception and return a human-readable
+    description of what went wrong. Useful for logging or rethrowing as a
+    higher-level error.
     """
 
     if isinstance(e, socket.timeout):
@@ -340,397 +345,393 @@ def interpret_socket_error(e: BaseException) -> str:
 
 class Socket(socket.socket):
 
+    def __init__(self, s: Optional[socket.socket] = None):
 
-	def __init__(self, s:Optional[socket.socket]=None):
+        self.headers = {}
 
-		self.headers = {}
+        if s:
 
-		if s:
+            super().__init__(s.family, s.type, s.proto, socket.dup(s.fileno()))
+            self.settimeout(s.gettimeout())
 
-			super().__init__(s.family, s.type, s.proto, socket.dup(s.fileno()))
-			self.settimeout(s.gettimeout())
+        else:
 
-		else:
+            super().__init__()
 
-			super().__init__()
+    def set_headers(self, **headers):
 
+        self.headers.update(headers)
 
-	def set_headers(self, **headers):
+    def send_json(self, data, length_encoding="I"):
 
-		self.headers.update(headers)
+        send_json(self, data, length_encoding)
 
+    def recv_json(self, length_encoding="I"):
 
-	def send_json(self, data, length_encoding="I"):
+        return recv_json(self, length_encoding)
 
-		send_json(self, data, length_encoding)
+    def send_message(self, is_request=True, command="Ping", headers=None):
 
+        send_message(self, is_request, command, headers)
 
-	def recv_json(self, length_encoding="I"):
+    def recv_message(self):
 
-		return recv_json(self, length_encoding)
+        return recv_message(self)
 
+    def request(self, command, **headers):
 
-	def send_message(self, is_request=True, command="Ping", headers=None):
+        return request(self, command, **{**self.headers, **headers})
 
-		send_message(self, is_request, command, headers)
+    def respond(self, command, **headers):
 
+        return respond(self, command, **{**self.headers, **headers})
 
-	def recv_message(self):
+    def recv_files(self, file_table):
 
-		return recv_message(self)
+        return recv_files(self, file_table)
 
+    def recv_exact(self, length: int) -> bytes:
 
-	def request(self, command, **headers):
-
-		return request(self, command, **{**self.headers, **headers})
-
-
-	def respond(self, command, **headers):
-
-		return respond(self, command, **{**self.headers, **headers})
-
-
-	def recv_files(self, file_table):
-
-		return recv_files(self, file_table)
-
-
-	def recv_exact(self, length: int) -> bytes:
-		
-		return recv_exact(self, length)
+        return recv_exact(self, length)
 
 
 class ClientSocket(Socket):
 
-	
-	def __init__(self, address=None, timeout=10, **options):
+    def __init__(self, address=None, timeout=10, **options):
 
-		super().__init__(**options)
+        super().__init__(**options)
 
-		self.settimeout(timeout)
+        self.settimeout(timeout)
 
-		try:
-			if address:
-				self.connect(address)
-		except Exception as e:
-			raise NetworkException(e) from e
+        try:
+            if address:
+                self.connect(address)
+        except Exception as e:
+            raise NetworkException(e) from e
 
+    def add_server(self, host, port, **headers) -> bool:
 
-	def add_server(self, host, port, **headers) -> bool:
+        return is_success(
+            self.request(COMMAND_ADD_SERVER, host=host, port=port, **headers)
+        )
 
-		return is_success(
-			self.request(COMMAND_ADD_SERVER, host=host, port=port, **headers)
-		)
+    def check_password(self, password, **headers) -> bool:
 
+        return is_success(
+            self.request(COMMAND_CHECK_PASSWORD, password=password, **headers)
+        )
 
-	def check_password(self, password, **headers) -> bool:
+    def info(self, **headers) -> dict:
 
-		return is_success(
-			self.request(COMMAND_CHECK_PASSWORD, password=password, **headers)
-		)
+        return self.request(COMMAND_INFO, **headers)
 
+    def password_enabled(self, **headers) -> bool:
 
-	def info(self, **headers) -> dict:
+        return pluck_header(
+            self.request(COMMAND_PASSWORD_ENABLED, **headers),
+            'password_enabled', bool
+        )
 
-		return self.request(COMMAND_INFO, **headers)
+    def ping(self, **headers) -> dict:
 
+        return self.request(COMMAND_PING, **headers)
 
-	def password_enabled(self, **headers) -> bool:
+    def file_table(self, target, **headers):
 
-		return pluck_header(
-			self.request(COMMAND_PASSWORD_ENABLED, **headers),
-			'password_enabled', bool
-		)
+        if target == 'plugins':
+            return self.plugins_table(**headers)
+        elif target == 'regions':
+            return self.regions_table(**headers)
+        else:
+            raise ValueError(f"Invalid target: {target!r}")
 
+    def file_table_data(self, target, file_table, **headers):
 
-	def ping(self, **headers) -> dict:
+        if target == 'plugins':
+            return self.plugins_data(file_table, **headers)
+        elif target == 'regions':
+            return self.regions_data(file_table, **headers)
+        else:
+            raise ValueError(f"Invalid target: {target!r}")
 
-		return self.request(COMMAND_PING, **headers)
-	
+    def plugins_table(self, **headers) -> list:
 
-	def file_table(self, target, **headers):
+        self.request(COMMAND_PLUGINS_TABLE, **headers)
 
-		if target == 'plugins':
-			return self.plugins_table(**headers)
-		elif target == 'regions':
-			return self.regions_table(**headers)
-		else:
-			raise ValueError(f"Invalid target: {target!r}")
+        return self.recv_json()
 
+    def plugins_data(self, file_table: list, **headers):
 
-	def file_table_data(self, target, file_table, **headers):
+        if not file_table:
+            return []
 
-		if target == 'plugins':
-			return self.plugins_data(file_table, **headers)
-		elif target == 'regions':
-			return self.regions_data(file_table, **headers)
-		else:
-			raise ValueError(f"Invalid target: {target!r}")
+        self.request(COMMAND_PLUGINS_DATA, **headers)
+        self.send_json(file_table)
 
+        for chunk in self.recv_files(file_table):
+            yield chunk
 
-	def plugins_table(self, **headers) -> list:
+    def private(self, **headers) -> bool:
 
-		self.request(COMMAND_PLUGINS_TABLE, **headers)
+        return pluck_header(
+            self.request(COMMAND_PRIVATE, **headers), 'private', bool
+        )
 
-		return self.recv_json()
-	
-	
-	def plugins_data(self, file_table: list, **headers):
+    def regions_table(self, **headers) -> list:
 
-		if not file_table:
-			return []
+        self.request(COMMAND_REGIONS_TABLE, **headers)
 
-		self.request(COMMAND_PLUGINS_DATA, **headers)
-		self.send_json(file_table)
+        return self.recv_json()
 
-		for chunk in self.recv_files(file_table):
-			yield chunk
+    def regions_data(self, file_table: list, **headers):
 
+        if not file_table:
+            return []
 
-	def private(self, **headers) -> bool:
-	
-		return pluck_header(
-			self.request(COMMAND_PRIVATE, **headers), 'private', bool
-		)
-		
+        self.request(COMMAND_REGIONS_DATA, **headers)
+        self.send_json(file_table)
 
-	def regions_table(self, **headers) -> list:
+        for chunk in self.recv_files(file_table):
+            yield chunk
 
-		self.request(COMMAND_REGIONS_TABLE, **headers)
+    def user_id(self, hash, **headers):
 
-		return self.recv_json()
-	
+        response = self.request(COMMAND_USER_ID, hash=hash, **headers)
 
-	def regions_data(self, file_table: list, **headers):
+        if error := response.get('error'):
+            raise NetworkException(f"Authentication failed.\n\n{error}")
 
-		if not file_table:
-			return []
+        return response.get('user_id')
 
-		self.request(COMMAND_REGIONS_DATA, **headers)
-		self.send_json(file_table)
+    def token(self, user_id, **headers):
 
-		for chunk in self.recv_files(file_table):
-			yield chunk
+        response = self.request(
+            COMMAND_TOKEN, user_id=user_id, **headers
+        )
 
-	
-	def user_id(self, hash, **headers):
+        if error := response.get('error'):
+            raise NetworkException(f"Authentication failed.\n\n{error}")
 
-		response = self.request(COMMAND_USER_ID, hash=hash, **headers)
+        return response.get('token')
 
-		if error := response.get('error'):
-			raise NetworkException(f"Authentication failed.\n\n{error}")
+    def time(self, **headers):
 
-		return response.get('user_id')
+        response = self.request(
+            COMMAND_TIME, **headers
+        )
 
+        time = pluck_header(response, 'time', str)
 
-	def token(self, user_id, **headers):
-		
-		response = self.request(
-			COMMAND_TOKEN, user_id=user_id, **headers
-		)
+        return datetime.strptime(time, "%Y-%m-%d %H:%M:%S")
 
-		if error := response.get('error'):
-			raise NetworkException(f"Authentication failed.\n\n{error}")
+    def server_list(self, **headers):
 
-		return response.get('token')
-	
-	
-	def time(self, **headers):
+        self.request(
+            command=COMMAND_SERVER_LIST, **headers
+        )
 
-		response = self.request(
-			COMMAND_TIME, **headers
-		)
+        server_list = self.recv_json()
 
-		time = pluck_header(response, 'time', str)
+        return server_list
 
-		return datetime.strptime(time, "%Y-%m-%d %H:%M:%S")
-	
-	
-	def server_list(self, **headers):
+    def loading_background(self, **headers):
 
-		self.request(
-			command=COMMAND_SERVER_LIST, **headers
-		)
+        response = self.request(
+            command=COMMAND_LOADING_BACKGROUND, **headers
+        )
 
-		server_list = self.recv_json()
+        size = pluck_header(response, 'size', int)
 
-		return server_list
-	
+        return self.recv_exact(size)
 
-	def loading_background(self, **headers):
+    def save(self, **headers):
 
-		response = self.request(
-			command=COMMAND_LOADING_BACKGROUND, **headers
-		)
+        self.request(
+            command=COMMAND_SAVE, **headers
+        )
 
-		size = pluck_header(response, 'size', int)
+    def save_result(self):
 
-		return self.recv_exact(size)
-	
+        _, _, headers = self.recv_message()
 
-	def save(self, **headers):
+        return pluck_header(headers, 'result', str)
 
-		self.request(
-			command=COMMAND_SAVE, **headers
-		)
-
-
-	def save_result(self):
-
-		_, _, headers = self.recv_message()
-
-		return pluck_header(headers, 'result', str)
 
 class ServerSocket(Socket):
 
+    def __init__(self, address=None):
 
-	def __init__(self, address=None):
+        super().__init__()
 
-		super().__init__()
+        if address is not None:
+            self.bind(address)
 
-		if address is not None:
-			self.bind(address)
-	
+    def listen(self, backlog=5):
 
-	def listen(self, backlog=5):
+        return super().listen(backlog)
 
-		return super().listen(backlog)
+    def accept(self):
 
+        connection, address = super().accept()
 
-	def accept(self):
+        connection = Socket(connection)
+        connection.set_headers(**self.headers)
 
-		connection, address = super().accept()
-
-		connection = Socket(connection)
-		connection.set_headers(**self.headers)
-
-		return connection, address
+        return connection, address
 
 
 class BaseRequestHandler(Thread):
 
+    def __init__(self, c: Socket, private=False):
 
-	def __init__(self, c: Socket, private=False):
+        super().__init__()
 
-		super().__init__()
+        self.c = c
 
-		self.c = c
+        self.command = None
+        self.headers = {}
 
-		self.command = None
-		self.headers = {}
+        self.commands = {
+            COMMAND_ADD_SERVER: self.res_add_server,
+            COMMAND_CHECK_PASSWORD: self.res_check_password,
+            COMMAND_INFO: self.res_info,
+            COMMAND_PASSWORD_ENABLED: self.res_password_enabled,
+            COMMAND_PING: self.res_ping,
+            COMMAND_PLUGINS_TABLE: self.res_plugins_table,
+            COMMAND_PLUGINS_DATA: self.res_plugins_data,
+            COMMAND_PRIVATE: self.res_private,
+            COMMAND_REGIONS_TABLE: self.res_regions_table,
+            COMMAND_REGIONS_DATA: self.res_regions_data,
+            COMMAND_SAVE: self.res_save,
+            COMMAND_SERVER_LIST: self.res_server_list,
+            COMMAND_USER_ID: self.res_user_id,
+            COMMAND_TOKEN: self.res_token,
+            COMMAND_TIME: self.res_time,
+            COMMAND_LOADING_BACKGROUND: self.res_loading_background
+        }
 
-		self.commands = {
-			COMMAND_ADD_SERVER: self.res_add_server,
-			COMMAND_CHECK_PASSWORD: self.res_check_password,
-			COMMAND_INFO: self.res_info,
-			COMMAND_PASSWORD_ENABLED: self.res_password_enabled,
-			COMMAND_PING: self.res_ping,
-			COMMAND_PLUGINS_TABLE: self.res_plugins_table,
-			COMMAND_PLUGINS_DATA: self.res_plugins_data,
-			COMMAND_PRIVATE: self.res_private,
-			COMMAND_REGIONS_TABLE: self.res_regions_table,
-			COMMAND_REGIONS_DATA: self.res_regions_data,
-			COMMAND_SAVE: self.res_save,
-			COMMAND_SERVER_LIST: self.res_server_list,
-			COMMAND_USER_ID: self.res_user_id,
-			COMMAND_TOKEN: self.res_token,
-			COMMAND_TIME: self.res_time,
-			COMMAND_LOADING_BACKGROUND: self.res_loading_background
-		}
+        self.require_auth = [
+            COMMAND_SAVE,
+            COMMAND_TOKEN
+        ]
 
-		self.require_auth = [
-			COMMAND_SAVE,
-			COMMAND_TOKEN
-		]
+        if private:
+            self.require_auth += [
+                COMMAND_PLUGINS_DATA,
+                COMMAND_PLUGINS_TABLE,
+                COMMAND_REGIONS_DATA,
+                COMMAND_REGIONS_TABLE
+            ]
 
-		if private:
-			self.require_auth += [
-				COMMAND_PLUGINS_DATA,
-				COMMAND_PLUGINS_TABLE,
-				COMMAND_REGIONS_DATA,
-				COMMAND_REGIONS_TABLE
-			]
+    def authenticate(self):
+        # Subclasses check the request's credentials here
+        ...
 
+    # Default handlers just send an empty response. Subclasses override
+    # the ones they support.
 
-	def authenticate(self): ...
+    def res_add_server(self):
+        self.respond()
 
-	def res_add_server(self): self.respond()
-	def res_check_password(self): self.respond()
-	def res_info(self): self.respond()
-	def res_password_enabled(self): self.respond()
-	def res_ping(self): self.respond()
-	def res_plugins_table(self): self.respond()
-	def res_plugins_data(self): self.respond()
-	def res_private(self): self.respond()
-	def res_regions_table(self): self.respond()
-	def res_regions_data(self): self.respond()
-	def res_save(self): self.respond()
-	def res_server_list(self): self.respond()
-	def res_user_id(self): self.respond()
-	def res_token(self): self.respond()
-	def res_time(self): self.respond()
-	def res_loading_background(self): self.respond()
+    def res_check_password(self):
+        self.respond()
 
+    def res_info(self):
+        self.respond()
 
-	def get_header(self, key: str, type: Type):
+    def res_password_enabled(self):
+        self.respond()
 
-		return pluck_header(self.headers, key, type)
+    def res_ping(self):
+        self.respond()
 
+    def res_plugins_table(self):
+        self.respond()
 
-	def recv_request(self):
+    def res_plugins_data(self):
+        self.respond()
 
-		is_request, command, headers = self.c.recv_message()
+    def res_private(self):
+        self.respond()
 
-		if command not in self.commands:
-			raise NetworkException(f"Invalid request: {command!r}")
+    def res_regions_table(self):
+        self.respond()
 
-		if not is_request:
-			raise NetworkException("Expected request but got response.")
+    def res_regions_data(self):
+        self.respond()
 
-		self.command = command
-		self.headers = headers
+    def res_save(self):
+        self.respond()
 
-		return command, headers
+    def res_server_list(self):
+        self.respond()
 
+    def res_user_id(self):
+        self.respond()
 
-	def handle_request(self):
+    def res_token(self):
+        self.respond()
 
-		if self.command is None:
-			self.recv_request()
-		
-		if self.command in self.require_auth:
-			self.authenticate()
+    def res_time(self):
+        self.respond()
 
-		return self.commands[self.command]()
+    def res_loading_background(self):
+        self.respond()
 
+    def get_header(self, key: str, type: Type):
 
-	def respond(self, **headers):
+        return pluck_header(self.headers, key, type)
 
-		return self.c.respond(self.command, **headers)
+    def recv_request(self):
+
+        is_request, command, headers = self.c.recv_message()
+
+        if command not in self.commands:
+            raise NetworkException(f"Invalid request: {command!r}")
+
+        if not is_request:
+            raise NetworkException("Expected request but got response.")
+
+        self.command = command
+        self.headers = headers
+
+        return command, headers
+
+    def handle_request(self):
+
+        if self.command is None:
+            self.recv_request()
+
+        if self.command in self.require_auth:
+            self.authenticate()
+
+        return self.commands[self.command]()
+
+    def respond(self, **headers):
+
+        return self.c.respond(self.command, **headers)
 
 
 class NetworkException(Exception):
-	
 
-	def __init__(self, e, *args):
-		
-		if isinstance(e, str):
-			message = e
-		else:
-			message = interpret_socket_error(e)
+    def __init__(self, e, *args):
 
-		super().__init__(message, *args)
+        if isinstance(e, str):
+            message = e
+        else:
+            message = interpret_socket_error(e)
 
-		self.message = message
-	
+        super().__init__(message, *args)
 
-	def __str__(self):
-		
-		return self.message
+        self.message = message
+
+    def __str__(self):
+
+        return self.message
 
 
 class ConnectionClosedException(NetworkException):
 
-	def __init__(self):
+    def __init__(self):
 
-		super().__init__("Connection closed.")
+        super().__init__("Connection closed.")
