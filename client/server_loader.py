@@ -93,9 +93,10 @@ class ServerLoader(th.Thread):
                     if len(path) > 0:
                         state.sc4mp_config["SC4"]["game_path"] = path
                         if state.sc4mp_config["SC4"]["use_steam_browser_protocol"] in [0, 1]:
-                            state.sc4mp_config["SC4"]["use_steam_browser_protocol"] = (
-                                1 if is_steam_sc4(Path(path)) else 0
-                            )
+                            if is_steam_sc4(Path(path)):
+                                state.sc4mp_config["SC4"]["use_steam_browser_protocol"] = 1
+                            else:
+                                state.sc4mp_config["SC4"]["use_steam_browser_protocol"] = 0
                         state.sc4mp_config.update()
                     else:
                         self.ui.destroy()

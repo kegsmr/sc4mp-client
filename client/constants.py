@@ -40,7 +40,10 @@ SC4MP_BUFFER_SIZE = 4096
 SC4MP_DELAY = .1
 
 # Windows 7 can't display "🡒"
-SC4MP_ARROW = "→" if is_windows() and platform.release() == "7" else "🡒"
+if is_windows() and platform.release() == "7":
+    SC4MP_ARROW = "→"
+else:
+    SC4MP_ARROW = "🡒"
 
 SC4MP_LAUNCHERMAP_ENABLED = False  # TODO replace with config setting eventually
 

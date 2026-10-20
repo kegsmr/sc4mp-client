@@ -382,8 +382,12 @@ def sync_simcity_4_cfg(to_mp=False):
         mp_config_path = state.SC4MP_LAUNCHPATH / "SimCity 4.cfg"
 
         # Pick the source and destination based on whether the transfer is to or from multiplayer
-        source = sp_config_path if to_mp else mp_config_path
-        destination = mp_config_path if to_mp else sp_config_path
+        if to_mp:
+            source = sp_config_path
+            destination = mp_config_path
+        else:
+            source = mp_config_path
+            destination = sp_config_path
 
         # Copy the files
         print(f"\"{source}\" -> \"{destination}\"")

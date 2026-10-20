@@ -657,11 +657,15 @@ class ServerList(th.Thread):
                             # Otherwise, create a new one
                             else:
 
+                                if selected:
+                                    background = "#0078D7"
+                                else:
+                                    background = "white"
                                 canvas = tk.Canvas(
                                     width=IMAGE_W,
                                     height=IMAGE_H,
                                     bd=0,
-                                    bg=("#0078D7" if selected else "white"),
+                                    bg=background,
                                     highlightthickness=0,
                                     relief='flat'
                                 )

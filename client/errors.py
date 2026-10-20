@@ -44,7 +44,10 @@ def startfile(filename):
     if syst == "Windows":
         os.startfile(filename)
     else:
-        opener = "open" if syst == "Darwin" else "xdg-open"  # Linux
+        if syst == "Darwin":
+            opener = "open"
+        else:
+            opener = "xdg-open"  # Linux
         subprocess.call([opener, filename])
 
 

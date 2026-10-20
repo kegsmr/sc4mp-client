@@ -723,9 +723,10 @@ class SC4SettingsUI(tk.Toplevel):
             key = item[1]
             if key == "game_path":
                 if state.sc4mp_config["SC4"]["use_steam_browser_protocol"] in [0, 1]:
-                    update_config_value(
-                        "SC4", "use_steam_browser_protocol", (1 if is_steam_sc4(Path(data)) else 0)
-                    )
+                    if is_steam_sc4(Path(data)):
+                        update_config_value("SC4", "use_steam_browser_protocol", 1)
+                    else:
+                        update_config_value("SC4", "use_steam_browser_protocol", 0)
             if key == "res":
                 try:
                     if len(data) < 1 or data.lower().startswith("auto"):

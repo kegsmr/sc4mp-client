@@ -133,10 +133,14 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
         )
         password_enabled_label_1.grid(row=3, column=0, sticky="w", padx=10, pady=(10, 0))
 
+        if self.server.password_enabled:
+            public_text = "No"
+            public_color = "red"
+        else:
+            public_text = "Yes"
+            public_color = "green"
         password_enabled_label_2 = ttk.Label(
-            left_frame,
-            text=("No" if self.server.password_enabled else "Yes"),
-            foreground=("red" if self.server.password_enabled else "green")
+            left_frame, text=public_text, foreground=public_color
         )
         password_enabled_label_2.grid(row=4, column=0, sticky="w", padx=10, pady=0)
 
@@ -145,10 +149,14 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
             private_label_1 = ttk.Label(left_frame, text="Guests", font=("Segoe UI", 9, "bold"))
             private_label_1.grid(row=5, column=0, sticky="w", padx=10, pady=(10, 0))
 
+            if self.server.private:
+                guests_text = "No"
+                guests_color = "red"
+            else:
+                guests_text = "Yes"
+                guests_color = "green"
             private_label_2 = ttk.Label(
-                left_frame,
-                text=("No" if self.server.private else "Yes"),
-                foreground=("red" if self.server.private else "green")
+                left_frame, text=guests_text, foreground=guests_color
             )
             private_label_2.grid(row=6, column=0, sticky="w", padx=10, pady=0)
 
@@ -160,10 +168,14 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
         )
         custom_plugins_label_1.grid(row=1, column=0, sticky="w", padx=10, pady=(10, 0))
 
+        if self.server.user_plugins_enabled:
+            custom_plugins_text = "Yes"
+            custom_plugins_color = "green"
+        else:
+            custom_plugins_text = "No"
+            custom_plugins_color = "red"
         custom_plugins_label_2 = ttk.Label(
-            right_frame,
-            text=("Yes" if self.server.user_plugins_enabled else "No"),
-            foreground=("green" if self.server.user_plugins_enabled else "red")
+            right_frame, text=custom_plugins_text, foreground=custom_plugins_color
         )
         custom_plugins_label_2.grid(row=2, column=0, sticky="w", padx=10, pady=0)
 
@@ -188,10 +200,12 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
             )
             claim_duration_label_1.grid(row=3, column=0, sticky="w", padx=10, pady=(10, 0))
 
+            if claim_duration == "Forever":
+                claim_duration_color = "green"
+            else:
+                claim_duration_color = "black"
             claim_duration_label_2 = ttk.Label(
-                right_frame,
-                text=claim_duration,
-                foreground=("green" if claim_duration == "Forever" else "black")
+                right_frame, text=claim_duration, foreground=claim_duration_color
             )
             claim_duration_label_2.grid(row=4, column=0, sticky="w", padx=10, pady=0)
 
@@ -200,10 +214,12 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
             )
             claim_limit_label_1.grid(row=5, column=0, sticky="w", padx=10, pady=(10, 0))
 
+            if max_region_claims == "None":
+                claim_limit_color = "green"
+            else:
+                claim_limit_color = "black"
             claim_limit_label_2 = ttk.Label(
-                right_frame,
-                text=max_region_claims,
-                foreground=("green" if max_region_claims == "None" else "black")
+                right_frame, text=max_region_claims, foreground=claim_limit_color
             )
             claim_limit_label_2.grid(row=6, column=0, sticky="w", padx=10, pady=0)
 
@@ -214,10 +230,14 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
                 )
                 godmode_claims_label_1.grid(row=7, column=0, sticky="w", padx=10, pady=(10, 0))
 
+                if godmode_filter:
+                    godmode_text = "No"
+                    godmode_color = "red"
+                else:
+                    godmode_text = "Yes"
+                    godmode_color = "green"
                 godmode_claims_label_2 = ttk.Label(
-                    right_frame,
-                    text=("No" if godmode_filter else "Yes"),
-                    foreground=("red" if godmode_filter else "green")
+                    right_frame, text=godmode_text, foreground=godmode_color
                 )
                 godmode_claims_label_2.grid(row=8, column=0, sticky="w", padx=10, pady=0)
 
@@ -372,7 +392,11 @@ class ServerDetailsUI(ServerDetailsTabs, tk.Toplevel):
             all_tabs.extend(all_tabs)
             current_tab = self.notebook.select()
             current_tab_index = all_tabs.index(current_tab)
-            next_tab = all_tabs[current_tab_index + (-1 if left else 1)]
+            if left:
+                step = -1
+            else:
+                step = 1
+            next_tab = all_tabs[current_tab_index + step]
 
             self.notebook.select(next_tab)
 

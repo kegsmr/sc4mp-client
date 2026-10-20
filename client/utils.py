@@ -229,7 +229,10 @@ def get_image_pids(image_name) -> list[int] | None:
                     except ValueError:
                         pass
 
-            return pids if pids else None
+            if pids:
+                return pids
+            else:
+                return None
 
         except subprocess.CalledProcessError as e:
             print(f"An error occurred while getting image PIDs.\n\n{e}")
