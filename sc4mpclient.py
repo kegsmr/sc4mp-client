@@ -3791,7 +3791,9 @@ class GameMonitor(th.Thread):
 		# Only pop up new messages, not the recent ones sent when joining
 		if self.overlay_ui is not None and not event.get('history'):
 			self.overlay_ui.show_message(f"{name}: {message}")
-		self.bridge.notify(f"{name}: {message}", history=bool(event.get('history')))
+		# The name's color is picked from the name as the Chat tab gets it (with characters Tk can't show replaced), so it's the same in both
+		color = GameMonitorUI.CHAT_NAME_COLORS[chat_name_color(tk_safe(name), user_id)]
+		self.bridge.notify(f"{name}: {message}", history=bool(event.get('history')), name=name, color=color)
 
 
 	def send_chat(self, message: str) -> None:
@@ -4222,7 +4224,7 @@ class EventListener(th.Thread):
 class GameBridge(th.Thread):
 	"""Talks to the SC4MP DLL (`sc4mp.dll`) running inside SimCity 4.
 
-	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat and save results, shown in the chat panel), `alert` (shown in a message box), `status` (the save status, shown in the chat panel's title bar) and `server` (the server's name, the chat panel's title).
+	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat, with the player's `name` and its `color` as [red, green, blue], and save results, shown in the chat panel), `alert` (shown in a message box), `status` (the save status, shown in the chat panel's title bar) and `server` (the server's name, the chat panel's title).
 
 	The game starts after the player joins, so when the DLL connects it's sent the server's name, the last status and the last few lines again, with `history` set, to fill its chat panel.
 
@@ -4429,15 +4431,20 @@ class GameBridge(th.Thread):
 			self.alert(f'Unknown command "{command}". Type "sc4mp help" for help.')
 
 
-	def notify(self, text: str, history: bool = False) -> None:
-		"""Sends a chat message or save result to the game, and keeps it to send again when the game connects. `history` marks old lines (eg. chat from before the player joined), which the game doesn't count as new."""
-
-		with self._send_lock:
-			self.recent.append(text)
+	def notify(self, text: str, history: bool = False, name: Optional[str] = None, color: Optional[str] = None) -> None:
+		"""Sends a chat message or save result to the game, and keeps it to send again when the game connects. `history` marks old lines (eg. chat from before the player joined), which the game doesn't count as new. Chat comes with the player's `name`, which starts `text`, and its `color` in the Chat tab (eg. "#2e7d32"), so the game shows the name in the same color."""
 
 		message = {'type': 'notify', 'text': text}
+		if name is not None:
+			message['name'] = name
+		if color is not None:
+			message['color'] = [int(color[i:i + 2], 16) for i in (1, 3, 5)]
+
+		with self._send_lock:
+			self.recent.append(message)
+
 		if history:
-			message['history'] = True
+			message = dict(message, history=True)
 		self.send(message)
 
 
@@ -4458,12 +4465,12 @@ class GameBridge(th.Thread):
 			self.send({'type': 'server', 'name': server.server_name})
 
 		with self._send_lock:
-			lines = list(self.recent)
+			messages = list(self.recent)
 			last_status = self.last_status
 		if last_status is not None:
 			self.send(last_status)
-		for line in lines:
-			self.send({'type': 'notify', 'text': line, 'history': True})
+		for message in messages:
+			self.send(dict(message, history=True))
 
 
 	def alert(self, text: str) -> None:
@@ -7848,6 +7855,12 @@ def tk_safe(text: str) -> str:
 	return "".join(character if ord(character) <= 0xFFFF else "\ufffd" for character in str(text))
 
 
+def chat_name_color(name: str, user_id: Optional[str] = None) -> int:
+	"""Returns the index in `GameMonitorUI.CHAT_NAME_COLORS` of a player's name color, which is the same in the Chat tab and the game's chat panel."""
+
+	return int(hashlib.md5((user_id or name).encode()).hexdigest(), 16) % len(GameMonitorUI.CHAT_NAME_COLORS)
+
+
 class GameMonitorUI(tk.Toplevel):
 
 
@@ -8040,7 +8053,7 @@ class GameMonitorUI(tk.Toplevel):
 
 		# Name and time, unless the same player sent the last message a moment ago
 		if user_id is None or user_id != self.chat_last_user_id or city != self.chat_last_city or (sent - self.chat_last_time).total_seconds() > self.CHAT_GROUP_SECONDS:
-			color = int(hashlib.md5((user_id or name).encode()).hexdigest(), 16) % len(self.CHAT_NAME_COLORS)
+			color = chat_name_color(name, user_id)
 			self.chat_insert_line(name, (f"name{color}", "header"))
 			if city:
 				text.insert("end", " of " + city, ("time", "header"))
