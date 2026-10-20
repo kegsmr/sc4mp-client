@@ -1,0 +1,206 @@
+{
+    "To get started, select a server below and click \"Connect\"": {
+        "es": "Para comenzar, selecciona un servidor abajo y haz clic en \"Conectar\"",
+        "fr": "Pour commencer, sélectionnez un serveur ci-dessous et cliquez sur \"Connecter\"",
+        "it": "Per iniziare, seleziona un server qui sotto e clicca su \"Connetti\"",
+        "ru": "Чтобы начать, выберите сервер ниже и нажмите \"Подключиться\""
+    },
+    "Getting server list...": {
+        "es": "Obteniendo lista de servidores...",
+        "fr": "Obtention de la liste des serveurs...",
+        "it": "Caricamento della lista dei server...",
+        "ru": "Получение списка серверов..."
+    },
+    "Downloading update...": {
+        "es": "Descargando actualización...",
+        "fr": "Téléchargement de la mise à jour...",
+        "it": "Download dell'aggiornamento...",
+        "ru": "Скачивание обновления..."
+    },
+    "Installing update...": {
+        "es": "Instalando actualización...",
+        "fr": "Installation de la mise à jour...",
+        "it": "Installazione dell'aggiornamento...",
+        "ru": "Установка обновления..."
+    },
+    "SERVER BROWSER DISABLED": {
+        "es": "NAVEGADOR DE SERVIDORES DESACTIVADO",
+        "fr": "NAVIGATEUR DE SERVEURS DÉSACTIVÉ",
+        "it": "BROWSER DEI SERVER DISABILITATO",
+        "ru": "БРАУЗЕР СЕРВЕРОВ ОТКЛЮЧЕН"
+    },
+    "Updates": {
+        "es": "Actualizaciones",
+        "fr": "Mises à jour",
+        "it": "Aggiornamenti",
+        "ru": "Обновления"
+    },
+    "Check for updates at startup": {
+        "es": "Comprobar actualizaciones al iniciar",
+        "fr": "Vérifier les mises à jour au démarrage",
+        "it": "Controlla gli aggiornamenti all'avvio",
+        "ru": "Проверять обновления при запуске"
+    },
+    "UI": {
+        "es": "Interfaz de usuario",
+        "fr": "Interface utilisateur",
+        "it": "Interfaccia utente",
+        "ru": "Интерфейс"
+    },
+    "Use game overlay": {
+        "es": "Usar superposición de juego",
+        "fr": "Utiliser la superposition du jeu",
+        "it": "Usa sovrapposizione di gioco",
+        "ru": "Использовать оверлей игры"
+    },
+    "Use loading background": {
+        "es": "Usar fondo de carga",
+        "fr": "Utiliser l'arrière-plan de chargement",
+        "it": "Usa sfondo di caricamento",
+        "ru": "Использовать фоновое изображение загрузки"
+    },
+    "Security": {
+        "es": "Seguridad",
+        "fr": "Sécurité",
+        "it": "Sicurezza",
+        "ru": "Безопасность"
+    },
+    "Save server passwords": {
+        "es": "Guardar contraseñas de servidor",
+        "fr": "Sauvegarder les mots de passe des serveurs",
+        "it": "Salva le password del server",
+        "ru": "Сохранять пароли серверов"
+    },
+    "Hide 3rd-party server warnings": {
+        "es": "Ocultar advertencias de servidores de terceros",
+        "fr": "Masquer les avertissements des serveurs tiers",
+        "it": "Nascondi avvisi dei server di terze parti",
+        "ru": "Скрыть предупреждения о сторонних серверах"
+    },
+    "Hide authentication warnings": {
+        "es": "Ocultar advertencias de autenticación",
+        "fr": "Masquer les avertissements d'authentification",
+        "it": "Nascondi avvisi di autenticazione",
+        "ru": "Скрыть предупреждения об аутентификации"
+    },
+    "Hide dangerous file warnings": {
+        "es": "Ocultar advertencias de archivos peligrosos",
+        "fr": "Masquer les avertissements de fichiers dangereux",
+        "it": "Nascondi avvisi di file pericolosi",
+        "ru": "Скрыть предупреждения о опасных файлах"
+    },
+    "Custom plugins": {
+        "es": "Complementos personalizados",
+        "fr": "Plugins personnalisés",
+        "it": "Plugin personalizzati",
+        "ru": "Пользовательские плагины"
+    },
+    "Browse...": {
+        "es": "Explorar...",
+        "fr": "Parcourir...",
+        "it": "Esplora...",
+        "ru": "Обзор..."
+    },
+    "Some servers allow users to load their own plugins alongside the server \\nplugins. Specify your plugins directory here so that they can be loaded \\nwhen joining a server.": {
+        "es": "Algunos servidores permiten a los usuarios cargar sus propios complementos junto con los complementos del servidor. Especifica tu directorio de complementos aquí para que puedan cargarse \\ncuando se une a un servidor.",
+        "fr": "Certains serveurs permettent aux utilisateurs de charger leurs propres plugins en plus des plugins du serveur. Spécifiez votre répertoire de plugins ici afin qu'ils puissent être chargés \\n lors de la connexion à un serveur.",
+        "it": "Alcuni server consentono agli utenti di caricare i propri plugin insieme ai plugin del server. Specifica la tua directory di plugin qui affinché possano essere caricati \\n quando ti unisci a un server.",
+        "ru": "Некоторые серверы позволяют пользователям загружать собственные плагины наряду с плагинами сервера. Укажите свой каталог плагинов здесь, чтобы они могли быть загружены \\n при подключении к серверу."
+    },
+    "Details": {
+        "es": "Detalles",
+        "fr": "Détails",
+        "it": "Dettagli",
+        "ru": "Подробности"
+    },
+	"General...": {
+		"es": "General...",
+		"fr": "Général...",
+		"it": "Generale...",
+		"ru": "Общее..."
+	},
+	"Storage...": {
+		"es": "Almacenamiento...",
+		"fr": "Stockage...",
+		"it": "Memoria...",
+		"ru": "Хранение..."
+	},
+	"Settings": {
+		"es": "Configuración",
+		"fr": "Paramètres",
+		"it": "Impostazioni",
+		"ru": "Настройки"
+	},
+	"Updates...": {
+		"es": "Actualizaciones...",
+		"fr": "Mises à jour...",
+		"it": "Aggiornamenti...",
+		"ru": "Обновления..."
+	},
+	"Exit": {
+		"es": "Salir",
+		"fr": "Quitter",
+		"it": "Esci",
+		"ru": "Выход"
+	},
+	"Launcher": {
+		"es": "Lanzador",
+		"fr": "Lanceur",
+		"it": "Avviatore",
+		"ru": "Запуск"
+	},
+	"Connect...": {
+		"es": "Conectar...",
+		"fr": "Connecter...",
+		"it": "Connetti...",
+		"ru": "Подключиться..."
+	},
+	"Refresh": {
+		"es": "Actualizar",
+		"fr": "Actualiser",
+		"it": "Aggiorna",
+		"ru": "Обновить"
+	},
+	"Host...": {
+		"es": "Anfitrión...",
+		"fr": "Hôte...",
+		"it": "Host...",
+		"ru": "Хост..."
+	},
+	"Servers": {
+		"es": "Servidores",
+		"fr": "Serveurs",
+		"it": "Server",
+		"ru": "Серверы"
+	},
+	"About...": {
+		"es": "Acerca de...",
+		"fr": "À propos...",
+		"it": "Informazioni...",
+		"ru": "О программе..."
+	},
+	"Readme...": {
+		"es": "Lea me...",
+		"fr": "Lisez-moi...",
+		"it": "Leggimi...",
+		"ru": "Прочитайте меня..."
+	},
+	"Logs...": {
+		"es": "Registros...",
+		"fr": "Journaux...",
+		"it": "Log...",
+		"ru": "Журналы..."
+	},
+	"Feedback...": {
+		"es": "Comentarios...",
+		"fr": "Commentaires...",
+		"it": "Feedback...",
+		"ru": "Обратная связь..."
+	},
+	"Help": {
+		"es": "Ayuda",
+		"fr": "Aide",
+		"it": "Aiuto",
+		"ru": "Помощь"
+	}
+}
