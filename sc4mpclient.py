@@ -4549,8 +4549,7 @@ class GameBridge(th.Thread):
 			if owner is None:
 				return
 			print(f'- "{name}" belongs to {owner}, warning the player')
-			self.send({'type': 'guard', 'owner': owner, 'city': name, 'path': path})
-			self.notify(f"This city belongs to {owner}. Your saves here won't be kept.")	# also in chat, which stays after the warning is closed (and works with older DLLs)
+			self.send({'type': 'guard', 'owner': owner, 'city': name, 'path': path})	# only the warning, not a line in chat too
 
 		th.Thread(target=check, daemon=True).start()
 
