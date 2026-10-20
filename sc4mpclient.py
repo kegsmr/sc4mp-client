@@ -24,7 +24,7 @@ import traceback
 import webbrowser
 from collections import deque
 from datetime import datetime, timedelta
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from tkinter import Menu, filedialog, messagebox, ttk
 from tkinter import font as tkfont
 from typing import Optional, Union
@@ -3801,6 +3801,62 @@ class GameMonitor(th.Thread):
 			s.chat(message)
 
 
+	def get_city_owner(self, path: str) -> str | None:
+		"""Returns the name of the mayor who owns the city saved at `path` (the savegame open in game, reported by the SC4MP DLL) if the player can't save it, since another mayor's claim on it hasn't expired. Otherwise returns `None`, eg. for the player's own, unclaimed and expired tiles.
+
+		The rules are the server's, which rejects such saves with "City already claimed." The region's database is downloaded again, so claims made since the player joined count."""
+
+		# SC4 reports a Windows path (also through Wine), which `PureWindowsPath` splits on either slash
+		region = PureWindowsPath(path).parent.name
+		if region not in [region_path.name for region_path in self.server.regions]:
+			return None
+
+		with SC4Savegame(Path(SC4MP_LAUNCHPATH) / "Regions" / region / PureWindowsPath(path).name, error_callback=None) as savegame:
+			SC4ReadRegionalCity = savegame.get_SC4ReadRegionalCity()
+		coords = f'{SC4ReadRegionalCity["tileXLocation"]}_{SC4ReadRegionalCity["tileYLocation"]}'
+
+		entry = self.get_region_database(region).get(coords)
+		if not entry:
+			return None
+
+		# The server keeps the first 32 characters of the hash of the user ID
+		owner = entry.get("owner")
+		if owner is None:
+			return None
+		if self.server.user_id is not None and owner == hashlib.sha256(self.server.user_id.encode()).hexdigest()[:32]:
+			return None
+
+		# Claims expire if the owner doesn't save for `claim_duration` days, and then the tile can be taken over
+		if self.server.claim_duration is not None and entry.get("modified"):
+			expires = datetime.strptime(entry["modified"], "%Y-%m-%d %H:%M:%S") + timedelta(days=self.server.claim_duration)
+			if expires <= self.server.time():
+				return None
+
+		return entry.get("mayor_name") or "another mayor"
+
+
+	def get_region_database(self, region: str) -> dict:
+		"""Returns the server's database of a region (who owns each tile), downloaded again, or the copy from the last time the regions were refreshed if that fails."""
+
+		relpath = f"{region}/_Database/region.json"
+
+		try:
+			with self.server.socket() as s:
+				file_table = s.regions_table()
+			entries = [entry for entry in file_table if entry[2] == relpath]
+			if entries:
+				data = b""
+				with self.server.socket() as s:
+					for _, _, _, chunks in s.regions_data(entries):
+						for chunk in chunks:
+							data += chunk
+				return json.loads(data.decode())
+		except Exception as e:
+			show_error(f"Unable to download the region database, using the local copy instead.\n\n{e}", no_ui=True)
+
+		return load_json(Path(SC4MP_LAUNCHPATH) / "Regions" / region / "_Database" / "region.json")
+
+
 	def show_city(self, name: str | None) -> None:
 		"""Shows the city open in game (reported by the SC4MP DLL) in the title of the status window, or just the server name in the region view."""
 
@@ -4222,7 +4278,7 @@ class EventListener(th.Thread):
 class GameBridge(th.Thread):
 	"""Talks to the SC4MP DLL (`sc4mp.dll`) running inside SimCity 4.
 
-	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat and save results, shown in the chat panel), `alert` (shown in a message box), `status` (the save status, shown in the chat panel's title bar) and `server` (the server's name, the chat panel's title).
+	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat and save results, shown in the chat panel), `alert` (shown in a message box), `status` (the save status, shown in the chat panel's title bar), `server` (the server's name, the chat panel's title) and `guard` (the open city belongs to another mayor, shown as a warning with a button to go back to the region).
 
 	The game starts after the player joins, so when the DLL connects it's sent the server's name, the last status and the last few lines again, with `history` set, to fill its chat panel.
 
@@ -4359,6 +4415,7 @@ class GameBridge(th.Thread):
 			print(f'- the game loaded the city "{name}"')
 			self.city = name
 			self.game_monitor.show_city(name)
+			self.guard(text('path'), name)
 
 		elif message_type == 'city_established':
 			print(f'- the player established the city "{name}"')
@@ -4427,6 +4484,27 @@ class GameBridge(th.Thread):
 			self.alert("Press Enter in game to chat. Messages starting with / run these commands, eg. /status.\n\nSC4MP cheat codes:\n\nsay <message>: send a chat message\nsc4mp status: show the server and save status")
 		else:
 			self.alert(f'Unknown command "{command}". Type "sc4mp help" for help.')
+
+
+	def guard(self, path: str, name: str) -> None:
+		"""Warns the player in game if the city they opened (saved at `path`) belongs to another mayor, so they know before playing that their saves won't be kept. Checked in the background, since it asks the server, so the bridge keeps reading."""
+
+		if not path:
+			return	# an older DLL, which doesn't send the savegame's path
+
+		def check():
+			try:
+				owner = self.game_monitor.get_city_owner(path)
+			except Exception as e:
+				show_error(f"Unable to check who owns the city the game opened.\n\n{e}", no_ui=True)
+				return
+			if owner is None:
+				return
+			print(f'- "{name}" belongs to {owner}, warning the player')
+			self.send({'type': 'guard', 'owner': owner, 'city': name, 'path': path})
+			self.notify(f"This city belongs to {owner}. Your saves here won't be kept.")	# also in chat, which stays after the warning is closed (and works with older DLLs)
+
+		th.Thread(target=check, daemon=True).start()
 
 
 	def notify(self, text: str, history: bool = False) -> None:
