@@ -24,7 +24,6 @@ import traceback
 import webbrowser
 from datetime import datetime, timedelta
 from pathlib import Path
-from pprint import pformat
 from tkinter import Menu, filedialog, messagebox, ttk
 from tkinter import font as tkfont
 from typing import Optional, Union
@@ -3585,8 +3584,11 @@ class GameMonitor(th.Thread):
 					uncached.append(entry)
 			if uncached:
 				size = sum(entry[1] for entry in uncached)
-				while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - size:
-					random_cache = random.choice(list(cache_directory.iterdir()))
+				needed = [cache_directory / sanitize_directory_name(entry[0]) for _, _, entry in downloads]	# don't evict the cached savegames about to be used
+				evictable = [path for path in cache_directory.iterdir() if path not in needed]
+				while evictable and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - size:
+					random_cache = random.choice(evictable)
+					evictable.remove(random_cache)
 					random_cache.unlink()
 				with self.server.socket() as s:
 					for checksum, _, _, chunks in s.regions_data(uncached):
@@ -3907,7 +3909,7 @@ class EventListener(th.Thread):
 		self._events: list[dict] = []
 		self._lock = th.Lock()
 
-		self._stop = False
+		self._stopping = False
 
 
 	def run(self):
@@ -3916,14 +3918,13 @@ class EventListener(th.Thread):
 
 			set_thread_name("EvntThread", enumerate=False)
 
-			while not self._stop:
+			while not self._stopping:
 				try:
 					if not self._connected():
 						self._connect()
 					events = self._socket.events()
 					with self._lock:
 						for event in events:
-							print(event)
 							self._events.append(event)
 							while len(self._events) > self.MAX_EVENTS:
 								self._events.pop(0)
@@ -3965,7 +3966,7 @@ class EventListener(th.Thread):
 
 	def stop(self):
 
-		self._stop = True
+		self._stopping = True
 		self._disconnect()
 
 	
