@@ -66,8 +66,8 @@ SC4MP_RESOURCES_PATH = "resources"
 SC4MP_TITLE = format_title("SC4MP Launcher", version=SC4MP_VERSION)
 SC4MP_ICON: Path = Path(SC4MP_RESOURCES_PATH) / "icon.png"
 
-SC4MP_HOST = "localhost" #SC4MP_SERVERS[0][0]
-SC4MP_PORT = 7240 #SC4MP_SERVERS[0][1]
+SC4MP_HOST = "localhost"  # SC4MP_SERVERS[0][0]
+SC4MP_PORT = 7240  # SC4MP_SERVERS[0][1]
 
 SC4MP_BUFFER_SIZE = 4096
 
@@ -75,7 +75,7 @@ SC4MP_DELAY = .1
 
 SC4MP_ARROW = "→" if is_windows() and platform.release() == "7" else "🡒"  # Windows 7 can't display "🡒"
 
-SC4MP_LAUNCHERMAP_ENABLED = False  #TODO replace with config setting eventually
+SC4MP_LAUNCHERMAP_ENABLED = False  # TODO replace with config setting eventually
 
 SC4MP_CONFIG_DEFAULTS = [
     ("GENERAL", [
@@ -106,7 +106,7 @@ SC4MP_CONFIG_DEFAULTS = [
 
         ("custom_plugins", False),
         ("custom_plugins_path", Path("~/Documents/SimCity 4/Plugins")
-               .expanduser()),
+         .expanduser()),
 
         ("sync_simcity_4_cfg", True),
 
@@ -122,9 +122,9 @@ SC4MP_CONFIG_DEFAULTS = [
         ("game_path", ""),
         ("use_steam_browser_protocol", 0),
 
-        ("resw", 0),  #1200
-        ("resh", 0),  #800
-        ("fullscreen", True),  #False
+        ("resw", 0),  # 1200
+        ("resh", 0),  # 800
+        ("fullscreen", True),  # False
 
         ("cpu_count", 1),
         ("cpu_priority", "high"),
@@ -146,10 +146,10 @@ SC4MP_LAUNCHRESH = None
 SC4MP_CUSTOMPATH = None
 
 SC4MP_RISKY_FILE_EXTENSIONS = [".bat", ".bin", ".cmd", ".com", ".cpl", ".dll",
-    ".exe", ".gadget", ".inf1", ".ins", ".inx", ".isu", ".jar", ".job", ".jse",
-    ".lnk", ".msc", ".msi", ".msp", ".mst", ".paf", ".pif", ".py", ".ps1",
-    ".reg", ".rgs", ".scr", ".sct", ".sh", ".shb", ".shs", ".u3p", ".vb",
-    ".vbe", ".vbs", ".vbscript", ".ws", ".wsf", ".wsh"]
+                               ".exe", ".gadget", ".inf1", ".ins", ".inx", ".isu", ".jar", ".job", ".jse",
+                               ".lnk", ".msc", ".msi", ".msp", ".mst", ".paf", ".pif", ".py", ".ps1",
+                               ".reg", ".rgs", ".scr", ".sct", ".sh", ".shb", ".shs", ".u3p", ".vb",
+                               ".vbe", ".vbs", ".vbscript", ".ws", ".wsf", ".wsh"]
 
 SC4MP_URL_PREFIX = "sc4mp://"
 
@@ -600,13 +600,13 @@ def create_subdirectories() -> None:
         Path("_Temp") / "ServerList",
         Path("Plugins"),
         Path("Plugins") / "client",
-        #Path("Plugins") / "default",
+        # Path("Plugins") / "default",
         Path("Plugins") / "server",
         Path("Regions")
-    ] #"SC4MPBackups", os.path.join("_Cache","Plugins"), os.path.join("_Cache","Regions")]
+    ]  # "SC4MPBackups", os.path.join("_Cache","Plugins"), os.path.join("_Cache","Regions")]
 
     # Update old directory names
-    #if (os.path.exists(os.path.join(SC4MP_LAUNCHPATH, "_Profiles"))):
+    # if (os.path.exists(os.path.join(SC4MP_LAUNCHPATH, "_Profiles"))):
     #    os.rename(os.path.join(SC4MP_LAUNCHPATH, "_Database"), os.path.join(SC4MP_LAUNCHPATH, "_Database"))
 
     # Create new directories
@@ -633,7 +633,6 @@ def create_subdirectories() -> None:
 
 
 def load_database():
-
 
     print("Loading database...")
 
@@ -812,16 +811,15 @@ def start_sc4():
             resw = 1280
             resh = 800
 
-
     # Arguments set based on config settings
     arguments = [str(path),
-              f'-UserDir:"{SC4MP_LAUNCHPATH}{os.sep}"', # add trailing slash here because SC4 expects it
-              '-intro:off',
-              '-CustomResolution:enabled',
-              f'-r{resw}x{resh}x32',
-              f'-CPUCount:{sc4mp_config["SC4"]["cpu_count"]}',
-              f'-CPUPriority:{sc4mp_config["SC4"]["cpu_priority"]}'
-              ]
+                 f'-UserDir:"{SC4MP_LAUNCHPATH}{os.sep}"',  # add trailing slash here because SC4 expects it
+                 '-intro:off',
+                 '-CustomResolution:enabled',
+                 f'-r{resw}x{resh}x32',
+                 f'-CPUCount:{sc4mp_config["SC4"]["cpu_count"]}',
+                 f'-CPUPriority:{sc4mp_config["SC4"]["cpu_priority"]}'
+                 ]
     if sc4mp_config["SC4"]["fullscreen"]:
         arguments.append('-f')
     else:
@@ -835,13 +833,13 @@ def start_sc4():
     steam_launch = False
 
     # If SC4 is installed through Steam, try to launch it using the Steam browser protocol
-    if sc4mp_config["SC4"]["use_steam_browser_protocol"] == 2  or (sc4mp_config["SC4"]["use_steam_browser_protocol"] == 1 and steam_sc4):
+    if sc4mp_config["SC4"]["use_steam_browser_protocol"] == 2 or (sc4mp_config["SC4"]["use_steam_browser_protocol"] == 1 and steam_sc4):
 
         # Steam browser protocol command
         command = "steam://run/24780//" + ' '.join(arguments[1:]).replace("\\", "\\\\").replace('"', '\\"') + "/"
 
         # Notify the user about the Steam dialog box that will popup
-        #messagebox.showinfo(title=SC4MP_TITLE, message="Steam will now ask your permission to launch SC4 with custom arguments.\n\nClick \"Continue\" on the Steam dialog box to launch SC4.\n\nConnection will be cancelled in 30 seconds if the game does not launch.")
+        # messagebox.showinfo(title=SC4MP_TITLE, message="Steam will now ask your permission to launch SC4 with custom arguments.\n\nClick \"Continue\" on the Steam dialog box to launch SC4.\n\nConnection will be cancelled in 30 seconds if the game does not launch.")
 
         # Launch the game
         print(f"- using Steam browser protocol ('{command}').")
@@ -907,19 +905,19 @@ def start_sc4():
 
 def is_steam_sc4(path: Path):
 
-    #COMMON_STEAM_FILES = ["Steam.dll", "steam_api.dll", "steam_api64.dll", "steam_appid.txt", "steamclient.dll", "steamclient64.dll"]
+    # COMMON_STEAM_FILES = ["Steam.dll", "steam_api.dll", "steam_api64.dll", "steam_appid.txt", "steamclient.dll", "steamclient64.dll"]
 
-    #exec_dir = path.parent.parent
-    #exec_dir_filenames = os.listdir(exec_dir)
+    # exec_dir = path.parent.parent
+    # exec_dir_filenames = os.listdir(exec_dir)
 
-    #for steam_filename in COMMON_STEAM_FILES:
+    # for steam_filename in COMMON_STEAM_FILES:
     #    if steam_filename in exec_dir_filenames:
     #        return True
 
     return "steamapps" in [directory.name.lower() for directory in path.parents]
 
 
-def process_exists(process_name): #TODO add MacOS compatability / deprecate in favor of `process_count`?
+def process_exists(process_name):  # TODO add MacOS compatability / deprecate in favor of `process_count`?
 
     if is_windows():
         call = 'TASKLIST', '/FI', 'imagename eq %s' % process_name
@@ -953,7 +951,7 @@ def purge_directory(directory: Path, recursive=True) -> None:
                 break
             except PermissionError as e:
                 if attempt == 4:
-                    raise ClientException(f'Failed to delete "{path}" because the file is being used by another process.') from e #\n\n' + str(e)
+                    raise ClientException(f'Failed to delete "{path}" because the file is being used by another process.') from e  # \n\n' + str(e)
                 time.sleep(.5)
 
 
@@ -1103,7 +1101,7 @@ def start_server(path: Path) -> None:
     """Runs the server executable. Takes the server path as an argument."""
     subprocess.Popen(f"sc4mpserver.exe --server-path {path}", creationflags=subprocess.CREATE_NEW_CONSOLE)
 
-    #th.Thread(target=lambda: subprocess.Popen("sc4mpserver.exe --server-path " + str(path))).start()
+    # th.Thread(target=lambda: subprocess.Popen("sc4mpserver.exe --server-path " + str(path))).start()
 
 
 def update_config_value(section, item, value):
@@ -1144,7 +1142,7 @@ def set_server_data(entry, server):
     entry["last_contact"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-def get_sc4_cfg_path() -> Path: #TODO can this find the cfg for the origin version?
+def get_sc4_cfg_path() -> Path:  # TODO can this find the cfg for the origin version?
     """Returns the path to the `SimCity 4.cfg` file"""
     return Path(SC4MP_LAUNCHPATH) / "SimCity 4.cfg"
 
@@ -1163,8 +1161,8 @@ def region_open(region) -> bool:
     """Checks if a given region is open in SC4."""
     return region == get_last_region_name()
 
-    #cfg_path = get_sc4_cfg_path()
-    #return b"\x00" + region.encode() + b"\x00" in DBPF(cfg_path, error_callback=show_error).decompress_subfile("a9dd6e06").read()
+    # cfg_path = get_sc4_cfg_path()
+    # return b"\x00" + region.encode() + b"\x00" in DBPF(cfg_path, error_callback=show_error).decompress_subfile("a9dd6e06").read()
 
 
 def refresh_region_open() -> bool:
@@ -1204,7 +1202,6 @@ def format_download_size(size):
 
 def get_bitmap_dimensions(filename):
 
-
     with open(filename, "rb") as file:
         data = bytearray(file.read())
 
@@ -1219,7 +1216,7 @@ def arp():
         call = 'arp', '-a'
         output = subprocess.check_output(call, shell=True).decode()
         return [line for line in re.findall('([-.0-9]+)\s+([-0-9a-f]{17})\s+(\w+)', output)]
-    else: #TODO make this work on other platforms besides Windows
+    else:  # TODO make this work on other platforms besides Windows
         return []
 
 
@@ -1363,21 +1360,19 @@ def window_open(image_name):
 class Server:
     """An interface for interaction with a server."""
 
-
     def __init__(self, host, port):
 
         self.host = host
         self.port = port
 
         self.fetched = False
-        #self.stats = False
+        # self.stats = False
         self.password = None
         self.user_id = None
 
         self.categories = ["All"]
         if self.host == SC4MP_SERVERS_DOMAIN:
             self.categories.append("Official")
-
 
     def fetch(self):
         """Retreives basic information from a server and saves them as instance variables. Updates the json entry for the server if possible."""
@@ -1392,24 +1387,24 @@ class Server:
         except Exception as e:
             raise ClientException("Unable to find server. Check the IP address and port, then try again.") from e
 
-        #server_info = self.request("info")
-        #if server_info is not None:
+        # server_info = self.request("info")
+        # if server_info is not None:
         #    try:
         #        server_info = json.loads("{"+ "{".join(server_info.split("{")[1:]))
         #        #print(server_info)
         #    except Exception:
         #        raise ClientException("Unable to fetch server info.")
-        #else:
+        # else:
         #    raise ClientException("Unable to find server. Check the IP address and port, then try again.")
 
-        self.server_id = sanitize_directory_name(server_info["server_id"]) #self.request("server_id")
-        self.server_name = server_info["server_name"] #self.request("server_name")
-        self.server_description = server_info["server_description"] #self.request("server_description")
-        self.server_url = server_info["server_url"] #self.request("server_url")
-        self.server_version = server_info["server_version"] #self.request("server_version")
-        self.password_enabled = server_info["password_enabled"] #self.request("password_enabled") == "y"
-        self.private = server_info["private"] #self.request("private") == "y"
-        self.user_plugins_enabled = server_info["user_plugins_enabled"] #self.request("user_plugins_enabled") == "y"
+        self.server_id = sanitize_directory_name(server_info["server_id"])  # self.request("server_id")
+        self.server_name = server_info["server_name"]  # self.request("server_name")
+        self.server_description = server_info["server_description"]  # self.request("server_description")
+        self.server_url = server_info["server_url"]  # self.request("server_url")
+        self.server_version = server_info["server_version"]  # self.request("server_version")
+        self.password_enabled = server_info["password_enabled"]  # self.request("password_enabled") == "y"
+        self.private = server_info["private"]  # self.request("private") == "y"
+        self.user_plugins_enabled = server_info["user_plugins_enabled"]  # self.request("user_plugins_enabled") == "y"
         try:
             self.claim_duration = server_info["claim_duration"]
             self.max_region_claims = server_info["max_region_claims"]
@@ -1418,25 +1413,23 @@ class Server:
             pass
 
         if self.server_id in sc4mp_servers_database.keys():
-            self.password = sc4mp_servers_database[self.server_id].get("password", None) # Needed for stat fetching private servers
+            self.password = sc4mp_servers_database[self.server_id].get("password", None)  # Needed for stat fetching private servers
 
         if self.password_enabled:
             self.categories.append("Private")
         else:
             self.categories.append("Public")
 
-        #if (self.server_version != None):
+        # if (self.server_version != None):
         #    self.server_version = unformat_version(self.server_version)
 
         if self.fetched == True:
             try:
                 self.update_database()
             except Exception as e:
-                show_error("An error occurred while updating the server database.", no_ui = True)
-
+                show_error("An error occurred while updating the server database.", no_ui=True)
 
     def fetch_stats(self):
-
 
         if not sc4mp_config["DEBUG"]["random_server_stats"]:
 
@@ -1479,16 +1472,16 @@ class Server:
                 except Exception as e:
                     show_error(f"An error occurred while calculating region statistics for \"{region}\".", no_ui=True)
 
-            self.stat_mayors = len(mayors) #(random.randint(0,1000))
+            self.stat_mayors = len(mayors)  # (random.randint(0,1000))
 
-            self.stat_mayors_online = len(mayors_online) #int(self.stat_mayors * (float(random.randint(0, 100)) / 100))
+            self.stat_mayors_online = len(mayors_online)  # int(self.stat_mayors * (float(random.randint(0, 100)) / 100))
 
             try:
-                self.stat_claimed = (float(claimed_area) / float(total_area)) #(float(random.randint(0, 100)) / 100)
+                self.stat_claimed = (float(claimed_area) / float(total_area))  # (float(random.randint(0, 100)) / 100)
             except ZeroDivisionError:
                 self.stat_claimed = 1
 
-            self.stat_download, self.stat_actual_download = download #(random.randint(0, 10 ** 11))
+            self.stat_download, self.stat_actual_download = download  # (random.randint(0, 10 ** 11))
 
         ping = self.ping()
         if ping != None:
@@ -1501,9 +1494,7 @@ class Server:
         sc4mp_servers_database[self.server_id]["stat_actual_download"] = self.stat_actual_download
         sc4mp_servers_database[self.server_id]["stat_ping"] = self.stat_ping
 
-
     def fetch_temp(self):
-
 
         REQUESTS = ["plugins", "regions"]
         DIRECTORIES = ["Plugins", "Regions"]
@@ -1562,7 +1553,6 @@ class Server:
 
         return (total_size, download_size)
 
-
     def update_database(self):
         """Updates the json entry for the server."""
 
@@ -1580,9 +1570,7 @@ class Server:
         # Set values in database entry
         set_server_data(entry, self)
 
-
     def authenticate(self):
-
 
         # Get database entry for server
         key = self.server_id
@@ -1617,7 +1605,7 @@ class Server:
                             else:
                                 raise ClientException("Connection cancelled.")
                         else:
-                            raise ClientException("Invalid token.") #"Authentication error."
+                            raise ClientException("Invalid token.")  # "Authentication error."
         else:
             self.user_id = user_id
 
@@ -1638,7 +1626,6 @@ class Server:
         entry.setdefault("first_logon", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         entry["last_logon"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-
     def ping(self):
 
         try:
@@ -1651,9 +1638,7 @@ class Server:
         except (NetworkException, socket.error):
             return None
 
-
     def time(self):
-
 
         try:
 
@@ -1665,7 +1650,6 @@ class Server:
             show_error("Unable to get server time, using local time instead.", no_ui=True)
 
             return datetime.now()
-
 
     def socket(self) -> ClientSocket:
 
@@ -1684,10 +1668,7 @@ class Server:
 
 class ServerList(th.Thread):
 
-
-
     def __init__(self, ui, kill=None):
-
 
         th.Thread.__init__(self)
 
@@ -1740,9 +1721,7 @@ class ServerList(th.Thread):
 
         self.sort_mode_changed = False
 
-
     def run(self):
-
 
         try:
 
@@ -1775,9 +1754,9 @@ class ServerList(th.Thread):
                     time.sleep(SC4MP_DELAY)
                 self.clear_tree()
 
-            #try: #TODO is this needed?
+            # try: #TODO is this needed?
             #    purge_directory(self.temp_path)
-            #except Exception as e:
+            # except Exception as e:
             #    show_error("Error deleting temporary server list files.", no_ui=True)
 
             print("Fetching servers...")
@@ -1815,7 +1794,7 @@ class ServerList(th.Thread):
 
                     # Fetch the next unfetched server
                     for unfetched_servers in [self.unfetched_servers, self.lan_servers]:
-                        if self.server_fetchers < 25: #100 #TODO make configurable?
+                        if self.server_fetchers < 25:  # 100 #TODO make configurable?
                             if len(unfetched_servers) > 0:
                                 unfetched_server = unfetched_servers.pop(0)
                                 if unfetched_server not in self.tried_servers:
@@ -1839,8 +1818,8 @@ class ServerList(th.Thread):
                             self.stat_claimed[server_id] = update_server.stat_claimed
                             self.stat_ping[server_id] = update_server.stat_ping
                             self.calculate_rating(update_server)
-                        except Exception: #Exception as e:
-                            #show_error(e)
+                        except Exception:  # Exception as e:
+                            # show_error(e)
                             try:
                                 self.stat_ping[server_id] = update_server.stat_ping
                                 self.calculate_rating(update_server)
@@ -1853,8 +1832,8 @@ class ServerList(th.Thread):
                     if filter == self.ui.combo_box.PLACEHOLDER_TEXT:
                         filter = ""
                     for server_id in server_ids:
-                        if (not self.ui.tree.exists(server_id)) and (not self.filter(self.servers[server_id], self.filters(filter))): #(len(filter) < 1 or (not self.filter(self.servers[server_id], self.filters(filter)))):
-                            #while len(self.ui.tree.get_children()) >= 50:
+                        if (not self.ui.tree.exists(server_id)) and (not self.filter(self.servers[server_id], self.filters(filter))):  # (len(filter) < 1 or (not self.filter(self.servers[server_id], self.filters(filter)))):
+                            # while len(self.ui.tree.get_children()) >= 50:
                             #    self.ui.tree.delete(self.ui.tree.get_children()[-1])
                             server = self.servers[server_id]
                             tags = []
@@ -1874,21 +1853,21 @@ class ServerList(th.Thread):
                     filter = self.ui.combo_box.get()
                     if filter == self.ui.combo_box.PLACEHOLDER_TEXT:
                         filter = ""
-                    #if len(filter) > 0:
+                    # if len(filter) > 0:
                     try:
                         category, search_terms = self.filters(filter)
-                        #print("Filtering by \"" + category + "\" and " + str(search_terms) + "...")
+                        # print("Filtering by \"" + category + "\" and " + str(search_terms) + "...")
                         if category == "History":
                             self.ui.tree['displaycolumns'] = ("#1", "#2", "#3", "#4", "#6")
-                            #self.ui.tree.column("#5", width=0)
-                            #self.ui.tree.column("#6", width=93)
+                            # self.ui.tree.column("#5", width=0)
+                            # self.ui.tree.column("#6", width=93)
                             if self.ui.tree.sort == "Rank":
                                 self.ui.tree.sort = "Joined"
                                 self.clear_tree()
                         else:
                             self.ui.tree['displaycolumns'] = ("#1", "#2", "#3", "#4", "#5")
-                            #self.ui.tree.column("#5", width=93)
-                            #self.ui.tree.column("#6", width=0)
+                            # self.ui.tree.column("#5", width=93)
+                            # self.ui.tree.column("#6", width=0)
                             if self.ui.tree.sort == "Joined":
                                 self.ui.tree.sort = "Rank"
                                 self.clear_tree()
@@ -1900,10 +1879,10 @@ class ServerList(th.Thread):
                                 self.ui.tree.delete(server_id)
                             elif (not hide) and (server_id in self.hidden_servers):
                                 self.hidden_servers.remove(server_id)
-                                #self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
+                                # self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
                     except Exception as e:
                         show_error("An error occurred while filtering the server list.", no_ui=True)
-                    #elif len(self.hidden_servers) > 0:
+                    # elif len(self.hidden_servers) > 0:
                     #    server_ids = self.hidden_servers
                     #    for server_id in server_ids:
                     #        self.hidden_servers.remove(server_id)
@@ -1911,7 +1890,7 @@ class ServerList(th.Thread):
 
                     # Sort the tree
                     if not self.sorted():
-                        #print("Sorting...")
+                        # print("Sorting...")
                         server_ids = self.ui.tree.get_children()
                         for index in range(len(server_ids) - 1):
                             server_a_id = server_ids[index]
@@ -1936,9 +1915,9 @@ class ServerList(th.Thread):
 
                     # Update primary label
                     if len(self.servers) > self.offline_server_count:
-                        #if len(self.hidden_servers) < len(self.servers):
+                        # if len(self.hidden_servers) < len(self.servers):
                         self.ui.label["text"] = 'To get started, select a server below and click "Connect"'
-                        #else:
+                        # else:
                         #    self.ui.label["text"] = 'No servers found'
                     else:
                         self.ui.address_label["text"] = ""
@@ -1947,7 +1926,7 @@ class ServerList(th.Thread):
                         if self.server_fetchers > 0:
                             self.ui.label["text"] = 'Getting server list...'
                         else:
-                            self.ui.label["text"] = 'No servers found' #Select "Servers" then "Connect..." in the menu bar to connect to a server.'
+                            self.ui.label["text"] = 'No servers found'  # Select "Servers" then "Connect..." in the menu bar to connect to a server.'
 
                     # Update rank bars
                     self.update_rank_bars()
@@ -1967,13 +1946,11 @@ class ServerList(th.Thread):
             except Exception:
                 pass
 
-            show_error(f"An error occurred while fetching servers.\n\n{e}") #, no_ui=True)
-
+            show_error(f"An error occurred while fetching servers.\n\n{e}")  # , no_ui=True)
 
     def clear_tree(self):
 
         self.ui.tree.delete(*self.ui.tree.get_children())
-
 
     def filters(self, filter):
 
@@ -1995,7 +1972,6 @@ class ServerList(th.Thread):
         else:
             return "All", []
 
-
     def filter(self, server: Server, filters: list[str]):
 
         category = filters[0]
@@ -2012,7 +1988,6 @@ class ServerList(th.Thread):
             return False
         return True
 
-
     def sorted(self):
 
         server_ids = self.ui.tree.get_children()
@@ -2028,8 +2003,7 @@ class ServerList(th.Thread):
                     return False
             return True
 
-
-    def sort(self, server_indices): #TODO doesnt work in one pass!
+    def sort(self, server_indices):  # TODO doesnt work in one pass!
         """deprecated"""
         server_ids = list(server_indices.keys())
         index_a = 0
@@ -2049,7 +2023,6 @@ class ServerList(th.Thread):
             server_id = server_ids[index]
             server_indices[server_id] = index
 
-
     def in_order(self, server_a, server_b):
 
         server_a_sort_value = self.get_sort_value(server_a)
@@ -2066,7 +2039,6 @@ class ServerList(th.Thread):
             else:
                 return server_a_sort_value <= server_b_sort_value
 
-
     def in_order_index(self, server):
 
         if self.get_sort_value(server) is not None:
@@ -2077,7 +2049,6 @@ class ServerList(th.Thread):
                 if self.in_order(server, existing_server):
                     return index
         return "end"
-
 
     def get_sort_value(self, server):
 
@@ -2100,7 +2071,6 @@ class ServerList(th.Thread):
         except Exception:
             return None
 
-
     def format_server(self, server):
 
         functions = [
@@ -2108,7 +2078,7 @@ class ServerList(th.Thread):
             lambda: str(int(server.stat_claimed * 100)) + "%",
             lambda: format_download_size(server.stat_actual_download) if sc4mp_config["GENERAL"]["show_actual_download"] else format_filesize(server.stat_download),
             lambda: str(server.stat_ping) + "ms",
-            lambda: str(round(server.rating, 1)), # (lambda: "" if sc4mp_config["GENERAL"]["show_rank_bars"] else lambda: str(round(server.rating, 1))), # + " ⭐️",
+            lambda: str(round(server.rating, 1)),  # (lambda: "" if sc4mp_config["GENERAL"]["show_rank_bars"] else lambda: str(round(server.rating, 1))), # + " ⭐️",
             lambda: self.format_server_join_time(server)
         ]
         if sc4mp_config["GENERAL"]["show_rank_bars"]:
@@ -2117,11 +2087,10 @@ class ServerList(th.Thread):
         for function in functions:
             try:
                 cells.append(function())
-            except Exception as e: #Exception as e:
-                #show_error(e)
-                cells.append("...") #cells.append("")
+            except Exception as e:  # Exception as e:
+                # show_error(e)
+                cells.append("...")  # cells.append("")
         return cells
-
 
     def format_server_join_time(self, server: Server):
 
@@ -2136,7 +2105,6 @@ class ServerList(th.Thread):
             last_logon = datetime.strptime(last_logon, "%Y-%m-%d %H:%M:%S")
 
         return format_time_ago(last_logon)
-
 
     def calculate_rating(self, server):
 
@@ -2161,7 +2129,6 @@ class ServerList(th.Thread):
         except Exception:
             pass
 
-
     def max_category(self, item, array):
 
         item = float(item)
@@ -2170,7 +2137,6 @@ class ServerList(th.Thread):
         except Exception:
             return 1.0
 
-
     def min_category(self, item, array):
 
         item = float(item)
@@ -2178,7 +2144,6 @@ class ServerList(th.Thread):
             return 1.0 - ((item - min(array)) / (max(array) - min(array)))
         except Exception:
             return 1.0
-
 
     def update_rank_bars(self, event=None):
 
@@ -2208,7 +2173,6 @@ class ServerList(th.Thread):
 
             # Call the event handler for a single click in `ServerListUI`
             self.ui.handle_single_click(event)
-
 
         def scheduled_update():
 
@@ -2272,8 +2236,8 @@ class ServerList(th.Thread):
                                 canvas.image = self.rank_bar_images[rank]
                                 canvas.create_image(0, 0, anchor="nw", image=canvas.image)
                                 canvas.place(
-                                    x = x + OFFSET_X + ((CELL_W - IMAGE_W) / 2),
-                                    y = y + OFFSET_Y + ((CELL_H - IMAGE_H) / 2),
+                                    x=x + OFFSET_X + ((CELL_W - IMAGE_W) / 2),
+                                    y=y + OFFSET_Y + ((CELL_H - IMAGE_H) / 2),
                                 )
 
                                 # Store the canvas so it can be deleted later, when needed
@@ -2300,7 +2264,6 @@ class ServerList(th.Thread):
 
 class ServerFetcher(th.Thread):
 
-
     def __init__(self, parent: ServerList, server: Server):
 
         th.Thread.__init__(self)
@@ -2309,7 +2272,6 @@ class ServerFetcher(th.Thread):
         self.server = server
 
         self.setDaemon(True)
-
 
     def run(self):
 
@@ -2321,7 +2283,7 @@ class ServerFetcher(th.Thread):
 
                 print(f"Fetching {self.server.host}:{self.server.port}...")
 
-                #print("- fetching server info...")
+                # print("- fetching server info...")
 
                 try:
 
@@ -2340,7 +2302,7 @@ class ServerFetcher(th.Thread):
 
                         if "user_id" in server_entry.keys():
 
-                            self.server.categories = ["Offline", "History"] # "All"
+                            self.server.categories = ["Offline", "History"]  # "All"
 
                             self.server.server_name = server_entry.get("server_name", f"{self.server.host}:{self.server.port}")
                             self.server.server_description = server_entry.get("server_description", "")
@@ -2357,11 +2319,11 @@ class ServerFetcher(th.Thread):
 
                 self.server.categories.append("Online")
 
-                #print("- populating server statistics")
+                # print("- populating server statistics")
 
                 if sc4mp_config["DEBUG"]["random_server_stats"]:
 
-                    self.server.stat_mayors = random.randint(0,1000)
+                    self.server.stat_mayors = random.randint(0, 1000)
                     self.server.stat_mayors_online = int(self.server.stat_mayors * (float(random.randint(0, 100)) / 100))
                     self.server.stat_claimed = float(random.randint(0, 100)) / 100
                     self.server.stat_download = random.randint(0, 10 ** 11)
@@ -2370,7 +2332,7 @@ class ServerFetcher(th.Thread):
 
                 else:
 
-                    #if not self.server.private:
+                    # if not self.server.private:
                     try:
                         self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
                         self.server.stat_mayors = sc4mp_servers_database[self.server.server_id]["stat_mayors"]
@@ -2380,43 +2342,43 @@ class ServerFetcher(th.Thread):
                         self.server.stat_actual_download = sc4mp_servers_database[self.server.server_id]["stat_actual_download"]
                     except Exception:
                         pass
-                    #else:
+                    # else:
                     #    try:
                     #        self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
                     #    except Exception:
                     #        pass
 
-                #print("- adding server to server list...")
+                # print("- adding server to server list...")
 
                 try:
                     self.parent.fetched_servers.append(self.server)
                 except Exception as e:
                     raise ClientException("Unable to add server to server list.") from e
 
-                #print("- starting server pinger...")
+                # print("- starting server pinger...")
 
                 try:
                     ServerPinger(self.parent, self.server).start()
                 except Exception as e:
                     raise ClientException("Unable to start server pinger.") from e
 
-                #print("- fetching server list...")
+                # print("- fetching server list...")
 
                 try:
                     self.server_list()
                 except Exception as e:
                     raise ClientException("Unable to fetch server list.") from e
 
-                #if not self.server.private:
+                # if not self.server.private:
 
-                    #print("- fetching server stats...")
+                    # print("- fetching server stats...")
 
                 try:
                     self.fetch_stats()
                 except Exception as e:
                     print(f"[WARNING] Unable to fetch server stats for {self.server.host}:{self.server.port}! " + str(e))
 
-                #print("- done.")
+                # print("- done.")
 
             except Exception as e:
 
@@ -2428,11 +2390,9 @@ class ServerFetcher(th.Thread):
 
             show_error(f"A server fetcher thread encountered an unexpected error.\n\n{e}")
 
-
     def fetch_stats(self):
 
         self.server.fetch_stats()
-
 
     def server_list(self):
 
@@ -2443,7 +2403,6 @@ class ServerFetcher(th.Thread):
 
 class ServerPinger(th.Thread):
 
-
     def __init__(self, parent, server):
 
         th.Thread.__init__(self)
@@ -2452,7 +2411,6 @@ class ServerPinger(th.Thread):
         self.server = server
 
         self.setDaemon(True)
-
 
     def run(self):
 
@@ -2463,10 +2421,10 @@ class ServerPinger(th.Thread):
             while not self.parent.end:
                 time.sleep(len(self.parent.servers) + 1)
                 if not self.parent.pause:
-                    #print(f"Pinging {self.server.host}:{self.server.port}")
+                    # print(f"Pinging {self.server.host}:{self.server.port}")
                     ping = self.server.ping()
                     if ping != None:
-                        self.server.stat_ping = ping #int((self.server.stat_ping + ping) / 2)
+                        self.server.stat_ping = ping  # int((self.server.stat_ping + ping) / 2)
                         sc4mp_servers_database[self.server.server_id]["stat_ping"] = ping
 
         except Exception as e:
@@ -2476,10 +2434,7 @@ class ServerPinger(th.Thread):
 
 class ServerLoader(th.Thread):
 
-
-
     def __init__(self, ui, server):
-
 
         th.Thread.__init__(self)
 
@@ -2491,9 +2446,7 @@ class ServerLoader(th.Thread):
         if sc4mp_ui != None:
             sc4mp_ui.withdraw()
 
-
     def run(self):
-
 
         try:
 
@@ -2644,7 +2597,6 @@ class ServerLoader(th.Thread):
 
             show_error(f"An unexpected error occurred in the server loader thread.\n\n{e}")
 
-
     def report(self, prefix, text):
 
         if self.ui != None:
@@ -2655,8 +2607,7 @@ class ServerLoader(th.Thread):
             self.ui.progress_label["text"] = ""
             self.ui.duration_label["text"] = ""
         print(prefix + text)
-        #time.sleep(1) # for testing
-
+        # time.sleep(1) # for testing
 
     def report_progress(self, text, value, maximum):
 
@@ -2667,7 +2618,6 @@ class ServerLoader(th.Thread):
             self.ui.progress_bar['value'] = value
             self.ui.progress_bar['maximum'] = maximum
         print(text)
-
 
     def fetch_server(self):
 
@@ -2683,7 +2633,6 @@ class ServerLoader(th.Thread):
                 raise ClientException(f"The server requires a newer version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please update the launcher to connect to this server.")
         if self.ui != None:
             self.ui.title(self.server.server_name)
-
 
     def authenticate(self):
 
@@ -2705,7 +2654,6 @@ class ServerLoader(th.Thread):
                 break
             except (socket.error, socket.timeout) as e:
                 self.connection_failed_retrying(e)
-
 
     def check_password(self):
 
@@ -2733,9 +2681,7 @@ class ServerLoader(th.Thread):
         else:
             return True
 
-
     def load(self, target: str) -> None:
-
 
         # Select the destination directory according to the parameter
         destination = None
@@ -2763,7 +2709,7 @@ class ServerLoader(th.Thread):
 
                 # Report for the loading sequence
                 self.report("", "Synchronizing custom plugins...")
-                #self.ui.duration_label["text"] = "(verifying)" # doesn't work :(
+                # self.ui.duration_label["text"] = "(verifying)" # doesn't work :(
 
                 # Get the paths to all files in the destination directory
                 destination_relpaths = get_fullpaths_recursively(client_plugins_destination)
@@ -2799,9 +2745,9 @@ class ServerLoader(th.Thread):
                     try:
                         self.ui.progress_label["text"] = relpath.name
                         if linking:
-                            self.ui.duration_label["text"] = f"Link {SC4MP_ARROW} SC4" #"(linking)"
+                            self.ui.duration_label["text"] = f"Link {SC4MP_ARROW} SC4"  # "(linking)"
                         else:
-                            self.ui.duration_label["text"] = f"Disk {SC4MP_ARROW} SC4" #"(copying)"
+                            self.ui.duration_label["text"] = f"Disk {SC4MP_ARROW} SC4"  # "(copying)"
                     except Exception:
                         pass
 
@@ -2821,7 +2767,7 @@ class ServerLoader(th.Thread):
 
                         # If the destination file is a link, or the md5's match, continue to the next iteration of the loop
                         if os.path.islink(dest) or md5(src) == md5(dest):
-                            #print(f'- verified "{dest}"')
+                            # print(f'- verified "{dest}"')
                             continue
 
                         # If the md5's don't match, delete the destination file
@@ -2848,7 +2794,6 @@ class ServerLoader(th.Thread):
                 except Exception as e:
                     show_error(f"Unable to delete \"{e}\"!", no_ui=True)
 
-
         # For keeping track of number of times the download is attempter
         tries = 0
 
@@ -2858,7 +2803,7 @@ class ServerLoader(th.Thread):
             try:
 
                 # Purge the destination directory
-                self.report("", f"Synchronizing {target}...") #"", "Purging " + type + " directory...")
+                self.report("", f"Synchronizing {target}...")  # "", "Purging " + type + " directory...")
                 try:
                     purge_directory(destination)
                 except ClientException as e:
@@ -2928,8 +2873,8 @@ class ServerLoader(th.Thread):
 
                         # Display current file in UI
                         try:
-                            self.ui.progress_label["text"] = d.name #.relative_to(destination)
-                            self.ui.duration_label["text"] = f"Cache {SC4MP_ARROW} SC4" #"(cached)"
+                            self.ui.progress_label["text"] = d.name  # .relative_to(destination)
+                            self.ui.duration_label["text"] = f"Cache {SC4MP_ARROW} SC4"  # "(cached)"
                         except Exception:
                             pass
 
@@ -2957,7 +2902,7 @@ class ServerLoader(th.Thread):
                 file_table = ft
 
                 if sc4mp_ui:
-                    self.ui.duration_label["text"] = f"Server {SC4MP_ARROW} SC4" #"(downloading)"
+                    self.ui.duration_label["text"] = f"Server {SC4MP_ARROW} SC4"  # "(downloading)"
 
                 download_start_time = time.time() + 2
 
@@ -2986,7 +2931,7 @@ class ServerLoader(th.Thread):
 
                         # Display current file in UI
                         try:
-                            self.ui.progress_label["text"] = d.name #.relative_to(destination)
+                            self.ui.progress_label["text"] = d.name  # .relative_to(destination)
                         except Exception:
                             pass
 
@@ -3038,7 +2983,7 @@ class ServerLoader(th.Thread):
                                             else:
                                                 self.ui.duration_label["text"] = f"{minutes}:{seconds:0>{2}}"
                                     except ZeroDivisionError as e:
-                                        show_error(e, no_ui=True) # Lazy solution
+                                        show_error(e, no_ui=True)  # Lazy solution
                         t.with_name(t.name + ".tmp").replace(t)  # only cache the file once its checksum has been verified
 
                 self.report_progress(f"Synchronizing {target}... (100%)", 100, 100)
@@ -3047,16 +2992,15 @@ class ServerLoader(th.Thread):
 
             except (NetworkException, socket.error, socket.timeout) as e:
 
-                #tries += 1
+                # tries += 1
 
-                #if tries < 5:
+                # if tries < 5:
 
                 self.connection_failed_retrying(e)
 
-                #else:
+                # else:
 
-                    #raise ClientException("Maximum connection attemps exceeded. Check your internet connection and firewall settings, then try again.\n\n" + str(e))
-
+                # raise ClientException("Maximum connection attemps exceeded. Check your internet connection and firewall settings, then try again.\n\n" + str(e))
 
     def prep_plugins(self):
 
@@ -3073,7 +3017,7 @@ class ServerLoader(th.Thread):
 
         # Set source and destination for default plugins
         default_plugins_source = Path("resources")
-        default_plugins_destination = Path(SC4MP_LAUNCHPATH) / "Plugins" #/ "default"
+        default_plugins_destination = Path(SC4MP_LAUNCHPATH) / "Plugins"  # / "default"
 
         # Clear default plugins directory
         try:
@@ -3122,9 +3066,7 @@ class ServerLoader(th.Thread):
         #     with open(default_plugins_destination / "server-url.dat", "wb") as wfile:
         #         wfile.write(data)
 
-
     def prep_regions(self):
-
 
         # Declare instance variable to store the paths of the server region subdirectories
         self.server.regions: list[Path] = []
@@ -3161,14 +3103,14 @@ class ServerLoader(th.Thread):
 
         except Exception as e:
 
-            pass #show_error(e, no_ui=True)
+            pass  # show_error(e, no_ui=True)
 
         # Create the auxiliary regions for launcher functions (eg. refreshing)
-        AUXILIARY_REGIONS = ["Refresh"] #["Backups", "Export", "Refresh"]
+        AUXILIARY_REGIONS = ["Refresh"]  # ["Backups", "Export", "Refresh"]
         for auxiliary_region in AUXILIARY_REGIONS:
 
             # Create the auxiliary region directory
-            auxiliary_region_path = regions_directory / f"_{auxiliary_region}" #TODO possible directory name conflicts?
+            auxiliary_region_path = regions_directory / f"_{auxiliary_region}"  # TODO possible directory name conflicts?
             auxiliary_region_path.mkdir(parents=True)
 
             # Copy the blank `config.bmp` file to the auxiliary region directory
@@ -3186,7 +3128,6 @@ class ServerLoader(th.Thread):
                 # Write the file
                 with open(auxiliary_region_path / "region.ini", "w") as config_file:
                     config_file.write(config_file_contents)
-
 
     def prep_config(self):
 
@@ -3221,7 +3162,6 @@ class ServerLoader(th.Thread):
 
             show_error(f"An error occurred while preparing the config.\n\n{e}", no_ui=True)
 
-
     def connection_failed_retrying(self, e, duration=5):
 
         show_error(e, no_ui=True)
@@ -3233,10 +3173,7 @@ class ServerLoader(th.Thread):
 
 class GameMonitor(th.Thread):
 
-
-
     def __init__(self, server):
-
 
         th.Thread.__init__(self)
 
@@ -3284,9 +3221,7 @@ class GameMonitor(th.Thread):
         # Thread shutsdown when this is set to `True`
         self.end = False
 
-
     def run(self):
-
 
         # Catch all errors and show an error message
         try:
@@ -3295,8 +3230,8 @@ class GameMonitor(th.Thread):
             set_thread_name("GmThread", enumerate=False)
 
             # if self.ui:
-                # self.ui.deiconify()
-                # self.ui.grab_set()
+            # self.ui.deiconify()
+            # self.ui.grab_set()
 
             # Declare variable to break loop after the game closes
             end = False
@@ -3309,7 +3244,7 @@ class GameMonitor(th.Thread):
             if self.server.password == "":
                 self.report_quietly("Welcome, you've joined as a guest.")
             else:
-                self.report_quietly("Welcome, start a city and save to claim a tile.") #Ready. #"Monitoring for changes...")
+                self.report_quietly("Welcome, start a city and save to claim a tile.")  # Ready. #"Monitoring for changes...")
 
             # Show server description in UI (only for the legacy status window)
             if sc4mp_ui and not SC4MP_LAUNCHERMAP_ENABLED:
@@ -3352,14 +3287,14 @@ class GameMonitor(th.Thread):
                     # If not in guest mode
                     if self.server.password != "":
 
-                        #new_city_paths, new_city_hashcodes = self.get_cities()
+                        # new_city_paths, new_city_hashcodes = self.get_cities()
 
                         # Array of savegames to push to the server
                         save_city_paths = []
 
                         # Print statements for debugging
-                        #print("Old cities: " + str(self.city_paths))
-                        #print("New cities: " + str(new_city_paths))
+                        # print("Old cities: " + str(self.city_paths))
+                        # print("New cities: " + str(new_city_paths))
 
                         # Will be used to store the amount of savegames detected in the previous iteration of the following while loop (-1 means the while loop will always run at least one time!)
                         save_city_paths_length = -1
@@ -3371,7 +3306,7 @@ class GameMonitor(th.Thread):
                             save_city_paths_length = len(save_city_paths)
 
                             # Store the paths and hashcodes of savegames in the "Regions" directory to two local arrays
-                            new_city_paths, new_city_hashcodes = self.get_cities() #TODO I think this should be here...?
+                            new_city_paths, new_city_hashcodes = self.get_cities()  # TODO I think this should be here...?
 
                             # Loop through the paths of the savegames currently found in the "Regions" directory
                             for new_city_path in new_city_paths:
@@ -3399,7 +3334,7 @@ class GameMonitor(th.Thread):
                                 self.set_overlay_state("saving")
 
                                 # Wait
-                                time.sleep(1) #5 #6 #5 #6 #10 #3 #TODO make configurable?
+                                time.sleep(1)  # 5 #6 #5 #6 #10 #3 #TODO make configurable?
 
                                 # Filter the savegames if more than two are found
                                 if len(save_city_paths) > 2:
@@ -3426,7 +3361,7 @@ class GameMonitor(th.Thread):
                                     self.set_overlay_state('saving')
                                     self.save(save_city_paths)
                                     break
-                                except (NetworkException, socket.timeout, socket.error) as e: # Is `ConnectionResetError` a `socket.error`?
+                                except (NetworkException, socket.timeout, socket.error) as e:  # Is `ConnectionResetError` a `socket.error`?
                                     show_error(e, no_ui=True)
                                 except Exception as e:
                                     show_error(e, no_ui=True)
@@ -3459,18 +3394,18 @@ class GameMonitor(th.Thread):
                         #     # I tried everything...
 
                     # Wait
-                    time.sleep(1) #3 #1 #3
+                    time.sleep(1)  # 3 #1 #3
 
                     # Refresh
                     cfg_path = get_sc4_cfg_path()
                     try:
                         new_cfg_hashcode = md5(cfg_path)
                         if cfg_hashcode != None and new_cfg_hashcode != cfg_hashcode:
-                            #print("Region switched!")
+                            # print("Region switched!")
                             sync_simcity_4_cfg()
                             new_refresh_region_open = refresh_region_open()
                             if new_refresh_region_open and (not old_refresh_region_open):
-                                #print("Refresh regions!")
+                                # print("Refresh regions!")
                                 if ping == None:
                                     self.report("[WARNING] ", "Unable to refresh regions at this time.", color="red")
                                 else:
@@ -3491,7 +3426,7 @@ class GameMonitor(th.Thread):
                                     if sc4mp_game_launcher.game_running:
                                         self.report("", "Regions refreshed at " + datetime.now().strftime("%H:%M") + ".", color="green")
                                         self.set_overlay_state("refreshed")
-                                    #self.ui.label["text"] = old_text
+                                    # self.ui.label["text"] = old_text
                             old_refresh_region_open = new_refresh_region_open
                         cfg_hashcode = new_cfg_hashcode
                     except Exception as e:
@@ -3502,7 +3437,7 @@ class GameMonitor(th.Thread):
                         break
                     else:
                         show_error("An unexpected error occurred in the game monitor loop.", no_ui=True)
-                        time.sleep(5) #3
+                        time.sleep(5)  # 3
 
             # Save the config used on the server to the `_Configs` directory and restore the singleplayer config
             if sc4mp_config["GENERAL"]["sync_simcity_4_cfg"]:
@@ -3554,7 +3489,6 @@ class GameMonitor(th.Thread):
 
             show_error(f"An unexpected error occurred in the game monitor thread.\n\n{e}")
 
-
     def get_cities(self) -> tuple[list[Path], list[str]]:
 
         city_paths = []
@@ -3563,7 +3497,7 @@ class GameMonitor(th.Thread):
         for region in self.server.regions:
             region_path: Path = regions_path / region
             region_path.mkdir(parents=True, exist_ok=True)
-            if region_path.is_file(): # is this necessary?
+            if region_path.is_file():  # is this necessary?
                 continue
             for city in region_path.glob('*.sc4'):
                 city_path = region_path / city
@@ -3574,7 +3508,6 @@ class GameMonitor(th.Thread):
                 city_paths.append(city_path)
                 city_hashcodes.append(city_hashcode)
         return city_paths, city_hashcodes
-
 
     def get_city_hashcode(self, city_path: Path) -> str:
 
@@ -3587,10 +3520,9 @@ class GameMonitor(th.Thread):
             self.city_hashcode_cache[city_path] = cached
         return cached[1]
 
-
     def filter_bordering_tiles(self, savegames):
 
-        #report("Savegame filter 1", self)
+        # report("Savegame filter 1", self)
 
         filtered_savegames = []
 
@@ -3632,14 +3564,13 @@ class GameMonitor(th.Thread):
 
                 filtered_savegames.append(savegame)
 
-                #report("YES (" + str(savegameX) + ", " + str(savegameY) + ")", self)
+                # report("YES (" + str(savegameX) + ", " + str(savegameY) + ")", self)
 
-            #else:
+            # else:
 
-                #report("NO (" + str(savegameX) + ", " + str(savegameY) + ")", self)
+                # report("NO (" + str(savegameX) + ", " + str(savegameY) + ")", self)
 
         return filtered_savegames
-
 
     def save(self, save_city_paths: list[Path]) -> None:
 
@@ -3694,13 +3625,12 @@ class GameMonitor(th.Thread):
             # Handle response from server
             response = s.save_result()
             if response == "ok":
-                self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green") #TODO keep track locally of the client's claims
+                self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green")  # TODO keep track locally of the client's claims
                 self.set_overlay_state("saved")
-                shutil.rmtree(salvage_directory) #TODO make configurable
+                shutil.rmtree(salvage_directory)  # TODO make configurable
             else:
                 self.report(self.PREFIX + "[WARNING] ", f"Save push failed! {response}", color="red")
                 self.set_overlay_state("not-saved")
-
 
     def backup_city(self, city_path: Path) -> None:
 
@@ -3711,11 +3641,9 @@ class GameMonitor(th.Thread):
         destination = backup_directory / datetime.now().strftime("%Y%m%d%H%M%S")
         shutil.copy(city_path, destination.with_suffix(".sc4"))
 
-
     def ping(self):
 
         return self.server.ping()
-
 
     def report(self, prefix, text, color="black"):
 
@@ -3724,12 +3652,10 @@ class GameMonitor(th.Thread):
             self.ui.label.config(fg=color)
         print(prefix + text)
 
-
     def report_quietly(self, text):
 
         if self.ui != None:
             self.ui.label['text'] = text
-
 
     def set_overlay_state(self, state):
         if self.overlay_ui is not None:
@@ -3737,8 +3663,6 @@ class GameMonitor(th.Thread):
 
 
 class GameLauncher(th.Thread):
-
-
 
     def __init__(self):
 
@@ -3749,7 +3673,6 @@ class GameLauncher(th.Thread):
 
         self.game_running = True
         self.setDaemon(True)
-
 
     def run(self):
 
@@ -3773,7 +3696,6 @@ class GameLauncher(th.Thread):
 
 class RegionsRefresher(th.Thread):
 
-
     def __init__(self, ui, server):
 
         th.Thread.__init__(self)
@@ -3783,9 +3705,7 @@ class RegionsRefresher(th.Thread):
 
         self.setDaemon(True)
 
-
     def run(self):
-
 
         while sc4mp_game_launcher.game_running:
 
@@ -3842,8 +3762,8 @@ class RegionsRefresher(th.Thread):
 
                         # Display current file in UI
                         try:
-                            self.ui.progress_label["text"] = d.name #.relative_to(destination)
-                            self.ui.duration_label["text"] = f"Cache {SC4MP_ARROW} SC4" #"(cached)"
+                            self.ui.progress_label["text"] = d.name  # .relative_to(destination)
+                            self.ui.duration_label["text"] = f"Cache {SC4MP_ARROW} SC4"  # "(cached)"
                         except Exception:
                             pass
 
@@ -3870,7 +3790,6 @@ class RegionsRefresher(th.Thread):
 
                 file_table = ft
 
-
                 # Receive files
                 with self.server.socket() as s:
 
@@ -3890,8 +3809,8 @@ class RegionsRefresher(th.Thread):
 
                         # Display current file in UI
                         try:
-                            self.ui.progress_label["text"] = d.name #.relative_to(destination)
-                            self.ui.duration_label["text"] = f"Server {SC4MP_ARROW} SC4" #"(downloading)"
+                            self.ui.progress_label["text"] = d.name  # .relative_to(destination)
+                            self.ui.duration_label["text"] = f"Server {SC4MP_ARROW} SC4"  # "(downloading)"
                         except Exception:
                             pass
 
@@ -3944,11 +3863,10 @@ class RegionsRefresher(th.Thread):
 
             except Exception as e:
 
-                #if self.ui != None:
+                # if self.ui != None:
                 #    self.ui.withdraw()
 
                 show_error("An error occurred while refreshing regions.\n\n" + str(e), no_ui=True)
-
 
     def report(self, prefix, text):
 
@@ -3958,8 +3876,7 @@ class RegionsRefresher(th.Thread):
             self.ui.progress_bar['mode'] = "indeterminate"
             self.ui.progress_bar['maximum'] = 100
         print(prefix + text)
-        #time.sleep(1) # for testing
-
+        # time.sleep(1) # for testing
 
     def report_progress(self, text, value, maximum):
 
@@ -3974,14 +3891,12 @@ class RegionsRefresher(th.Thread):
 
 class DatabaseManager(th.Thread, Database):
 
-
     def __init__(self, filename: Path):
 
         th.Thread.__init__(self)
         Database.__init__(self, filename)
 
         self.end = False
-
 
     def run(self):
 
@@ -4005,34 +3920,25 @@ class DatabaseManager(th.Thread, Database):
 
 class UI(tk.Tk):
 
-
-
     def __init__(self):
 
-
-
-        #print("Initializing...")
-
+        # print("Initializing...")
 
         # Init
 
         super().__init__()
 
-
         # Exceptions
 
         self.report_callback_exception = self.show_error
-
 
         # Title
 
         self.title(SC4MP_TITLE)
 
-
         # Icon
 
         self.iconphoto(True, tk.PhotoImage(file=SC4MP_ICON))
-
 
         # Geometry
 
@@ -4043,16 +3949,14 @@ class UI(tk.Tk):
         self.lift()
         center_window(self)
 
-
         # Key bindings
 
-        self.bind("<F1>", lambda event:self.direct_connect())
-        self.bind("<F2>", lambda event:self.refresh())
+        self.bind("<F1>", lambda event: self.direct_connect())
+        self.bind("<F2>", lambda event: self.refresh())
         # self.bind("<F3>", lambda event:self.host())
-        self.bind("<F5>", lambda event:self.general_settings())
-        self.bind("<F6>", lambda event:self.storage_settings())
-        self.bind("<F7>", lambda event:self.SC4_settings())
-
+        self.bind("<F5>", lambda event: self.general_settings())
+        self.bind("<F6>", lambda event: self.storage_settings())
+        self.bind("<F7>", lambda event: self.SC4_settings())
 
         # Menu
 
@@ -4065,10 +3969,10 @@ class UI(tk.Tk):
         settings_submenu.add_command(label="SC4...", accelerator="F7", command=self.SC4_settings)
         launcher.add_cascade(label="Settings", menu=settings_submenu)
         launcher.add_separator()
-        launcher.add_command(label="Updates...", command=lambda:webbrowser.open_new_tab(SC4MP_RELEASES_URL))
+        launcher.add_command(label="Updates...", command=lambda: webbrowser.open_new_tab(SC4MP_RELEASES_URL))
         launcher.add_separator()
         launcher.add_command(label="Exit", command=self.quit)
-        menu.add_cascade(label="Launcher", menu=launcher)  #TODO rename to "Launcher" and put settings in cascade?
+        menu.add_cascade(label="Launcher", menu=launcher)  # TODO rename to "Launcher" and put settings in cascade?
 
         servers = Menu(menu, tearoff=0)
 
@@ -4084,22 +3988,20 @@ class UI(tk.Tk):
         help.add_separator()
         help.add_command(label="Logs...", command=open_logs)
         help.add_separator()
-        help.add_command(label="Feedback...", command=lambda:webbrowser.open_new_tab(SC4MP_ISSUES_URL))
-        #feedback_submenu = Menu(help, tearoff=0)
-        #feedback_submenu.add_command(label=SC4MP_FEEDBACK_LINKS[0][0], command=lambda:webbrowser.open_new_tab(SC4MP_FEEDBACK_LINKS[0][1]))
-        #feedback_submenu.add_command(label=SC4MP_FEEDBACK_LINKS[1][0], command=lambda:webbrowser.open_new_tab(SC4MP_FEEDBACK_LINKS[1][1]))
-        #for link in SC4MP_FEEDBACK_LINKS:
+        help.add_command(label="Feedback...", command=lambda: webbrowser.open_new_tab(SC4MP_ISSUES_URL))
+        # feedback_submenu = Menu(help, tearoff=0)
+        # feedback_submenu.add_command(label=SC4MP_FEEDBACK_LINKS[0][0], command=lambda:webbrowser.open_new_tab(SC4MP_FEEDBACK_LINKS[0][1]))
+        # feedback_submenu.add_command(label=SC4MP_FEEDBACK_LINKS[1][0], command=lambda:webbrowser.open_new_tab(SC4MP_FEEDBACK_LINKS[1][1]))
+        # for link in SC4MP_FEEDBACK_LINKS:
         #    feedback_submenu.add_command(label=link[0], command=lambda:webbrowser.open_new_tab(link[1])) #TODO why does the github button open discord?
-        #help.add_cascade(label="Feedback", menu=feedback_submenu)
+        # help.add_cascade(label="Feedback", menu=feedback_submenu)
         menu.add_cascade(label="Help", menu=help)
 
         self.config(menu=menu)
 
-
         # Release notes
 
         th.Thread(target=self.release_notes, daemon=True).start()
-
 
         # Server browser
 
@@ -4107,11 +4009,10 @@ class UI(tk.Tk):
             self.server_list = ServerListUI(self)
             self.server_list.grid(row=0, column=0, padx=0, pady=0, sticky="w")
         else:
-            self.label = tk.Label(self, text="SERVER BROWSER DISABLED") #\n\nTo get started, press <F1> and enter the IP address and port of the server you wish to connect to.")
+            self.label = tk.Label(self, text="SERVER BROWSER DISABLED")  # \n\nTo get started, press <F1> and enter the IP address and port of the server you wish to connect to.")
             self.label.pack(anchor="center", pady=250)
-            #self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Connect..." in the menu bar and enter the hostname and port of the server you wish to connect to.')
-            #self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
-
+            # self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Connect..." in the menu bar and enter the hostname and port of the server you wish to connect to.')
+            # self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 
     def release_notes(self):
 
@@ -4137,32 +4038,26 @@ class UI(tk.Tk):
 
             show_error(f"Unable to show release notes.\n\n{e}", no_ui=True)
 
-
     def show_error(self, *args):
 
         fatal_error()
-
 
     def to_implement(self):
 
         tk.messagebox.showerror(title=SC4MP_TITLE, message="This feature is incomplete and will be available in future versions of the client.")
 
-
     def general_settings(self):
         print('"General settings..."')
         GeneralSettingsUI()
-
 
     def storage_settings(self):
         print('"Storage settings..."')
         StorageSettingsUI()
 
-
     def SC4_settings(self):
 
         print('"SC4 settings..."')
         SC4SettingsUI()
-
 
     def host(self):
 
@@ -4175,13 +4070,10 @@ class UI(tk.Tk):
         if messagebox.askyesno(SC4MP_TITLE, f"Hosting a server requires the SC4MP Server application.\n\n{message}Would you like to view the GitHub repository?"):
             webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/")
 
-
-
     def direct_connect(self):
 
         print('"Direct connect..."')
         DirectConnectUI()
-
 
     def refresh(self):
 
@@ -4189,24 +4081,20 @@ class UI(tk.Tk):
             self.server_list.worker = ServerList(self.server_list, kill=self.server_list.worker)
             self.server_list.worker.start()
 
-
     def about(self):
 
         AboutUI()
 
-
     def readme(self):
 
         webbrowser.open_new_tab(SC4MP_README_PATH)
-
 
     def withdraw(self):
         super().withdraw()
         try:
             self.server_list.worker.pause = True
         except Exception as e:
-            show_error("Unable to pause server list thread.", no_ui = True)
-
+            show_error("Unable to pause server list thread.", no_ui=True)
 
     def deiconify(self):
         super().deiconify()
@@ -4214,16 +4102,14 @@ class UI(tk.Tk):
             self.server_list.worker.pause = False
         except Exception as e:
             pass
-            #show_error(e, no_ui = True)
+            # show_error(e, no_ui = True)
 
 
 class GeneralSettingsUI(tk.Toplevel):
 
-
     def __init__(self):
 
-
-        #print("Initializing...")
+        # print("Initializing...")
 
         # Init
         super().__init__()
@@ -4245,8 +4131,8 @@ class GeneralSettingsUI(tk.Toplevel):
         self.grab_set()
 
         # Key bindings
-        self.bind("<Return>", lambda event:self.ok())
-        self.bind("<Escape>", lambda event:self.destroy())
+        self.bind("<Return>", lambda event: self.ok())
+        self.bind("<Escape>", lambda event: self.destroy())
 
         # Config update
         self.config_update = []
@@ -4258,7 +4144,7 @@ class GeneralSettingsUI(tk.Toplevel):
         # Updates checkbutton
         self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
         self.updates_frame.checkbutton = ttk.Checkbutton(self.updates_frame, text="Check for updates at startup", onvalue=True, offvalue=False, variable=self.updates_frame.checkbutton_variable)
-        self.updates_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=(10,10), sticky="w")
+        self.updates_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=(10, 10), sticky="w")
         self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
 
         # UI frame
@@ -4268,28 +4154,28 @@ class GeneralSettingsUI(tk.Toplevel):
         # Use game overlay
         self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_game_overlay"])
         self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use game overlay", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
-        self.ui_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=(10,65), pady=(10,5), sticky="w")
+        self.ui_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=(10, 65), pady=(10, 5), sticky="w")
         self.config_update.append((self.ui_frame.checkbutton_variable, "use_game_overlay"))
 
         # Use launcher map
-        #self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_launcher_map"])
-        #self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use launcher map", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
-        #self.ui_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
-        #self.config_update.append((self.ui_frame.checkbutton_variable, "use_launcher_map"))
+        # self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_launcher_map"])
+        # self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use launcher map", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+        # self.ui_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
+        # self.config_update.append((self.ui_frame.checkbutton_variable, "use_launcher_map"))
 
         # Use fullscreen background
         self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_fullscreen_background"])
         self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use loading background", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
-        self.ui_frame.checkbutton.grid(row=2, column=0, columnspan=1, padx=10, pady=(5,10), sticky="w")
+        self.ui_frame.checkbutton.grid(row=2, column=0, columnspan=1, padx=10, pady=(5, 10), sticky="w")
         self.config_update.append((self.ui_frame.checkbutton_variable, "use_fullscreen_background"))
 
         # Mayors online cutoff label
-        #self.ui_frame.mayors_online_cutoff_label = tk.Label(self.ui_frame, text="Show mayors online in the past")
-        #self.ui_frame.mayors_online_cutoff_label.grid(row=0, column=0, padx=10, pady=(10,5))
+        # self.ui_frame.mayors_online_cutoff_label = tk.Label(self.ui_frame, text="Show mayors online in the past")
+        # self.ui_frame.mayors_online_cutoff_label.grid(row=0, column=0, padx=10, pady=(10,5))
 
         # Mayors online cutoff combobox
-        #self.ui_frame.mayors_online_cutoff_combobox = ttk.Combobox(self.ui_frame)
-        #self.ui_frame.mayors_online_cutoff_combobox.grid(row=0, column=1)
+        # self.ui_frame.mayors_online_cutoff_combobox = ttk.Combobox(self.ui_frame)
+        # self.ui_frame.mayors_online_cutoff_combobox.grid(row=0, column=1)
 
         # Security frame
         self.security_frame = tk.LabelFrame(self, text="Security")
@@ -4298,25 +4184,25 @@ class GeneralSettingsUI(tk.Toplevel):
         # Save server passwords checkbutton
         self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["save_server_passwords"])
         self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text="Save server passwords", onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
-        self.security_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=(10,5), sticky="w")
+        self.security_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=(10, 5), sticky="w")
         self.config_update.append((self.security_frame.checkbutton_variable, "save_server_passwords"))
 
         # Ignore 3rd-party server warnings checkbutton
         self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["ignore_third_party_server_warnings"])
         self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text="Hide 3rd-party server warnings", onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
-        self.security_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
+        self.security_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(5, 5), sticky="w")
         self.config_update.append((self.security_frame.checkbutton_variable, "ignore_third_party_server_warnings"))
 
         # Ignore authentication errors checkbutton
         self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["ignore_token_errors"])
         self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text="Hide authentication warnings", onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
-        self.security_frame.checkbutton.grid(row=2, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
+        self.security_frame.checkbutton.grid(row=2, column=0, columnspan=1, padx=10, pady=(5, 5), sticky="w")
         self.config_update.append((self.security_frame.checkbutton_variable, "ignore_token_errors"))
 
         # Ignore file warnings checkbutton
         self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["ignore_risky_file_warnings"])
         self.security_frame.checkbutton = ttk.Checkbutton(self.security_frame, text="Hide dangerous file warnings", onvalue=True, offvalue=False, variable=self.security_frame.checkbutton_variable)
-        self.security_frame.checkbutton.grid(row=3, column=0, columnspan=1, padx=10, pady=(5,32), sticky="w")
+        self.security_frame.checkbutton.grid(row=3, column=0, columnspan=1, padx=10, pady=(5, 32), sticky="w")
         self.config_update.append((self.security_frame.checkbutton_variable, "ignore_risky_file_warnings"))
 
         # Path frame
@@ -4326,11 +4212,11 @@ class GeneralSettingsUI(tk.Toplevel):
         # Path checkbutton
         self.path_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["custom_plugins"])
         self.path_frame.checkbutton = ttk.Checkbutton(self.path_frame, text="Enable", onvalue=True, offvalue=False, variable=self.path_frame.checkbutton_variable)
-        self.path_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=(10,5), sticky="w")
+        self.path_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=10, pady=(10, 5), sticky="w")
         self.config_update.append((self.path_frame.checkbutton_variable, "custom_plugins"))
 
         # Path entry
-        self.path_frame.entry = ttk.Entry(self.path_frame, width = 50)
+        self.path_frame.entry = ttk.Entry(self.path_frame, width=50)
         self.path_frame.entry.grid(row=1, column=0, columnspan=1, padx=10, pady=10)
         self.path_frame.entry.insert(0, sc4mp_config["GENERAL"]["custom_plugins_path"])
         self.config_update.append((self.path_frame.entry, "custom_plugins_path"))
@@ -4341,7 +4227,7 @@ class GeneralSettingsUI(tk.Toplevel):
 
         # Path label
         self.path_frame.label = ttk.Label(self.path_frame, text='Some servers allow users to load their own plugins alongside the server \nplugins. Specify your plugins directory here so that they can be loaded \nwhen joining a server.')
-        self.path_frame.label.grid(row=2, column=0, columnspan=2, padx=10, pady=(0,10), sticky="w")
+        self.path_frame.label.grid(row=2, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="w")
 
         # Reset button
         self.reset_button = ttk.Button(self, text="Reset", command=self.reset)
@@ -4359,7 +4245,6 @@ class GeneralSettingsUI(tk.Toplevel):
         self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
         self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
 
-
     def browse_path(self):
 
         path = filedialog.askdirectory(parent=self)
@@ -4367,20 +4252,17 @@ class GeneralSettingsUI(tk.Toplevel):
             self.path_frame.entry.delete(0, 'end')
             self.path_frame.entry.insert(0, path)
 
-
     def update(self):
         for item in self.config_update:
             data = item[0].get()
             key = item[1]
             update_config_value("GENERAL", key, data)
 
-
     def ok(self):
 
         self.update()
         sc4mp_config.update()
         self.destroy()
-
 
     def reset(self):
 
@@ -4394,11 +4276,9 @@ class GeneralSettingsUI(tk.Toplevel):
 
 class StorageSettingsUI(tk.Toplevel):
 
-
     def __init__(self):
 
-
-        #print("Initializing...")
+        # print("Initializing...")
 
         # Init
         super().__init__()
@@ -4420,8 +4300,8 @@ class StorageSettingsUI(tk.Toplevel):
         self.grab_set()
 
         # Key bindings
-        self.bind("<Return>", lambda event:self.ok())
-        self.bind("<Escape>", lambda event:self.destroy())
+        self.bind("<Return>", lambda event: self.ok())
+        self.bind("<Escape>", lambda event: self.destroy())
 
         # Config update
         self.config_update = []
@@ -4431,7 +4311,7 @@ class StorageSettingsUI(tk.Toplevel):
         self.path_frame.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="w")
 
         # Path entry
-        self.path_frame.entry = ttk.Entry(self.path_frame, width = 50)
+        self.path_frame.entry = ttk.Entry(self.path_frame, width=50)
         self.path_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
         self.path_frame.entry.insert(0, sc4mp_config["STORAGE"]["storage_path"])
         self.config_update.append((self.path_frame.entry, "storage_path"))
@@ -4442,7 +4322,7 @@ class StorageSettingsUI(tk.Toplevel):
 
         # Path label
         self.path_frame.label = ttk.Label(self.path_frame, text='Do NOT change this to your normal launch directory, or else your plugins \nand regions will be deleted!')
-        self.path_frame.label.grid(row=1, column=0, columnspan=2, padx=10, pady=(0,10), sticky="w")
+        self.path_frame.label.grid(row=1, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="w")
 
         # Cache size frame
         self.cache_size_frame = tk.LabelFrame(self, text="Cache size")
@@ -4451,12 +4331,12 @@ class StorageSettingsUI(tk.Toplevel):
         # Cache size entry
         self.cache_size_frame.entry = ttk.Entry(self.cache_size_frame, width=10)
         self.cache_size_frame.entry.insert(0, format_filesize(sc4mp_config["STORAGE"]["cache_size"] * 1000000))
-        self.cache_size_frame.entry.grid(row=0, column=0, columnspan=1, padx=(10,0), pady=10, sticky="w")
+        self.cache_size_frame.entry.grid(row=0, column=0, columnspan=1, padx=(10, 0), pady=10, sticky="w")
         self.config_update.append((self.cache_size_frame.entry, "cache_size"))
 
         # Cache size label
-        #self.cache_size_frame.label = ttk.Label(self.cache_size_frame, text="mb")
-        #self.cache_size_frame.label.grid(row=0, column=1, columnspan=1, padx=(2,10), pady=10, sticky="w")
+        # self.cache_size_frame.label = ttk.Label(self.cache_size_frame, text="mb")
+        # self.cache_size_frame.label.grid(row=0, column=1, columnspan=1, padx=(2,10), pady=10, sticky="w")
 
         # Clear cache button
         self.cache_size_frame.button = ttk.Button(self.cache_size_frame, text="Clear cache", command=self.clear_cache)
@@ -4478,12 +4358,10 @@ class StorageSettingsUI(tk.Toplevel):
         self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
         self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
 
-
     def clear_cache(self):
 
-        #if (messagebox.askokcancel(title=SC4MP_TITLE, message="Clear the download cache?", icon="warning")): #TODO make yes/no
+        # if (messagebox.askokcancel(title=SC4MP_TITLE, message="Clear the download cache?", icon="warning")): #TODO make yes/no
         purge_directory(Path(SC4MP_LAUNCHPATH) / "_Cache")
-
 
     def browse_path(self):
 
@@ -4492,7 +4370,6 @@ class StorageSettingsUI(tk.Toplevel):
             self.path_frame.entry.delete(0, 'end')
             self.path_frame.entry.insert(0, path)
 
-
     def update(self):
         restart = False
         for item in self.config_update:
@@ -4500,7 +4377,7 @@ class StorageSettingsUI(tk.Toplevel):
             key = item[1]
             if key == "storage_path" and type(data) is str and Path(data) != Path(sc4mp_config["STORAGE"]["storage_path"]):
                 if (Path(data) / 'Plugins').exists() or (Path(data) / 'Regions').exists():
-                    if not messagebox.askokcancel(title=SC4MP_TITLE, message=f'The directory "{data}" already contains SimCity 4 plugins and regions. \n\nProceeding will result in the IRREVERSIBLE DELETION of these files! \n\nThis is your final warning, do you wish to proceed?', icon="warning"): #TODO make message box show yes/no and not ok/cancel
+                    if not messagebox.askokcancel(title=SC4MP_TITLE, message=f'The directory "{data}" already contains SimCity 4 plugins and regions. \n\nProceeding will result in the IRREVERSIBLE DELETION of these files! \n\nThis is your final warning, do you wish to proceed?', icon="warning"):  # TODO make message box show yes/no and not ok/cancel
                         raise ClientException("Operation cancelled by user.")
                 else:
                     if not messagebox.askokcancel(title=SC4MP_TITLE, message="Changing the launch path will cause you to lose access to your claimed tiles on servers you play on.\n\nYou will only be able to access these claims in the future by setting the launch path back to what it's currently set to now.\n\nDo you wish to proceed?", icon="warning"):
@@ -4522,9 +4399,8 @@ class StorageSettingsUI(tk.Toplevel):
             else:
                 subprocess.Popen([sys.executable, os.path.abspath(__file__)])
             sc4mp_ui.quit()
-        #create_subdirectories()
-        #load_database()
-
+        # create_subdirectories()
+        # load_database()
 
     def ok(self):
 
@@ -4535,10 +4411,9 @@ class StorageSettingsUI(tk.Toplevel):
         except ClientException:
             pass
 
-
     def reset(self):
 
-        if messagebox.askokcancel(title=SC4MP_TITLE, message="Revert settings to the default configuration?", icon="warning"): #TODO make yes/no
+        if messagebox.askokcancel(title=SC4MP_TITLE, message="Revert settings to the default configuration?", icon="warning"):  # TODO make yes/no
             self.destroy()
             sc4mp_config.data.pop("STORAGE")
             sc4mp_config.update()
@@ -4548,11 +4423,9 @@ class StorageSettingsUI(tk.Toplevel):
 
 class SC4SettingsUI(tk.Toplevel):
 
-
     def __init__(self):
 
-
-        #print("Initializing...")
+        # print("Initializing...")
 
         # Init
         super().__init__()
@@ -4574,8 +4447,8 @@ class SC4SettingsUI(tk.Toplevel):
         self.grab_set()
 
         # Key bindings
-        self.bind("<Return>", lambda event:self.ok())
-        self.bind("<Escape>", lambda event:self.destroy())
+        self.bind("<Return>", lambda event: self.ok())
+        self.bind("<Escape>", lambda event: self.destroy())
 
         # Config update
         self.config_update = []
@@ -4585,7 +4458,7 @@ class SC4SettingsUI(tk.Toplevel):
         self.path_frame.grid(row=0, column=0, columnspan=3, padx=10, pady=10, sticky="w")
 
         # Path entry
-        self.path_frame.entry = ttk.Entry(self.path_frame, width = 40)
+        self.path_frame.entry = ttk.Entry(self.path_frame, width=40)
         self.path_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10)
         self.path_frame.entry.insert(0, sc4mp_config["SC4"]["game_path"])
         self.config_update.append((self.path_frame.entry, "game_path"))
@@ -4596,7 +4469,7 @@ class SC4SettingsUI(tk.Toplevel):
 
         # Path label
         self.path_frame.label = ttk.Label(self.path_frame, text='If the launcher fails to find SimCity 4 installed on your computer, \nspecify the path to the game installation here.')
-        self.path_frame.label.grid(row=1, column=0, columnspan=2, padx=10, pady=(0,10))
+        self.path_frame.label.grid(row=1, column=0, columnspan=2, padx=10, pady=(0, 10))
 
         # Resolution frame
         self.resolution_frame = tk.LabelFrame(self, text="Resolution")
@@ -4626,7 +4499,7 @@ class SC4SettingsUI(tk.Toplevel):
         # Fullscreen checkbutton
         self.resolution_frame.fullscreen_checkbutton_variable = tk.BooleanVar(value=sc4mp_config["SC4"]["fullscreen"])
         self.resolution_frame.fullscreen_checkbutton = ttk.Checkbutton(self.resolution_frame, text="Fullscreen", onvalue=True, offvalue=False, variable=self.resolution_frame.fullscreen_checkbutton_variable)
-        self.resolution_frame.fullscreen_checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(14,25), sticky="w")
+        self.resolution_frame.fullscreen_checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(14, 25), sticky="w")
         self.config_update.append((self.resolution_frame.fullscreen_checkbutton_variable, "fullscreen"))
 
         # CPU count frame
@@ -4634,7 +4507,7 @@ class SC4SettingsUI(tk.Toplevel):
         self.cpu_count_frame.grid(row=1, column=1, columnspan=1, rowspan=1, padx=10, pady=5, sticky="w")
 
         # CPU count entry
-        self.cpu_count_frame.entry = ttk.Entry(self.cpu_count_frame, width = 10)
+        self.cpu_count_frame.entry = ttk.Entry(self.cpu_count_frame, width=10)
         self.cpu_count_frame.entry.insert(0, str(sc4mp_config["SC4"]["cpu_count"]))
         self.cpu_count_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=5, sticky="w")
         self.config_update.append((self.cpu_count_frame.entry, "cpu_count"))
@@ -4655,7 +4528,7 @@ class SC4SettingsUI(tk.Toplevel):
         self.additional_properties_frame.grid(row=2, column=1, columnspan=2, padx=10, pady=5, sticky="w")
 
         # Additional properties entry
-        self.additional_properties_frame.entry = ttk.Entry(self.additional_properties_frame, width = 30)
+        self.additional_properties_frame.entry = ttk.Entry(self.additional_properties_frame, width=30)
         self.additional_properties_frame.entry.grid(row=0, column=0, columnspan=1, padx=10, pady=10, sticky="w")
         self.additional_properties_frame.entry.insert(0, sc4mp_config["SC4"]["additional_properties"])
         self.config_update.append((self.additional_properties_frame.entry, "additional_properties"))
@@ -4684,14 +4557,12 @@ class SC4SettingsUI(tk.Toplevel):
         self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
         self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
 
-
     def browse_path(self):
 
         path = filedialog.askdirectory(parent=self)
         if len(path) > 0:
             self.path_frame.entry.delete(0, 'end')
             self.path_frame.entry.insert(0, path)
-
 
     def update(self):
         for item in self.config_update:
@@ -4715,13 +4586,11 @@ class SC4SettingsUI(tk.Toplevel):
             else:
                 update_config_value("SC4", key, data)
 
-
     def ok(self):
 
         self.update()
         sc4mp_config.update()
         self.destroy()
-
 
     def reset(self):
 
@@ -4732,9 +4601,7 @@ class SC4SettingsUI(tk.Toplevel):
             sc4mp_config.data = Config(sc4mp_config.PATH, sc4mp_config.DEFAULTS, error_callback=show_error, update_constants_callback=update_config_constants).data
             self.__init__()
 
-
     def preview(self):
-
 
         # Hide the settings window and main ui
         self.withdraw()
@@ -4799,11 +4666,9 @@ class SC4SettingsUI(tk.Toplevel):
 
 class HostUI(tk.Toplevel):
 
-
     def __init__(self):
 
-
-        #print("Initializing...")
+        # print("Initializing...")
 
         # Create default server configuration
         path = Path("_Servers" / "default")
@@ -4831,8 +4696,8 @@ class HostUI(tk.Toplevel):
         self.grab_set()
 
         # Key bindings
-        self.bind("<Return>", lambda event:self.ok())
-        self.bind("<Escape>", lambda event:self.destroy())
+        self.bind("<Return>", lambda event: self.ok())
+        self.bind("<Escape>", lambda event: self.destroy())
 
         # Label
         self.label = ttk.Label(self, text="Select a server configuration to launch with.", justify="center")
@@ -4876,41 +4741,31 @@ class HostUI(tk.Toplevel):
         self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.destroy)
         self.ok_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=10, pady=10, sticky="e")
 
-
     def rename(self):
 
-
-        #TODO
+        # TODO
 
         return
-
 
     def config(self):
 
-
-        #TODO
+        # TODO
 
         return
-
 
     def files(self):
 
-
-        #TODO
+        # TODO
 
         return
-
 
     def new(self):
 
-
-        #TODO
+        # TODO
 
         return
 
-
     def ok(self):
-
 
         path = Path("_Servers") / self.list_box_variable.get()[self.list_box.curselection()[0]]
 
@@ -4921,10 +4776,9 @@ class HostUI(tk.Toplevel):
 
 class DirectConnectUI(tk.Toplevel):
 
-
     def __init__(self):
 
-        #print("Initializing...")
+        # print("Initializing...")
 
         # Init
         super().__init__()
@@ -4946,10 +4800,10 @@ class DirectConnectUI(tk.Toplevel):
         self.grab_set()
 
         # Key bindings
-        self.bind("<Return>", lambda event:self.connect())
-        self.bind("<Escape>", lambda event:self.destroy())
-        self.bind("<Up>", lambda event:self.host_entry.focus())
-        self.bind("<Down>", lambda event:self.port_entry.focus())
+        self.bind("<Return>", lambda event: self.connect())
+        self.bind("<Escape>", lambda event: self.destroy())
+        self.bind("<Up>", lambda event: self.host_entry.focus())
+        self.bind("<Down>", lambda event: self.port_entry.focus())
 
         # Host Label
         self.host_label = ttk.Label(self, text="Host")
@@ -4982,7 +4836,6 @@ class DirectConnectUI(tk.Toplevel):
         self.connect_cancel.cancel_button = ttk.Button(self.connect_cancel, text="Cancel", command=self.destroy)
         self.connect_cancel.cancel_button.grid(row=0, column=1, columnspan=1, padx=7, pady=5, sticky="e")
 
-
     def connect(self):
 
         print('"Connect"')
@@ -4991,12 +4844,12 @@ class DirectConnectUI(tk.Toplevel):
         try:
             if len(host) < 1:
                 host = SC4MP_HOST
-                #raise ClientException("Invalid host")
+                # raise ClientException("Invalid host")
             try:
                 port = int(port)
             except Exception:
                 port = SC4MP_PORT
-                #raise ClientException("Invalid port")
+                # raise ClientException("Invalid port")
             ServerLoaderUI(Server(host, port))
             self.destroy()
         except Exception as e:
@@ -5004,7 +4857,6 @@ class DirectConnectUI(tk.Toplevel):
 
 
 class PasswordDialogUI(tk.Toplevel):
-
 
     def __init__(self, server_loader, tries):
 
@@ -5038,8 +4890,8 @@ class PasswordDialogUI(tk.Toplevel):
         self.grab_set()
 
         # Key bindings
-        self.bind("<Return>", lambda event:self.ok())
-        self.bind("<Escape>", lambda event:self.cancel())
+        self.bind("<Return>", lambda event: self.ok())
+        self.bind("<Escape>", lambda event: self.cancel())
 
         # Password label
         self.password_label = ttk.Label(self, text="Password")
@@ -5047,13 +4899,13 @@ class PasswordDialogUI(tk.Toplevel):
 
         # Password entry
         self.password_entry = ttk.Entry(self, width=38)
-        #self.password_entry.insert(0, sc4mp_config["GENERAL"]["default_host"])
+        # self.password_entry.insert(0, sc4mp_config["GENERAL"]["default_host"])
         self.password_entry.grid(row=0, column=1, columnspan=3, padx=10, pady=20, sticky="w")
         self.password_entry.config(show="*")
         self.password_entry.focus()
-        #try:
+        # try:
         #    self.password_entry.insert(0, sc4mp_servers_database[self.server_loader.server.server_id]["password"])
-        #except Exception:
+        # except Exception:
         #    pass
 
         # OK/Cancel frame
@@ -5062,16 +4914,16 @@ class PasswordDialogUI(tk.Toplevel):
 
         # OK button
         self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Ok", command=self.ok, default="active")
-        self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=(3,0), pady=5, sticky="w")
+        self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=(3, 0), pady=5, sticky="w")
 
         # Guest button
-        #if True:
+        # if True:
         #    self.ok_cancel.guest_button = ttk.Button(self.ok_cancel, text="Guest", command=self.ok)
         #    self.ok_cancel.guest_button.grid(row=0, column=0, columnspan=1, padx=(10,0), pady=5, sticky="w")
 
         # Cancel button
         self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.cancel)
-        self.ok_cancel.cancel_button.grid(row=0, column=2, columnspan=1, padx=(10,7), pady=5, sticky="e")
+        self.ok_cancel.cancel_button.grid(row=0, column=2, columnspan=1, padx=(10, 7), pady=5, sticky="e")
 
         # Update loop
         self.wait = True
@@ -5087,9 +4939,7 @@ class PasswordDialogUI(tk.Toplevel):
                 self.ok_cancel.ok_button["text"] = "Ok"
             time.sleep(SC4MP_DELAY)
 
-
     def ok(self):
-
 
         password = self.password_entry.get()
 
@@ -5115,7 +4965,6 @@ class PasswordDialogUI(tk.Toplevel):
         self.server_loader.ui.lift()
         self.server_loader.ui.grab_set()
 
-
     def cancel(self):
 
         self.server_loader.ui.destroy()
@@ -5125,11 +4974,9 @@ class PasswordDialogUI(tk.Toplevel):
 
 class AboutUI(tk.Toplevel):
 
-
     def __init__(self):
 
-
-        #print("Initializing...")
+        # print("Initializing...")
 
         # Init
         super().__init__()
@@ -5151,31 +4998,31 @@ class AboutUI(tk.Toplevel):
         self.grab_set()
 
         # Key bindings
-        self.bind("<Return>", lambda event:self.ok())
-        self.bind("<Escape>", lambda event:self.destroy())
+        self.bind("<Return>", lambda event: self.ok())
+        self.bind("<Escape>", lambda event: self.destroy())
 
         # Image
         self.canvas = tk.Canvas(self, width=256, height=256)
         self.canvas.image = tk.PhotoImage(file=get_sc4mp_path("icon.png"))
         self.canvas.create_image(128, 128, anchor="center", image=self.canvas.image)
-        self.canvas.grid(row=0, column=0, rowspan=5, columnspan=1, padx=10, pady=(20,0), sticky="n")
+        self.canvas.grid(row=0, column=0, rowspan=5, columnspan=1, padx=10, pady=(20, 0), sticky="n")
 
         # Title label 1
         self.title_label_1 = ttk.Label(self, text="Title:")
-        self.title_label_1.grid(row=0, column=1, columnspan=1, padx=10, pady=(20,5), sticky="e")
+        self.title_label_1.grid(row=0, column=1, columnspan=1, padx=10, pady=(20, 5), sticky="e")
 
         # Title label 2
         self.title_label_2 = ttk.Label(self, text=SC4MP_TITLE)
-        self.title_label_2.grid(row=0, column=2, columnspan=1, padx=10, pady=(20,5), sticky="w")
+        self.title_label_2.grid(row=0, column=2, columnspan=1, padx=10, pady=(20, 5), sticky="w")
 
         # Author label 1
         self.author_label_1 = ttk.Label(self, text="Author:")
         self.author_label_1.grid(row=1, column=1, columnspan=1, padx=10, pady=5, sticky="e")
 
         # Author label 2
-        self.author_label_2 = tk.Label(self, text=SC4MP_AUTHOR_NAME, fg="blue", cursor="hand2") #, font=font.Font(underline=True))
+        self.author_label_2 = tk.Label(self, text=SC4MP_AUTHOR_NAME, fg="blue", cursor="hand2")  # , font=font.Font(underline=True))
         self.author_label_2.grid(row=1, column=2, columnspan=1, padx=10, pady=5, sticky="w")
-        self.author_label_2.bind("<Button-1>", lambda e:webbrowser.open_new_tab(SC4MP_CONTRIBUTORS_URL))
+        self.author_label_2.bind("<Button-1>", lambda e: webbrowser.open_new_tab(SC4MP_CONTRIBUTORS_URL))
 
         # Website label 1
         self.website_label_1 = ttk.Label(self, text="Website:")
@@ -5184,21 +5031,20 @@ class AboutUI(tk.Toplevel):
         # Website label 2
         self.website_label_2 = tk.Label(self, text=SC4MP_WEBSITE_NAME, fg="blue", cursor="hand2")
         self.website_label_2.grid(row=2, column=2, columnspan=1, padx=10, pady=5, sticky="w")
-        self.website_label_2.bind("<Button-1>", lambda e:webbrowser.open_new_tab(SC4MP_URL))
+        self.website_label_2.bind("<Button-1>", lambda e: webbrowser.open_new_tab(SC4MP_URL))
 
         # License label 1
         self.license_label_1 = ttk.Label(self, text="License:")
-        self.license_label_1.grid(row=3, column=1, columnspan=1, padx=10, pady=(5,80), sticky="e")
+        self.license_label_1.grid(row=3, column=1, columnspan=1, padx=10, pady=(5, 80), sticky="e")
 
         # License label 2
         self.license_label_2 = tk.Label(self, text=SC4MP_LICENSE_NAME, fg="blue", cursor="hand2")
-        self.license_label_2.grid(row=3, column=2, columnspan=1, padx=10, pady=(5,80), sticky="w")
-        self.license_label_2.bind("<Button-1>", lambda e:startfile("License.txt"))
+        self.license_label_2.grid(row=3, column=2, columnspan=1, padx=10, pady=(5, 80), sticky="w")
+        self.license_label_2.bind("<Button-1>", lambda e: startfile("License.txt"))
 
         # Ok button
         self.ok_button = ttk.Button(self, text="Ok", command=self.ok, default="active")
         self.ok_button.grid(row=4, column=2, columnspan=1, padx=0, pady=5, sticky="se")
-
 
     def ok(self):
 
@@ -5215,35 +5061,27 @@ class ServerListUI(tk.Frame):
         TODO
     """
 
-
     def __init__(self, root):
 
-
-
-        #print("Initializing...")
-
+        # print("Initializing...")
 
         # Parameters
 
         self.root = root
 
-
         # Init
 
         super().__init__(self.root)
-
 
         # Geometry
 
         self.grid()
 
-
         # Key bindings
 
         self.root.bind("<Return>", lambda event: self.connect())
-        self.root.bind("<Up>", lambda event:self.focus_tree())
-        self.root.bind("<Down>", lambda event:self.focus_tree())
-
+        self.root.bind("<Up>", lambda event: self.focus_tree())
+        self.root.bind("<Down>", lambda event: self.focus_tree())
 
         # Banner
 
@@ -5254,19 +5092,16 @@ class ServerListUI(tk.Frame):
         self.canvas["highlightthickness"] = 0
         self.canvas.grid(row=0, column=0, rowspan=1, columnspan=3, padx=0, pady=0)
 
-
         # Label
 
         self.label = ttk.Label(self)
         self.label.grid(row=1, column=0, rowspan=1, columnspan=3, padx=10, pady=(15, 10))
-        #self.label['text'] = 'Loading...' #'To get started, select a server below and click "Connect."' #"Loading server list..."
-
+        # self.label['text'] = 'Loading...' #'To get started, select a server below and click "Connect."' #"Loading server list..."
 
         # Frame
 
         self.frame = tk.Frame(self)
         self.frame.grid(row=2, column=0, rowspan=1, columnspan=3, padx=15, pady=10, sticky="n")
-
 
         # Tree
 
@@ -5331,7 +5166,7 @@ class ServerListUI(tk.Frame):
             self.tree.column(column_id, width=column_width, anchor=column_anchor, stretch=False)
             self.tree.heading(column_id, text=column_name, command=lambda column_name=column_name: self.handle_header_click(column_name))
 
-        #self.tree['show'] = 'headings'
+        # self.tree['show'] = 'headings'
         self.tree['displaycolumns'] = ("#1", "#2", "#3", "#4", "#5")
 
         # self.tree.bind("<Double-1>", self.handle_double_click) #lambda event: self.connect())
@@ -5350,8 +5185,7 @@ class ServerListUI(tk.Frame):
         self.tree.pack(side="left")
 
         self.tree.last_click = 0
-        self.tree.last_click_coords = (0,0)
-
+        self.tree.last_click_coords = (0, 0)
 
         # Scrollbar
 
@@ -5363,15 +5197,13 @@ class ServerListUI(tk.Frame):
         self.scrollbar.pack(side="right", fill="y")
         self.tree.configure(yscrollcommand=self.scrollbar.set)
 
-
         # Server info frame
 
         self.server_info = tk.Frame(self, width=540, height=120)
         self.server_info.grid(row=3, column=0, columnspan=2, padx=20, pady=0, sticky="nw")
         self.server_info.grid_propagate(0)
 
-        #TODO add right click context menu
-
+        # TODO add right click context menu
 
         # Description label
 
@@ -5379,19 +5211,17 @@ class ServerListUI(tk.Frame):
         self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="nw")
         self.description_label['text'] = ""
 
-
         # URL label
 
         self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2")
         self.url_label.grid(row=1, column=0, columnspan=1, padx=0, pady=5, sticky="nw")
         self.url_label['text'] = ""
-        self.url_label.bind("<Button-1>", lambda e:self.open_server_url())
-
+        self.url_label.bind("<Button-1>", lambda e: self.open_server_url())
 
         # Combo box
 
         self.combo_box = ttk.Combobox(self, width=23)
-        self.combo_box["values"] = ("category: All", "category: Official", "category: Public", "category: Private", "category: History") #"category: Bookmarked" "category: Online"
+        self.combo_box["values"] = ("category: All", "category: Official", "category: Public", "category: Private", "category: History")  # "category: Bookmarked" "category: Online"
 
         self.combo_box.PLACEHOLDER_TEXT = "Search/Filter servers"
 
@@ -5421,8 +5251,7 @@ class ServerListUI(tk.Frame):
             self.combo_box.insert(0, self.combo_box.PLACEHOLDER_TEXT)
             self.combo_box.configure(foreground="gray")
 
-        self.combo_box.grid(row=3, column=2, rowspan=1, columnspan=1, padx=(0,16), pady=(5,10), sticky="ne")
-
+        self.combo_box.grid(row=3, column=2, rowspan=1, columnspan=1, padx=(0, 16), pady=(5, 10), sticky="ne")
 
         # Address label
 
@@ -5430,43 +5259,36 @@ class ServerListUI(tk.Frame):
         self.address_label.grid(row=4, column=0, columnspan=1, padx=20, pady=10, sticky="sw")
         self.address_label['text'] = ""
 
-
         # Server options frame
 
         self.server_options = tk.Frame(self)
         self.server_options.grid(row=4, column=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="se")
 
-
         # Details button
 
         self.details_button = ttk.Button(self.server_options, text="Details", command=self.details)
         self.details_button['state'] = tk.DISABLED
-        self.details_button.grid(row=0, column=99, columnspan=1, padx=(15,20), pady=10, sticky="se")
-
+        self.details_button.grid(row=0, column=99, columnspan=1, padx=(15, 20), pady=10, sticky="se")
 
         # Refresh / connect frame
 
         self.refresh_connect = tk.Frame(self)
         self.refresh_connect.grid(row=4, column=2, rowspan=1, columnspan=1, padx=0, pady=0, sticky="se")
 
-
         # Refresh button
 
         self.refresh_button = ttk.Button(self.refresh_connect, text="Refresh", command=self.root.refresh)
         self.refresh_button.grid(row=0, column=0, columnspan=1, padx=11, pady=10, sticky="se")
 
-
         # Connect button
 
         self.connect_button = ttk.Button(self.refresh_connect, text="Connect", command=self.connect, default="active")
         self.connect_button['state'] = tk.DISABLED
-        self.connect_button.grid(row=0, column=1, columnspan=1, padx=(0,15), pady=10, sticky="se")
-
+        self.connect_button.grid(row=0, column=1, columnspan=1, padx=(0, 15), pady=10, sticky="se")
 
         # Worker
         self.worker = ServerList(self)
         self.worker.start()
-
 
     def handle_double_click(self, event):
 
@@ -5477,7 +5299,6 @@ class ServerListUI(tk.Frame):
             self.connect()
         self.tree.last_click = 0
         self.tree.last_click_coords = (0, 0)
-
 
     def handle_single_click(self, event):
 
@@ -5490,7 +5311,6 @@ class ServerListUI(tk.Frame):
             else:
                 self.tree.last_click = time.time()
                 self.tree.last_click_coords = (event.x, event.y)
-
 
     def handle_right_click(self, event):
 
@@ -5509,12 +5329,11 @@ class ServerListUI(tk.Frame):
         if "Offline" not in self.worker.servers[server_id].categories:
             menu.add_separator()
             menu.add_command(label="Details...", command=self.details)
-        #TODO add "View..." submenu
-        #TODO add "Sort by..." submenu
+        # TODO add "View..." submenu
+        # TODO add "Sort by..." submenu
 
         # Show the context menu at the cursor's location
         menu.post(event.x_root, event.y_root)
-
 
     def handle_header_click(self, name):
 
@@ -5528,8 +5347,7 @@ class ServerListUI(tk.Frame):
         if self.tree.reverse_sort:
             print("- (reversed)")
         self.worker.sort_mode_changed = True
-        #self.worker.sort = True
-
+        # self.worker.sort = True
 
     def focus_tree(self):
 
@@ -5540,13 +5358,11 @@ class ServerListUI(tk.Frame):
                 self.tree.focus(children[0])
                 self.tree.selection_add([children[0]])
         except Exception as e:
-            show_error("Error setting focus on server list UI.", no_ui=True) # Method not all that important so we'll just toss an error in the console and call it a day
-
+            show_error("Error setting focus on server list UI.", no_ui=True)  # Method not all that important so we'll just toss an error in the console and call it a day
 
     def details(self):
 
         ServerDetailsUI(self.worker.servers[self.tree.focus()])
-
 
     def connect(self):
 
@@ -5572,11 +5388,9 @@ class ServerListUI(tk.Frame):
         except Exception as e:
             show_error(f"An error occurred before the server loader thread could start.\n\n{e}")
 
-
     def open_server_url(self):
 
         webbrowser.open_new_tab(format_url(self.url_label["text"]))
-
 
     def destroy(self):
 
@@ -5594,12 +5408,9 @@ class ServerListUI(tk.Frame):
 
 class ServerLoaderUI(tk.Toplevel):
 
-
-
     def __init__(self, server):
 
-
-        #print("Initializing...")
+        # print("Initializing...")
 
         # Init
         super().__init__()
@@ -5627,7 +5438,7 @@ class ServerLoaderUI(tk.Toplevel):
         self.grab_set()
 
         # Key bindings
-        self.bind("<Escape>", lambda event:self.destroy())
+        self.bind("<Escape>", lambda event: self.destroy())
 
         # Label
         self.label = ttk.Label(self)
@@ -5642,7 +5453,7 @@ class ServerLoaderUI(tk.Toplevel):
             length=780,
             maximum=100
         )
-        self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10,5))
+        self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10, 5))
         self.progress_bar.start(2)
 
         # Progress label
@@ -5659,7 +5470,6 @@ class ServerLoaderUI(tk.Toplevel):
         self.worker = ServerLoader(self, server)
         self.worker.start()
 
-
     def destroy(self):
 
         super().destroy()
@@ -5669,7 +5479,6 @@ class ServerLoaderUI(tk.Toplevel):
 
 
 class ServerBackgroundUI(tk.Toplevel):
-
 
     def __init__(self, server):
 
@@ -5701,8 +5510,7 @@ class ServerBackgroundUI(tk.Toplevel):
         th.Thread(target=self.fetch_background, daemon=True).start()
 
         # Loop
-        #self.after(100, self.loop)
-
+        # self.after(100, self.loop)
 
     def reload_image(self, event=None):
 
@@ -5732,7 +5540,6 @@ class ServerBackgroundUI(tk.Toplevel):
         except Exception as e:
 
             show_error(f"An error occurred while displaying the server background.\n\n{e}", no_ui=True)
-
 
     def fetch_background(self):
 
@@ -5765,7 +5572,6 @@ class ServerBackgroundUI(tk.Toplevel):
 
             self.retry_fetch_background()
 
-
     def retry_fetch_background(self):
 
         if self.destroyed:
@@ -5773,7 +5579,6 @@ class ServerBackgroundUI(tk.Toplevel):
 
         self.server_image = None
         self.after(3000, lambda: th.Thread(target=self.fetch_background, daemon=True).start())
-
 
     # def loop(self):
 
@@ -5785,7 +5590,6 @@ class ServerBackgroundUI(tk.Toplevel):
     #     elif not self.destroyed:
     #         self.after(100, self.loop)
 
-
     def destroy(self):
 
         self.destroyed = True
@@ -5795,18 +5599,14 @@ class ServerBackgroundUI(tk.Toplevel):
 
 class ServerDetailsUI(tk.Toplevel):
 
-
     def __init__(self, server: Server):
         """TODO"""
 
-
-        #print("Initializing...")
-
+        # print("Initializing...")
 
         # Init
 
         super().__init__()
-
 
         # Properties
 
@@ -5815,16 +5615,13 @@ class ServerDetailsUI(tk.Toplevel):
         self.folder_icon = tk.PhotoImage(file=get_sc4mp_path("folder-icon.png"))
         self.file_icon = tk.PhotoImage(file=get_sc4mp_path("file-icon.png"))
 
-
         # Title
 
         self.title(self.server.server_name)
 
-
         # Icon
 
         self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
-
 
         # Geometry
 
@@ -5832,16 +5629,14 @@ class ServerDetailsUI(tk.Toplevel):
         self.grid()
         center_window(self)
 
-
         # Priority
 
         self.grab_set()
 
-
         # Key bindings
 
-        self.bind("<Return>", lambda event:self.destroy())
-        self.bind("<Escape>", lambda event:self.destroy())
+        self.bind("<Return>", lambda event: self.destroy())
+        self.bind("<Escape>", lambda event: self.destroy())
         self.bind("<Up>", self.up)
         self.bind("<Down>", self.down)
         self.bind("<Left>", lambda event: self.switch_tab(left=True))
@@ -5852,7 +5647,6 @@ class ServerDetailsUI(tk.Toplevel):
         self.notebook = ttk.Notebook(self, width=370, height=361)
         self.notebook.bind("<<NotebookTabChanged>>", self.on_notebook_tab_changed)
         self.notebook.grid(row=0, column=0, padx=10, pady=5)
-
 
         # Info frame
 
@@ -5866,40 +5660,40 @@ class ServerDetailsUI(tk.Toplevel):
         invite_link = f"https://{SC4MP_INVITES_DOMAIN}/{self.server.server_id}"
 
         invite_link_label = ttk.Label(inner_frame, text="Invite link", font=("Segoe UI", 9, "bold"))
-        invite_link_label.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(10,0))
+        invite_link_label.grid(row=0, column=0, columnspan=2, sticky="w", padx=10, pady=(10, 0))
 
         invite_link_entry = ttk.Entry(inner_frame, width=40)
         invite_link_entry.insert(0, invite_link)
         invite_link_entry.after(100, lambda: self.reset_entrybox(invite_link_entry, invite_link))
-        #invite_link_entry.configure(state="disabled")
+        # invite_link_entry.configure(state="disabled")
         invite_link_entry.grid(row=1, column=0, columnspan=2, sticky="w", padx=10, pady=0)
 
         invite_link_copy_button = ttk.Button(inner_frame, text="Copy", command=lambda: copy_to_clipboard(invite_link))
         invite_link_copy_button.grid(row=1, column=2)
 
-        #server_id_label = ttk.Label(inner_frame, text="ID", font=("Segoe UI", 9, "bold"))
-        #server_id_label.grid(row=2, column=0, columnspan=2, sticky="w", padx=10, pady=(10,0))
+        # server_id_label = ttk.Label(inner_frame, text="ID", font=("Segoe UI", 9, "bold"))
+        # server_id_label.grid(row=2, column=0, columnspan=2, sticky="w", padx=10, pady=(10,0))
 
-        #server_id_entry = ttk.Entry(inner_frame, width=40)
-        #server_id_entry.insert(0, self.server.server_id)
-        #server_id_entry.after(100, lambda: self.reset_entrybox(server_id_entry, self.server.server_id))
-        ##server_id_entry.configure(state="disabled")
-        #server_id_entry.grid(row=3, column=0, columnspan=2, sticky="w", padx=10, pady=0)
+        # server_id_entry = ttk.Entry(inner_frame, width=40)
+        # server_id_entry.insert(0, self.server.server_id)
+        # server_id_entry.after(100, lambda: self.reset_entrybox(server_id_entry, self.server.server_id))
+        # server_id_entry.configure(state="disabled")
+        # server_id_entry.grid(row=3, column=0, columnspan=2, sticky="w", padx=10, pady=0)
 
-        #server_id_copy_button = ttk.Button(inner_frame, text="Copy", command=lambda: copy_to_clipboard(self.server.server_id))
-        #server_id_copy_button.grid(row=3, column=2)
+        # server_id_copy_button = ttk.Button(inner_frame, text="Copy", command=lambda: copy_to_clipboard(self.server.server_id))
+        # server_id_copy_button.grid(row=3, column=2)
 
         left_frame = ttk.Frame(inner_frame)
         left_frame.grid(row=10, column=0, pady=20, sticky="nw")
 
         version_label_1 = ttk.Label(left_frame, text="Version", font=("Segoe UI", 9, "bold"))
-        version_label_1.grid(row=1, column=0, sticky="w", padx=10, pady=(10,0))
+        version_label_1.grid(row=1, column=0, sticky="w", padx=10, pady=(10, 0))
 
         version_label_2 = ttk.Label(left_frame, text=self.server.server_version, foreground=("red" if unformat_version(self.server.server_version)[:2] != unformat_version(SC4MP_VERSION)[:2] else "black"))
         version_label_2.grid(row=2, column=0, sticky="w", padx=10, pady=0)
 
         password_enabled_label_1 = ttk.Label(left_frame, text="Public", font=("Segoe UI", 9, "bold"))
-        password_enabled_label_1.grid(row=3, column=0, sticky="w", padx=10, pady=(10,0))
+        password_enabled_label_1.grid(row=3, column=0, sticky="w", padx=10, pady=(10, 0))
 
         password_enabled_label_2 = ttk.Label(left_frame, text=("No" if self.server.password_enabled else "Yes"), foreground=("red" if self.server.password_enabled else "green"))
         password_enabled_label_2.grid(row=4, column=0, sticky="w", padx=10, pady=0)
@@ -5907,7 +5701,7 @@ class ServerDetailsUI(tk.Toplevel):
         if self.server.password_enabled:
 
             private_label_1 = ttk.Label(left_frame, text="Guests", font=("Segoe UI", 9, "bold"))
-            private_label_1.grid(row=5, column=0, sticky="w", padx=10, pady=(10,0))
+            private_label_1.grid(row=5, column=0, sticky="w", padx=10, pady=(10, 0))
 
             private_label_2 = ttk.Label(left_frame, text=("No" if self.server.private else "Yes"), foreground=("red" if self.server.private else "green"))
             private_label_2.grid(row=6, column=0, sticky="w", padx=10, pady=0)
@@ -5916,7 +5710,7 @@ class ServerDetailsUI(tk.Toplevel):
         right_frame.grid(row=10, column=1, columnspan=2, pady=20, sticky="nw")
 
         custom_plugins_label_1 = ttk.Label(right_frame, text="Custom plugins", font=("Segoe UI", 9, "bold"))
-        custom_plugins_label_1.grid(row=1, column=0, sticky="w", padx=10, pady=(10,0))
+        custom_plugins_label_1.grid(row=1, column=0, sticky="w", padx=10, pady=(10, 0))
 
         custom_plugins_label_2 = ttk.Label(right_frame, text=("Yes" if self.server.user_plugins_enabled else "No"), foreground=("green" if self.server.user_plugins_enabled else "red"))
         custom_plugins_label_2.grid(row=2, column=0, sticky="w", padx=10, pady=0)
@@ -5938,13 +5732,13 @@ class ServerDetailsUI(tk.Toplevel):
                 max_region_claims = f"{max_region_claims} per region"
 
             claim_duration_label_1 = ttk.Label(right_frame, text="Claim duration", font=("Segoe UI", 9, "bold"))
-            claim_duration_label_1.grid(row=3, column=0, sticky="w", padx=10, pady=(10,0))
+            claim_duration_label_1.grid(row=3, column=0, sticky="w", padx=10, pady=(10, 0))
 
             claim_duration_label_2 = ttk.Label(right_frame, text=claim_duration, foreground=("green" if claim_duration == "Forever" else "black"))
             claim_duration_label_2.grid(row=4, column=0, sticky="w", padx=10, pady=0)
 
             claim_limit_label_1 = ttk.Label(right_frame, text="Claim limit", font=("Segoe UI", 9, "bold"))
-            claim_limit_label_1.grid(row=5, column=0, sticky="w", padx=10, pady=(10,0))
+            claim_limit_label_1.grid(row=5, column=0, sticky="w", padx=10, pady=(10, 0))
 
             claim_limit_label_2 = ttk.Label(right_frame, text=max_region_claims, foreground=("green" if max_region_claims == "None" else "black"))
             claim_limit_label_2.grid(row=6, column=0, sticky="w", padx=10, pady=0)
@@ -5952,7 +5746,7 @@ class ServerDetailsUI(tk.Toplevel):
             if not godmode_filter:
 
                 godmode_claims_label_1 = ttk.Label(right_frame, text="Godmode claims", font=("Segoe UI", 9, "bold"))
-                godmode_claims_label_1.grid(row=7, column=0, sticky="w", padx=10, pady=(10,0))
+                godmode_claims_label_1.grid(row=7, column=0, sticky="w", padx=10, pady=(10, 0))
 
                 godmode_claims_label_2 = ttk.Label(right_frame, text=("No" if godmode_filter else "Yes"), foreground=("red" if godmode_filter else "green"))
                 godmode_claims_label_2.grid(row=8, column=0, sticky="w", padx=10, pady=0)
@@ -5961,53 +5755,48 @@ class ServerDetailsUI(tk.Toplevel):
 
             pass
 
-        #options_frame = tk.Frame(self.info_frame)
-        #options_frame.grid(row=1, column=0, sticky="sw")
+        # options_frame = tk.Frame(self.info_frame)
+        # options_frame.grid(row=1, column=0, sticky="sw")
 
-        #copy_link_button = ttk.Button(options_frame, text="Copy link", command=lambda: copy_to_clipboard(f"sc4mp://{self.server.host}:{self.server.port}"))
-        #copy_link_button.grid(row=0, column=0, padx=20, pady=10)
+        # copy_link_button = ttk.Button(options_frame, text="Copy link", command=lambda: copy_to_clipboard(f"sc4mp://{self.server.host}:{self.server.port}"))
+        # copy_link_button.grid(row=0, column=0, padx=20, pady=10)
 
-        #invite_link_label = ttk.Label(self.info_frame, text="Link: ")
-        #invite_link_label.grid(row=1, column=0)
+        # invite_link_label = ttk.Label(self.info_frame, text="Link: ")
+        # invite_link_label.grid(row=1, column=0)
 
-        #invite_link_entry = ttk.Entry(self.info_frame)
-        #invite_link_entry.insert(0, f"sc4mp://{self.server.host}:{self.server.port}")
-        #invite_link_entry.grid(row=1, column=1)
+        # invite_link_entry = ttk.Entry(self.info_frame)
+        # invite_link_entry.insert(0, f"sc4mp://{self.server.host}:{self.server.port}")
+        # invite_link_entry.grid(row=1, column=1)
 
-        #self.info_frame.rules_frame: ttk.LabelFrame = ttk.Labelframe(self.info_frame, text="Rules")
-        #self.info_frame.rules_frame.grid(row=0, column=0)
+        # self.info_frame.rules_frame: ttk.LabelFrame = ttk.Labelframe(self.info_frame, text="Rules")
+        # self.info_frame.rules_frame.grid(row=0, column=0)
 
-        #self.info_frame.rules_frame.label = ttk.Label(self.info_frame.rules_frame, text="TEST")
-        #self.info_frame.rules_frame.label.grid(row=0, column=0)
+        # self.info_frame.rules_frame.label = ttk.Label(self.info_frame.rules_frame, text="TEST")
+        # self.info_frame.rules_frame.label.grid(row=0, column=0)
 
         self.notebook.add(self.info_frame, text="Info")
-
 
         # Ok button
 
         self.ok_button = ttk.Button(self, text="Ok", command=self.destroy, default="active")
         self.ok_button.grid(row=1, column=0, padx=10, pady=5, sticky="se")
 
-
         # Create notebook frames asynchronously
 
         th.Thread(target=self.create_notebook_frames).start()
 
-        #self.chain_functions([
+        # self.chain_functions([
         #    self.create_mayors_frame,
         #    self.create_cities_frame,
         #    lambda: th.Thread(target=self.create_files_frame).start()
-        #])
-
+        # ])
 
         # Update window size periodically
 
         self.after(100, self.update_window_size)
 
-
         # Select tab from last server detail view
         self.after(200, self.select_last_tab)
-
 
     def select_last_tab(self):
 
@@ -6015,7 +5804,6 @@ class ServerDetailsUI(tk.Toplevel):
             self.notebook.select(globals().get("sc4mp_server_details_ui_last_tab_index", 0))
         except Exception as e:
             pass
-
 
     def on_notebook_tab_changed(self, function: function):
 
@@ -6034,19 +5822,15 @@ class ServerDetailsUI(tk.Toplevel):
 
             show_error(e, no_ui=True)
 
+        # function()
 
-        #function()
-
-        #self.notebook.unbind("<<NotebookTabChanged>>")
-
+        # self.notebook.unbind("<<NotebookTabChanged>>")
 
     def up(self, event):
         self.focus_tree(move_up=True)
 
-
     def down(self, event):
         self.focus_tree(move_down=True)
-
 
     def focus_tree(self, move_up=False, move_down=False):
 
@@ -6076,7 +5860,6 @@ class ServerDetailsUI(tk.Toplevel):
 
             show_error(e, no_ui=True)
 
-
     def switch_tab(self, left=False):
 
         try:
@@ -6096,17 +5879,17 @@ class ServerDetailsUI(tk.Toplevel):
                         return
             elif type(current_focus) is ttk.Entry:
                 return
-                #current_selection = current_focus.selection()
-                #if len(current_selection) > 0:
+                # current_selection = current_focus.selection()
+                # if len(current_selection) > 0:
                 #    current_selection = current_selection[0]
                 #    if current_selection not in current_focus.get_children("") or right:
                 #        return
-                    #if len(current_focus.get_children(current_selection)) > 0:
-                        #right = not left
-                        #expanded = current_focus.item(current_selection, "open")
-                        #collapsed = not expanded
-                        #if collapsed and right or expanded and left:
-                    #    return
+                # if len(current_focus.get_children(current_selection)) > 0:
+                # right = not left
+                # expanded = current_focus.item(current_selection, "open")
+                # collapsed = not expanded
+                # if collapsed and right or expanded and left:
+                #    return
 
             self.notebook.focus_set()
 
@@ -6122,13 +5905,12 @@ class ServerDetailsUI(tk.Toplevel):
 
             show_error(e, no_ui=True)
 
-
     def update_window_size(self):
 
         try:
 
             # Check if UI is destoyed and stop updating window size if so
-            if not self.winfo_exists(): #self.destroyed:
+            if not self.winfo_exists():  # self.destroyed:
                 return
 
             # Update the UI to make sure `winfo` calls are correct
@@ -6161,14 +5943,13 @@ class ServerDetailsUI(tk.Toplevel):
             self.minsize(new_window_width, new_window_height)
             self.geometry(f"{new_window_width}x{new_window_height}+{new_window_x}+{new_window_y}")
 
-            #print(f"Resized to {new_window_width}x{new_window_height}.")
+            # print(f"Resized to {new_window_width}x{new_window_height}.")
 
             self.after(100, self.update_window_size)
 
         except Exception as e:
 
             show_error(e, no_ui=True)
-
 
     def reset_entrybox(self, entrybox: ttk.Entry, text: str):
 
@@ -6184,7 +5965,6 @@ class ServerDetailsUI(tk.Toplevel):
 
             show_error(e, no_ui=True)
 
-
     def destroy(self):
 
         global sc4mp_server_details_ui_last_tab_index
@@ -6197,7 +5977,6 @@ class ServerDetailsUI(tk.Toplevel):
         self.destroyed = True
 
         return super().destroy()
-
 
     def chain_functions(self, functions, delay=100):
 
@@ -6213,7 +5992,6 @@ class ServerDetailsUI(tk.Toplevel):
                 if len(functions) > 0:
                     self.after(delay, lambda: self.chain_functions(functions, delay=delay))
 
-
     def load_json(self, *args, **kwargs):
 
         while not self.destroyed:
@@ -6221,7 +5999,6 @@ class ServerDetailsUI(tk.Toplevel):
                 return load_json(*args, *kwargs)
             except json.decoder.JSONDecodeError:
                 time.sleep(1)
-
 
     def create_notebook_frames(self):
 
@@ -6237,9 +6014,7 @@ class ServerDetailsUI(tk.Toplevel):
 
             show_error(f"An error occurred while creating notebook frames.\n\n{e}", no_ui=True)
 
-
     def create_mayors_frame(self):
-
 
         regions_directory: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server.server_id / "Regions"
 
@@ -6391,27 +6166,23 @@ class ServerDetailsUI(tk.Toplevel):
 
         self.notebook.add(self.mayors_frame, text="Mayors")
 
-
     def expand_mayors_treeview(self):
 
         self.mayors_frame.tree["displaycolumns"] = "#all"
         self.mayors_frame.button.configure(command=self.collapse_mayors_treeview, text="Collapse")
 
-        #self.notebook.bind("<<NotebookTabChanged>>", lambda event: self.on_notebook_tab_changed(self.collapse_mayors_treeview))
+        # self.notebook.bind("<<NotebookTabChanged>>", lambda event: self.on_notebook_tab_changed(self.collapse_mayors_treeview))
 
-        #self.after(200, lambda: center_window(self))
-
+        # self.after(200, lambda: center_window(self))
 
     def collapse_mayors_treeview(self):
 
         self.mayors_frame.tree["displaycolumns"] = ["#7", "#8"]
         self.mayors_frame.button.configure(command=self.expand_mayors_treeview, text="Expand")
 
-        #self.after(200, lambda: center_window(self))
-
+        # self.after(200, lambda: center_window(self))
 
     def create_cities_frame(self):
-
 
         regions_directory: Path = Path(SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server.server_id / "Regions"
 
@@ -6549,18 +6320,15 @@ class ServerDetailsUI(tk.Toplevel):
 
         self.notebook.add(self.cities_frame, text="Cities")
 
-
     def expand_cities_treeview(self):
 
         self.cities_frame.tree["displaycolumns"] = "#all"
         self.cities_frame.button.configure(command=self.collapse_cities_treeview, text="Collapse")
 
-
     def collapse_cities_treeview(self):
 
         self.cities_frame.tree["displaycolumns"] = ["#8", "#9"]
         self.cities_frame.button.configure(command=self.expand_cities_treeview, text="Expand")
-
 
     def create_files_frame(self):
 
@@ -6588,7 +6356,7 @@ class ServerDetailsUI(tk.Toplevel):
             ])
 
             self.files_frame.tree.tag_configure('cached', foreground='green')
-            #self.files_frame.tree.tag_configure('red', foreground='red')
+            # self.files_frame.tree.tag_configure('red', foreground='red')
 
             files = {}
 
@@ -6632,7 +6400,7 @@ class ServerDetailsUI(tk.Toplevel):
                         download_size
                     ]
 
-            #update_json("test.json", files)
+            # update_json("test.json", files)
 
             self.populate_files_treeview(self.files_frame.tree, data=files)
 
@@ -6643,7 +6411,6 @@ class ServerDetailsUI(tk.Toplevel):
         except Exception as e:
 
             show_error(e, no_ui=True)
-
 
     def populate_files_treeview(self, tree=None, parent="", data={}):
 
@@ -6663,7 +6430,7 @@ class ServerDetailsUI(tk.Toplevel):
                 # Recursively add children
                 download_size = self.populate_files_treeview(tree, node, value)
 
-                #tree.item(parent, values=[format_download_size(download_size)])
+                # tree.item(parent, values=[format_download_size(download_size)])
 
             elif isinstance(value, list):
 
@@ -6679,7 +6446,6 @@ class ServerDetailsUI(tk.Toplevel):
 
         return total_download_size
 
-
     def expand_files_treeview(self):
 
         self.expand_files_treeview_helper(self.files_frame.tree)
@@ -6687,7 +6453,6 @@ class ServerDetailsUI(tk.Toplevel):
         self.files_frame.adjust_tree_column_widths()
 
         self.files_frame.button.configure(text="Collapse", command=self.collapse_files_treeview)
-
 
     def expand_files_treeview_helper(self, tree, parent=""):
 
@@ -6697,7 +6462,6 @@ class ServerDetailsUI(tk.Toplevel):
         for child in children:
             self.expand_files_treeview_helper(tree, child)
 
-
     def collapse_files_treeview(self):
 
         self.collapse_files_treeview_helper(self.files_frame.tree)
@@ -6705,7 +6469,6 @@ class ServerDetailsUI(tk.Toplevel):
         self.files_frame.tree.column("#0", width=250)
 
         self.files_frame.button.configure(text="Expand", command=self.expand_files_treeview)
-
 
     def collapse_files_treeview_helper(self, tree, parent=""):
 
@@ -6718,9 +6481,7 @@ class ServerDetailsUI(tk.Toplevel):
 
 class StatisticsTreeUI(tk.Frame):
 
-
     def __init__(self, *args, columns=[], formats=[], data={}, sort=-1, reverse=True, **kwargs):
-
 
         super().__init__(*args, **kwargs)
 
@@ -6731,18 +6492,15 @@ class StatisticsTreeUI(tk.Frame):
         self.reverse = reverse
         self.query = ""
 
-
         # Tree frame
 
         self.tree_frame = tk.Frame(self)
         self.tree_frame.grid(row=0, column=0, columnspan=2)
 
-
         # Tree canvas
 
         self.tree_canvas = tk.Canvas(self.tree_frame, width=350, height=323, bg="white", highlightthickness=0)
         self.tree_canvas.pack(side="left")
-
 
         # Tree
 
@@ -6768,36 +6526,31 @@ class StatisticsTreeUI(tk.Frame):
         self.sort_data()
         self.populate_treeview()
 
-        #self.master.configure(width=sum([column[2] for column in columns]))
+        # self.master.configure(width=sum([column[2] for column in columns]))
         self.tree.pack()
         self.tree_canvas.create_window(0, 0, window=self.tree, anchor="nw")
 
         self.after(100, self.filter_treeview)
 
-
         # Scrollbar
 
-        self.scrollbar = ttk.Scrollbar(self.tree_frame, orient ="vertical", command=self.tree.yview)
+        self.scrollbar = ttk.Scrollbar(self.tree_frame, orient="vertical", command=self.tree.yview)
         self.scrollbar.pack(side="right", fill="y")
         self.tree.configure(yscrollcommand=self.scrollbar.set)
-
 
         # Button
 
         self.button = ttk.Button(self, text="Button")
-        self.button.grid(row=1, column=0, sticky="nw", padx=(0,10), pady=(10,0))
-
+        self.button.grid(row=1, column=0, sticky="nw", padx=(0, 10), pady=(10, 0))
 
         # Entry
 
         self.entry = ttk.Entry(self)
-        self.entry.grid(row=1, column=1, sticky="ne", padx=(10,15), pady=(12, 0))
-
+        self.entry.grid(row=1, column=1, sticky="ne", padx=(10, 15), pady=(12, 0))
 
     def sort_data(self):
 
-        self.data = {key:entry for key, entry in sorted(self.data.items(), key=lambda item: item[1][self.sort], reverse=self.reverse)}
-
+        self.data = {key: entry for key, entry in sorted(self.data.items(), key=lambda item: item[1][self.sort], reverse=self.reverse)}
 
     def populate_treeview(self, parent=""):
 
@@ -6851,7 +6604,6 @@ class StatisticsTreeUI(tk.Frame):
                     self.tree.delete(item)
                     children.remove(item)
 
-
     def filter_treeview(self):
 
         try:
@@ -6868,10 +6620,10 @@ class StatisticsTreeUI(tk.Frame):
 
             show_error(f"An error occurred while filtering.\n\n{e}", no_ui=True)
 
-            #self.query = query
+            # self.query = query
 
             # Cache the tree structure if not already cached
-            #if not hasattr(self, "original_tree"):
+            # if not hasattr(self, "original_tree"):
             #    self.original_tree = {}
             #    self.original_indices = {}
 
@@ -6885,7 +6637,7 @@ class StatisticsTreeUI(tk.Frame):
             #
             #    cache_tree_structure("")
 
-            #def recursive_filter(parent, query):
+            # def recursive_filter(parent, query):
             #    """Recursively filter the items in the tree."""
             #    match_found = False  # Tracks if any child matches the query
 
@@ -6907,14 +6659,14 @@ class StatisticsTreeUI(tk.Frame):
             #            if child in tree.get_children(parent):
             #                tree.detach(child)  # Detach the item
 
-                # Reattach children in original order
+            # Reattach children in original order
             #    for child in visible_children:
             #        tree.reattach(child, parent, "end")
 
             #    return match_found
 
-            #if not query:
-                # Reset the tree to its original structure
+            # if not query:
+            # Reset the tree to its original structure
             #    def reset_tree(parent):
             #        children = self.original_tree.get(parent, [])
             #        for child in children:
@@ -6923,13 +6675,12 @@ class StatisticsTreeUI(tk.Frame):
             #            reset_tree(child)
 
             #    reset_tree("")
-            #else:
+            # else:
             #    # Start recursive filtering from the root
             #    recursive_filter("", query)
 
         # Continue filtering periodically
         self.after(100, self.filter_treeview)
-
 
     def on_click(self, event):
 
@@ -6937,11 +6688,9 @@ class StatisticsTreeUI(tk.Frame):
         if region == "separator":
             return "break"
 
-
     def on_item_expand(self, event):
 
         th.Thread(target=self.adjust_tree_column_widths).start()
-
 
     def on_header_click(self, index):
 
@@ -6973,17 +6722,16 @@ class StatisticsTreeUI(tk.Frame):
             self.tree.selection_add(selection)
             self.tree.focus(selection[0])
 
-
     def adjust_tree_column_widths(self):
         """
         Adjusts column widths on the TreeView to fit contents.
-        
+
         Trash code written by Chat-GPT
         """
 
         try:
 
-            time.sleep(.2) # Give time for the item to actually expand
+            time.sleep(.2)  # Give time for the item to actually expand
 
             tree = self.tree
 
@@ -6994,7 +6742,7 @@ class StatisticsTreeUI(tk.Frame):
             indent = 40  # Default indentation for Treeview items (can be customized)
 
             # Adjust the #0 column (tree column)
-            max_width = tree.column("#0", option="width") #font.measure(tree.heading("#0")["text"])  # Start with header width
+            max_width = tree.column("#0", option="width")  # font.measure(tree.heading("#0")["text"])  # Start with header width
 
             def calculate_width(item, level=0):
 
@@ -7020,7 +6768,7 @@ class StatisticsTreeUI(tk.Frame):
             tree.column("#0", width=min(1000, max_width))
 
             # Adjust other columns
-            #for col in tree["columns"]:
+            # for col in tree["columns"]:
 
             #    max_width = tree.column(col, option="width") #font.measure(col)  # Start with column header width
 
@@ -7049,7 +6797,6 @@ class StatisticsTreeUI(tk.Frame):
 
             show_error(f"Failed to adjust column widths.\n\n{e}", no_ui=True)
 
-
     def get_tree_width(self):
 
         width = self.tree.column("#0", "width")
@@ -7063,18 +6810,16 @@ class StatisticsTreeUI(tk.Frame):
 
         return width
 
-
     def winfo_width(self):
 
-        #print(self.tree_canvas.configure("width"))
-        #self.scrollbar.lift()
+        # print(self.tree_canvas.configure("width"))
+        # self.scrollbar.lift()
 
         tree_width = self.get_tree_width()
 
         self.tree_canvas.configure(width=tree_width - 2)
 
         return tree_width + 20
-
 
     def winfo_height(self):
 
@@ -7083,10 +6828,7 @@ class StatisticsTreeUI(tk.Frame):
 
 class GameMonitorUI(tk.Toplevel):
 
-
-
     def __init__(self, parent):
-
 
         # print("Initializing...")
 
@@ -7124,8 +6866,8 @@ class GameMonitorUI(tk.Toplevel):
         self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=2, padx=0, pady=20, sticky="n")
 
         # Status label left
-        #self.status_frame.left = tk.Label(self.status_frame, text="Status:")
-        #self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
+        # self.status_frame.left = tk.Label(self.status_frame, text="Status:")
+        # self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
 
         # Status label right
         self.status_frame.right = tk.Label(self.status_frame, text="")
@@ -7139,14 +6881,14 @@ class GameMonitorUI(tk.Toplevel):
 
         # Description label
         self.description_label = ttk.Label(self.server_info, background="white", wraplength=(self.server_info["width"] - 20))
-        self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=10, pady=(10,0), sticky="nw")
+        self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=10, pady=(10, 0), sticky="nw")
         self.description_label['text'] = ""
 
         # URL label
         self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2", background="white")
         self.url_label.grid(row=1, column=0, columnspan=1, padx=10, pady=5, sticky="nw")
         self.url_label['text'] = ""
-        self.url_label.bind("<Button-1>", lambda e:webbrowser.open_new_tab(format_url(self.url_label["text"])))
+        self.url_label.bind("<Button-1>", lambda e: webbrowser.open_new_tab(format_url(self.url_label["text"])))
 
         # Ping frame
         self.ping_frame = tk.Frame(self, width=420, height=0)
@@ -7160,7 +6902,6 @@ class GameMonitorUI(tk.Toplevel):
         # Ping label right
         self.ping_frame.right = tk.Label(self, text="", fg="gray")
         self.ping_frame.right.grid(column=1, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="e")
-
 
     def delete_window(self):
 
@@ -7177,7 +6918,6 @@ class GameMonitorUI(tk.Toplevel):
             self.parent.end = True
             self.destroy()
 
-
     def destroy(self):
 
         global sc4mp_game_monitor_x, sc4mp_game_monitor_y
@@ -7193,10 +6933,7 @@ class GameMonitorUI(tk.Toplevel):
 
 class GameMonitorMapUI(tk.Toplevel):
 
-
-
     def __init__(self):
-
 
         print("Initializing...")
 
@@ -7221,11 +6958,11 @@ class GameMonitorMapUI(tk.Toplevel):
         # Status label
         self.label = tk.Label(self)
         self.label.grid(row=0, column=0, padx=10, pady=20, sticky="n")
-        #self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+        # self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 
         # Canvas
         self.canvas_frame = tk.Frame(self)
-        self.canvas_frame.grid(row=1, column=0, padx=15, pady=0, sticky="nw") #, sticky="ewns")
+        self.canvas_frame.grid(row=1, column=0, padx=15, pady=0, sticky="nw")  # , sticky="ewns")
         self.canvas = tk.Canvas(self.canvas_frame, width=408, height=408, bg="white", highlightthickness=0)
         self.canvas_horizontal_scrollbar = tk.Scrollbar(self.canvas_frame, orient="horizontal")
         self.canvas_horizontal_scrollbar.pack(side="bottom", fill="x")
@@ -7237,37 +6974,35 @@ class GameMonitorMapUI(tk.Toplevel):
         self.canvas.pack(side="left", expand=True, fill="both")
 
         # Status frame
-        #self.status_frame = tk.Frame(self)
-        #self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+        # self.status_frame = tk.Frame(self)
+        # self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
 
         # Status label left
-        #self.status_frame.left = ttk.Label(self.status_frame, text="Status:")
-        #self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
+        # self.status_frame.left = ttk.Label(self.status_frame, text="Status:")
+        # self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
 
         # Status label right
-        #self.status_frame.right = ttk.Label(self.status_frame, text="")
-        #self.status_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=10, sticky="w")
-        #self.label = self.status_frame.right
+        # self.status_frame.right = ttk.Label(self.status_frame, text="")
+        # self.status_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=10, sticky="w")
+        # self.label = self.status_frame.right
 
         # Ping frame
-        #self.ping_frame = tk.Frame(self)
-        #self.ping_frame.grid(column=0, row=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+        # self.ping_frame = tk.Frame(self)
+        # self.ping_frame.grid(column=0, row=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
 
         # Ping label left
-        #self.ping_frame.left = ttk.Label(self.ping_frame, text="Ping:")
-        #self.ping_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
+        # self.ping_frame.left = ttk.Label(self.ping_frame, text="Ping:")
+        # self.ping_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
 
         # Ping label right
-        #self.ping_frame.right = ttk.Label(self.ping_frame, text="")
-        #self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+        # self.ping_frame.right = ttk.Label(self.ping_frame, text="")
+        # self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
 
         self.draw_reigon()
-
 
     def disable(self):
 
         pass
-
 
     def draw_reigon(self):
 
@@ -7285,13 +7020,13 @@ class GameMonitorMapUI(tk.Toplevel):
 
         self.canvas.configure(scrollregion=(-.5 * WIDTH, -.5 * HEIGHT, .5 * WIDTH, .5 * HEIGHT))
 
-        #VIEWPORT_WIDTH = 408 / WIDTH
-        #VIEWPORT_HEIGHT = 408 / HEIGHT
+        # VIEWPORT_WIDTH = 408 / WIDTH
+        # VIEWPORT_HEIGHT = 408 / HEIGHT
 
-        #if VIEWPORT_WIDTH < 1:
+        # if VIEWPORT_WIDTH < 1:
         #    self.canvas_horizontal_scrollbar.set((1 + VIEWPORT_WIDTH) / 2, (1 - VIEWPORT_WIDTH) / 2)
 
-        #if VIEWPORT_HEIGHT < 1:
+        # if VIEWPORT_HEIGHT < 1:
         #    self.canvas_vertical_scrollbar.set((1 + VIEWPORT_HEIGHT) / 2, (1 - VIEWPORT_HEIGHT) / 2)
 
         LARGE_TILE_COUNT_X = REGION_WIDTH / 4
@@ -7299,17 +7034,14 @@ class GameMonitorMapUI(tk.Toplevel):
 
         for y in range(int(-.5 * LARGE_TILE_COUNT_Y), int(.5 * LARGE_TILE_COUNT_Y)):
             for x in range(int(-.5 * LARGE_TILE_COUNT_X), int(.5 * LARGE_TILE_COUNT_X)):
-                self.canvas.images[f"{x}_{y}"] = self.canvas.create_image(x*68, y*68, image=self.canvas.LAUNCHER_MAP_TILE_UNCLAIMED_LARGE, anchor="nw")
+                self.canvas.images[f"{x}_{y}"] = self.canvas.create_image(x * 68, y * 68, image=self.canvas.LAUNCHER_MAP_TILE_UNCLAIMED_LARGE, anchor="nw")
 
 
 class GameOverlayUI(tk.Toplevel):
 
-
-
     def __init__(self, game_monitor_ui, guest=False):
 
-
-        #print("Initializing...")
+        # print("Initializing...")
 
         # Parameters
         self.game_monitor_ui = game_monitor_ui
@@ -7336,7 +7068,6 @@ class GameOverlayUI(tk.Toplevel):
             self.set_state("guest")
         else:
             self.set_state("connected")
-
 
     def overlay(self):
 
@@ -7370,12 +7101,10 @@ class GameOverlayUI(tk.Toplevel):
 
                 show_error(f"Cannot overlay the game overlay.\n\n{e}", no_ui=True)
 
-
     def set_state(self, state):
 
         self.canvas.image = self.canvas.create_image(0, 0, anchor="nw", image=self.images[state])
         self.canvas.pack()
-
 
     def click(self, event):
         try:
@@ -7388,12 +7117,9 @@ class GameOverlayUI(tk.Toplevel):
 
 class RegionsRefresherUI(tk.Toplevel):
 
-
-
     def __init__(self, server):
 
-
-        #print("Initializing...")
+        # print("Initializing...")
 
         # Init
         super().__init__()
@@ -7433,10 +7159,9 @@ class RegionsRefresherUI(tk.Toplevel):
         # Worker
         self.worker = RegionsRefresher(self, server)
 
-
     def overlay(self):
 
-        #print("Overlaying...")
+        # print("Overlaying...")
         try:
             self.overrideredirect(True)
             self.lift()
@@ -7447,10 +7172,7 @@ class RegionsRefresherUI(tk.Toplevel):
 
 class UpdaterUI(tk.Toplevel):
 
-
-
     def __init__(self, parent):
-
 
         # Init
         super().__init__()
@@ -7478,12 +7200,12 @@ class UpdaterUI(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self.delete_window)
 
         # Key bindings
-        self.bind("<Escape>", lambda event:self.delete_window())
+        self.bind("<Escape>", lambda event: self.delete_window())
 
         # Label
         self.label = ttk.Label(self)
         self.label['text'] = "Loading..."
-        self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=(10,5))
+        self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=(10, 5))
 
         # Progress bar
         self.progress_bar = ttk.Progressbar(
@@ -7493,16 +7215,15 @@ class UpdaterUI(tk.Toplevel):
             length=380,
             maximum=100
         )
-        self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10,5))
+        self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10, 5))
         self.progress_bar.start(2)
 
         # Small label
         self.label_small = tk.Label(self, fg="gray", font=("Segoe UI", 8), text="Press <ESC> to cancel")
-        self.label_small.grid(column=0, row=2, columnspan=2, padx=10, pady=(0,5))
+        self.label_small.grid(column=0, row=2, columnspan=2, padx=10, pady=(0, 5))
 
         # Pause underlying thread
         self.pause = False
-
 
     def delete_window(self):
 
@@ -7518,7 +7239,6 @@ class UpdaterUI(tk.Toplevel):
         elif choice is False:
             self.pause = False
 
-
     def destroy(self):
 
         super().destroy()
@@ -7530,8 +7250,7 @@ class ReleaseNotesUI(tk.Toplevel):
 
     def __init__(self, version: str, title: str, body: str):
 
-
-        #print("Initializing...")
+        # print("Initializing...")
 
         # Init
         super().__init__()
@@ -7545,26 +7264,26 @@ class ReleaseNotesUI(tk.Toplevel):
 
         # Geometry
         self.geometry('400x400')
-        #self.maxsize(420, 375)
-        #self.minsize(420, 375)
+        # self.maxsize(420, 375)
+        # self.minsize(420, 375)
         self.grid()
 
         # Priority
         self.grab_set()
 
         # Key bindings
-        self.bind("<Return>", lambda event:self.destroy())
-        self.bind("<Escape>", lambda event:self.destroy())
+        self.bind("<Return>", lambda event: self.destroy())
+        self.bind("<Escape>", lambda event: self.destroy())
 
         try:
 
             # Title
-            #self.title = ttk.Label(self, text=SC4MP_TITLE, font=("Arial", 16))
-            #self.title.grid(row=10, column=0, padx=10, pady=10)
+            # self.title = ttk.Label(self, text=SC4MP_TITLE, font=("Arial", 16))
+            # self.title.grid(row=10, column=0, padx=10, pady=10)
 
             # Description
-            #self.description = ttk.Label(self, text="Thank you for using the SC4MP launcher.")
-            #self.description.grid(row=11, column=0, sticky="n", padx=10, pady=10)
+            # self.description = ttk.Label(self, text="Thank you for using the SC4MP launcher.")
+            # self.description.grid(row=11, column=0, sticky="n", padx=10, pady=10)
 
             # Release notes label
             self.subtitle = ttk.Label(self, text="Release notes")
@@ -7572,7 +7291,7 @@ class ReleaseNotesUI(tk.Toplevel):
 
             # Body
             self.body = tk.Frame(self, width=400, height=100, background="white", highlightbackground="gray", highlightthickness=1)
-            self.body.grid(row=20, column=0, padx=(10,0), pady=0, sticky="nw")
+            self.body.grid(row=20, column=0, padx=(10, 0), pady=0, sticky="nw")
             self.body.grid_propagate(0)
 
             # Body title
@@ -7595,7 +7314,7 @@ class ReleaseNotesUI(tk.Toplevel):
                     for sequence in ["**", "- "]:
                         line = line.replace(sequence, "")
                     if bulleted:
-                        ttk.Label(self.body, text="\u2022", background="white").grid(row=line_number + 1, column=0, columnspan=1, padx=(10,0), pady=2, sticky ="nw")
+                        ttk.Label(self.body, text="\u2022", background="white").grid(row=line_number + 1, column=0, columnspan=1, padx=(10, 0), pady=2, sticky="nw")
                         ttk.Label(self.body, text=line, wraplength=(int(self.body["width"]) - 40), background="white").grid(row=line_number + 1, column=1, columnspan=1, padx=10, pady=2, sticky="nw")
                     else:
                         ttk.Label(self.body, text=line, wraplength=(int(self.body["width"]) - 20), background="white").grid(row=line_number + 1, column=0, columnspan=99, padx=10, pady=2, sticky="nw")
@@ -7603,7 +7322,7 @@ class ReleaseNotesUI(tk.Toplevel):
             # Body link
             self.body.link = ttk.Label(self.body, text="View all releases...", foreground="blue", background="white", cursor="hand2")
             self.body.link.grid(row=99, column=0, columnspan=99, padx=10, pady=10, sticky="nw")
-            self.body.link.bind("<Button-1>", lambda e:webbrowser.open_new_tab(SC4MP_RELEASES_URL))
+            self.body.link.bind("<Button-1>", lambda e: webbrowser.open_new_tab(SC4MP_RELEASES_URL))
 
             # Resize body and window to fit content
             sc4mp_ui.update()
@@ -7614,9 +7333,9 @@ class ReleaseNotesUI(tk.Toplevel):
             self.minsize(420, window_height)
 
             # Scrollbar
-            #scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.body.yview)
-            #self.body.configure(yscrollcommand=self.scrollbar.set)
-            #self.scrollbar.grid(row=20, column=1, padx=0, pady=10)
+            # scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.body.yview)
+            # self.body.configure(yscrollcommand=self.scrollbar.set)
+            # self.scrollbar.grid(row=20, column=1, padx=0, pady=10)
 
             # Ok button
             self.ok_button = ttk.Button(self, text="Ok", command=self.destroy, default="active")
@@ -7631,7 +7350,6 @@ class ReleaseNotesUI(tk.Toplevel):
 
             raise e
 
-
     def destroy(self):
 
         sc4mp_config["GENERAL"]["release_notes_version"] = self.version
@@ -7645,13 +7363,10 @@ class ReleaseNotesUI(tk.Toplevel):
 
 class ClientException(Exception):
 
-
-
     def __init__(self, message, *args):
 
         super().__init__(args)
         self.message = message
-
 
     def __str__(self):
 
@@ -7662,8 +7377,6 @@ class ClientException(Exception):
 
 class Logger:
 
-
-
     def __init__(self):
 
         self.terminal = sys.stdout
@@ -7672,9 +7385,7 @@ class Logger:
         self.log = Path(SC4MP_LOG_PATH)
         self.log.unlink(missing_ok=True)
 
-
     def write(self, message):
-
 
         output = message
 
@@ -7692,12 +7403,11 @@ class Logger:
                 except Exception:
                     pass
 
-
             # Type and color
             type = "[INFO] "
             color = '\033[90m '
             TYPES_COLORS = [
-                ("[INFO] ", '\033[90m '), #'\033[94m '
+                ("[INFO] ", '\033[90m '),  # '\033[94m '
                 ("[PROMPT]", '\033[01m '),
                 ("[WARNING] ", '\033[93m '),
                 ("[ERROR] ", '\033[91m '),
@@ -7723,7 +7433,6 @@ class Logger:
         with open(self.log, "a", encoding="utf-8") as log:
             log.write(output)
             log.close()
-
 
     def flush(self):
 
