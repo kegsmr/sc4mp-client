@@ -8126,6 +8126,8 @@ class Logger:
 	def __init__(self):
 		
 		self.terminal = sys.stdout
+		if self.terminal is not None:
+			self.terminal.reconfigure(errors="replace")	# characters the console can't show (eg. emoji on a cp1252 console) are printed as "?"
 		self.log = Path(SC4MP_LOG_PATH)
 		self.log.unlink(missing_ok=True)
 
@@ -8176,12 +8178,7 @@ class Logger:
 
 		# Print
 		if self.terminal is not None:
-			try:
-				self.terminal.write(output)
-			except UnicodeEncodeError:
-				# The console can't show some characters (eg. emoji on a cp1252 console)
-				encoding = getattr(self.terminal, "encoding", None) or "ascii"
-				self.terminal.write(output.encode(encoding, errors="replace").decode(encoding))
+			self.terminal.write(output)
 		with open(self.log, "a", encoding="utf-8") as log:
 			log.write(output)
 			log.close()  
