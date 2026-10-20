@@ -3663,7 +3663,16 @@ class GameMonitor(th.Thread):
 			destination = city_paths.pop(0)
 		else:
 			destination = sanitize_relpath(region_path.parent, relpath)
-		shutil.copy(cache_path, destination)
+
+		# Copy to a temporary file first, so a crash can't leave a half-written savegame (not named `*.sc4`, so it isn't picked up as a savegame)
+		temp_path = destination.with_name(destination.name + ".tmp")
+		try:
+			shutil.copy(cache_path, temp_path)
+			os.replace(temp_path, destination)
+		except Exception:
+			temp_path.unlink(missing_ok=True)	# eg. SC4 has the savegame open (`PermissionError`), so it's retried later
+			raise
+
 		for city_path in city_paths:
 			city_path.unlink()
 			self.cities.pop(city_path, None)
