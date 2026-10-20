@@ -7095,8 +7095,8 @@ class GameMonitorUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry(f"400x400+{sc4mp_game_monitor_x}+{sc4mp_game_monitor_y}")
-		self.minsize(420, 280)
-		self.maxsize(420, 280)
+		self.minsize(420, 325)
+		self.maxsize(420, 325)
 		self.grid()
 
 		# Iconify
@@ -7150,6 +7150,20 @@ class GameMonitorUI(tk.Toplevel):
 		# Ping label right
 		self.ping_frame.right = tk.Label(self, text="", fg="gray")
 		self.ping_frame.right.grid(column=1, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="e")		
+
+		# Details button
+		self.details_button = ttk.Button(self, text="Details", command=self.details)
+		self.details_button.grid(column=1, row=4, rowspan=1, columnspan=1, padx=10, pady=10, sticky="se")
+
+
+	def details(self):
+
+		details_ui = ServerDetailsUI(self.parent.server)
+
+		# The details window takes the grab, so give it back to the game monitor once it closes
+		self.wait_window(details_ui)
+		if self.winfo_exists():
+			self.grab_set()
 
 
 	def delete_window(self):
