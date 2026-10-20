@@ -1033,7 +1033,7 @@ def open_logs():
 	if has_powershell():
 		subprocess.Popen([
 			"cmd.exe", "/c", "start", "cmd.exe", "/k",
-			f"@echo off && powershell -NoProfile -ExecutionPolicy Bypass -Command $Host.UI.RawUI.WindowTitle = \"{SC4MP_TITLE}\"; gc sc4mpclient.log -Wait -Tail 1000"
+			f"@echo off && powershell -NoProfile -ExecutionPolicy Bypass -Command $Host.UI.RawUI.WindowTitle = \"{SC4MP_TITLE}\"; gc sc4mpclient.log -Encoding UTF8 -Wait -Tail 1000"
 		])
 	else:
 		startfile(SC4MP_LOG_PATH)
@@ -7667,6 +7667,8 @@ class Logger:
 	def __init__(self):
 		
 		self.terminal = sys.stdout
+		if self.terminal is not None:
+			self.terminal.reconfigure(errors="replace")	# characters the console can't show (eg. emoji on a cp1252 console) are printed as "?"
 		self.log = Path(SC4MP_LOG_PATH)
 		self.log.unlink(missing_ok=True)
 
@@ -7718,7 +7720,7 @@ class Logger:
 		# Print
 		if self.terminal is not None:
 			self.terminal.write(output)
-		with open(self.log, "a") as log:
+		with open(self.log, "a", encoding="utf-8") as log:
 			log.write(output)
 			log.close()  
 
