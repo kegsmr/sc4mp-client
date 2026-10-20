@@ -3787,14 +3787,14 @@ class GameMonitor(th.Thread):
 		print(f"[CHAT] {name}: {message}")
 
 		if isinstance(self.ui, GameMonitorUI):
-			self.ui.add_chat_message(name, message, timestamp, user_id, text(event.get('city')) or None)
+			self.ui.add_chat_message(name, message, timestamp, user_id, text(event.get('city')) or None, own=self.is_own(user_id))
 
 		# Only pop up new messages, not the recent ones sent when joining
 		if self.overlay_ui is not None and not event.get('history'):
 			self.overlay_ui.show_message(f"{name}: {message}")
 		# The name's color is picked from the name as the Chat tab gets it (with characters Tk can't show replaced), so it's the same in both
 		color = GameMonitorUI.CHAT_NAME_COLORS[chat_name_color(tk_safe(name), user_id)]
-		self.bridge.notify(f"{name}: {message}", history=bool(event.get('history')), name=name, color=color)
+		self.bridge.notify(f"{name}: {message}", history=bool(event.get('history')), name=name, color=color, own=self.is_own(user_id))
 
 
 	def send_chat(self, message: str) -> None:
@@ -3827,11 +3827,8 @@ class GameMonitor(th.Thread):
 		if not entry:
 			return None
 
-		# The server keeps the first 32 characters of the hash of the user ID
 		owner = entry.get("owner")
-		if owner is None:
-			return None
-		if self.server.user_id is not None and owner == hashlib.sha256(self.server.user_id.encode()).hexdigest()[:32]:
+		if owner is None or self.is_own(owner):
 			return None
 
 		# Claims expire if the owner doesn't save for `claim_duration` days, and then the tile can be taken over
@@ -3841,6 +3838,12 @@ class GameMonitor(th.Thread):
 				return None
 
 		return entry.get("mayor_name") or "another mayor"
+
+
+	def is_own(self, user_id: str | None) -> bool:
+		"""Whether a user ID from the server (a tile's owner, or a chat message's sender) is the player's. The server keeps the first 32 characters of the hash of the user ID."""
+
+		return user_id is not None and self.server.user_id is not None and user_id == hashlib.sha256(self.server.user_id.encode()).hexdigest()[:32]
 
 
 	def get_claims(self) -> list[dict]:
@@ -4305,7 +4308,7 @@ class EventListener(th.Thread):
 class GameBridge(th.Thread):
 	"""Talks to the SC4MP DLL (`sc4mp.dll`) running inside SimCity 4.
 
-	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat, with the player's `name` and its `color` as [red, green, blue], and save results, shown in the chat panel), `alert` (shown in a message box), `status` (the save status, shown in the chat panel's title bar), `server` (the server's name, the chat panel's title), `guard` (the open city belongs to another mayor, shown as a warning with a button to go back to the region) and `claims_reset` and `claim` (every city that belongs to another mayor, with its savegame's `path`, its `owner` and `city`, so the warning shows the moment one opens).
+	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat, with the player's `name`, its `color` as [red, green, blue] and `self` on the player's own, and save results, shown in the chat panel), `alert` (shown in a message box), `status` (the save status, shown in the chat panel's title bar), `server` (the server's name, the chat panel's title), `guard` (the open city belongs to another mayor, shown as a warning with a button to go back to the region) and `claims_reset` and `claim` (every city that belongs to another mayor, with its savegame's `path`, its `owner` and `city`, so the warning shows the moment one opens).
 
 	The game starts after the player joins, so when the DLL connects it's sent the server's name, the last status and the last few lines again, with `history` set, to fill its chat panel.
 
@@ -4554,14 +4557,16 @@ class GameBridge(th.Thread):
 		th.Thread(target=check, daemon=True).start()
 
 
-	def notify(self, text: str, history: bool = False, name: Optional[str] = None, color: Optional[str] = None) -> None:
-		"""Sends a chat message or save result to the game, and keeps it to send again when the game connects. `history` marks old lines (eg. chat from before the player joined), which the game doesn't count as new. Chat comes with the player's `name`, which starts `text`, and its `color` in the Chat tab (eg. "#2e7d32"), so the game shows the name in the same color."""
+	def notify(self, text: str, history: bool = False, name: Optional[str] = None, color: Optional[str] = None, own: bool = False) -> None:
+		"""Sends a chat message or save result to the game, and keeps it to send again when the game connects. `history` marks old lines (eg. chat from before the player joined), which the game doesn't count as new. Chat comes with the player's `name`, which starts `text`, and its `color` in the Chat tab (eg. "#2e7d32"), so the game shows the name in the same color. `own` marks the player's own messages (sent as `self`), whose name the game follows with "(You)"."""
 
 		message = {'type': 'notify', 'text': text}
 		if name is not None:
 			message['name'] = name
 		if color is not None:
 			message['color'] = [int(color[i:i + 2], 16) for i in (1, 3, 5)]
+		if own:
+			message['self'] = True
 
 		with self._send_lock:
 			self.recent.append(message)
@@ -8148,7 +8153,7 @@ class GameMonitorUI(tk.Toplevel):
 		entry["state"] = state
 
 
-	def add_chat_message(self, name, message, timestamp=None, user_id=None, city=None):
+	def add_chat_message(self, name, message, timestamp=None, user_id=None, city=None, own=False):
 		"""Adds a chat message. Messages from the same player close together are grouped under one name (with the city they saved most recently, if any), and a line with the day is added when the day changes."""
 
 		text = self.chat_frame.text
@@ -8178,6 +8183,8 @@ class GameMonitorUI(tk.Toplevel):
 		if user_id is None or user_id != self.chat_last_user_id or city != self.chat_last_city or (sent - self.chat_last_time).total_seconds() > self.CHAT_GROUP_SECONDS:
 			color = chat_name_color(name, user_id)
 			self.chat_insert_line(name, (f"name{color}", "header"))
+			if own:
+				text.insert("end", " (You)", ("time", "header"))	# the player's own messages, found by user ID since names can be shared
 			if city:
 				text.insert("end", " of " + city, ("time", "header"))
 			text.insert("end", "  " + sent.strftime("%H:%M"), ("time", "header"))
