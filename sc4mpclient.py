@@ -3574,6 +3574,7 @@ class GameMonitor(th.Thread):
 		# All savegames now match the server's
 		self.cities = self.get_cities()
 		self.unpushed_cities.clear()
+		self.bridge.push_claims()	# claims may have changed too
 
 		if sc4mp_game_launcher.game_running:
 			self.report("", "Regions refreshed at " + datetime.now().strftime("%H:%M") + ".", color="green")
@@ -3817,7 +3818,12 @@ class GameMonitor(th.Thread):
 			SC4ReadRegionalCity = savegame.get_SC4ReadRegionalCity()
 		coords = f'{SC4ReadRegionalCity["tileXLocation"]}_{SC4ReadRegionalCity["tileYLocation"]}'
 
-		entry = self.get_region_database(region).get(coords)
+		return self.get_tile_owner(self.get_region_database(region).get(coords))
+
+
+	def get_tile_owner(self, entry: dict | None) -> str | None:
+		"""Returns the name of the mayor whose claim on a tile (its `entry` in the region's database) keeps the player from saving it, or `None` if the player can save it."""
+
 		if not entry:
 			return None
 
@@ -3835,6 +3841,25 @@ class GameMonitor(th.Thread):
 				return None
 
 		return entry.get("mayor_name") or "another mayor"
+
+
+	def get_claims(self) -> list[dict]:
+		"""Returns the cities in the server's regions that belong to other mayors, as `path` (the savegame), `owner` and `city` (its name), by the same rule as `get_city_owner`. They're sent to the DLL, which can then warn the moment one of them opens, before the game's own prompts."""
+
+		claims = []
+		for region in self.server.regions:
+			region_name = PureWindowsPath(str(region)).name
+			database = self.get_region_database(region_name) or {}
+			for city_path in (Path(SC4MP_LAUNCHPATH) / "Regions" / region_name).glob('*.sc4'):
+				try:
+					with SC4Savegame(city_path, error_callback=None) as savegame:
+						SC4ReadRegionalCity = savegame.get_SC4ReadRegionalCity()
+				except Exception:
+					continue	# eg. the game is saving it
+				owner = self.get_tile_owner(database.get(f'{SC4ReadRegionalCity["tileXLocation"]}_{SC4ReadRegionalCity["tileYLocation"]}'))
+				if owner is not None:
+					claims.append({'path': str(city_path), 'owner': owner, 'city': SC4ReadRegionalCity.get("cityName") or city_path.stem})
+		return claims
 
 
 	def get_region_database(self, region: str) -> dict:
@@ -4280,7 +4305,7 @@ class EventListener(th.Thread):
 class GameBridge(th.Thread):
 	"""Talks to the SC4MP DLL (`sc4mp.dll`) running inside SimCity 4.
 
-	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat, with the player's `name` and its `color` as [red, green, blue], and save results, shown in the chat panel), `alert` (shown in a message box), `status` (the save status, shown in the chat panel's title bar), `server` (the server's name, the chat panel's title) and `guard` (the open city belongs to another mayor, shown as a warning with a button to go back to the region).
+	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat, with the player's `name` and its `color` as [red, green, blue], and save results, shown in the chat panel), `alert` (shown in a message box), `status` (the save status, shown in the chat panel's title bar), `server` (the server's name, the chat panel's title), `guard` (the open city belongs to another mayor, shown as a warning with a button to go back to the region) and `claims_reset` and `claim` (every city that belongs to another mayor, with its savegame's `path`, its `owner` and `city`, so the warning shows the moment one opens).
 
 	The game starts after the player joins, so when the DLL connects it's sent the server's name, the last status and the last few lines again, with `history` set, to fill its chat panel.
 
@@ -4312,6 +4337,7 @@ class GameBridge(th.Thread):
 
 		self._socket = None
 		self._send_lock = th.Lock()
+		self._claims_lock = th.Lock()	# so two pushes of the claims don't interleave
 		self._stopping = th.Event()
 
 		# Set when the game finishes saving a city, so the game monitor checks the savegames right away
@@ -4407,11 +4433,13 @@ class GameBridge(th.Thread):
 		if message_type == 'hello':
 			print(f"- the SC4MP DLL {text('version')} connected")
 			self.send_recent()
+			self.push_claims()
 
 		elif message_type == 'region_loaded':
 			print(f'- the game loaded the region "{name}"')
 			self.city = None
 			self.game_monitor.show_city(None)
+			self.push_claims()
 
 		elif message_type == 'city_loaded':
 			print(f'- the game loaded the city "{name}"')
@@ -4486,6 +4514,24 @@ class GameBridge(th.Thread):
 			self.alert("Press Enter in game to chat. Messages starting with / run these commands, eg. /status.\n\nSC4MP cheat codes:\n\nsay <message>: send a chat message\nsc4mp status: show the server and save status")
 		else:
 			self.alert(f'Unknown command "{command}". Type "sc4mp help" for help.')
+
+
+	def push_claims(self) -> None:
+		"""Sends the DLL the cities that belong to other mayors (see `GameMonitor.get_claims`), so it warns the moment one opens, before the game asks to reconcile the edges. A `claims_reset` is followed by one `claim` per city, since the DLL reads only flat JSON objects. In the background, since it reads the savegames and asks the server. `guard` still checks each city as it opens, for claims made since."""
+
+		def push():
+			with self._claims_lock:
+				try:
+					claims = self.game_monitor.get_claims()
+				except Exception as e:
+					show_error(f"Unable to list the cities that belong to other mayors.\n\n{e}", no_ui=True)
+					return
+				self.send({'type': 'claims_reset'})
+				for claim in claims:
+					self.send(dict(claim, type='claim'))
+			print(f"- sent the DLL {len(claims)} cities that belong to other mayors")
+
+		th.Thread(target=push, daemon=True).start()
 
 
 	def guard(self, path: str, name: str) -> None:
