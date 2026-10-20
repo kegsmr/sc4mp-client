@@ -3296,6 +3296,8 @@ class GameMonitor(th.Thread):
 
 		# Chat messages already shown (recent messages are sent again when the event listener reconnects)
 		self.chat_messages = set()
+		self.chat_welcomed = False	# whether "You joined" and the message of the day were shown
+		self.chat_motd_last = False	# whether the last line in chat is the message of the day
 
 		# Start the event listener (listens for events on the server, eg. saves and chat messages)
 		self.event_listener = EventListener(self.server)
@@ -3645,7 +3647,7 @@ class GameMonitor(th.Thread):
 	def update_chat(self):
 		"""Shows new chat messages, and players joining and leaving, in the game monitor and the game overlay. A message that can't be shown is skipped and logged, never shown as an error."""
 
-		while event := self.event_listener.pop(('chat', 'user_join', 'user_leave', 'city_founded')):
+		while event := self.event_listener.pop(('chat', 'user_join', 'user_leave', 'city_founded', 'welcome', 'motd')):
 			try:
 				self.show_chat_event(*event)
 			except Exception as e:
@@ -3660,12 +3662,42 @@ class GameMonitor(th.Thread):
 		name = text(event.get('name')) or "Defacto"
 		user_id = text(event.get('user_id')) or None
 
+		# Joining, and the server's message of the day (once, not again when the event listener reconnects)
+		if event_type == 'welcome':
+			if self.chat_welcomed:
+				return
+			self.chat_welcomed = True
+			lines = [f"You joined {text(event.get('server_name'), self.server.server_name)}."]
+			motd = text(event.get('motd')).strip()
+			if motd:
+				lines.append(motd)
+				if self.overlay_ui is not None:
+					self.overlay_ui.show_message(motd)
+			if isinstance(self.ui, GameMonitorUI):
+				for line in lines:
+					self.ui.add_chat_info(line)
+			self.chat_motd_last = bool(motd)
+			return
+
+		# The message of the day again (servers can repeat it every so often), unless it's already the last line in chat
+		if event_type == 'motd':
+			motd = text(event.get('motd')).strip()
+			if not motd or self.chat_motd_last:
+				return
+			self.chat_motd_last = True
+			if isinstance(self.ui, GameMonitorUI):
+				self.ui.add_chat_info(motd)
+			if self.overlay_ui is not None:
+				self.overlay_ui.show_message(motd)
+			return
+
 		# Players joining and leaving
 		if event_type in ('user_join', 'user_leave'):
 			line = f"{name} {'joined' if event_type == 'user_join' else 'left'} the server."
 			print(line)
 			if isinstance(self.ui, GameMonitorUI):
 				self.ui.add_chat_info(line)
+			self.chat_motd_last = False
 			return
 
 		# New cities
@@ -3677,6 +3709,7 @@ class GameMonitor(th.Thread):
 			if key in self.chat_messages:
 				return
 			self.chat_messages.add(key)
+			self.chat_motd_last = False
 			print(line)
 			if isinstance(self.ui, GameMonitorUI):
 				self.ui.add_chat_info(line)
@@ -3698,6 +3731,7 @@ class GameMonitor(th.Thread):
 		if key in self.chat_messages:
 			return
 		self.chat_messages.add(key)
+		self.chat_motd_last = False
 
 		print(f"[CHAT] {name}: {message}")
 
@@ -4007,7 +4041,6 @@ class EventListener(th.Thread):
 					events = self._socket.events()
 					with self._lock:
 						for event in events:
-							print(event)
 							self._events.append(event)
 							while len(self._events) > self.MAX_EVENTS:
 								self._events.pop(0)

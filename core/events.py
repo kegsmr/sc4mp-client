@@ -60,8 +60,6 @@ class EventChannel:
 			**event_context
 		}
 
-		print(event)
-
 		with self._condition:
 			for subscription_id, events in self._events.items():
 				if exclude and self._users[subscription_id] in exclude:
