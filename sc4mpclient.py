@@ -3309,6 +3309,14 @@ class ServerLoader(th.Thread):
 				shutil.copy(path, default_plugins_destination / f"{basename}-{checksum}.dll")
 				toplevel_plugins_checksums.append(checksum)
 
+				# Copy the DLL's config files too (DLL plugins read them from the folder they were loaded from)
+				for config_path in path.parent.glob("*.ini"):
+					config_destination = default_plugins_destination / config_path.name
+					if config_destination.exists():
+						print(f'[WARNING] Skipping "{config_path}", another plugin already uses "{config_path.name}".')
+					else:
+						shutil.copy(config_path, config_destination)
+
 		# Write server URL local plugin file
 		# with open(get_sc4mp_path("sc4mp-local-server-url.dat"), "rb") as rfile:
 		# 	data = rfile.read().replace(b"{\x00{\x00U\x00R\x00L\x00}\x00}", bytes(self.server.server_url, encoding="utf-8"))
