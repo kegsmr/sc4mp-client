@@ -1222,6 +1222,18 @@ def format_url(url: str) -> str:
 		return url
 
 
+def open_server_url(url: str) -> None:
+	"""Opens a server URL in the browser after a warning, since the URL is set by the server owner."""
+
+	if not url:
+		return
+
+	url = format_url(url)
+
+	if messagebox.askyesno(SC4MP_TITLE, f"You are about to open the following link, which was provided by the server owner:\n\n{url}\n\nOnly open links from servers you trust. Would you like to continue?", icon="warning"):
+		webbrowser.open_new_tab(url)
+
+
 def sync_simcity_4_cfg(to_mp=False):
 
 	try:
@@ -5565,7 +5577,7 @@ class ServerListUI(tk.Frame):
 
 	def open_server_url(self):
 
-		webbrowser.open_new_tab(format_url(self.url_label["text"]))
+		open_server_url(self.url_label["text"])
 
 	
 	def destroy(self):
@@ -7136,7 +7148,7 @@ class GameMonitorUI(tk.Toplevel):
 		self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2", background="white")
 		self.url_label.grid(row=1, column=0, columnspan=1, padx=10, pady=5, sticky="nw")
 		self.url_label['text'] = ""
-		self.url_label.bind("<Button-1>", lambda e:webbrowser.open_new_tab(format_url(self.url_label["text"])))
+		self.url_label.bind("<Button-1>", lambda e:open_server_url(self.url_label["text"]))
 
 		# Ping frame
 		self.ping_frame = tk.Frame(self, width=420, height=0)
