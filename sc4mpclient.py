@@ -3680,8 +3680,8 @@ class GameMonitor(th.Thread):
 		# Update the savegames the game monitor knows about, so the downloaded savegame isn't pushed back to the server
 		self.cities[destination] = self.get_city_hashcode(destination)
 
+		# Only in the console, since the status should only show the player's own saves
 		print(f'- downloaded "{relpath}" at {coords} to "{destination.name}"')
-		self.report_quietly(f"A city in {region_path.name} was updated at {datetime.now().strftime('%H:%M')}.")
 
 
 	def save_simcity_4_cfg(self):
