@@ -50,7 +50,8 @@ class Server:
             self.categories.append("Official")
 
     def fetch(self):
-        """Retreives basic information from a server and saves them as instance variables. Updates the json entry for the server if possible."""
+        """Retreives basic information from a server and saves them as instance
+        variables. Updates the json entry for the server if possible."""
 
         # Mark server as fetched
         self.fetched = True
@@ -60,7 +61,9 @@ class Server:
             with self.socket() as s:
                 server_info = s.info()
         except Exception as e:
-            raise ClientException("Unable to find server. Check the IP address and port, then try again.") from e
+            raise ClientException(
+                "Unable to find server. Check the IP address and port, then try again."
+            ) from e
 
         # server_info = self.request("info")
         # if server_info is not None:
@@ -70,16 +73,21 @@ class Server:
         #    except Exception:
         #        raise ClientException("Unable to fetch server info.")
         # else:
-        #    raise ClientException("Unable to find server. Check the IP address and port, then try again.")
+        # raise ClientException("Unable to find server. Check the IP address
+        # and port, then try again.")
 
-        self.server_id = sanitize_directory_name(server_info["server_id"])  # self.request("server_id")
+        # self.request("server_id")
+        self.server_id = sanitize_directory_name(server_info["server_id"])
         self.server_name = server_info["server_name"]  # self.request("server_name")
-        self.server_description = server_info["server_description"]  # self.request("server_description")
+        # self.request("server_description")
+        self.server_description = server_info["server_description"]
         self.server_url = server_info["server_url"]  # self.request("server_url")
         self.server_version = server_info["server_version"]  # self.request("server_version")
-        self.password_enabled = server_info["password_enabled"]  # self.request("password_enabled") == "y"
+        # self.request("password_enabled") == "y"
+        self.password_enabled = server_info["password_enabled"]
         self.private = server_info["private"]  # self.request("private") == "y"
-        self.user_plugins_enabled = server_info["user_plugins_enabled"]  # self.request("user_plugins_enabled") == "y"
+        # self.request("user_plugins_enabled") == "y"
+        self.user_plugins_enabled = server_info["user_plugins_enabled"]
         try:
             self.claim_duration = server_info["claim_duration"]
             self.max_region_claims = server_info["max_region_claims"]
@@ -88,7 +96,8 @@ class Server:
             pass
 
         if self.server_id in state.sc4mp_servers_database.keys():
-            self.password = state.sc4mp_servers_database[self.server_id].get("password", None)  # Needed for stat fetching private servers
+            # Needed for stat fetching private servers
+            self.password = state.sc4mp_servers_database[self.server_id].get("password", None)
 
         if self.password_enabled:
             self.categories.append("Private")
@@ -110,7 +119,8 @@ class Server:
 
             download = self.fetch_temp()
 
-            regions_path: Path = Path(state.SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server_id / "Regions"
+            server_list_path = Path(state.SC4MP_LAUNCHPATH) / "_Temp" / "ServerList"
+            regions_path: Path = server_list_path / self.server_id / "Regions"
 
             server_time = self.time()
 
@@ -141,32 +151,43 @@ class Server:
                                 modified = city_entry["modified"]
                                 if modified is not None:
                                     modified = datetime.strptime(modified, "%Y-%m-%d %H:%M:%S")
-                                    if modified > server_time - timedelta(minutes=state.sc4mp_config["GENERAL"]["stat_mayors_online_cutoff"]) and owner not in mayors_online:
+                                    cutoff = (
+                                        state.sc4mp_config["GENERAL"]["stat_mayors_online_cutoff"]
+                                    )
+                                    online_since = server_time - timedelta(minutes=cutoff)
+                                    if modified > online_since and owner not in mayors_online:
                                         mayors_online.append(owner)
                     total_area += region_dimensions[0] * region_dimensions[1]
                 except Exception:
-                    show_error(f"An error occurred while calculating region statistics for \"{region}\".", no_ui=True)
+                    show_error(
+                        f"An error occurred while calculating region statistics for \"{region}\".",
+                        no_ui=True
+                    )
 
             self.stat_mayors = len(mayors)  # (random.randint(0,1000))
 
-            self.stat_mayors_online = len(mayors_online)  # int(self.stat_mayors * (float(random.randint(0, 100)) / 100))
+            # int(self.stat_mayors * (float(random.randint(0, 100)) / 100))
+            self.stat_mayors_online = len(mayors_online)
 
             try:
-                self.stat_claimed = (float(claimed_area) / float(total_area))  # (float(random.randint(0, 100)) / 100)
+                # (float(random.randint(0, 100)) / 100)
+                self.stat_claimed = (float(claimed_area) / float(total_area))
             except ZeroDivisionError:
                 self.stat_claimed = 1
 
-            self.stat_download, self.stat_actual_download = download  # (random.randint(0, 10 ** 11))
+            # (random.randint(0, 10 ** 11))
+            self.stat_download, self.stat_actual_download = download
 
         ping = self.ping()
         if ping is not None:
             self.stat_ping = ping
 
-        state.sc4mp_servers_database[self.server_id]["stat_mayors"] = self.stat_mayors
-        state.sc4mp_servers_database[self.server_id]["stat_mayors_online"] = self.stat_mayors_online
-        state.sc4mp_servers_database[self.server_id]["stat_claimed"] = self.stat_claimed
-        state.sc4mp_servers_database[self.server_id]["stat_download"] = self.stat_download
-        state.sc4mp_servers_database[self.server_id]["stat_actual_download"] = self.stat_actual_download
+        server_entry = state.sc4mp_servers_database[self.server_id]
+        server_entry["stat_mayors"] = self.stat_mayors
+        server_entry["stat_mayors_online"] = self.stat_mayors_online
+        server_entry["stat_claimed"] = self.stat_claimed
+        server_entry["stat_download"] = self.stat_download
+        server_entry["stat_actual_download"] = self.stat_actual_download
         state.sc4mp_servers_database[self.server_id]["stat_ping"] = self.stat_ping
 
     def fetch_temp(self):
@@ -182,7 +203,8 @@ class Server:
         for type_, directory in zip(REQUESTS, DIRECTORIES):
 
             # Set destination
-            destination = Path(state.SC4MP_LAUNCHPATH) / "_Temp" / "ServerList" / self.server_id / directory
+            server_list_path = Path(state.SC4MP_LAUNCHPATH) / "_Temp" / "ServerList"
+            destination = server_list_path / self.server_id / directory
 
             # Receive file table
             with self.socket() as s:
@@ -267,14 +289,23 @@ class Server:
 
         # Verify server can produce the user_id from the hash of the user_id and token combined
         if token is not None:
-            hash = hashlib.sha256(((hashlib.sha256(user_id.encode()).hexdigest()[:32]) + token).encode()).hexdigest()
+            user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()[:32]
+            hash = hashlib.sha256((user_id_hash + token).encode()).hexdigest()
             with self.socket() as s:
                 if s.user_id(hash) == hashlib.sha256(user_id.encode()).hexdigest()[:32]:
                     self.user_id = user_id
                 else:
                     if not state.sc4mp_config["GENERAL"]["ignore_token_errors"]:
                         if state.sc4mp_ui:
-                            if messagebox.askokcancel(title=SC4MP_TITLE, message="The server failed to authenticate.\n\nThe user ID corresponding to your last login could not be produced by the server. A recent rollback of the server, or a recent failed authentication attempt may be to blame.\n\nIf you proceed, your user ID may become compromised.", icon="warning"):
+                            message = (
+                                "The server failed to authenticate.\n\n"
+                                "The user ID corresponding to your last login could not be "
+                                "produced by the server. A recent rollback of the server, or a "
+                                "recent failed authentication attempt may be to blame.\n\n"
+                                "If you proceed, your user ID may become compromised."
+                            )
+                            if messagebox.askokcancel(title=SC4MP_TITLE, message=message,
+                                                      icon="warning"):
                                 self.user_id = user_id
                             else:
                                 raise ClientException("Connection cancelled.")
@@ -292,7 +323,10 @@ class Server:
 
         # Raise exception if no token is received
         # if len(token) < 1:
-        #     raise ClientException("Authentication failed.\n\nThe reason could be any of the following:\n(1)   You are banned from this server.\n(2)   You have too many different user accounts on this server.\n(3)   There is a problem with your internet connection.")
+        # raise ClientException("Authentication failed.\n\nThe reason could be
+        # any of the following:\n(1)   You are banned from this server.\n(2)
+        # You have too many different user accounts on this server.\n(3)
+        # There is a problem with your internet connection.")
 
         # Set user_id and token in the database entry
         entry["user_id"] = user_id

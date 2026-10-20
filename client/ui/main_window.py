@@ -77,15 +77,23 @@ class UI(tk.Tk):
 
         launcher = Menu(menu, tearoff=0)
         settings_submenu = Menu(menu, tearoff=0)
-        settings_submenu.add_command(label="General...", accelerator="F5", command=self.general_settings)
-        settings_submenu.add_command(label="Storage...", accelerator="F6", command=self.storage_settings)
+        settings_submenu.add_command(
+            label="General...", accelerator="F5", command=self.general_settings
+        )
+        settings_submenu.add_command(
+            label="Storage...", accelerator="F6", command=self.storage_settings
+        )
         settings_submenu.add_command(label="SC4...", accelerator="F7", command=self.SC4_settings)
         launcher.add_cascade(label="Settings", menu=settings_submenu)
         launcher.add_separator()
-        launcher.add_command(label="Updates...", command=lambda: webbrowser.open_new_tab(SC4MP_RELEASES_URL))
+        launcher.add_command(
+            label="Updates...",
+            command=lambda: webbrowser.open_new_tab(SC4MP_RELEASES_URL)
+        )
         launcher.add_separator()
         launcher.add_command(label="Exit", command=self.quit)
-        menu.add_cascade(label="Launcher", menu=launcher)  # TODO rename to "Launcher" and put settings in cascade?
+        # TODO rename to "Launcher" and put settings in cascade?
+        menu.add_cascade(label="Launcher", menu=launcher)
 
         servers = Menu(menu, tearoff=0)
 
@@ -101,12 +109,19 @@ class UI(tk.Tk):
         help.add_separator()
         help.add_command(label="Logs...", command=open_logs)
         help.add_separator()
-        help.add_command(label="Feedback...", command=lambda: webbrowser.open_new_tab(SC4MP_ISSUES_URL))
+        help.add_command(
+            label="Feedback...",
+            command=lambda: webbrowser.open_new_tab(SC4MP_ISSUES_URL)
+        )
         # feedback_submenu = Menu(help, tearoff=0)
-        # feedback_submenu.add_command(label=SC4MP_FEEDBACK_LINKS[0][0], command=lambda:webbrowser.open_new_tab(SC4MP_FEEDBACK_LINKS[0][1]))
-        # feedback_submenu.add_command(label=SC4MP_FEEDBACK_LINKS[1][0], command=lambda:webbrowser.open_new_tab(SC4MP_FEEDBACK_LINKS[1][1]))
+        # feedback_submenu.add_command(label=SC4MP_FEEDBACK_LINKS[0][0],
+        # command=lambda:webbrowser.open_new_tab(SC4MP_FEEDBACK_LINKS[0][1]))
+        # feedback_submenu.add_command(label=SC4MP_FEEDBACK_LINKS[1][0],
+        # command=lambda:webbrowser.open_new_tab(SC4MP_FEEDBACK_LINKS[1][1]))
         # for link in SC4MP_FEEDBACK_LINKS:
-        #    feedback_submenu.add_command(label=link[0], command=lambda:webbrowser.open_new_tab(link[1])) #TODO why does the github button open discord?
+        # feedback_submenu.add_command(label=link[0],
+        # command=lambda:webbrowser.open_new_tab(link[1])) #TODO why does the
+        # github button open discord?
         # help.add_cascade(label="Feedback", menu=feedback_submenu)
         menu.add_cascade(label="Help", menu=help)
 
@@ -122,9 +137,14 @@ class UI(tk.Tk):
             self.server_list = ServerListUI(self)
             self.server_list.grid(row=0, column=0, padx=0, pady=0, sticky="w")
         else:
-            self.label = tk.Label(self, text="SERVER BROWSER DISABLED")  # \n\nTo get started, press <F1> and enter the IP address and port of the server you wish to connect to.")
+            # \n\nTo get started, press <F1> and enter the IP address and port
+            # of the server you wish to connect to.")
+            self.label = tk.Label(self, text="SERVER BROWSER DISABLED")
             self.label.pack(anchor="center", pady=250)
-            # self.label = tk.Label(self, justify="center", text='To get started, select "Servers" then "Connect..." in the menu bar and enter the hostname and port of the server you wish to connect to.')
+            # self.label = tk.Label(self, justify="center", text='To get
+            # started, select "Servers" then "Connect..." in the menu bar and
+            # enter the hostname and port of the server you wish to connect
+            # to.')
             # self.label.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 
     def release_notes(self):
@@ -142,7 +162,9 @@ class UI(tk.Tk):
                 state.sc4mp_beta = release_info["prerelease"]
 
             # Create release notes UI
-            if state.sc4mp_config["GENERAL"]["show_release_notes"] and state.sc4mp_config["GENERAL"]["release_notes_version"] != SC4MP_VERSION:
+            general_config = state.sc4mp_config["GENERAL"]
+            if (general_config["show_release_notes"]
+                    and general_config["release_notes_version"] != SC4MP_VERSION):
                 ReleaseNotesUI(version, release_info["name"], release_info["body"])
 
         except Exception as e:
@@ -155,7 +177,13 @@ class UI(tk.Tk):
 
     def to_implement(self):
 
-        tk.messagebox.showerror(title=SC4MP_TITLE, message="This feature is incomplete and will be available in future versions of the client.")
+        tk.messagebox.showerror(
+            title=SC4MP_TITLE,
+            message=(
+                "This feature is incomplete and will be available in future "
+                "versions of the client."
+            )
+        )
 
     def general_settings(self):
         print('"General settings..."')
@@ -174,11 +202,21 @@ class UI(tk.Tk):
 
         print('"Host..."')
 
-        message = "One of the next releases of the SC4MP Launcher will be capable of hosting servers " \
-            "from within the launcher, but for now, you can run the SC4MP Server manually. See the Github repository " \
-            "for more information.\n\n" if is_windows() else ""
+        if is_windows():
+            message = (
+                "One of the next releases of the SC4MP Launcher will be capable "
+                "of hosting servers from within the launcher, but for now, you can "
+                "run the SC4MP Server manually. See the Github repository for more "
+                "information.\n\n"
+            )
+        else:
+            message = ""
 
-        if messagebox.askyesno(SC4MP_TITLE, f"Hosting a server requires the SC4MP Server application.\n\n{message}Would you like to view the GitHub repository?"):
+        question = (
+            "Hosting a server requires the SC4MP Server application.\n\n"
+            f"{message}Would you like to view the GitHub repository?"
+        )
+        if messagebox.askyesno(SC4MP_TITLE, question):
             webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/")
 
     def direct_connect(self):

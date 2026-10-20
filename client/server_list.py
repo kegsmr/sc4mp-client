@@ -69,7 +69,9 @@ class ServerList(th.Thread):
             self.error_icon = tk.PhotoImage(file=get_sc4mp_path("error-icon.png"))
 
             self.rank_bars = {}
-            self.rank_bar_images = [tk.PhotoImage(file=get_sc4mp_path(f"rank-{i}.png")) for i in range(6)]
+            self.rank_bar_images = [
+                tk.PhotoImage(file=get_sc4mp_path(f"rank-{i}.png")) for i in range(6)
+            ]
             self.ui.tree.bind("<<TreeviewSelect>>", self.update_rank_bars)
             self.ui.tree.bind("<MouseWheel>", self.update_rank_bars)
 
@@ -88,14 +90,26 @@ class ServerList(th.Thread):
             self.lan_servers = []
             if state.sc4mp_config["GENERAL"]["scan_lan"]:
                 try:
-                    self.lan_servers = [(row[0], port) for port in range(7240, 7250) for row in [("localhost", None, None)] + arp()]
+                    # localhost and every LAN address, on each default port
+                    lan_servers = []
+                    for port in range(7240, 7250):
+                        for row in [("localhost", None, None)] + arp():
+                            lan_servers.append((row[0], port))
+                    self.lan_servers = lan_servers
                 except Exception:
-                    show_error("An error occurred while scanning for LAN servers, only internet servers will be shown.", no_ui=True)
+                    show_error(
+                        "An error occurred while scanning for LAN servers, only internet "
+                        "servers will be shown.",
+                        no_ui=True
+                    )
 
             delete_server_ids = []
             for server_id in reversed(state.sc4mp_servers_database.keys()):
                 server_entry = state.sc4mp_servers_database[server_id]
-                if (server_entry.get("user_id", None) is not None) or ("last_contact" not in server_entry.keys()) or (datetime.strptime(server_entry["last_contact"], "%Y-%m-%d %H:%M:%S") + timedelta(days=30) > datetime.now()):
+                if ((server_entry.get("user_id", None) is not None)
+                        or ("last_contact" not in server_entry.keys())
+                        or (datetime.strptime(server_entry["last_contact"], "%Y-%m-%d %H:%M:%S")
+                            + timedelta(days=30) > datetime.now())):
                     host = server_entry["host"]
                     port = server_entry["port"]
                     self.unfetched_servers.append((host, port))
@@ -138,17 +152,24 @@ class ServerList(th.Thread):
                             self.ui.address_label["fg"] = "red"
                             self.ui.details_button['state'] = tk.DISABLED
                         else:
-                            self.ui.address_label["text"] = self.servers[server_id].host + ":" + str(self.servers[server_id].port)
+                            selected_server = self.servers[server_id]
+                            self.ui.address_label["text"] = (
+                                selected_server.host + ":" + str(selected_server.port)
+                            )
                             self.ui.address_label["fg"] = "gray"
                             self.ui.details_button['state'] = tk.NORMAL
-                        self.ui.description_label["text"] = self.servers[server_id].server_description
+                        self.ui.description_label["text"] = (
+                            self.servers[server_id].server_description
+                        )
                         self.ui.url_label["text"] = self.servers[server_id].server_url
 
                     # Add all fetched servers to the server dictionary if not already present
                     while len(self.fetched_servers) > 0:
                         fetched_server = self.fetched_servers.pop(0)
-                        if fetched_server.server_id not in self.servers.keys() or not self.servers[fetched_server.server_id].fetched:
-                            self.servers[fetched_server.server_id] = fetched_server
+                        fetched_id = fetched_server.server_id
+                        if (fetched_id not in self.servers.keys()
+                                or not self.servers[fetched_id].fetched):
+                            self.servers[fetched_id] = fetched_server
 
                     # Fetch the next unfetched server
                     for unfetched_servers in [self.unfetched_servers, self.lan_servers]:
@@ -158,7 +179,9 @@ class ServerList(th.Thread):
                                 if unfetched_server not in self.tried_servers:
                                     self.tried_servers.append(unfetched_server)
                                     self.server_fetchers += 1
-                                    ServerFetcher(self, Server(unfetched_server[0], unfetched_server[1])).start()
+                                    ServerFetcher(
+                                        self, Server(unfetched_server[0], unfetched_server[1])
+                                    ).start()
 
                     # Clear the tree if sort mode changed
                     if self.sort_mode_changed:
@@ -172,7 +195,9 @@ class ServerList(th.Thread):
                             update_server = self.servers[server_id]
                             self.stat_mayors[server_id] = update_server.stat_mayors
                             self.stat_mayors_online[server_id] = update_server.stat_mayors_online
-                            self.stat_actual_download[server_id] = update_server.stat_actual_download
+                            self.stat_actual_download[server_id] = (
+                                update_server.stat_actual_download
+                            )
                             self.stat_claimed[server_id] = update_server.stat_claimed
                             self.stat_ping[server_id] = update_server.stat_ping
                             self.calculate_rating(update_server)
@@ -190,7 +215,11 @@ class ServerList(th.Thread):
                     if filter == self.ui.combo_box.PLACEHOLDER_TEXT:
                         filter = ""
                     for server_id in server_ids:
-                        if (not self.ui.tree.exists(server_id)) and (not self.filter(self.servers[server_id], self.filters(filter))):  # (len(filter) < 1 or (not self.filter(self.servers[server_id], self.filters(filter)))):
+                        # (len(filter) < 1 or (not self.filter(self.servers[server_id],
+                        # self.filters(filter)))):
+                        if ((not self.ui.tree.exists(server_id))
+                                and (not self.filter(self.servers[server_id],
+                                                     self.filters(filter)))):
                             # while len(self.ui.tree.get_children()) >= 50:
                             #    self.ui.tree.delete(self.ui.tree.get_children()[-1])
                             server = self.servers[server_id]
@@ -205,7 +234,15 @@ class ServerList(th.Thread):
                             else:
                                 image = self.blank_icon
                             values = self.format_server(server)
-                            self.ui.tree.insert("", self.in_order_index(server), server_id, text=server.server_name, values=values, image=image, tags=tuple(tags))
+                            self.ui.tree.insert(
+                                "",
+                                self.in_order_index(server),
+                                server_id,
+                                text=server.server_name,
+                                values=values,
+                                image=image,
+                                tags=tuple(tags)
+                            )
 
                     # Filter the tree
                     filter = self.ui.combo_box.get()
@@ -214,7 +251,8 @@ class ServerList(th.Thread):
                     # if len(filter) > 0:
                     try:
                         category, search_terms = self.filters(filter)
-                        # print("Filtering by \"" + category + "\" and " + str(search_terms) + "...")
+                        # print("Filtering by \"" + category + "\" and " +
+                        # str(search_terms) + "...")
                         if category == "History":
                             self.ui.tree['displaycolumns'] = ("#1", "#2", "#3", "#4", "#6")
                             # self.ui.tree.column("#5", width=0)
@@ -232,19 +270,27 @@ class ServerList(th.Thread):
                         server_ids = self.ui.tree.get_children()
                         for server_id in server_ids:
                             hide = self.filter(self.servers[server_id], (category, search_terms))
-                            if hide and (server_id in self.ui.tree.get_children()) and (server_id not in self.hidden_servers):
+                            if (hide
+                                    and (server_id in self.ui.tree.get_children())
+                                    and (server_id not in self.hidden_servers)):
                                 self.hidden_servers.append(server_id)
                                 self.ui.tree.delete(server_id)
                             elif (not hide) and (server_id in self.hidden_servers):
                                 self.hidden_servers.remove(server_id)
-                                # self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
+                                # self.ui.tree.reattach(server_id,
+                                # self.ui.tree.parent(server_id),
+                                # self.in_order_index(self.servers[server_id]))
                     except Exception:
-                        show_error("An error occurred while filtering the server list.", no_ui=True)
+                        show_error(
+                            "An error occurred while filtering the server list.", no_ui=True
+                        )
                     # elif len(self.hidden_servers) > 0:
                     #    server_ids = self.hidden_servers
                     #    for server_id in server_ids:
                     #        self.hidden_servers.remove(server_id)
-                    #        #self.ui.tree.reattach(server_id, self.ui.tree.parent(server_id), self.in_order_index(self.servers[server_id]))
+                    # #self.ui.tree.reattach(server_id,
+                    # self.ui.tree.parent(server_id),
+                    # self.in_order_index(self.servers[server_id]))
 
                     # Sort the tree
                     if not self.sorted():
@@ -256,14 +302,17 @@ class ServerList(th.Thread):
                             server_a = self.servers[server_a_id]
                             server_b = self.servers[server_b_id]
                             if not self.in_order(server_a, server_b):
-                                self.ui.tree.move(server_b_id, self.ui.tree.parent(server_b_id), index)
+                                self.ui.tree.move(
+                                    server_b_id, self.ui.tree.parent(server_b_id), index
+                                )
                         """server_indices = dict()
                         for server_id in server_ids:
                             server_indices[server_id] = server_ids.index(server_id)
                         self.sort(server_indices)
                         for server_id in server_ids:
                             if (not server_id in self.hidden_servers):
-                                self.ui.tree.move(server_id, self.ui.tree.parent(server_id), server_indices[server_id])"""
+                                self.ui.tree.move(server_id, self.ui.tree.parent(server_id),
+                                    server_indices[server_id])"""
 
                     # Update the tree
                     server_ids = self.ui.tree.get_children()
@@ -274,7 +323,9 @@ class ServerList(th.Thread):
                     # Update primary label
                     if len(self.servers) > self.offline_server_count:
                         # if len(self.hidden_servers) < len(self.servers):
-                        self.ui.label["text"] = 'To get started, select a server below and click "Connect"'
+                        self.ui.label["text"] = (
+                            'To get started, select a server below and click "Connect"'
+                        )
                         # else:
                         #    self.ui.label["text"] = 'No servers found'
                     else:
@@ -284,7 +335,9 @@ class ServerList(th.Thread):
                         if self.server_fetchers > 0:
                             self.ui.label["text"] = 'Getting server list...'
                         else:
-                            self.ui.label["text"] = 'No servers found'  # Select "Servers" then "Connect..." in the menu bar to connect to a server.'
+                            # Select "Servers" then "Connect..." in the menu
+                            # bar to connect to a server.'
+                            self.ui.label["text"] = 'No servers found'
 
                     # Update rank bars
                     self.update_rank_bars()
@@ -334,7 +387,10 @@ class ServerList(th.Thread):
 
         category = filters[0]
         search_terms = filters[1]
-        search_fields = [server.server_name, server.server_description, server.server_url, server.server_id, server.host]
+        search_fields = [
+            server.server_name, server.server_description, server.server_url,
+            server.server_id, server.host
+        ]
         if len(search_terms) > 0:
             for search_field in search_fields:
                 search_field = search_field.lower()
@@ -419,7 +475,10 @@ class ServerList(th.Thread):
             elif sort_mode == "Claimed":
                 return server.stat_claimed
             elif sort_mode == "Download":
-                return server.stat_actual_download if state.sc4mp_config["GENERAL"]["show_actual_download"] else server.stat_download
+                if state.sc4mp_config["GENERAL"]["show_actual_download"]:
+                    return server.stat_actual_download
+                else:
+                    return server.stat_download
             elif sort_mode == "Ping":
                 return server.stat_ping
             elif sort_mode == "Joined":
@@ -431,12 +490,26 @@ class ServerList(th.Thread):
 
     def format_server(self, server):
 
+        def mayors_cell():
+            if server.stat_mayors_online > 0:
+                return str(server.stat_mayors) + " (" + str(server.stat_mayors_online) + ")"
+            else:
+                return str(server.stat_mayors)
+
+        def download_cell():
+            if state.sc4mp_config["GENERAL"]["show_actual_download"]:
+                return format_download_size(server.stat_actual_download)
+            else:
+                return format_filesize(server.stat_download)
+
         functions = [
-            lambda: str(server.stat_mayors) + " (" + str(server.stat_mayors_online) + ")" if server.stat_mayors_online > 0 else str(server.stat_mayors),
+            mayors_cell,
             lambda: str(int(server.stat_claimed * 100)) + "%",
-            lambda: format_download_size(server.stat_actual_download) if state.sc4mp_config["GENERAL"]["show_actual_download"] else format_filesize(server.stat_download),
+            download_cell,
             lambda: str(server.stat_ping) + "ms",
-            lambda: str(round(server.rating, 1)),  # (lambda: "" if sc4mp_config["GENERAL"]["show_rank_bars"] else lambda: str(round(server.rating, 1))), # + " ⭐️",
+            # (lambda: "" if sc4mp_config["GENERAL"]["show_rank_bars"] else
+            # lambda: str(round(server.rating, 1))), # + " ⭐️",
+            lambda: str(round(server.rating, 1)),
             lambda: self.format_server_join_time(server)
         ]
         if state.sc4mp_config["GENERAL"]["show_rank_bars"]:
@@ -455,7 +528,8 @@ class ServerList(th.Thread):
         try:
             last_logon = server.last_logon
         except AttributeError:
-            last_logon = state.sc4mp_servers_database.get(server.server_id, {}).get("last_logon", None)
+            server_entry = state.sc4mp_servers_database.get(server.server_id, {})
+            last_logon = server_entry.get("last_logon", None)
 
         server.last_logon = last_logon
 
@@ -469,10 +543,16 @@ class ServerList(th.Thread):
         try:
 
             try:
+                mayors = self.max_category(server.stat_mayors, self.stat_mayors.values())
+                mayors_online = self.max_category(
+                    server.stat_mayors_online, self.stat_mayors_online.values()
+                )
                 categories = [
-                    .5 * (self.max_category(server.stat_mayors, self.stat_mayors.values())) * (self.max_category(server.stat_mayors_online, self.stat_mayors_online.values()) + 1),
+                    .5 * (mayors) * (mayors_online + 1),
                     self.min_category(server.stat_claimed, self.stat_claimed.values()),
-                    self.min_category(server.stat_actual_download, self.stat_actual_download.values()),
+                    self.min_category(
+                        server.stat_actual_download, self.stat_actual_download.values()
+                    ),
                     self.min_category(server.stat_ping, self.stat_ping.values()),
                 ]
                 rating = 1 + sum(categories)
@@ -613,9 +693,11 @@ class ServerList(th.Thread):
             for canvas in r.values():
                 canvas.destroy()
 
-        # Running the function from this thread seems to cause CTDs with 0x0000005 access violations, so we use the `after` method instead
+        # Running the function from this thread seems to cause CTDs with
+        # 0x0000005 access violations, so we use the `after` method instead
         if self.ui and state.sc4mp_config["GENERAL"]["show_rank_bars"]:
-            if not hasattr(self.ui, "rank_bar_update_scheduled") or not self.ui.rank_bar_update_scheduled:
+            if (not hasattr(self.ui, "rank_bar_update_scheduled")
+                    or not self.ui.rank_bar_update_scheduled):
                 self.ui.rank_bar_update_scheduled = True
                 self.ui.after(0, scheduled_update)
 
@@ -654,7 +736,9 @@ class ServerFetcher(th.Thread):
 
                     if (self.server.host, self.server.port) in self.parent.saved_servers.keys():
 
-                        self.server.server_id = self.parent.saved_servers.pop((self.server.host, self.server.port))
+                        self.server.server_id = self.parent.saved_servers.pop(
+                            (self.server.host, self.server.port)
+                        )
 
                         server_entry: dict = state.sc4mp_servers_database[self.server.server_id]
 
@@ -662,8 +746,12 @@ class ServerFetcher(th.Thread):
 
                             self.server.categories = ["Offline", "History"]  # "All"
 
-                            self.server.server_name = server_entry.get("server_name", f"{self.server.host}:{self.server.port}")
-                            self.server.server_description = server_entry.get("server_description", "")
+                            self.server.server_name = server_entry.get(
+                                "server_name", f"{self.server.host}:{self.server.port}"
+                            )
+                            self.server.server_description = server_entry.get(
+                                "server_description", ""
+                            )
                             self.server.server_url = server_entry.get("server_url", "")
 
                             self.parent.fetched_servers.append(self.server)
@@ -682,27 +770,33 @@ class ServerFetcher(th.Thread):
                 if state.sc4mp_config["DEBUG"]["random_server_stats"]:
 
                     self.server.stat_mayors = random.randint(0, 1000)
-                    self.server.stat_mayors_online = int(self.server.stat_mayors * (float(random.randint(0, 100)) / 100))
+                    self.server.stat_mayors_online = int(
+                        self.server.stat_mayors * (float(random.randint(0, 100)) / 100)
+                    )
                     self.server.stat_claimed = float(random.randint(0, 100)) / 100
                     self.server.stat_download = random.randint(0, 10 ** 11)
-                    self.server.stat_actual_download = int(self.server.stat_download * (float(random.randint(0, 100)) / 100))
+                    self.server.stat_actual_download = int(
+                        self.server.stat_download * (float(random.randint(0, 100)) / 100)
+                    )
                     self.server.stat_ping = random.randint(0, 300)
 
                 else:
 
                     # if not self.server.private:
                     try:
-                        self.server.stat_ping = state.sc4mp_servers_database[self.server.server_id]["stat_ping"]
-                        self.server.stat_mayors = state.sc4mp_servers_database[self.server.server_id]["stat_mayors"]
-                        self.server.stat_mayors_online = state.sc4mp_servers_database[self.server.server_id]["stat_mayors_online"]
-                        self.server.stat_claimed = state.sc4mp_servers_database[self.server.server_id]["stat_claimed"]
-                        self.server.stat_download = state.sc4mp_servers_database[self.server.server_id]["stat_download"]
-                        self.server.stat_actual_download = state.sc4mp_servers_database[self.server.server_id]["stat_actual_download"]
+                        server_entry = state.sc4mp_servers_database[self.server.server_id]
+                        self.server.stat_ping = server_entry["stat_ping"]
+                        self.server.stat_mayors = server_entry["stat_mayors"]
+                        self.server.stat_mayors_online = server_entry["stat_mayors_online"]
+                        self.server.stat_claimed = server_entry["stat_claimed"]
+                        self.server.stat_download = server_entry["stat_download"]
+                        self.server.stat_actual_download = server_entry["stat_actual_download"]
                     except Exception:
                         pass
                     # else:
                     #    try:
-                    #        self.server.stat_ping = sc4mp_servers_database[self.server.server_id]["stat_ping"]
+                    # self.server.stat_ping =
+                    # sc4mp_servers_database[self.server.server_id]["stat_ping"]
                     #    except Exception:
                     #        pass
 
@@ -734,13 +828,18 @@ class ServerFetcher(th.Thread):
                 try:
                     self.fetch_stats()
                 except Exception as e:
-                    print(f"[WARNING] Unable to fetch server stats for {self.server.host}:{self.server.port}! " + str(e))
+                    print(
+                        "[WARNING] Unable to fetch server stats for "
+                        f"{self.server.host}:{self.server.port}! " + str(e)
+                    )
 
                 # print("- done.")
 
             except Exception as e:
 
-                print(f"[WARNING] Failed to fetch {self.server.host}:{self.server.port}! " + str(e))
+                print(
+                    f"[WARNING] Failed to fetch {self.server.host}:{self.server.port}! " + str(e)
+                )
 
             self.parent.server_fetchers -= 1
 
@@ -787,4 +886,6 @@ class ServerPinger(th.Thread):
 
         except Exception as e:
 
-            show_error(f"A server pinger thread encountered an unexpected error\n\n{e}", no_ui=True)
+            show_error(
+                f"A server pinger thread encountered an unexpected error\n\n{e}", no_ui=True
+            )

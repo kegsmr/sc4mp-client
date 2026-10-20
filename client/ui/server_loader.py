@@ -155,7 +155,10 @@ class ServerBackgroundUI(tk.Toplevel):
 
         except Exception as e:
 
-            show_error(f"An error occurred while displaying the server background.\n\n{e}", no_ui=True)
+            show_error(
+                f"An error occurred while displaying the server background.\n\n{e}",
+                no_ui=True
+            )
 
     def fetch_background(self):
 

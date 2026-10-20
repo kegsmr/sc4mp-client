@@ -78,7 +78,11 @@ class ServerLoader(th.Thread):
 
                 # Prompt the SC4 intallation directory while not found
                 while get_sc4_path() is None:
-                    if not messagebox.askokcancel(SC4MP_TITLE, 'No SimCity 4 installation found. \n\nPlease provide the correct installation path.'):
+                    message = (
+                        'No SimCity 4 installation found. \n\n'
+                        'Please provide the correct installation path.'
+                    )
+                    if not messagebox.askokcancel(SC4MP_TITLE, message):
                         self.ui.destroy()
                         if state.sc4mp_exit_after:
                             state.sc4mp_ui.destroy()
@@ -89,7 +93,9 @@ class ServerLoader(th.Thread):
                     if len(path) > 0:
                         state.sc4mp_config["SC4"]["game_path"] = path
                         if state.sc4mp_config["SC4"]["use_steam_browser_protocol"] in [0, 1]:
-                            state.sc4mp_config["SC4"]["use_steam_browser_protocol"] = (1 if is_steam_sc4(Path(path)) else 0)
+                            state.sc4mp_config["SC4"]["use_steam_browser_protocol"] = (
+                                1 if is_steam_sc4(Path(path)) else 0
+                            )
                         state.sc4mp_config.update()
                     else:
                         self.ui.destroy()
@@ -103,8 +109,18 @@ class ServerLoader(th.Thread):
                 if is_windows():
                     try:
                         sc4_exe_path = get_sc4_path()
-                        if not os.path.exists(sc4_exe_path.parent / (sc4_exe_path.name + ".Backup")):
-                            choice = messagebox.askyesnocancel(SC4MP_TITLE, "It appears the 4GB patch has not been applied to SimCity 4.\n\nLoading certain plugins may cause SimCity 4 to crash if the patch has not been applied.\n\nWould you like to apply the patch now?", icon="warning")
+                        # The patcher leaves a backup of the original exe
+                        backup_path = sc4_exe_path.parent / (sc4_exe_path.name + ".Backup")
+                        if not os.path.exists(backup_path):
+                            message = (
+                                "It appears the 4GB patch has not been applied to SimCity 4.\n\n"
+                                "Loading certain plugins may cause SimCity 4 to crash if the "
+                                "patch has not been applied.\n\n"
+                                "Would you like to apply the patch now?"
+                            )
+                            choice = messagebox.askyesnocancel(
+                                SC4MP_TITLE, message, icon="warning"
+                            )
                             if choice is None:
                                 self.ui.destroy()
                                 if state.sc4mp_exit_after:
@@ -113,7 +129,14 @@ class ServerLoader(th.Thread):
                                     state.sc4mp_ui.deiconify()
                                 return
                             elif choice is True:
-                                exit_code = ctypes.windll.shell32.ShellExecuteW(None, "runas", f"{get_sc4mp_path('4gb-patch.exe').absolute()}", f"\"{sc4_exe_path}\"", None, 1)
+                                exit_code = ctypes.windll.shell32.ShellExecuteW(
+                                    None,
+                                    "runas",
+                                    f"{get_sc4mp_path('4gb-patch.exe').absolute()}",
+                                    f"\"{sc4_exe_path}\"",
+                                    None,
+                                    1
+                                )
                                 if exit_code not in [0, 42]:
                                     raise ClientException(f"Patcher exited with code {exit_code}.")
                     except Exception as e:
@@ -163,7 +186,9 @@ class ServerLoader(th.Thread):
             except Exception as e:
 
                 # pylint: disable-next=no-member
-                if (self.ui is not None) and (self.ui.winfo_exists() == 1) and not (type(e) is ClientException and e.message == "Connection cancelled."):
+                if ((self.ui is not None) and (self.ui.winfo_exists() == 1)
+                        and not (type(e) is ClientException
+                                 and e.message == "Connection cancelled.")):
                     show_error(f"An error occurred while connecting to the server.\n\n{e}")
                 else:
                     show_error(e, no_ui=True)
@@ -187,21 +212,35 @@ class ServerLoader(th.Thread):
 
                     try:
                         if is_windows():
-                            while self.ui.winfo_exists() and not state.sc4mp_ui.winfo_viewable() and not window_open("simcity 4.exe"):
+                            while (self.ui.winfo_exists()
+                                   and not state.sc4mp_ui.winfo_viewable()
+                                   and not window_open("simcity 4.exe")):
                                 time.sleep(SC4MP_DELAY)
                     except Exception as e:
                         show_error(e, no_ui=True)
 
-                    if state.sc4mp_config["SC4"]["fullscreen"] and not state.sc4mp_ui.winfo_viewable():
+                    fullscreen = state.sc4mp_config["SC4"]["fullscreen"]
+                    if fullscreen and not state.sc4mp_ui.winfo_viewable():
                         time.sleep(10)
 
                     self.ui.destroy()
 
                     if state.sc4mp_ui.winfo_viewable():
-                        if messagebox.askokcancel(title=SC4MP_TITLE, icon="error", message="SimCity 4 may not have launched correctly due to invalid settings.\n\nAdjust your settings in the SC4 settings menu before connecting to the server again.\n\nTIP: You can click the \"Preview\" button in the SC4 settings menu to test your settings without connecting to a server."):
+                        message = (
+                            "SimCity 4 may not have launched correctly due to invalid "
+                            "settings.\n\n"
+                            "Adjust your settings in the SC4 settings menu before "
+                            "connecting to the server again.\n\n"
+                            "TIP: You can click the \"Preview\" button in the SC4 settings "
+                            "menu to test your settings without connecting to a server."
+                        )
+                        if messagebox.askokcancel(title=SC4MP_TITLE, icon="error",
+                                                  message=message):
                             SC4SettingsUI()
 
-                if game_monitor.ui and game_monitor.ui.winfo_exists() and game_monitor.ui.winfo_viewable():
+                if (game_monitor.ui
+                        and game_monitor.ui.winfo_exists()
+                        and game_monitor.ui.winfo_viewable()):
                     game_monitor.ui.grab_set()
 
                 return
@@ -245,13 +284,26 @@ class ServerLoader(th.Thread):
         if not self.server.fetched:
             self.server.fetch()
             if not self.server.fetched:
-                raise ClientException("Unable to find server. Check the IP address and port, then try again.")
+                raise ClientException(
+                    "Unable to find server. Check the IP address and port, then try again."
+                )
         if not state.sc4mp_config["DEBUG"]["ignore_incompatable_versions"]:
-            if unformat_version(self.server.server_version)[:2] < unformat_version(SC4MP_VERSION)[:2]:
+            # Compare major and minor versions only
+            server_version = unformat_version(self.server.server_version)[:2]
+            launcher_version = unformat_version(SC4MP_VERSION)[:2]
+            if server_version < launcher_version:
                 if state.sc4mp_beta is False:
-                    raise ClientException(f"The server requires an outdated version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please contact the server administrators.")
-            if unformat_version(self.server.server_version)[:2] > unformat_version(SC4MP_VERSION)[:2]:
-                raise ClientException(f"The server requires a newer version (v{self.server.server_version[:3]}) of the SC4MP Launcher. Please update the launcher to connect to this server.")
+                    raise ClientException(
+                        "The server requires an outdated version "
+                        f"(v{self.server.server_version[:3]}) of the SC4MP Launcher. "
+                        "Please contact the server administrators."
+                    )
+            if server_version > launcher_version:
+                raise ClientException(
+                    "The server requires a newer version "
+                    f"(v{self.server.server_version[:3]}) of the SC4MP Launcher. "
+                    "Please update the launcher to connect to this server."
+                )
         if self.ui is not None:
             self.ui.title(self.server.server_name)
 
@@ -282,7 +334,8 @@ class ServerLoader(th.Thread):
             if self.server.password is None:
                 if state.sc4mp_config["GENERAL"]["save_server_passwords"]:
                     try:
-                        self.server.password = state.sc4mp_servers_database[self.server.server_id]["password"]
+                        server_entry = state.sc4mp_servers_database[self.server.server_id]
+                        self.server.password = server_entry["password"]
                     except Exception:
                         return False
             if self.server.password == "":
@@ -293,7 +346,8 @@ class ServerLoader(th.Thread):
                 if s.check_password(password=self.server.password):
                     if state.sc4mp_config["GENERAL"]["save_server_passwords"]:
                         try:
-                            state.sc4mp_servers_database[self.server.server_id]["password"] = self.server.password
+                            server_entry = state.sc4mp_servers_database[self.server.server_id]
+                            server_entry["password"] = self.server.password
                         except Exception as e:
                             show_error(e, no_ui=True)
                     return True
@@ -325,8 +379,10 @@ class ServerLoader(th.Thread):
             client_plugins_source = Path(state.sc4mp_config["GENERAL"]["custom_plugins_path"])
             client_plugins_destination = Path(state.SC4MP_LAUNCHPATH) / "Plugins" / "client"
 
-            # Synchronize custom plugins if the server permits custom plugins and the user wants to load them
-            if self.server.user_plugins_enabled and state.sc4mp_config["GENERAL"]["custom_plugins"]:
+            # Synchronize custom plugins if the server permits custom plugins
+            # and the user wants to load them
+            if (self.server.user_plugins_enabled
+                    and state.sc4mp_config["GENERAL"]["custom_plugins"]):
 
                 # Report for the loading sequence
                 self.report("", "Synchronizing custom plugins...")
@@ -335,7 +391,8 @@ class ServerLoader(th.Thread):
                 # Get the paths to all files in the destination directory
                 destination_relpaths = get_fullpaths_recursively(client_plugins_destination)
 
-                # Delete all files in the destination directory that are not present in the source directory
+                # Delete all files in the destination directory that are not
+                # present in the source directory
                 for relpath in destination_relpaths:
                     if not Path(client_plugins_source, relpath).exists():
                         filename = Path(client_plugins_destination) / relpath
@@ -355,20 +412,25 @@ class ServerLoader(th.Thread):
                 # True if symlinks are allowed
                 linking = False
 
-                # Loop through the file paths in the source directory, and copy them to the destination if necessary
+                # Loop through the file paths in the source directory, and copy
+                # them to the destination if necessary
                 for relpath in source_relpaths:
 
                     # Progress bar stuff
                     old_percent = percent
                     percent = math.floor(100 * (destination_size / source_size))
                     if percent > old_percent:
-                        self.report_progress(f'Synchronizing custom plugins... ({percent}%)', percent, 100)
+                        self.report_progress(
+                            f'Synchronizing custom plugins... ({percent}%)', percent, 100
+                        )
                     try:
                         self.ui.progress_label["text"] = relpath.name
                         if linking:
-                            self.ui.duration_label["text"] = f"Link {SC4MP_ARROW} SC4"  # "(linking)"
+                            # "(linking)"
+                            self.ui.duration_label["text"] = f"Link {SC4MP_ARROW} SC4"
                         else:
-                            self.ui.duration_label["text"] = f"Disk {SC4MP_ARROW} SC4"  # "(copying)"
+                            # "(copying)"
+                            self.ui.duration_label["text"] = f"Disk {SC4MP_ARROW} SC4"
                     except Exception:
                         pass
 
@@ -386,7 +448,8 @@ class ServerLoader(th.Thread):
                     # If the destination file exists, check the md5's to see if they match
                     if dest.exists():
 
-                        # If the destination file is a link, or the md5's match, continue to the next iteration of the loop
+                        # If the destination file is a link, or the md5's
+                        # match, continue to the next iteration of the loop
                         if os.path.islink(dest) or md5(src) == md5(dest):
                             # print(f'- verified "{dest}"')
                             continue
@@ -396,7 +459,9 @@ class ServerLoader(th.Thread):
                             print(f'- removing "{dest}"')
                             dest.unlink()
 
-                    # Make the destination directory if necessary, then try to make a symbolic link (fast), and if the required priveleges are not held, copy the file (slower)
+                    # Make the destination directory if necessary, then try to
+                    # make a symbolic link (fast), and if the required
+                    # priveleges are not held, copy the file (slower)
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     try:
                         os.symlink(src, dest)
@@ -415,13 +480,15 @@ class ServerLoader(th.Thread):
                 except Exception as e:
                     show_error(f"Unable to delete \"{e}\"!", no_ui=True)
 
-        # Loop broken when the loading is successful, an unexpected error occurs, or the amount of tries is exceeded
+        # Loop broken when the loading is successful, an unexpected error
+        # occurs, or the amount of tries is exceeded
         while True:
 
             try:
 
                 # Purge the destination directory
-                self.report("", f"Synchronizing {target}...")  # "", "Purging " + type + " directory...")
+                # "", "Purging " + type + " directory...")
+                self.report("", f"Synchronizing {target}...")
                 try:
                     purge_directory(destination)
                 except ClientException as e:
@@ -460,16 +527,28 @@ class ServerLoader(th.Thread):
                     # Handle risky file types
                     if not state.sc4mp_config["GENERAL"]["ignore_risky_file_warnings"]:
                         if state.sc4mp_ui:
-                            if (relpath.suffix.lower() in SC4MP_RISKY_FILE_EXTENSIONS) and (state.sc4mp_servers_database[self.server.server_id].get("allowed_files", {}).get(checksum, "") != relpath.name.lower()):
-                                choice = messagebox.askyesnocancel(title=SC4MP_TITLE, message=f"You are about to download \"{relpath.name}\". This file could potentially harm your computer.\n\nWould you like to download it anyway?", icon="warning")
-                                if choice is True:
-                                    state.sc4mp_servers_database[self.server.server_id].setdefault("allowed_files", {})
-                                    state.sc4mp_servers_database[self.server.server_id]["allowed_files"][checksum] = relpath.name.lower()
-                                elif choice is False:
-                                    size_downloaded += filesize
-                                    continue
-                                else:
-                                    raise ClientException("Connection cancelled.")
+                            if relpath.suffix.lower() in SC4MP_RISKY_FILE_EXTENSIONS:
+                                # Ask unless the user already allowed this file
+                                server_entry = state.sc4mp_servers_database[self.server.server_id]
+                                allowed_files = server_entry.get("allowed_files", {})
+                                if allowed_files.get(checksum, "") != relpath.name.lower():
+                                    message = (
+                                        f"You are about to download \"{relpath.name}\". This "
+                                        "file could potentially harm your computer.\n\n"
+                                        "Would you like to download it anyway?"
+                                    )
+                                    choice = messagebox.askyesnocancel(
+                                        title=SC4MP_TITLE, message=message, icon="warning"
+                                    )
+                                    if choice is True:
+                                        server_entry.setdefault("allowed_files", {})
+                                        allowed_name = relpath.name.lower()
+                                        server_entry["allowed_files"][checksum] = allowed_name
+                                    elif choice is False:
+                                        size_downloaded += filesize
+                                        continue
+                                    else:
+                                        raise ClientException("Connection cancelled.")
                         else:
                             print(f"[WARNING] Downloading risky file: \"{relpath.name}\"")
 
@@ -480,7 +559,8 @@ class ServerLoader(th.Thread):
                     # Get path of cached file
                     t = Path(state.SC4MP_LAUNCHPATH) / "_Cache" / checksum
 
-                    # Use the cached file if it exists and has the same size, otherwise append the entry to the new file table
+                    # Use the cached file if it exists and has the same size,
+                    # otherwise append the entry to the new file table
                     if t.exists() and t.stat().st_size == filesize:
 
                         # Report
@@ -492,7 +572,8 @@ class ServerLoader(th.Thread):
                         # Display current file in UI
                         try:
                             self.ui.progress_label["text"] = d.name  # .relative_to(destination)
-                            self.ui.duration_label["text"] = f"Cache {SC4MP_ARROW} SC4"  # "(cached)"
+                            # "(cached)"
+                            self.ui.duration_label["text"] = f"Cache {SC4MP_ARROW} SC4"
                         except Exception:
                             pass
 
@@ -510,7 +591,9 @@ class ServerLoader(th.Thread):
                         old_percent = percent
                         percent = math.floor(100 * (size_downloaded / (size + 1)))
                         if percent > old_percent:
-                            self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
+                            self.report_progress(
+                                f"Synchronizing {target}... ({percent}%)", percent, 100
+                            )
 
                     else:
 
@@ -567,13 +650,17 @@ class ServerLoader(th.Thread):
 
                         # Delete cache files if cache too large to accomadate the new cache file
                         cache_directory = Path(state.SC4MP_LAUNCHPATH) / "_Cache"
-                        while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(state.sc4mp_config["STORAGE"]["cache_size"])) - filesize:
+                        cache_size = int(state.sc4mp_config["STORAGE"]["cache_size"])
+                        max_cache_size = (1000000 * cache_size) - filesize
+                        while (any(cache_directory.iterdir())
+                               and directory_size(cache_directory) > max_cache_size):
                             random_cache = random.choice(list(cache_directory.iterdir()))
                             random_cache.unlink()
 
                         # Receive the file. Write to both the destination and cache
                         filesize_read = 0
-                        with d.open("wb") as dest, t.with_name(t.name + ".tmp").open("wb") as cache:
+                        temp_cache = t.with_name(t.name + ".tmp")
+                        with d.open("wb") as dest, temp_cache.open("wb") as cache:
                             for chunk in chunks:
                                 for file in [dest, cache]:
                                     file.write(chunk)
@@ -583,12 +670,27 @@ class ServerLoader(th.Thread):
                                 old_percent = percent
                                 percent = math.floor(100 * (size_downloaded / (size + 1)))
                                 if percent > old_percent:
-                                    self.report_progress(f"Synchronizing {target}... ({percent}%)", percent, 100)
+                                    self.report_progress(
+                                        f"Synchronizing {target}... ({percent}%)", percent, 100
+                                    )
                                 if state.sc4mp_ui is not None:
                                     try:
                                         now = time.time()
-                                        eta = int((total_size_to_download - total_size_already_downloaded) / (total_size_already_downloaded / float(now - download_start_time)))
-                                        if (eta < 86400) and (old_eta is None or (old_eta > eta or int(now - old_eta_display_time) > 5)) and float(now - old_eta_display_time) >= .8:
+                                        downloaded = total_size_already_downloaded
+                                        remaining = total_size_to_download - downloaded
+                                        elapsed = float(now - download_start_time)
+                                        speed = downloaded / elapsed
+                                        eta = int(remaining / speed)
+
+                                        # Only update the shown ETA when it drops, every
+                                        # 5 seconds otherwise, and at most every 0.8 s
+                                        since_display = now - old_eta_display_time
+                                        if old_eta is None:
+                                            eta_changed = True
+                                        else:
+                                            eta_changed = old_eta > eta or int(since_display) > 5
+                                        if (eta < 86400 and eta_changed
+                                                and float(since_display) >= .8):
                                             old_eta = eta
                                             old_eta_display_time = now
                                             hours = math.floor(eta / 3600)
@@ -597,12 +699,15 @@ class ServerLoader(th.Thread):
                                             eta -= minutes * 60
                                             seconds = eta
                                             if hours > 0:
-                                                self.ui.duration_label["text"] = f"{hours}:{minutes:0>{2}}:{seconds:0>{2}}"
+                                                duration = f"{hours}:{minutes:0>2}:{seconds:0>2}"
                                             else:
-                                                self.ui.duration_label["text"] = f"{minutes}:{seconds:0>{2}}"
+                                                duration = f"{minutes}:{seconds:0>2}"
+                                            self.ui.duration_label["text"] = duration
                                     except ZeroDivisionError as e:
                                         show_error(e, no_ui=True)  # Lazy solution
-                        t.with_name(t.name + ".tmp").replace(t)  # only cache the file once its checksum has been verified
+                        # only cache the file once its checksum has been
+                        # verified
+                        t.with_name(t.name + ".tmp").replace(t)
 
                 self.report_progress(f"Synchronizing {target}... (100%)", 100, 100)
 
@@ -618,11 +723,14 @@ class ServerLoader(th.Thread):
 
                 # else:
 
-                # raise ClientException("Maximum connection attemps exceeded. Check your internet connection and firewall settings, then try again.\n\n" + str(e))
+                # raise ClientException("Maximum connection attemps exceeded.
+                # Check your internet connection and firewall settings, then
+                # try again.\n\n" + str(e))
 
     def prep_plugins(self):
 
-        # Get checksums of plugins installed to the top-level of the program files plugins folder (to avoid dobule-loading DLLs)
+        # Get checksums of plugins installed to the top-level of the program
+        # files plugins folder (to avoid dobule-loading DLLs)
         toplevel_plugins_checksums = []
         try:
             installation_plugins_path = get_sc4_path().parent.parent / "Plugins"
@@ -666,10 +774,16 @@ class ServerLoader(th.Thread):
                 default_plugin_file_path = default_plugins_source / default_plugin_file_name
                 default_plugin_checksum = md5(default_plugin_file_path)
                 if default_plugin_checksum not in toplevel_plugins_checksums:
-                    shutil.copy(default_plugin_file_path, default_plugins_destination / f"default-{default_plugin_file_name}")
+                    shutil.copy(
+                        default_plugin_file_path,
+                        default_plugins_destination / f"default-{default_plugin_file_name}"
+                    )
                     toplevel_plugins_checksums.append(default_plugin_checksum)
             except Exception as e:
-                show_error(f"Failed to load default plugin \"{default_plugin_file_name}\".\n\n{e}", no_ui=True)
+                show_error(
+                    f"Failed to load default plugin \"{default_plugin_file_name}\".\n\n{e}",
+                    no_ui=True
+                )
 
         # Copy DLLs from subfolders (DLL plugins do not load in subfolders)
         for path, basename in self.dll_plugin_paths:
@@ -680,7 +794,8 @@ class ServerLoader(th.Thread):
 
         # Write server URL local plugin file
         # with open(get_sc4mp_path("sc4mp-local-server-url.dat"), "rb") as rfile:
-        #     data = rfile.read().replace(b"{\x00{\x00U\x00R\x00L\x00}\x00}", bytes(self.server.server_url, encoding="utf-8"))
+        # data = rfile.read().replace(b"{\x00{\x00U\x00R\x00L\x00}\x00}",
+        # bytes(self.server.server_url, encoding="utf-8"))
         #     with open(default_plugins_destination / "server-url.dat", "wb") as wfile:
         #         wfile.write(data)
 
@@ -692,7 +807,9 @@ class ServerLoader(th.Thread):
         # Path to regions directory
         regions_directory = Path(state.SC4MP_LAUNCHPATH) / "Regions"
 
-        # Loop through the server regions, add them to the server regions instance variable and add prefixes to the region names in the region config files
+        # Loop through the server regions, add them to the server regions
+        # instance variable and add prefixes to the region names in the region
+        # config files
         for child in regions_directory.iterdir():
             if child.is_dir():
                 self.server.regions.append(child)
@@ -712,12 +829,16 @@ class ServerLoader(th.Thread):
             # Pick the directory corresponding to the latest failed save push
             save_directory = os.path.join(salvage_directory, os.listdir(salvage_directory)[-1])
 
-            # Pick the directory corresponding to the first region in the failed save push (there should only be one anyway)
+            # Pick the directory corresponding to the first region in the
+            # failed save push (there should only be one anyway)
             region_directory = os.path.join(save_directory, os.listdir(save_directory)[0])
 
             # Copy each file from the region directory to the `Downloads` directory
             for filename in os.listdir(region_directory):
-                shutil.copy(os.path.join(region_directory, filename), os.path.join(downloads_path, filename))
+                shutil.copy(
+                    os.path.join(region_directory, filename),
+                    os.path.join(downloads_path, filename)
+                )
 
         except Exception:
 
@@ -728,7 +849,8 @@ class ServerLoader(th.Thread):
         for auxiliary_region in AUXILIARY_REGIONS:
 
             # Create the auxiliary region directory
-            auxiliary_region_path = regions_directory / f"_{auxiliary_region}"  # TODO possible directory name conflicts?
+            # TODO possible directory name conflicts?
+            auxiliary_region_path = regions_directory / f"_{auxiliary_region}"
             auxiliary_region_path.mkdir(parents=True)
 
             # Copy the blank `config.bmp` file to the auxiliary region directory
@@ -741,7 +863,9 @@ class ServerLoader(th.Thread):
                 config_file_contents: str = template_config_file.read()
 
                 # Replace the region name
-                config_file_contents = config_file_contents.replace("New Region", f"{auxiliary_region}...")
+                config_file_contents = config_file_contents.replace(
+                    "New Region", f"{auxiliary_region}..."
+                )
 
                 # Write the file
                 with open(auxiliary_region_path / "region.ini", "w") as config_file:
@@ -752,7 +876,8 @@ class ServerLoader(th.Thread):
         try:
 
             # Get the path to the SimCity 4 config last used on this server
-            server_config_path = state.SC4MP_LAUNCHPATH / "_Configs" / f"{self.server.server_id}.cfg"
+            config_name = f"{self.server.server_id}.cfg"
+            server_config_path = state.SC4MP_LAUNCHPATH / "_Configs" / config_name
 
             # Get the path to the multiplayer config
             mp_config_path = state.SC4MP_LAUNCHPATH / "SimCity 4.cfg"

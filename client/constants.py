@@ -39,7 +39,8 @@ SC4MP_BUFFER_SIZE = 4096
 
 SC4MP_DELAY = .1
 
-SC4MP_ARROW = "→" if is_windows() and platform.release() == "7" else "🡒"  # Windows 7 can't display "🡒"
+# Windows 7 can't display "🡒"
+SC4MP_ARROW = "→" if is_windows() and platform.release() == "7" else "🡒"
 
 SC4MP_LAUNCHERMAP_ENABLED = False  # TODO replace with config setting eventually
 
@@ -106,11 +107,13 @@ SC4MP_CONFIG_DEFAULTS = [
     ])
 ]
 
-SC4MP_RISKY_FILE_EXTENSIONS = [".bat", ".bin", ".cmd", ".com", ".cpl", ".dll",
-                               ".exe", ".gadget", ".inf1", ".ins", ".inx", ".isu", ".jar", ".job", ".jse",
-                               ".lnk", ".msc", ".msi", ".msp", ".mst", ".paf", ".pif", ".py", ".ps1",
-                               ".reg", ".rgs", ".scr", ".sct", ".sh", ".shb", ".shs", ".u3p", ".vb",
-                               ".vbe", ".vbs", ".vbscript", ".ws", ".wsf", ".wsh"]
+SC4MP_RISKY_FILE_EXTENSIONS = [
+    ".bat", ".bin", ".cmd", ".com", ".cpl", ".dll", ".exe", ".gadget", ".inf1",
+    ".ins", ".inx", ".isu", ".jar", ".job", ".jse", ".lnk", ".msc", ".msi",
+    ".msp", ".mst", ".paf", ".pif", ".py", ".ps1", ".reg", ".rgs", ".scr",
+    ".sct", ".sh", ".shb", ".shs", ".u3p", ".vb", ".vbe", ".vbs", ".vbscript",
+    ".ws", ".wsf", ".wsh",
+]
 
 SC4MP_URL_PREFIX = "sc4mp://"
 

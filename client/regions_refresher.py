@@ -78,7 +78,8 @@ class RegionsRefresher(th.Thread):
                     # Get path of cached file
                     t = Path(state.SC4MP_LAUNCHPATH) / "_Cache" / checksum
 
-                    # Use the cached file if it exists and has the same size, otherwise append the entry to the new file table
+                    # Use the cached file if it exists and has the same size,
+                    # otherwise append the entry to the new file table
                     if t.exists() and t.stat().st_size == filesize:
 
                         # Report
@@ -90,7 +91,8 @@ class RegionsRefresher(th.Thread):
                         # Display current file in UI
                         try:
                             self.ui.progress_label["text"] = d.name  # .relative_to(destination)
-                            self.ui.duration_label["text"] = f"Cache {SC4MP_ARROW} SC4"  # "(cached)"
+                            # "(cached)"
+                            self.ui.duration_label["text"] = f"Cache {SC4MP_ARROW} SC4"
                         except Exception:
                             pass
 
@@ -108,7 +110,9 @@ class RegionsRefresher(th.Thread):
                         old_percent = percent
                         percent = math.floor(100 * (size_downloaded / (size + 1)))
                         if percent > old_percent:
-                            self.report_progress(f"Refreshing regions... ({percent}%)", percent, 100)
+                            self.report_progress(
+                                f"Refreshing regions... ({percent}%)", percent, 100
+                            )
 
                     else:
 
@@ -137,7 +141,8 @@ class RegionsRefresher(th.Thread):
                         # Display current file in UI
                         try:
                             self.ui.progress_label["text"] = d.name  # .relative_to(destination)
-                            self.ui.duration_label["text"] = f"Server {SC4MP_ARROW} SC4"  # "(downloading)"
+                            # "(downloading)"
+                            self.ui.duration_label["text"] = f"Server {SC4MP_ARROW} SC4"
                         except Exception:
                             pass
 
@@ -155,13 +160,17 @@ class RegionsRefresher(th.Thread):
 
                         # Delete cache files if cache too large to accomadate the new cache file
                         cache_directory = Path(state.SC4MP_LAUNCHPATH) / "_Cache"
-                        while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(state.sc4mp_config["STORAGE"]["cache_size"])) - filesize:
+                        cache_size = int(state.sc4mp_config["STORAGE"]["cache_size"])
+                        max_cache_size = (1000000 * cache_size) - filesize
+                        while (any(cache_directory.iterdir())
+                               and directory_size(cache_directory) > max_cache_size):
                             random_cache = random.choice(list(cache_directory.iterdir()))
                             random_cache.unlink()
 
                         # Receive the file. Write to both the destination and cache
                         filesize_read = 0
-                        with d.open("wb") as dest, t.with_name(t.name + ".tmp").open("wb") as cache:
+                        temp_cache = t.with_name(t.name + ".tmp")
+                        with d.open("wb") as dest, temp_cache.open("wb") as cache:
                             for chunk in chunks:
                                 for file in [dest, cache]:
                                     file.write(chunk)
@@ -170,8 +179,12 @@ class RegionsRefresher(th.Thread):
                                 old_percent = percent
                                 percent = math.floor(100 * (size_downloaded / (size + 1)))
                                 if percent > old_percent:
-                                    self.report_progress(f"Refreshing regions... ({percent}%)", percent, 100)
-                        t.with_name(t.name + ".tmp").replace(t)  # only cache the file once its checksum has been verified
+                                    self.report_progress(
+                                        f"Refreshing regions... ({percent}%)", percent, 100
+                                    )
+                        # only cache the file once its checksum has been
+                        # verified
+                        t.with_name(t.name + ".tmp").replace(t)
 
                 self.report_progress("Refreshing regions... (100%)", 100, 100)
 

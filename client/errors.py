@@ -52,7 +52,9 @@ def open_logs():
     if has_powershell():
         subprocess.Popen([
             "cmd.exe", "/c", "start", "cmd.exe", "/k",
-            f"@echo off && powershell -NoProfile -ExecutionPolicy Bypass -Command $Host.UI.RawUI.WindowTitle = \"{SC4MP_TITLE}\"; gc sc4mpclient.log -Encoding UTF8 -Wait -Tail 1000"
+            "@echo off && powershell -NoProfile -ExecutionPolicy Bypass "
+            f"-Command $Host.UI.RawUI.WindowTitle = \"{SC4MP_TITLE}\"; "
+            "gc sc4mpclient.log -Encoding UTF8 -Wait -Tail 1000"
         ])
     else:
         startfile(SC4MP_LOG_PATH)

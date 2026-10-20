@@ -23,7 +23,8 @@ if target == "main":
 elif target == "feature":
     name = f"Preview {version}"
     body = "\n\n".join([
-        "This is a pre-release introducing new features from the next update, but also likely many bugs.",
+        "This is a pre-release introducing new features from the next update, "
+        "but also likely many bugs.",
         "If you encounter any issues, please report them on GitHub or in the SC4MP Discord.",
         "Thank you for playing on the SC4MP network, and stay tuned for further updates!",
     ])
@@ -34,4 +35,13 @@ else:
 assets = [get_release_asset_path(directory, prefix) for directory, prefix in assets]
 assets = [asset for asset in assets if asset is not None]
 
-publish_release(repo=repo, token=token, version=version, target=target, name=name, body=body, assets=assets, prerelease=prerelease)
+publish_release(
+    repo=repo,
+    token=token,
+    version=version,
+    target=target,
+    name=name,
+    body=body,
+    assets=assets,
+    prerelease=prerelease
+)

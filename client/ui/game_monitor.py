@@ -57,32 +57,50 @@ class GameMonitorUI(tk.Toplevel):
 
         # Status frame
         self.status_frame = tk.Frame(self)
-        self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=2, padx=0, pady=20, sticky="n")
+        self.status_frame.grid(
+            column=0, row=0, rowspan=1, columnspan=2, padx=0, pady=20, sticky="n"
+        )
 
         # Status label left
         # self.status_frame.left = tk.Label(self.status_frame, text="Status:")
-        # self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
+        # self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1,
+        # padx=10, pady=10, sticky="w")
 
         # Status label right
         self.status_frame.right = tk.Label(self.status_frame, text="")
-        self.status_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="n")
+        self.status_frame.right.grid(
+            column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="n"
+        )
         self.label = self.status_frame.right
 
         # Server info frame
-        self.server_info = tk.Frame(self, width=400, height=180, background="white", highlightbackground="gray", highlightthickness=1)
+        self.server_info = tk.Frame(
+            self,
+            width=400,
+            height=180,
+            background="white",
+            highlightbackground="gray",
+            highlightthickness=1
+        )
         self.server_info.grid(row=1, column=0, columnspan=2, padx=10, pady=0, sticky="nw")
         self.server_info.grid_propagate(0)
 
         # Description label
-        self.description_label = ttk.Label(self.server_info, background="white", wraplength=(self.server_info["width"] - 20))
-        self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=10, pady=(10, 0), sticky="nw")
+        self.description_label = ttk.Label(
+            self.server_info, background="white", wraplength=(self.server_info["width"] - 20)
+        )
+        self.description_label.grid(
+            row=0, column=0, rowspan=1, columnspan=1, padx=10, pady=(10, 0), sticky="nw"
+        )
         self.description_label['text'] = ""
 
         # URL label
         self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2", background="white")
         self.url_label.grid(row=1, column=0, columnspan=1, padx=10, pady=5, sticky="nw")
         self.url_label['text'] = ""
-        self.url_label.bind("<Button-1>", lambda e: webbrowser.open_new_tab(format_url(self.url_label["text"])))
+        self.url_label.bind(
+            "<Button-1>", lambda e: webbrowser.open_new_tab(format_url(self.url_label["text"]))
+        )
 
         # Ping frame
         self.ping_frame = tk.Frame(self, width=420, height=0)
@@ -91,11 +109,15 @@ class GameMonitorUI(tk.Toplevel):
 
         # Ping label left
         self.ping_frame.left = tk.Label(self, text="", fg="gray")
-        self.ping_frame.left.grid(column=0, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
+        self.ping_frame.left.grid(
+            column=0, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w"
+        )
 
         # Ping label right
         self.ping_frame.right = tk.Label(self, text="", fg="gray")
-        self.ping_frame.right.grid(column=1, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="e")
+        self.ping_frame.right.grid(
+            column=1, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="e"
+        )
 
     def delete_window(self):
 
@@ -106,7 +128,11 @@ class GameMonitorUI(tk.Toplevel):
                     return
                 except Exception:
                     pass
-        if messagebox.askokcancel(title=SC4MP_TITLE, message="Disconnect from the server?\n\nAll unsaved changes will be lost.", icon="warning"):
+        if messagebox.askokcancel(
+                title=SC4MP_TITLE,
+                message="Disconnect from the server?\n\nAll unsaved changes will be lost.",
+                icon="warning"
+        ):
             state.sc4mp_game_exit_ovveride = True
             self.parent.end = True
             self.destroy()
@@ -154,40 +180,51 @@ class GameMonitorMapUI(tk.Toplevel):
         # Canvas
         self.canvas_frame = tk.Frame(self)
         self.canvas_frame.grid(row=1, column=0, padx=15, pady=0, sticky="nw")  # , sticky="ewns")
-        self.canvas = tk.Canvas(self.canvas_frame, width=408, height=408, bg="white", highlightthickness=0)
+        self.canvas = tk.Canvas(
+            self.canvas_frame, width=408, height=408, bg="white", highlightthickness=0
+        )
         self.canvas_horizontal_scrollbar = tk.Scrollbar(self.canvas_frame, orient="horizontal")
         self.canvas_horizontal_scrollbar.pack(side="bottom", fill="x")
         self.canvas_horizontal_scrollbar.config(command=self.canvas.xview)
         self.canvas_vertical_scrollbar = tk.Scrollbar(self.canvas_frame)
         self.canvas_vertical_scrollbar.pack(side="right", fill="y")
         self.canvas_vertical_scrollbar.config(command=self.canvas.yview)
-        self.canvas.config(xscrollcommand=self.canvas_horizontal_scrollbar.set, yscrollcommand=self.canvas_vertical_scrollbar.set)
+        self.canvas.config(
+            xscrollcommand=self.canvas_horizontal_scrollbar.set,
+            yscrollcommand=self.canvas_vertical_scrollbar.set
+        )
         self.canvas.pack(side="left", expand=True, fill="both")
 
         # Status frame
         # self.status_frame = tk.Frame(self)
-        # self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+        # self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=1,
+        # padx=0, pady=0, sticky="w")
 
         # Status label left
         # self.status_frame.left = ttk.Label(self.status_frame, text="Status:")
-        # self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
+        # self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1,
+        # padx=10, pady=10, sticky="w")
 
         # Status label right
         # self.status_frame.right = ttk.Label(self.status_frame, text="")
-        # self.status_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=10, sticky="w")
+        # self.status_frame.right.grid(column=1, row=0, rowspan=1,
+        # columnspan=1, padx=0, pady=10, sticky="w")
         # self.label = self.status_frame.right
 
         # Ping frame
         # self.ping_frame = tk.Frame(self)
-        # self.ping_frame.grid(column=0, row=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+        # self.ping_frame.grid(column=0, row=1, rowspan=1, columnspan=1,
+        # padx=0, pady=0, sticky="w")
 
         # Ping label left
         # self.ping_frame.left = ttk.Label(self.ping_frame, text="Ping:")
-        # self.ping_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
+        # self.ping_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1,
+        # padx=10, pady=0, sticky="w")
 
         # Ping label right
         # self.ping_frame.right = ttk.Label(self.ping_frame, text="")
-        # self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
+        # self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1,
+        # padx=0, pady=0, sticky="w")
 
         self.draw_reigon()
 
@@ -197,7 +234,9 @@ class GameMonitorMapUI(tk.Toplevel):
 
     def draw_reigon(self):
 
-        self.canvas.LAUNCHER_MAP_TILE_UNCLAIMED_LARGE = tk.PhotoImage(file=os.path.join("resources", "launcher-map-tile-unclaimed-large.png"))
+        self.canvas.LAUNCHER_MAP_TILE_UNCLAIMED_LARGE = tk.PhotoImage(
+            file=os.path.join("resources", "launcher-map-tile-unclaimed-large.png")
+        )
 
         TILE_SIZE = 17
 
@@ -215,17 +254,24 @@ class GameMonitorMapUI(tk.Toplevel):
         # VIEWPORT_HEIGHT = 408 / HEIGHT
 
         # if VIEWPORT_WIDTH < 1:
-        #    self.canvas_horizontal_scrollbar.set((1 + VIEWPORT_WIDTH) / 2, (1 - VIEWPORT_WIDTH) / 2)
+        # self.canvas_horizontal_scrollbar.set((1 + VIEWPORT_WIDTH) / 2, (1 -
+        # VIEWPORT_WIDTH) / 2)
 
         # if VIEWPORT_HEIGHT < 1:
-        #    self.canvas_vertical_scrollbar.set((1 + VIEWPORT_HEIGHT) / 2, (1 - VIEWPORT_HEIGHT) / 2)
+        # self.canvas_vertical_scrollbar.set((1 + VIEWPORT_HEIGHT) / 2, (1 -
+        # VIEWPORT_HEIGHT) / 2)
 
         LARGE_TILE_COUNT_X = REGION_WIDTH / 4
         LARGE_TILE_COUNT_Y = REGION_HEIGHT / 4
 
         for y in range(int(-.5 * LARGE_TILE_COUNT_Y), int(.5 * LARGE_TILE_COUNT_Y)):
             for x in range(int(-.5 * LARGE_TILE_COUNT_X), int(.5 * LARGE_TILE_COUNT_X)):
-                self.canvas.images[f"{x}_{y}"] = self.canvas.create_image(x * 68, y * 68, image=self.canvas.LAUNCHER_MAP_TILE_UNCLAIMED_LARGE, anchor="nw")
+                self.canvas.images[f"{x}_{y}"] = self.canvas.create_image(
+                    x * 68,
+                    y * 68,
+                    image=self.canvas.LAUNCHER_MAP_TILE_UNCLAIMED_LARGE,
+                    anchor="nw"
+                )
 
 
 class GameOverlayUI(tk.Toplevel):
@@ -249,8 +295,12 @@ class GameOverlayUI(tk.Toplevel):
 
         # Images
         self.images = {}
-        for overlay_state in ["connected", "guest", "not-saved", "refreshed", "refreshing", "saved", "saving"]:
-            self.images[overlay_state] = tk.PhotoImage(file=get_sc4mp_path(f"overlay-{overlay_state}.png"))
+        for overlay_state in [
+                "connected", "guest", "not-saved", "refreshed", "refreshing", "saved", "saving"
+        ]:
+            self.images[overlay_state] = tk.PhotoImage(
+                file=get_sc4mp_path(f"overlay-{overlay_state}.png")
+            )
 
         # Canvas
         self.canvas = tk.Canvas(self, bg="black", highlightthickness=0, cursor="hand2")
@@ -276,7 +326,9 @@ class GameOverlayUI(tk.Toplevel):
                 screen_height = self.winfo_screenheight()
                 screen_width = self.winfo_screenwidth()
 
-                self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, screen_width - WIDTH, screen_height - HEIGHT))
+                x = screen_width - WIDTH
+                y = screen_height - HEIGHT
+                self.geometry('{}x{}+{}+{}'.format(WIDTH, HEIGHT, x, y))
 
                 self.overrideredirect(True)
 

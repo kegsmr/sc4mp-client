@@ -20,7 +20,8 @@ from client.constants import SC4MP_RESOURCES_PATH
 from client.errors import ClientException
 
 
-def process_exists(process_name):  # TODO add MacOS compatability / deprecate in favor of `process_count`?
+# TODO add MacOS compatability / deprecate in favor of `process_count`?
+def process_exists(process_name):
 
     if is_windows():
         call = 'TASKLIST', '/FI', 'imagename eq %s' % process_name
@@ -38,13 +39,16 @@ def get_sc4mp_path(filename: str) -> Path:
 
 def random_string(length):
     """Returns a random string of ascii letters of the specified length."""
-    return ''.join(random.SystemRandom().choice(string.ascii_letters + string.digits) for i in range(length))
+    characters = string.ascii_letters + string.digits
+    return ''.join(random.SystemRandom().choice(characters) for i in range(length))
 
 
 def purge_directory(directory: Path, recursive=True) -> None:
     """Deletes all files and subdirectories of a directory"""
     for path in directory.iterdir():
-        for attempt in range(5):  # retry, since another process (e.g. OneDrive or antivirus) may only be using the file briefly
+        # retry, since another process (e.g. OneDrive or antivirus) may only be
+        # using the file briefly
+        for attempt in range(5):
             try:
                 if path.is_file():
                     path.unlink()
@@ -54,7 +58,10 @@ def purge_directory(directory: Path, recursive=True) -> None:
                 break
             except PermissionError as e:
                 if attempt == 4:
-                    raise ClientException(f'Failed to delete "{path}" because the file is being used by another process.') from e  # \n\n' + str(e)
+                    raise ClientException(
+                        f'Failed to delete "{path}" because the file is being '
+                        'used by another process.'
+                    ) from e  # \n\n' + str(e)
                 time.sleep(.5)
 
 
@@ -97,7 +104,8 @@ def update_json(filename, data):
     try:
         os.replace(temp_filename, filename)
     except PermissionError:
-        # On Windows, the replace fails while another process (antivirus, OneDrive, etc.) has the file open, so fall back to writing in place
+        # On Windows, the replace fails while another process (antivirus,
+        # OneDrive, etc.) has the file open, so fall back to writing in place
         with open(filename, 'w') as file:
             json.dump(data, file, indent=4)
         os.unlink(temp_filename)
@@ -126,7 +134,10 @@ def prep_server(path: Path) -> None:
 
 def start_server(path: Path) -> None:
     """Runs the server executable. Takes the server path as an argument."""
-    subprocess.Popen(f"sc4mpserver.exe --server-path {path}", creationflags=subprocess.CREATE_NEW_CONSOLE)
+    subprocess.Popen(
+        f"sc4mpserver.exe --server-path {path}",
+        creationflags=subprocess.CREATE_NEW_CONSOLE
+    )
 
 
 def get_fullpaths_recursively(dir: Path) -> list[Path]:
@@ -202,7 +213,9 @@ def get_image_pids(image_name) -> list[int] | None:
         try:
 
             # Use tasklist to get the list of processes
-            result = subprocess.run(["tasklist"], capture_output=True, text=True, check=True, shell=True)
+            result = subprocess.run(
+                ["tasklist"], capture_output=True, text=True, check=True, shell=True
+            )
             lines = result.stdout.splitlines()
 
             # Regex pattern to match process name followed by its PID

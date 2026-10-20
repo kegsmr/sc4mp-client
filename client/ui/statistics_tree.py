@@ -31,7 +31,9 @@ class StatisticsTreeUI(tk.Frame):
 
         # Tree canvas
 
-        self.tree_canvas = tk.Canvas(self.tree_frame, width=350, height=323, bg="white", highlightthickness=0)
+        self.tree_canvas = tk.Canvas(
+            self.tree_frame, width=350, height=323, bg="white", highlightthickness=0
+        )
         self.tree_canvas.pack(side="left")
 
         # Tree
@@ -41,7 +43,9 @@ class StatisticsTreeUI(tk.Frame):
             column_ids.append(column[0])
         column_ids = tuple(column_ids[1:])
 
-        self.tree = ttk.Treeview(self.tree_canvas, columns=column_ids, selectmode="browse", height=15)
+        self.tree = ttk.Treeview(
+            self.tree_canvas, columns=column_ids, selectmode="browse", height=15
+        )
         self.tree.bind("<<TreeviewOpen>>", self.on_item_expand)
         self.tree.bind("<<TreeviewClose>>", self.on_item_expand)
         self.tree.bind("<Double-1>", self.on_click)
@@ -52,8 +56,14 @@ class StatisticsTreeUI(tk.Frame):
             column_name = column[1]
             column_width = column[2]
             column_anchor = column[3]
-            self.tree.column(column_id, width=column_width, anchor=column_anchor, stretch=False)
-            self.tree.heading(column_id, text=column_name, command=lambda index=columns.index(column): self.on_header_click(index))
+            self.tree.column(
+                column_id, width=column_width, anchor=column_anchor, stretch=False
+            )
+            self.tree.heading(
+                column_id,
+                text=column_name,
+                command=lambda index=columns.index(column): self.on_header_click(index)
+            )
 
         self.sort_data()
         self.populate_treeview()
@@ -82,7 +92,10 @@ class StatisticsTreeUI(tk.Frame):
 
     def sort_data(self):
 
-        self.data = {key: entry for key, entry in sorted(self.data.items(), key=lambda item: item[1][self.sort], reverse=self.reverse)}
+        sorted_items = sorted(
+            self.data.items(), key=lambda item: item[1][self.sort], reverse=self.reverse
+        )
+        self.data = {key: entry for key, entry in sorted_items}
 
     def populate_treeview(self, parent=""):
 
@@ -163,7 +176,8 @@ class StatisticsTreeUI(tk.Frame):
             #        """Recursively cache the tree structure and indices."""
             #        children = tree.get_children(parent)
             #        self.original_tree[parent] = children
-            #        self.original_indices[parent] = {child: idx for idx, child in enumerate(children)}
+            # self.original_indices[parent] = {child: idx for idx, child in
+            # enumerate(children)}
             #        for child in children:
             #            cache_tree_structure(child)
             #
@@ -178,7 +192,8 @@ class StatisticsTreeUI(tk.Frame):
             #    for child in self.original_tree.get(parent, []):
             #        # Get the text of the current item
             #        item_text = tree.item(child, "text").lower()
-            #        child_match = query in item_text if query else True  # Match all if query is empty
+            # child_match = query in item_text if query else True  # Match all
+            # if query is empty
 
             #        # Recursively filter the children of this child
             #        child_visible = recursive_filter(child, query)
@@ -274,7 +289,9 @@ class StatisticsTreeUI(tk.Frame):
             indent = 40  # Default indentation for Treeview items (can be customized)
 
             # Adjust the #0 column (tree column)
-            max_width = tree.column("#0", option="width")  # font.measure(tree.heading("#0")["text"])  # Start with header width
+            # font.measure(tree.heading("#0")["text"])  # Start with header
+            # width
+            max_width = tree.column("#0", option="width")
 
             def calculate_width(item, level=0):
 
@@ -302,7 +319,8 @@ class StatisticsTreeUI(tk.Frame):
             # Adjust other columns
             # for col in tree["columns"]:
 
-            #    max_width = tree.column(col, option="width") #font.measure(col)  # Start with column header width
+            # max_width = tree.column(col, option="width") #font.measure(col)
+            # # Start with column header width
 
             #    def calculate_column_width(item, level=0):
 

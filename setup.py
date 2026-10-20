@@ -100,7 +100,11 @@ def main():
     shutil.copy("Readme.html", DIST)
 
     # Create a zip archive of the distribution
-    destination = os.path.join(os.path.join("builds", "sc4mp-client-" + platform.system().lower() + "-" + str(8 * struct.calcsize("P")) + "-v" + VERSION))
+    archive_name = (
+        "sc4mp-client-" + platform.system().lower() + "-"
+        + str(8 * struct.calcsize("P")) + "-v" + VERSION
+    )
+    destination = os.path.join(os.path.join("builds", archive_name))
     print('Creating zip archive of "' + DIST + '" at "' + destination + '"')
     shutil.make_archive(destination, "zip", DIST)
 

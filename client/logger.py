@@ -17,7 +17,9 @@ class Logger:
 
         self.terminal = sys.stdout
         if self.terminal is not None:
-            self.terminal.reconfigure(errors="replace")  # characters the console can't show (eg. emoji on a cp1252 console) are printed as "?"
+            # characters the console can't show (eg. emoji on a cp1252 console)
+            # are printed as "?"
+            self.terminal.reconfigure(errors="replace")
         self.log = Path(SC4MP_LOG_PATH)
         self.log.unlink(missing_ok=True)
 

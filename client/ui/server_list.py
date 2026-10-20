@@ -64,7 +64,8 @@ class ServerListUI(tk.Frame):
 
         self.label = ttk.Label(self)
         self.label.grid(row=1, column=0, rowspan=1, columnspan=3, padx=10, pady=(15, 10))
-        # self.label['text'] = 'Loading...' #'To get started, select a server below and click "Connect."' #"Loading server list..."
+        # self.label['text'] = 'Loading...' #'To get started, select a server
+        # below and click "Connect."' #"Loading server list..."
 
         # Frame
 
@@ -132,7 +133,11 @@ class ServerListUI(tk.Frame):
             column_width = column[2]
             column_anchor = column[3]
             self.tree.column(column_id, width=column_width, anchor=column_anchor, stretch=False)
-            self.tree.heading(column_id, text=column_name, command=lambda column_name=column_name: self.handle_header_click(column_name))
+            self.tree.heading(
+                column_id,
+                text=column_name,
+                command=lambda column_name=column_name: self.handle_header_click(column_name)
+            )
 
         # self.tree['show'] = 'headings'
         self.tree['displaycolumns'] = ("#1", "#2", "#3", "#4", "#5")
@@ -145,7 +150,9 @@ class ServerListUI(tk.Frame):
         self.tree.sort = "Rank"
         self.tree.reverse_sort = False
 
-        self.tree.tag_configure("strike", font=tkfont.Font(family="Segoe UI", size=9, weight="normal", overstrike=1))
+        self.tree.tag_configure(
+            "strike", font=tkfont.Font(family="Segoe UI", size=9, weight="normal", overstrike=1)
+        )
         self.tree.tag_configure("red", foreground="red")
 
         self.tree.focus_set()
@@ -176,7 +183,9 @@ class ServerListUI(tk.Frame):
         # Description label
 
         self.description_label = ttk.Label(self.server_info, wraplength=self.server_info["width"])
-        self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="nw")
+        self.description_label.grid(
+            row=0, column=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="nw"
+        )
         self.description_label['text'] = ""
 
         # URL label
@@ -189,7 +198,11 @@ class ServerListUI(tk.Frame):
         # Combo box
 
         self.combo_box = ttk.Combobox(self, width=23)
-        self.combo_box["values"] = ("category: All", "category: Official", "category: Public", "category: Private", "category: History")  # "category: Bookmarked" "category: Online"
+        # "category: Bookmarked" "category: Online"
+        self.combo_box["values"] = (
+            "category: All", "category: Official", "category: Public",
+            "category: Private", "category: History"
+        )
 
         self.combo_box.PLACEHOLDER_TEXT = "Search/Filter servers"
 
@@ -200,7 +213,8 @@ class ServerListUI(tk.Frame):
 
         def on_focus_out(event):
             if self.combo_box.get() == "":
-                self.combo_box.set(self.combo_box.PLACEHOLDER_TEXT)  # Restore placeholder if nothing is typed
+                # Restore placeholder if nothing is typed
+                self.combo_box.set(self.combo_box.PLACEHOLDER_TEXT)
                 self.combo_box.configure(foreground="gray")
 
         def on_key_release(event):
@@ -219,7 +233,9 @@ class ServerListUI(tk.Frame):
             self.combo_box.insert(0, self.combo_box.PLACEHOLDER_TEXT)
             self.combo_box.configure(foreground="gray")
 
-        self.combo_box.grid(row=3, column=2, rowspan=1, columnspan=1, padx=(0, 16), pady=(5, 10), sticky="ne")
+        self.combo_box.grid(
+            row=3, column=2, rowspan=1, columnspan=1, padx=(0, 16), pady=(5, 10), sticky="ne"
+        )
 
         # Address label
 
@@ -230,27 +246,37 @@ class ServerListUI(tk.Frame):
         # Server options frame
 
         self.server_options = tk.Frame(self)
-        self.server_options.grid(row=4, column=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="se")
+        self.server_options.grid(
+            row=4, column=1, rowspan=1, columnspan=1, padx=0, pady=0, sticky="se"
+        )
 
         # Details button
 
         self.details_button = ttk.Button(self.server_options, text="Details", command=self.details)
         self.details_button['state'] = tk.DISABLED
-        self.details_button.grid(row=0, column=99, columnspan=1, padx=(15, 20), pady=10, sticky="se")
+        self.details_button.grid(
+            row=0, column=99, columnspan=1, padx=(15, 20), pady=10, sticky="se"
+        )
 
         # Refresh / connect frame
 
         self.refresh_connect = tk.Frame(self)
-        self.refresh_connect.grid(row=4, column=2, rowspan=1, columnspan=1, padx=0, pady=0, sticky="se")
+        self.refresh_connect.grid(
+            row=4, column=2, rowspan=1, columnspan=1, padx=0, pady=0, sticky="se"
+        )
 
         # Refresh button
 
-        self.refresh_button = ttk.Button(self.refresh_connect, text="Refresh", command=self.root.refresh)
+        self.refresh_button = ttk.Button(
+            self.refresh_connect, text="Refresh", command=self.root.refresh
+        )
         self.refresh_button.grid(row=0, column=0, columnspan=1, padx=11, pady=10, sticky="se")
 
         # Connect button
 
-        self.connect_button = ttk.Button(self.refresh_connect, text="Connect", command=self.connect, default="active")
+        self.connect_button = ttk.Button(
+            self.refresh_connect, text="Connect", command=self.connect, default="active"
+        )
         self.connect_button['state'] = tk.DISABLED
         self.connect_button.grid(row=0, column=1, columnspan=1, padx=(0, 15), pady=10, sticky="se")
 
@@ -270,7 +296,8 @@ class ServerListUI(tk.Frame):
 
     def handle_single_click(self, event):
 
-        if time.time() - self.tree.last_click < 500 and math.dist((event.x, event.y), self.tree.last_click_coords) < 1:
+        if (time.time() - self.tree.last_click < 500
+                and math.dist((event.x, event.y), self.tree.last_click_coords) < 1):
             self.handle_double_click(event)
         else:
             region = self.tree.identify_region(event.x, event.y)
@@ -327,7 +354,9 @@ class ServerListUI(tk.Frame):
                 self.tree.focus(children[0])
                 self.tree.selection_add([children[0]])
         except Exception:
-            show_error("Error setting focus on server list UI.", no_ui=True)  # Method not all that important so we'll just toss an error in the console and call it a day
+            # Method not all that important so we'll just toss an error in the
+            # console and call it a day
+            show_error("Error setting focus on server list UI.", no_ui=True)
 
     def details(self):
 
@@ -340,8 +369,16 @@ class ServerListUI(tk.Frame):
         if server_id == "":
             return
         server = self.worker.servers[server_id]
-        if not ("Official" in server.categories or "History" in server.categories or state.sc4mp_config["GENERAL"]["ignore_third_party_server_warnings"]):
-            if not messagebox.askokcancel(title=SC4MP_TITLE, message="You are about to join a third-party server.\n\nThe SimCity 4 Multiplayer Project is not responsible for content downloaded from third-party servers. Only join third-party servers you trust.", icon="warning"):
+        if not ("Official" in server.categories
+                or "History" in server.categories
+                or state.sc4mp_config["GENERAL"]["ignore_third_party_server_warnings"]):
+            message = (
+                "You are about to join a third-party server.\n\n"
+                "The SimCity 4 Multiplayer Project is not responsible for content "
+                "downloaded from third-party servers. Only join third-party servers "
+                "you trust."
+            )
+            if not messagebox.askokcancel(title=SC4MP_TITLE, message=message, icon="warning"):
                 return
         host = server.host
         port = server.port

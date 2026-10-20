@@ -76,7 +76,8 @@ def main():
                                     if our_pid in pids:
                                         pids.remove(our_pid)
                                     for pid in pids:
-                                        if subprocess.call(f"TASKKILL /F /PID {pid}", shell=True) != 0:
+                                        command = f"TASKKILL /F /PID {pid}"
+                                        if subprocess.call(command, shell=True) != 0:
                                             return
                             except Exception:
                                 return
@@ -156,7 +157,11 @@ def main():
                     state.sc4mp_port = 7240
                 state.sc4mp_exit_after = url_launch_exit_after
             except Exception:
-                show_error(f"Invalid URL.\n\nURLs must adhere to:\nsc4mp://<host>:<port>\n\nURL given:\n{sc4mp_args[1]}")
+                show_error(
+                    "Invalid URL.\n\n"
+                    "URLs must adhere to:\nsc4mp://<host>:<port>\n\n"
+                    f"URL given:\n{sc4mp_args[1]}"
+                )
                 return
 
         # Prep

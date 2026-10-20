@@ -64,7 +64,8 @@ class PasswordDialogUI(tk.Toplevel):
         self.password_entry.config(show="*")
         self.password_entry.focus()
         # try:
-        #    self.password_entry.insert(0, sc4mp_servers_database[self.server_loader.server.server_id]["password"])
+        # self.password_entry.insert(0,
+        # sc4mp_servers_database[self.server_loader.server.server_id]["password"])
         # except Exception:
         #    pass
 
@@ -73,17 +74,27 @@ class PasswordDialogUI(tk.Toplevel):
         self.ok_cancel.grid(row=1, column=3, sticky="e")
 
         # OK button
-        self.ok_cancel.ok_button = ttk.Button(self.ok_cancel, text="Ok", command=self.ok, default="active")
-        self.ok_cancel.ok_button.grid(row=0, column=0, columnspan=1, padx=(3, 0), pady=5, sticky="w")
+        self.ok_cancel.ok_button = ttk.Button(
+            self.ok_cancel, text="Ok", command=self.ok, default="active"
+        )
+        self.ok_cancel.ok_button.grid(
+            row=0, column=0, columnspan=1, padx=(3, 0), pady=5, sticky="w"
+        )
 
         # Guest button
         # if True:
-        #    self.ok_cancel.guest_button = ttk.Button(self.ok_cancel, text="Guest", command=self.ok)
-        #    self.ok_cancel.guest_button.grid(row=0, column=0, columnspan=1, padx=(10,0), pady=5, sticky="w")
+        # self.ok_cancel.guest_button = ttk.Button(self.ok_cancel,
+        # text="Guest", command=self.ok)
+        # self.ok_cancel.guest_button.grid(row=0, column=0, columnspan=1,
+        # padx=(10,0), pady=5, sticky="w")
 
         # Cancel button
-        self.ok_cancel.cancel_button = ttk.Button(self.ok_cancel, text="Cancel", command=self.cancel)
-        self.ok_cancel.cancel_button.grid(row=0, column=2, columnspan=1, padx=(10, 7), pady=5, sticky="e")
+        self.ok_cancel.cancel_button = ttk.Button(
+            self.ok_cancel, text="Cancel", command=self.cancel
+        )
+        self.ok_cancel.cancel_button.grid(
+            row=0, column=2, columnspan=1, padx=(10, 7), pady=5, sticky="e"
+        )
 
         # Update loop
         self.wait = True
@@ -110,7 +121,12 @@ class PasswordDialogUI(tk.Toplevel):
                 self.withdraw()
                 if self.server_loader.ui.background:
                     self.server_loader.ui.background.lift()
-                if not messagebox.askokcancel(self.server_loader.server.server_name, "You are about to join the server as a guest.\n\nAny cities you build will NOT be saved.", icon="info"):
+                message = (
+                    "You are about to join the server as a guest.\n\n"
+                    "Any cities you build will NOT be saved."
+                )
+                if not messagebox.askokcancel(self.server_loader.server.server_name, message,
+                                              icon="info"):
                     self.deiconify()
                     return
 

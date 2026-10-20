@@ -62,7 +62,9 @@ class UpdaterUI(tk.Toplevel):
         self.progress_bar.start(2)
 
         # Small label
-        self.label_small = tk.Label(self, fg="gray", font=("Segoe UI", 8), text="Press <ESC> to cancel")
+        self.label_small = tk.Label(
+            self, fg="gray", font=("Segoe UI", 8), text="Press <ESC> to cancel"
+        )
         self.label_small.grid(column=0, row=2, columnspan=2, padx=10, pady=(0, 5))
 
         # Pause underlying thread
@@ -72,7 +74,11 @@ class UpdaterUI(tk.Toplevel):
 
         self.pause = True
 
-        choice = messagebox.askyesnocancel(title=SC4MP_TITLE, icon="warning", message="Are you sure you want to continue without updating?")
+        choice = messagebox.askyesnocancel(
+            title=SC4MP_TITLE,
+            icon="warning",
+            message="Are you sure you want to continue without updating?"
+        )
 
         if choice is None:
             sys.exit()
@@ -133,12 +139,25 @@ class ReleaseNotesUI(tk.Toplevel):
             self.subtitle.grid(row=19, column=0, columnspan=99, sticky="w", padx=10, pady=5)
 
             # Body
-            self.body = tk.Frame(self, width=400, height=100, background="white", highlightbackground="gray", highlightthickness=1)
+            self.body = tk.Frame(
+                self,
+                width=400,
+                height=100,
+                background="white",
+                highlightbackground="gray",
+                highlightthickness=1
+            )
             self.body.grid(row=20, column=0, padx=(10, 0), pady=0, sticky="nw")
             self.body.grid_propagate(0)
 
             # Body title
-            self.body.title = ttk.Label(self.body, text=title, wraplength=(int(self.body["width"]) - 20), background="white", font=("Segoe UI", 8, "bold"))
+            self.body.title = ttk.Label(
+                self.body,
+                text=title,
+                wraplength=(int(self.body["width"]) - 20),
+                background="white",
+                font=("Segoe UI", 8, "bold")
+            )
             self.body.title.grid(row=0, column=0, columnspan=99, padx=10, pady=10, sticky="nw")
 
             # Body text
@@ -148,7 +167,12 @@ class ReleaseNotesUI(tk.Toplevel):
                 if len(lines) > 0 and len(lines[-1]) == 0:
                     lines.pop(-1)
             if len(lines) < 1:
-                ttk.Label(self.body, text="No description provided.", background="white", font=("Segoe UI", 8, "italic")).grid(row=1, column=0, columnspan=99, padx=10, pady=2, sticky="nw")
+                ttk.Label(
+                    self.body,
+                    text="No description provided.",
+                    background="white",
+                    font=("Segoe UI", 8, "italic")
+                ).grid(row=1, column=0, columnspan=99, padx=10, pady=2, sticky="nw")
             else:
                 for line_number in range(len(lines)):
                     line = lines[line_number]
@@ -156,15 +180,48 @@ class ReleaseNotesUI(tk.Toplevel):
                     for sequence in ["**", "- "]:
                         line = line.replace(sequence, "")
                     if bulleted:
-                        ttk.Label(self.body, text="\u2022", background="white").grid(row=line_number + 1, column=0, columnspan=1, padx=(10, 0), pady=2, sticky="nw")
-                        ttk.Label(self.body, text=line, wraplength=(int(self.body["width"]) - 40), background="white").grid(row=line_number + 1, column=1, columnspan=1, padx=10, pady=2, sticky="nw")
+                        ttk.Label(self.body, text="\u2022", background="white").grid(
+                            row=line_number + 1,
+                            column=0,
+                            columnspan=1,
+                            padx=(10, 0),
+                            pady=2,
+                            sticky="nw"
+                        )
+                        line_label = ttk.Label(
+                            self.body,
+                            text=line,
+                            wraplength=(int(self.body["width"]) - 40),
+                            background="white"
+                        )
+                        line_label.grid(
+                            row=line_number + 1, column=1, columnspan=1, padx=10, pady=2,
+                            sticky="nw"
+                        )
                     else:
-                        ttk.Label(self.body, text=line, wraplength=(int(self.body["width"]) - 20), background="white").grid(row=line_number + 1, column=0, columnspan=99, padx=10, pady=2, sticky="nw")
+                        line_label = ttk.Label(
+                            self.body,
+                            text=line,
+                            wraplength=(int(self.body["width"]) - 20),
+                            background="white"
+                        )
+                        line_label.grid(
+                            row=line_number + 1, column=0, columnspan=99, padx=10, pady=2,
+                            sticky="nw"
+                        )
 
             # Body link
-            self.body.link = ttk.Label(self.body, text="View all releases...", foreground="blue", background="white", cursor="hand2")
+            self.body.link = ttk.Label(
+                self.body,
+                text="View all releases...",
+                foreground="blue",
+                background="white",
+                cursor="hand2"
+            )
             self.body.link.grid(row=99, column=0, columnspan=99, padx=10, pady=10, sticky="nw")
-            self.body.link.bind("<Button-1>", lambda e: webbrowser.open_new_tab(SC4MP_RELEASES_URL))
+            self.body.link.bind(
+                "<Button-1>", lambda e: webbrowser.open_new_tab(SC4MP_RELEASES_URL)
+            )
 
             # Resize body and window to fit content
             state.sc4mp_ui.update()

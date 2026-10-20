@@ -51,7 +51,8 @@ def check_updates():
                 latest_release_info = get_release_info()
 
                 # Download the update if the version is newer
-                if state.sc4mp_force_update or unformat_version(latest_release_info["tag_name"]) > unformat_version(SC4MP_VERSION):
+                latest_version = unformat_version(latest_release_info["tag_name"])
+                if state.sc4mp_force_update or latest_version > unformat_version(SC4MP_VERSION):
 
                     # Local function for update thread
                     def update(ui=None):
@@ -112,14 +113,17 @@ def check_updates():
                                     # Get download URL
                                     download_url = None
                                     for asset in latest_release_info["assets"]:
-                                        if asset["name"].startswith("sc4mp-client-installer-windows"):
+                                        installer_prefix = "sc4mp-client-installer-windows"
+                                        if asset["name"].startswith(installer_prefix):
                                             download_url = asset["browser_download_url"]
                                             destination = os.path.join("update", asset["name"])
                                             break
 
                                     # Raise an exception if the download URL was not found
                                     if download_url is None:
-                                        raise ClientException("The correct release asset was not found.")
+                                        raise ClientException(
+                                            "The correct release asset was not found."
+                                        )
 
                                     # Pause if necessary
                                     pause()
@@ -133,7 +137,8 @@ def check_updates():
                                     pause()
 
                                     # Download file
-                                    download_size = int(urllib.request.urlopen(download_url).headers["Content-Length"])
+                                    response = urllib.request.urlopen(download_url)
+                                    download_size = int(response.headers["Content-Length"])
                                     if ui is not None:
                                         ui.label["text"] = "Downloading update... (0%)"
                                         ui.progress_bar["mode"] = "determinate"
@@ -146,8 +151,14 @@ def check_updates():
                                                 while ui.pause:
                                                     time.sleep(.1)
                                                 if ui is not None:
-                                                    ui.label["text"] = f"Downloading update... ({int(100 * (download_size_downloaded / download_size))}%)"
-                                                    ui.progress_bar["value"] = download_size_downloaded
+                                                    done = download_size_downloaded
+                                                    percent = int(100 * (done / download_size))
+                                                    ui.label["text"] = (
+                                                        f"Downloading update... ({percent}%)"
+                                                    )
+                                                    ui.progress_bar["value"] = (
+                                                        download_size_downloaded
+                                                    )
                                                 bytes_read = rfile.read(SC4MP_BUFFER_SIZE)
                                                 download_size_downloaded += len(bytes_read)
                                                 wfile.write(bytes_read)
@@ -166,12 +177,19 @@ def check_updates():
                                     pause()
 
                                     # Start installer in very silent mode and exit
-                                    subprocess.Popen([os.path.abspath(destination), f"/dir={os.getcwd()}", "/verysilent"])
+                                    subprocess.Popen([
+                                        os.path.abspath(destination),
+                                        f"/dir={os.getcwd()}",
+                                        "/verysilent",
+                                    ])
                                     ui.destroy()
 
                                 except Exception as e:
 
-                                    show_error(f"An error occurred in the update thread.\n\n{e}", no_ui=True)
+                                    show_error(
+                                        f"An error occurred in the update thread.\n\n{e}",
+                                        no_ui=True
+                                    )
 
                                     # Retry
                                     if ui is not None:
@@ -223,7 +241,9 @@ def get_release_info(version="latest", timeout=10) -> dict:
     if version == "latest":
         github_api_call = f"https://api.github.com/repos/{SC4MP_GITHUB_REPO}/releases/latest"
     else:
-        github_api_call = f"https://api.github.com/repos/{SC4MP_GITHUB_REPO}/releases/tags/v{version}"
+        github_api_call = (
+            f"https://api.github.com/repos/{SC4MP_GITHUB_REPO}/releases/tags/v{version}"
+        )
 
     try:
         with urllib.request.urlopen(url=github_api_call, timeout=timeout) as url:
