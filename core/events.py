@@ -48,6 +48,7 @@ class EventChannel:
 			user_id = self._users.pop(subscription_id)
 			context = self._contexts.pop(subscription_id)
 			left = user_id not in self._users.values()
+			self._condition.notify_all()	# so a thread listening on it stops waiting
 
 		if left:
 			self.push('user_leave', {**context, 'user_id': user_id}, exclude=[user_id])
@@ -82,6 +83,8 @@ class EventChannel:
 			while not self._events[subscription_id]:
 				if not self._condition.wait(timeout):
 					return []
+				if subscription_id not in self._events:
+					return []	# unsubscribed while waiting
 
 			events = list(self._events[subscription_id])
 			self._events[subscription_id].clear()

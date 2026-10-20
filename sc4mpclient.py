@@ -24,7 +24,6 @@ import traceback
 import webbrowser
 from datetime import datetime, timedelta
 from pathlib import Path
-from pprint import pformat
 from tkinter import Menu, filedialog, messagebox, ttk
 from tkinter import font as tkfont
 from typing import Optional, Union
@@ -3228,6 +3227,7 @@ class GameMonitor(th.Thread):
 	PING_INTERVAL = 15			# seconds between pings
 	CONNECTED_PING_INTERVAL = 60	# seconds between pings while the event listener is connected (so the server is reachable)
 	DOWNLOAD_RETRY_DELAY = 10	# seconds to wait before trying again when downloading cities saved by other mayors fails
+	SAVE_TIMEOUT = 60			# seconds to wait for SC4 to finish writing a save before pushing what it wrote
 
 
 	def __init__(self, server):
@@ -3447,18 +3447,21 @@ class GameMonitor(th.Thread):
 		"""Returns the paths of new and modified savegames, waiting until SC4 stops writing savegames so a save isn't pushed in pieces."""
 
 		save_city_paths = []
+		start_time = time.time()
 
-		# Loop until no new/modified savegames were found in the last iteration of the loop (meant to prevent fragmented save pushes, not the best solution because it relies somewhat on the loop delay)
-		save_city_paths_length = -1
-		while len(save_city_paths) != save_city_paths_length:
-
-			save_city_paths_length = len(save_city_paths)
+		# Loop until SC4 stops writing savegames (meant to prevent fragmented save pushes, not the best solution because it relies somewhat on the loop delay)
+		changed = True
+		incomplete = False
+		while changed or (incomplete and time.time() - start_time < self.SAVE_TIMEOUT):
 
 			# Compare the savegames in the regions with the ones from the last loop
+			changed = False
 			cities = self.get_cities()
 			for path, hashcode in cities.items():
-				if self.cities.get(path) != hashcode and path not in save_city_paths:
-					save_city_paths.append(path)
+				if self.cities.get(path) != hashcode:
+					changed = True
+					if path not in save_city_paths:
+						save_city_paths.append(path)
 			self.cities = cities
 
 			# If new/modified savegames were found, wait to see if SC4 writes more
@@ -3469,8 +3472,8 @@ class GameMonitor(th.Thread):
 
 				time.sleep(1) #TODO make configurable?
 
-				# Filter the savegames if more than two are found
-				if len(save_city_paths) > 2:
+				# SC4 also rewrites neighbouring cities when saving, so filter the savegames if more than one is found
+				if changed and len(save_city_paths) > 1:
 					savegames = []
 					try:
 						for save_city_path in save_city_paths:
@@ -3481,6 +3484,8 @@ class GameMonitor(th.Thread):
 						if len(filtered_savegames) == 1:
 							save_city_paths = [savegame.filename for savegame in filtered_savegames]
 							break
+						# If none of them borders all the others, SC4 has only written the neighbours so far, so wait for the saved city
+						incomplete = not filtered_savegames
 					except Exception as e:
 						show_error(e, no_ui=True)
 					finally:
@@ -3604,17 +3609,24 @@ class GameMonitor(th.Thread):
 					uncached.append(entry)
 			if uncached:
 				size = sum(entry[1] for entry in uncached)
-				while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - size:
-					random_cache = random.choice(list(cache_directory.iterdir()))
+				needed = [cache_directory / sanitize_directory_name(entry[0]) for _, _, entry in downloads]	# don't evict the cached savegames about to be used
+				evictable = [path for path in cache_directory.iterdir() if path not in needed]
+				while evictable and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - size:
+					random_cache = random.choice(evictable)
+					evictable.remove(random_cache)
 					random_cache.unlink()
 				with self.server.socket() as s:
 					for checksum, _, _, chunks in s.regions_data(uncached):
 						cache_path = cache_directory / sanitize_directory_name(checksum)
 						print(f'- caching "{cache_path.name}"...')
-						temp_path = cache_path.with_suffix(".part")	# so a failed download doesn't leave a corrupted file in the cache
-						with temp_path.open("wb") as file:
-							for chunk in chunks:
-								file.write(chunk)
+						temp_path = cache_path.with_name(cache_path.name + ".tmp")	# so a failed download doesn't leave a corrupted file in the cache
+						try:
+							with temp_path.open("wb") as file:
+								for chunk in chunks:
+									file.write(chunk)
+						except Exception:
+							temp_path.unlink(missing_ok=True)
+							raise
 						os.replace(temp_path, cache_path)
 
 		except (NetworkException, socket.error) as e:
@@ -3775,7 +3787,16 @@ class GameMonitor(th.Thread):
 			destination = city_paths.pop(0)
 		else:
 			destination = sanitize_relpath(region_path.parent, relpath)
-		shutil.copy(cache_path, destination)
+
+		# Copy to a temporary file first, so a crash can't leave a half-written savegame (not named `*.sc4`, so it isn't picked up as a savegame)
+		temp_path = destination.with_name(destination.name + ".tmp")
+		try:
+			shutil.copy(cache_path, temp_path)
+			os.replace(temp_path, destination)
+		except Exception:
+			temp_path.unlink(missing_ok=True)	# eg. SC4 has the savegame open (`PermissionError`), so it's retried later
+			raise
+
 		for city_path in city_paths:
 			city_path.unlink()
 			self.cities.pop(city_path, None)
@@ -3783,8 +3804,8 @@ class GameMonitor(th.Thread):
 		# Update the savegames the game monitor knows about, so the downloaded savegame isn't pushed back to the server
 		self.cities[destination] = self.get_city_hashcode(destination)
 
+		# Only in the console, since the status should only show the player's own saves
 		print(f'- downloaded "{relpath}" at {coords} to "{destination.name}"')
-		self.report_quietly(f"A city in {region_path.name} was updated at {datetime.now().strftime('%H:%M')}.")
 
 
 	def save_simcity_4_cfg(self):
@@ -4012,6 +4033,8 @@ class EventListener(th.Thread):
 
 
 	MAX_EVENTS = 10000	# more than a server's chat history
+	RETRY_DELAY = 5			# seconds to wait before reconnecting
+	MAX_RETRY_DELAY = 300	# the delay doubles up to this while reconnecting fails (eg. servers without the `Subscr` command)
 
 
 	def __init__(self, server):
@@ -4025,7 +4048,7 @@ class EventListener(th.Thread):
 		self._events: list[dict] = []
 		self._lock = th.Lock()
 
-		self._stop = False
+		self._stopping = th.Event()
 
 
 	def run(self):
@@ -4034,23 +4057,30 @@ class EventListener(th.Thread):
 
 			set_thread_name("EvntThread", enumerate=False)
 
-			while not self._stop:
+			delay = self.RETRY_DELAY
+
+			while not self._stopping.is_set():
 				try:
 					if not self._connected():
 						self._connect()
+						delay = self.RETRY_DELAY
 					events = self._socket.events()
 					with self._lock:
 						for event in events:
+							if not isinstance(event, dict):
+								continue	# malformed
 							self._events.append(event)
 							while len(self._events) > self.MAX_EVENTS:
 								self._events.pop(0)
 				except NetworkException:	# includes timeouts, since the server sends events (or an empty list) every 5 seconds
 					self._disconnect()
-					time.sleep(5)
+					self._stopping.wait(delay)
+					delay = min(delay * 2, self.MAX_RETRY_DELAY)
 				except Exception as e:
 					show_error(f"An unexpected error occurred in the event listener.\n\n{e}", no_ui=True)
 					self._disconnect()
-					time.sleep(5)
+					self._stopping.wait(delay)
+					delay = min(delay * 2, self.MAX_RETRY_DELAY)
 
 		except Exception as e:
 
@@ -4092,7 +4122,7 @@ class EventListener(th.Thread):
 
 	def stop(self):
 
-		self._stop = True
+		self._stopping.set()
 		self._disconnect()
 
 	
