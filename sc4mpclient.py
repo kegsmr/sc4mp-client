@@ -4325,8 +4325,8 @@ class GameBridge(th.Thread):
 
 	MAX_LINE_LENGTH = 65536
 
-	# As many lines as the DLL's chat panel shows
-	RECENT_LINES = 8
+	# As many rows as the DLL's chat panel keeps to scroll back through (kMaxLines), so joining fills its history
+	RECENT_LINES = 200
 
 	# The states the DLL has icons for
 	STATUS_STATES = ("saving", "saved", "failed", "not_saved", "connected", "disconnected", "refreshing", "refreshed", "guest")
