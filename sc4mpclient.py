@@ -3694,11 +3694,18 @@ class GameMonitor(th.Thread):
 	def update_chat(self):
 		"""Shows new chat messages, and players joining and leaving, in the game monitor and the game overlay. A message that can't be shown is skipped and logged, never shown as an error."""
 
+		# Gather the lines, so everything that arrived together (eg. the chat history when joining) is added to the Chat tab at once
+		if isinstance(self.ui, GameMonitorUI):
+			self.ui.chat_batch_start()
+
 		while event := self.event_listener.pop(('chat', 'user_join', 'user_leave', 'city_founded', 'welcome', 'motd')):
 			try:
 				self.show_chat_event(*event)
 			except Exception as e:
 				show_error(f"Unable to show a chat message.\n\n{e}", no_ui=True)
+
+		if isinstance(self.ui, GameMonitorUI):
+			self.ui.chat_batch_end()
 
 
 	def show_chat_event(self, event_type: str, event: dict):
@@ -8100,6 +8107,8 @@ class GameMonitorUI(tk.Toplevel):
 		self.chat_last_city = None
 		self.chat_last_time = None
 		self.chat_unread = 0
+		self.chat_batch = None	# the lines gathered by `chat_batch_start`
+		self.chat_lock = th.Lock()
 
 		# Guests can't chat, and neither can players on servers with chat turned off
 		if self.parent.guest or not getattr(self.parent.server, "chat_enabled", False):
@@ -8153,7 +8162,67 @@ class GameMonitorUI(tk.Toplevel):
 		entry["state"] = state
 
 
+	def chat_batch_start(self):
+		"""Gathers the chat lines added from now on, until `chat_batch_end` adds them all at once."""
+
+		with self.chat_lock:
+			self.chat_batch = []
+
+
+	def chat_batch_end(self):
+
+		with self.chat_lock:
+			lines = self.chat_batch
+			self.chat_batch = None
+		if lines:
+			self.after(0, lambda: self.chat_insert_lines(lines))
+
+
 	def add_chat_message(self, name, message, timestamp=None, user_id=None, city=None, own=False):
+		"""Adds a chat message (see `chat_insert_message`). Can be called from any thread."""
+
+		self.chat_add(self.chat_insert_message, name, message, timestamp, user_id, city, own)
+
+
+	def add_chat_info(self, message):
+		"""Adds a line about the server or chat (eg. a player joining), in italics. Can be called from any thread."""
+
+		self.chat_add(self.chat_insert_info, message)
+
+
+	def chat_add(self, function, *args):
+
+		# Tk redraws between calls made from another thread, so the chat would visibly scroll through lines added one at a time (eg. the chat history when joining); instead, lines are added in a single callback on Tk's thread
+		with self.chat_lock:
+			if self.chat_batch is not None:
+				self.chat_batch.append((function, args))
+				return
+		self.after(0, lambda: self.chat_insert_lines([(function, args)]))
+
+
+	def chat_insert_lines(self, lines):
+		"""Adds chat lines (functions that add a line, with their arguments) at once, and scrolls to the end once after them."""
+
+		text = self.chat_frame.text
+
+		# Only scroll to the new lines if the player hasn't scrolled up to read older ones
+		at_bottom = text.yview()[1] >= 0.999
+
+		for function, args in lines:
+			try:
+				function(*args)
+			except Exception as e:
+				show_error(f"Unable to show a chat message.\n\n{e}", no_ui=True)
+
+		if at_bottom:
+			text.see("end")
+
+		# Show the unread messages on the tab once, not after each one
+		if self.chat_unread:
+			self.notebook.tab(self.chat_frame, text=f"Chat ({self.chat_unread})")
+
+
+	def chat_insert_message(self, name, message, timestamp=None, user_id=None, city=None, own=False):
 		"""Adds a chat message. Messages from the same player close together are grouped under one name (with the city they saved most recently, if any), and a line with the day is added when the day changes."""
 
 		text = self.chat_frame.text
@@ -8161,9 +8230,6 @@ class GameMonitorUI(tk.Toplevel):
 		name = tk_safe(name)
 		message = tk_safe(message)
 		city = tk_safe(city) if city else None
-
-		# Only scroll to the new message if the player hasn't scrolled up to read older ones
-		at_bottom = text.yview()[1] >= 0.999
 
 		text["state"] = tk.NORMAL
 
@@ -8193,9 +8259,6 @@ class GameMonitorUI(tk.Toplevel):
 
 		text["state"] = tk.DISABLED
 
-		if at_bottom:
-			text.see("end")
-
 		self.chat_last_user_id = user_id
 		self.chat_last_city = city
 		self.chat_last_time = sent
@@ -8203,17 +8266,15 @@ class GameMonitorUI(tk.Toplevel):
 		# Count unread messages on the tab while another tab is open
 		if self.notebook.select() != str(self.chat_frame):
 			self.chat_unread += 1
-			self.notebook.tab(self.chat_frame, text=f"Chat ({self.chat_unread})")
 
 
-	def add_chat_info(self, message):
+	def chat_insert_info(self, message):
 
 		message = tk_safe(message)
 		text = self.chat_frame.text
 		text["state"] = tk.NORMAL
 		self.chat_insert_line(message, "info")
 		text["state"] = tk.DISABLED
-		text.see("end")
 		self.chat_last_user_id = None
 
 
