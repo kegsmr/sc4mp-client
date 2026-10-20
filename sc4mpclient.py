@@ -490,14 +490,15 @@ def check_updates():
 									# Pause if necessary
 									pause()
 
-									# Download file
-									download_size = int(urllib.request.urlopen(download_url).headers["Content-Length"])
+									# Download file (with a timeout so a stalled
+									# connection can't block cancelling forever)
+									download_size = int(urllib.request.urlopen(download_url, timeout=10).headers["Content-Length"])
 									if ui is not None:
 										ui.label["text"] = "Downloading update... (0%)"
 										ui.progress_bar["mode"] = "determinate"
 										ui.progress_bar["maximum"] = download_size
 										ui.progress_bar["value"] = 0
-									with urllib.request.urlopen(download_url) as rfile:
+									with urllib.request.urlopen(download_url, timeout=10) as rfile:
 										with open(destination, "wb") as wfile:
 											download_size_downloaded = 0
 											while download_size_downloaded < download_size:
