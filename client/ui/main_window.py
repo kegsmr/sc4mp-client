@@ -20,12 +20,9 @@ from client.constants import (
 from client.errors import fatal_error, open_logs, show_error
 from client.server_list import ServerList
 from client.ui.dialogs import AboutUI, DirectConnectUI
+from client.ui.sc4_settings import SC4SettingsUI
 from client.ui.server_list import ServerListUI
-from client.ui.settings import (
-    GeneralSettingsUI,
-    SC4SettingsUI,
-    StorageSettingsUI,
-)
+from client.ui.settings import GeneralSettingsUI, StorageSettingsUI
 from client.ui.updater import ReleaseNotesUI
 from client.updater import get_release_info
 from client.utils import center_window
