@@ -29,80 +29,80 @@ DIST = "dist" + str(8 * struct.calcsize("P"))
 
 def main():
 
-	# Update readme & installer version
-	utils.update_readme_version("Readme.html", sc4mpclient.SC4MP_VERSION)
-	utils.update_inno_setup_version("setup.iss", sc4mpclient.SC4MP_VERSION)
+    # Update readme & installer version
+    utils.update_readme_version("Readme.html", sc4mpclient.SC4MP_VERSION)
+    utils.update_inno_setup_version("setup.iss", sc4mpclient.SC4MP_VERSION)
 
-	# Update server list
-	print("Updating server list...")
-	try:
-		utils.update_server_list()
-	except Exception as e:
-		print(f"- failed to update server list {e}!")
+    # Update server list
+    print("Updating server list...")
+    try:
+        utils.update_server_list()
+    except Exception as e:
+        print(f"- failed to update server list {e}!")
 
-	# Make distribution directory if it does not yet exist
-	print(f"Preparing distribution directory at \"{DIST}\"...")
-	if not os.path.exists(DIST):
-		os.makedirs(DIST)
+    # Make distribution directory if it does not yet exist
+    print(f"Preparing distribution directory at \"{DIST}\"...")
+    if not os.path.exists(DIST):
+        os.makedirs(DIST)
 
-	# Purge the distribution directory
-	for item in os.listdir(DIST):
-		item = os.path.join(DIST, item)
-		if (os.path.isfile(item)):
-			os.remove(item)
-		else:
-			shutil.rmtree(item)
+    # Purge the distribution directory
+    for item in os.listdir(DIST):
+        item = os.path.join(DIST, item)
+        if (os.path.isfile(item)):
+            os.remove(item)
+        else:
+            shutil.rmtree(item)
 
-	# Create version file
-	print(f"Creating version file...")
-	create_versionfile(
-		output_file="version.rc",
-		version=VERSION,
-		company_name=PUBLISHER,
-		file_description=TITLE,
-		internal_name=TITLE,
-		legal_copyright=LICENSE,
-		original_filename=NAME,
-		product_name=TITLE,
-	)
+    # Create version file
+    print(f"Creating version file...")
+    create_versionfile(
+        output_file="version.rc",
+        version=VERSION,
+        company_name=PUBLISHER,
+        file_description=TITLE,
+        internal_name=TITLE,
+        legal_copyright=LICENSE,
+        original_filename=NAME,
+        product_name=TITLE,
+    )
 
-	# Run setup
-	print("Running setup...")
-	pyinstaller.run([
-		f"sc4mpclient.py",
-		f"--specpath",
-		f"{os.path.join('temp', 'spec')}",
+    # Run setup
+    print("Running setup...")
+    pyinstaller.run([
+        f"sc4mpclient.py",
+        f"--specpath",
+        f"{os.path.join('temp', 'spec')}",
         f"--distpath",
-		f"dist",
+        f"dist",
         f"--workpath",
-		f"{os.path.join('temp', 'build')}",
+        f"{os.path.join('temp', 'build')}",
         f"--onedir",
-		f"--contents-directory",
-		f"resources",
-		f"--noconfirm",
-		f"--noupx",
+        f"--contents-directory",
+        f"resources",
+        f"--noconfirm",
+        f"--noupx",
         f"--windowed",
         f"-i",
-		f"{os.path.abspath(os.path.join('resources', 'icon.ico'))}",
-		f"--version-file",
-		f"{os.path.abspath('version.rc')}",
-		f"--exclude=numpy",
-		f"--exclude=cryptography",
-	])
+        f"{os.path.abspath(os.path.join('resources', 'icon.ico'))}",
+        f"--version-file",
+        f"{os.path.abspath('version.rc')}",
+        f"--exclude=numpy",
+        f"--exclude=cryptography",
+    ])
 
-	# Copy binary files to distribution directory
-	shutil.copytree(os.path.join("dist", "sc4mpclient"), DIST, dirs_exist_ok=True)
+    # Copy binary files to distribution directory
+    shutil.copytree(os.path.join("dist", "sc4mpclient"), DIST, dirs_exist_ok=True)
 
-	# Copy extra files to distribution directory
-	print(f'Copying extra files to "{DIST}"...')
-	shutil.copytree("resources", os.path.join(DIST, "resources"), dirs_exist_ok=True)
-	shutil.copy("License.txt", DIST)
-	shutil.copy("Readme.html", DIST)
+    # Copy extra files to distribution directory
+    print(f'Copying extra files to "{DIST}"...')
+    shutil.copytree("resources", os.path.join(DIST, "resources"), dirs_exist_ok=True)
+    shutil.copy("License.txt", DIST)
+    shutil.copy("Readme.html", DIST)
 
-	# Create a zip archive of the distribution
-	destination = os.path.join(os.path.join("builds", "sc4mp-client-" + platform.system().lower() + "-" + str(8 * struct.calcsize("P")) + "-v" + VERSION))
-	print('Creating zip archive of "' + DIST + '" at "' + destination + '"')
-	shutil.make_archive(destination, "zip", DIST)
+    # Create a zip archive of the distribution
+    destination = os.path.join(os.path.join("builds", "sc4mp-client-" + platform.system().lower() + "-" + str(8 * struct.calcsize("P")) + "-v" + VERSION))
+    print('Creating zip archive of "' + DIST + '" at "' + destination + '"')
+    shutil.make_archive(destination, "zip", DIST)
 
 
 if __name__ == "__main__":
