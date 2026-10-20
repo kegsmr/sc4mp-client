@@ -3669,7 +3669,9 @@ class GameMonitor(th.Thread):
 	def show_chat_event(self, event_type: str, event: dict):
 
 		def text(value, default=""):
-			return value if isinstance(value, str) else default
+			if isinstance(value, str):
+				return value
+			return default
 
 		name = text(event.get('name')) or "Defacto"
 		user_id = text(event.get('user_id')) or None
@@ -3705,7 +3707,10 @@ class GameMonitor(th.Thread):
 
 		# Players joining and leaving
 		if event_type in ('user_join', 'user_leave'):
-			line = f"{name} {'joined' if event_type == 'user_join' else 'left'} the server."
+			if event_type == 'user_join':
+				line = f"{name} joined the server."
+			else:
+				line = f"{name} left the server."
 			print(line)
 			if isinstance(self.ui, GameMonitorUI):
 				self.ui.add_chat_info(line)
@@ -3716,7 +3721,14 @@ class GameMonitor(th.Thread):
 		if event_type == 'city_founded':
 			city = text(event.get('city')) or "a city"
 			region = text(event.get('region'))
-			line = f"{name} {'took over' if event.get('reclaimed') is True else 'founded'} {city}" + (f" in {region}." if region else ".")
+			if event.get('reclaimed') is True:
+				line = f"{name} took over {city}"
+			else:
+				line = f"{name} founded {city}"
+			if region:
+				line += f" in {region}."
+			else:
+				line += "."
 			key = (str(event.get('time')), user_id, line)	# skip the ones already shown (recent ones are sent again when the event listener reconnects)
 			if key in self.chat_messages:
 				return
@@ -7491,7 +7503,13 @@ class StatisticsTreeUI(tk.Frame):
 def tk_safe(text: str) -> str:
 	"""Replaces characters Tk can't show (eg. emoji, which are above U+FFFF) with U+FFFD, since inserting them raises an error."""
 
-	return "".join(character if ord(character) <= 0xFFFF else "\ufffd" for character in str(text))
+	characters = []
+	for character in str(text):
+		if ord(character) <= 0xFFFF:
+			characters.append(character)
+		else:
+			characters.append("\ufffd")
+	return "".join(characters)
 
 
 class GameMonitorUI(tk.Toplevel):
@@ -7567,7 +7585,10 @@ class GameMonitorUI(tk.Toplevel):
 		}
 		self.chat_fonts["name"].configure(weight="bold")
 		size = font.cget("size")
-		self.chat_fonts["time"].configure(size=size - 1 if size > 0 else size + 1)	# negative sizes are in pixels
+		if size > 0:
+			self.chat_fonts["time"].configure(size=size - 1)
+		else:
+			self.chat_fonts["time"].configure(size=size + 1)	# negative sizes are in pixels, so this makes it smaller too
 		self.chat_fonts["day"].configure(size=self.chat_fonts["time"].cget("size"))
 		self.chat_fonts["info"].configure(slant="italic")
 		self.chat_frame.text = tk.Text(self.chat_frame, wrap="word", state="disabled", font=font, background="white", relief="flat", borderwidth=0, highlightthickness=0, padx=12, pady=8, cursor="arrow", spacing1=0, spacing3=2)
@@ -7608,6 +7629,7 @@ class GameMonitorUI(tk.Toplevel):
 
 		# Guests can't chat, and neither can players on servers with chat turned off
 		if self.parent.guest or not getattr(self.parent.server, "chat_enabled", False):
+			self.chat_placeholder(False)	# remove "Message other mayors" so the reason below is shown instead
 			if self.parent.guest:
 				self.chat_placeholder_text = "Guests can't chat"
 			else:
@@ -7662,10 +7684,16 @@ class GameMonitorUI(tk.Toplevel):
 		"""Adds a chat message. Messages from the same player close together are grouped under one name (with the city they saved most recently, if any), and a line with the day is added when the day changes."""
 
 		text = self.chat_frame.text
-		sent = datetime.fromtimestamp(timestamp) if timestamp else datetime.now()
+		if timestamp:
+			sent = datetime.fromtimestamp(timestamp)
+		else:
+			sent = datetime.now()
 		name = tk_safe(name)
 		message = tk_safe(message)
-		city = tk_safe(city) if city else None
+		if city:
+			city = tk_safe(city)
+		else:
+			city = None
 
 		# Only scroll to the new message if the player hasn't scrolled up to read older ones
 		at_bottom = text.yview()[1] >= 0.999
