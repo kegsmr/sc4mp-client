@@ -3594,10 +3594,14 @@ class GameMonitor(th.Thread):
 					for checksum, _, _, chunks in s.regions_data(uncached):
 						cache_path = cache_directory / sanitize_directory_name(checksum)
 						print(f'- caching "{cache_path.name}"...')
-						temp_path = cache_path.with_suffix(".part")	# so a failed download doesn't leave a corrupted file in the cache
-						with temp_path.open("wb") as file:
-							for chunk in chunks:
-								file.write(chunk)
+						temp_path = cache_path.with_name(cache_path.name + ".tmp")	# so a failed download doesn't leave a corrupted file in the cache
+						try:
+							with temp_path.open("wb") as file:
+								for chunk in chunks:
+									file.write(chunk)
+						except Exception:
+							temp_path.unlink(missing_ok=True)
+							raise
 						os.replace(temp_path, cache_path)
 
 		except (NetworkException, socket.error) as e:
