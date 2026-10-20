@@ -3226,6 +3226,7 @@ class GameMonitor(th.Thread):
 
 
 	PING_INTERVAL = 15			# seconds between pings
+	CONNECTED_PING_INTERVAL = 60	# seconds between pings while the event listener is connected (so the server is reachable)
 	DOWNLOAD_RETRY_DELAY = 10	# seconds to wait before trying again when downloading cities saved by other mayors fails
 
 
@@ -3377,9 +3378,13 @@ class GameMonitor(th.Thread):
 
 
 	def update_ping(self):
-		"""Pings the server every `PING_INTERVAL` seconds (every loop while disconnected) and shows the ping in the UI."""
+		"""Pings the server every `PING_INTERVAL` seconds (every loop while disconnected, and every `CONNECTED_PING_INTERVAL` seconds while the event listener is connected, since each ping counts toward the server's request limit) and shows the ping in the UI."""
 
-		if self.last_ping_time is not None and time.time() - self.last_ping_time < self.PING_INTERVAL:
+		interval = self.PING_INTERVAL
+		if self.event_listener.connected():
+			interval = self.CONNECTED_PING_INTERVAL
+
+		if self.last_ping_time is not None and time.time() - self.last_ping_time < interval:
 			return
 
 		self.ping = self.server.ping()
@@ -4036,6 +4041,12 @@ class EventListener(th.Thread):
 	def _connected(self):
 
 		return self._socket is not None
+
+
+	def connected(self):
+		"""Whether the listener is subscribed to the server (the server sends something every 5 seconds, so a lost connection is noticed within the socket's timeout)."""
+
+		return self._connected()
 
 
 	def _disconnect(self):
