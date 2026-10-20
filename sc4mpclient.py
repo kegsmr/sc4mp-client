@@ -3240,6 +3240,9 @@ class GameMonitor(th.Thread):
 	DOWNLOAD_RETRY_DELAY = 10	# seconds to wait before trying again when downloading cities saved by other mayors fails
 	SAVE_TIMEOUT = 60			# seconds to wait for SC4 to finish writing a save before pushing what it wrote
 
+	# The game overlay's image for each save status (see `set_overlay_state`), which has none for a failed save or for being disconnected
+	OVERLAY_STATES = {"not_saved": "not-saved", "failed": "not-saved", "disconnected": None}
+
 
 	def __init__(self, server):
 
@@ -3267,6 +3270,7 @@ class GameMonitor(th.Thread):
 		# Ping
 		self.ping = None
 		self.last_ping_time = None
+		self.disconnected = False	# whether the game was told the server is unreachable
 
 		# Used to detect when the player opens the refresh region (`cfg_hashcode` is the md5 of `SimCity 4.cfg`)
 		self.cfg_hashcode = None
@@ -3388,6 +3392,7 @@ class GameMonitor(th.Thread):
 			self.report_quietly("Welcome, you've joined as a guest.")
 		else:
 			self.report_quietly("Welcome, start a city and save to claim a tile.")
+		self.set_connected_state()
 			
 		# Show server description in UI (only for the legacy status window)
 		if sc4mp_ui and not SC4MP_LAUNCHERMAP_ENABLED:
@@ -3414,6 +3419,9 @@ class GameMonitor(th.Thread):
 			if self.ui != None:
 				self.ui.ping_frame.right['text'] = "Disconnected"
 				self.ui.ping_frame.right['fg'] = "red"
+			if not self.disconnected:
+				self.disconnected = True
+				self.set_overlay_state("disconnected", "Disconnected")
 		
 		# If the server is responsive, display the ping in the ui
 		else:
@@ -3421,6 +3429,9 @@ class GameMonitor(th.Thread):
 				self.ui.ping_frame.right['text'] = f"{self.ping}ms"
 				self.ui.ping_frame.right['fg'] = "gray"
 			self.last_ping_time = time.time()
+			if self.disconnected:
+				self.disconnected = False
+				self.set_connected_state()
 
 
 	def push_cities(self):
@@ -3437,16 +3448,17 @@ class GameMonitor(th.Thread):
 		while True:
 			try:
 				self.report("", "Saving...")
-				self.set_overlay_state('saving')
+				self.set_overlay_state('saving', "Saving...")
 				self.save(save_city_paths)
 				self.unpushed_cities.difference_update(save_city_paths)	# pushed (or rejected by the server, in which case they're salvaged)
 				break
 			except (NetworkException, socket.timeout, socket.error) as e: # Is `ConnectionResetError` a `socket.error`?
 				show_error(e, no_ui=True)
+				self.set_overlay_state("failed", "Retrying save...")
 			except Exception as e:
 				show_error(e, no_ui=True)
 				self.report("[WARNING] ", "Save push failed! Unexpected client-side error.", color="red")
-				self.set_overlay_state("not-saved")
+				self.set_overlay_state("failed", "Save failed")
 				break
 			tries += 1
 			for count in range(5):
@@ -3454,7 +3466,7 @@ class GameMonitor(th.Thread):
 				time.sleep(1)
 			if tries >= 3:
 				self.report("[WARNING] ", "Save push failed! Server unreachable.", color="red")
-				self.set_overlay_state("not-saved")
+				self.set_overlay_state("failed", "Save failed")
 				break
 
 		time.sleep(5)
@@ -3490,7 +3502,7 @@ class GameMonitor(th.Thread):
 			if save_city_paths:
 
 				self.report("", "Saving...")
-				self.set_overlay_state("saving")
+				self.set_overlay_state("saving", "Saving...")
 
 				time.sleep(1) #TODO make configurable?
 
@@ -3546,7 +3558,7 @@ class GameMonitor(th.Thread):
 			return
 
 		self.report("", "Refreshing...")
-		self.set_overlay_state("refreshing")
+		self.set_overlay_state("refreshing", "Refreshing...")
 
 		if sc4mp_ui:
 			regions_refresher_ui = RegionsRefresherUI(self.server)
@@ -3565,7 +3577,7 @@ class GameMonitor(th.Thread):
 
 		if sc4mp_game_launcher.game_running:
 			self.report("", "Regions refreshed at " + datetime.now().strftime("%H:%M") + ".", color="green")
-			self.set_overlay_state("refreshed")
+			self.set_overlay_state("refreshed", "Refreshed " + datetime.now().strftime("%H:%M"))
 
 
 	def download_cities(self):
@@ -3988,7 +4000,7 @@ class GameMonitor(th.Thread):
 	def save(self, save_city_paths: list[Path]) -> None:
 
 		# Update overlay
-		self.set_overlay_state("saving")
+		self.set_overlay_state("saving", "Saving...")
 
 		# Salvage
 		salvage_directory = Path(SC4MP_LAUNCHPATH) / "_Salvage" / self.server.server_id / datetime.now().strftime("%Y%m%d%H%M%S")
@@ -4003,7 +4015,7 @@ class GameMonitor(th.Thread):
 		regions = set([save_city_path.parent.name for save_city_path in save_city_paths])
 		if len(regions) > 1:
 			self.report(self.PREFIX, 'Save push failed! Too many regions.', color="red") 
-			self.set_overlay_state("not-saved")
+			self.set_overlay_state("not_saved", "Not saved")
 			return
 		else:
 			region = list(regions)[0]
@@ -4039,11 +4051,11 @@ class GameMonitor(th.Thread):
 			response = s.save_result()
 			if response == "ok":
 				self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green") #TODO keep track locally of the client's claims
-				self.set_overlay_state("saved")
+				self.set_overlay_state("saved", f'Saved {datetime.now().strftime("%H:%M")}')
 				shutil.rmtree(salvage_directory) #TODO make configurable
 			else:
 				self.report(self.PREFIX + "[WARNING] ", f"Save push failed! {response}", color="red")
-				self.set_overlay_state("not-saved")
+				self.set_overlay_state("not_saved", "Not saved")
 
 
 	def backup_city(self, city_path: Path) -> None:
@@ -4076,9 +4088,21 @@ class GameMonitor(th.Thread):
 			self.ui.label['text'] = text
 
 
-	def set_overlay_state(self, state):
-		if self.overlay_ui is not None:
-			self.overlay_ui.set_state(state)
+	def set_overlay_state(self, state, text=""):
+		"""Shows the save status in the game overlay and in the game's chat panel (see `GameBridge.status`), with `text` as the panel's short label."""
+
+		overlay_state = self.OVERLAY_STATES.get(state, state)
+		if self.overlay_ui is not None and overlay_state is not None:
+			self.overlay_ui.set_state(overlay_state)
+		self.bridge.status(state, text)
+
+
+	def set_connected_state(self):
+
+		if self.guest:
+			self.set_overlay_state("guest", "Guest")
+		else:
+			self.set_overlay_state("connected", "Connected")
 
 
 class EventListener(th.Thread):
@@ -4198,9 +4222,9 @@ class EventListener(th.Thread):
 class GameBridge(th.Thread):
 	"""Talks to the SC4MP DLL (`sc4mp.dll`) running inside SimCity 4.
 
-	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat and save results, shown in the chat panel) and `alert` (shown in a message box).
+	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat and save results, shown in the chat panel), `alert` (shown in a message box), `status` (the save status, shown in the chat panel's title bar) and `server` (the server's name, the chat panel's title).
 
-	The game starts after the player joins, so when the DLL connects it's sent the last few lines again, with `history` set, to fill its chat panel.
+	The game starts after the player joins, so when the DLL connects it's sent the server's name, the last status and the last few lines again, with `history` set, to fill its chat panel.
 
 	Everything keeps working without the DLL (eg. when the game is started through Steam), since the game monitor still watches the savegame files.
 	"""
@@ -4210,6 +4234,9 @@ class GameBridge(th.Thread):
 
 	# As many lines as the DLL's chat panel shows
 	RECENT_LINES = 8
+
+	# The states the DLL has icons for
+	STATUS_STATES = ("saving", "saved", "failed", "not_saved", "connected", "disconnected", "refreshing", "refreshed", "guest")
 
 
 	def __init__(self, game_monitor):
@@ -4240,6 +4267,9 @@ class GameBridge(th.Thread):
 
 		# The last lines for the game, including the ones from before it connected, to send again when it connects
 		self.recent = deque(maxlen=self.RECENT_LINES)
+
+		# The last save status, also sent again when the game connects
+		self.last_status = None
 
 
 	def run(self):
@@ -4411,11 +4441,27 @@ class GameBridge(th.Thread):
 		self.send(message)
 
 
+	def status(self, state: str, text: str = "") -> None:
+		"""Sends the save status (one of `STATUS_STATES`) and a short label for it (eg. "Saved 13:01") to the game, which shows them in the chat panel's title bar."""
+
+		message = {'type': 'status', 'state': state, 'text': text}
+		with self._send_lock:
+			self.last_status = message
+		self.send(message)
+
+
 	def send_recent(self) -> None:
-		"""Sends the last lines again, eg. when the game connects, marked as history so they aren't shown as new."""
+		"""Sends the server's name, the last status and the last lines again, eg. when the game connects. The lines are marked as history so they aren't shown as new."""
+
+		server = getattr(self.game_monitor, 'server', None)
+		if server is not None:
+			self.send({'type': 'server', 'name': server.server_name})
 
 		with self._send_lock:
 			lines = list(self.recent)
+			last_status = self.last_status
+		if last_status is not None:
+			self.send(last_status)
 		for line in lines:
 			self.send({'type': 'notify', 'text': line, 'history': True})
 
