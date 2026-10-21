@@ -3515,6 +3515,7 @@ class GameMonitor(th.Thread):
 
 		# Push them. If errors occur, log them in the console and display a warning
 		self.unpushed_cities.update(save_city_paths)
+		self.bridge.notify("Saving...")	# in the game's chat, followed by the result
 		tries = 0
 		while True:
 			try:
