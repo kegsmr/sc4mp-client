@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import configparser
 import ctypes
+import gc
 import hashlib
 import inspect
 import json
@@ -410,6 +411,15 @@ def check_updates():
 								print(message)
 								ui.label["text"] = message
 
+							# Function to stop the update if the user cancelled it. A partial download is left in the update directory,
+							# which is purged before the next update, since deleting a just-written installer can take minutes on Windows
+							def cancelled():
+								if ui is None or not ui.cancel:
+									return False
+								report("Update cancelled.")
+								ui.parent.quit()
+								return True
+
 							# Change working directory to the one where the 
 							# executable can be found
 							if exec_file == "sc4mpclient.exe":
@@ -449,6 +459,10 @@ def check_updates():
 									# Pause if necessary
 									pause()
 
+									# Stop if the user cancelled
+									if cancelled():
+										return
+
 									# Get download URL
 									download_url = None
 									for asset in latest_release_info["assets"]:
@@ -472,25 +486,31 @@ def check_updates():
 									# Pause if necessary
 									pause()
 
-									# Download file
-									download_size = int(urllib.request.urlopen(download_url).headers["Content-Length"])
+									# Download file (with a timeout so a stalled
+									# connection can't block cancelling forever)
+									download_size = int(urllib.request.urlopen(download_url, timeout=10).headers["Content-Length"])
 									if ui is not None:
 										ui.label["text"] = "Downloading update... (0%)"
 										ui.progress_bar["mode"] = "determinate"
 										ui.progress_bar["maximum"] = download_size
 										ui.progress_bar["value"] = 0
-									with urllib.request.urlopen(download_url) as rfile:
+									with urllib.request.urlopen(download_url, timeout=10) as rfile:
 										with open(destination, "wb") as wfile:
 											download_size_downloaded = 0
 											while download_size_downloaded < download_size:
-												while ui.pause:
-													time.sleep(.1)
+												pause()
+												if ui is not None and ui.cancel:
+													break
 												if ui is not None:
 													ui.label["text"] = f"Downloading update... ({int(100 * (download_size_downloaded / download_size))}%)"
 													ui.progress_bar["value"] = download_size_downloaded
 												bytes_read = rfile.read(SC4MP_BUFFER_SIZE) 
 												download_size_downloaded += len(bytes_read)
 												wfile.write(bytes_read)
+
+									# Stop and delete the partial download if the user cancelled
+									if cancelled():
+										return
 
 									# Pause if necessary
 									pause()
@@ -505,6 +525,10 @@ def check_updates():
 									# Pause if necessary
 									pause()
 
+									# Stop if the user cancelled
+									if cancelled():
+										return
+
 									# Start installer in very silent mode and exit
 									subprocess.Popen([os.path.abspath(destination), f"/dir={os.getcwd()}", "/verysilent"])
 									ui.destroy()
@@ -512,6 +536,10 @@ def check_updates():
 								except Exception as e:
 
 									show_error(f"An error occurred in the update thread.\n\n{e}", no_ui=True)
+
+									# Don't retry if the user cancelled
+									if cancelled():
+										return
 
 									# Retry
 									if ui is not None:
@@ -534,15 +562,40 @@ def check_updates():
 						sc4mp_ui.iconphoto(True, tk.PhotoImage(file=SC4MP_ICON))
 						sc4mp_ui.withdraw()
 
+						# Ask the user before downloading and installing the update
+						close_splash()
+						if not messagebox.askyesno(SC4MP_TITLE, f"A new version of the SC4MP Launcher is available ({latest_release_info['tag_name']}).\n\nWould you like to install the update now?"):
+							print("Update declined.")
+							sc4mp_ui.destroy()
+							sc4mp_ui = True
+							return
+
 						# Create updater UI
 						updater_ui = UpdaterUI(sc4mp_ui)
 
 						# Start update thread
-						th.Thread(target=update, kwargs={"ui": updater_ui}, daemon=True).start()
+						update_thread = th.Thread(target=update, kwargs={"ui": updater_ui}, daemon=True)
+						update_thread.start()
 
 						# Run the UI main loop
-						close_splash()
 						sc4mp_ui.mainloop()
+
+						# Continue to the launcher if the update was cancelled
+						if updater_ui.cancel:
+
+							# Wait for the update thread to let go of the Tk root, it must be freed on this thread
+							update_thread.join()
+
+							# Stop the progress bar's timer so it doesn't fire after the Tk root is destroyed
+							updater_ui.progress_bar.stop()
+							updater_ui.destroy()
+
+							# Free the old Tk root now, on this thread (Tcl aborts if another thread's garbage collection frees it)
+							updater_ui = None
+							sc4mp_ui = True
+							gc.collect()
+
+							return
 
 						# Exit when complete
 						sys.exit()
@@ -7465,8 +7518,8 @@ class UpdaterUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.minsize(400, 95)
-		self.maxsize(400, 95)
+		self.minsize(400, 110)
+		self.maxsize(400, 110)
 		self.grid()
 		center_window(self)
 
@@ -7496,15 +7549,22 @@ class UpdaterUI(tk.Toplevel):
 		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10,5))
 		self.progress_bar.start(2)
 
-		# Small label
-		self.label_small = tk.Label(self, fg="gray", font=("Segoe UI", 8), text="Press <ESC> to cancel")
-		self.label_small.grid(column=0, row=2, columnspan=2, padx=10, pady=(0,5))
+		# Cancel button
+		self.cancel_button = ttk.Button(self, text="Cancel", command=self.delete_window)
+		self.cancel_button.grid(column=0, row=2, columnspan=2, padx=10, pady=(5,10), sticky="e")
 
 		# Pause underlying thread
 		self.pause = False
 
+		# Cancel underlying thread
+		self.cancel = False
+
 
 	def delete_window(self):
+
+		# Already cancelled, waiting for the update thread to stop
+		if self.cancel:
+			return
 
 		self.pause = True
 
@@ -7513,8 +7573,9 @@ class UpdaterUI(tk.Toplevel):
 		if choice is None:
 			sys.exit()
 		elif choice is True:
-			subprocess.Popen([sys.executable, "-skip-update", "-allow-multiple"])
-			sys.exit()
+			self.cancel = True
+			self.cancel_button["state"] = tk.DISABLED
+			self.pause = False
 		elif choice is False:
 			self.pause = False
 
