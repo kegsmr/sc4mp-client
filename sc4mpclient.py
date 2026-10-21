@@ -1222,20 +1222,6 @@ def format_url(url: str) -> str:
 		return url
 
 
-def open_server_url(url: str, ask: bool) -> None:
-	"""Opens a server URL in the browser, after asking if `ask`, since the URL is set by the server owner."""
-
-	if not url:
-		return
-
-	url = format_url(url)
-
-	if ask and not messagebox.askyesno(SC4MP_TITLE, f"Do you wish to proceed to {url}?", icon="warning"):
-		return
-
-	webbrowser.open_new_tab(url)
-
-
 def sync_simcity_4_cfg(to_mp=False):
 
 	try:
@@ -5580,14 +5566,18 @@ class ServerListUI(tk.Frame):
 	def open_server_url(self):
 
 		server_id = self.tree.focus()
-		if server_id == "":
+		url = self.url_label["text"]
+		if server_id == "" or not url:
 			return
 		server = self.worker.servers[server_id]
+		url = format_url(url)
 
-		# Asked in the same cases as joining a third-party server
-		ask = not ("Official" in server.categories or "History" in server.categories or sc4mp_config["GENERAL"]["ignore_third_party_server_warnings"])
+		# The URL is set by the server owner, so ask first in the same cases as joining a third-party server
+		if not ("Official" in server.categories or "History" in server.categories or sc4mp_config["GENERAL"]["ignore_third_party_server_warnings"]):
+			if not messagebox.askyesno(SC4MP_TITLE, f"Do you wish to proceed to {url}?", icon="warning"):
+				return
 
-		open_server_url(self.url_label["text"], ask)
+		webbrowser.open_new_tab(url)
 
 	
 	def destroy(self):
