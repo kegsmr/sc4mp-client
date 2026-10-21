@@ -1223,14 +1223,14 @@ def format_url(url: str) -> str:
 
 
 def open_server_url(url: str) -> None:
-	"""Opens a server URL in the browser after a warning, since the URL is set by the server owner."""
+	"""Opens a server URL in the browser after asking, since the URL is set by the server owner."""
 
 	if not url:
 		return
 
 	url = format_url(url)
 
-	if messagebox.askyesno(SC4MP_TITLE, f"Go to {url}?", icon="warning"):
+	if messagebox.askyesno(SC4MP_TITLE, f"Go to {url}?"):
 		webbrowser.open_new_tab(url)
 
 
