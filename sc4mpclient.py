@@ -4224,7 +4224,7 @@ class EventListener(th.Thread):
 class GameBridge(th.Thread):
 	"""Talks to the SC4MP DLL (`sc4mp.dll`) running inside SimCity 4.
 
-	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat, with the player's `name` and its `color` as [red, green, blue], and save results, shown in the chat panel), `alert` (shown in a message box), `status` (the save status, shown in the chat panel's title bar) and `server` (the server's name, the chat panel's title).
+	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat, with the player's `name` and its `color` as [red, green, blue], and save results, shown in the chat panel), `alert` (shown in a message box), `status` (the save status, shown in the chat panel's title bar), `progress` (how far a save push is, shown as the chat panel's last line until it's cleared) and `server` (the server's name, the chat panel's title).
 
 	The game starts after the player joins, so when the DLL connects it's sent the server's name, the last status and the last few lines again, with `history` set, to fill its chat panel.
 
@@ -4455,6 +4455,12 @@ class GameBridge(th.Thread):
 		with self._send_lock:
 			self.last_status = message
 		self.send(message)
+
+
+	def progress(self, text: str) -> None:
+		"""Sends how far a save push is (eg. "Saving... (120/3,456KB)") to the game, which shows it as the chat panel's last line, replacing the one before, without keeping it in the chat. An empty `text` clears it. Older DLLs ignore it."""
+
+		self.send({'type': 'progress', 'text': text})
 
 
 	def send_recent(self) -> None:
