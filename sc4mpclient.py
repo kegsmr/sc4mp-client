@@ -23,6 +23,7 @@ import tkinter as tk
 import tkinter.font as tkfont
 import traceback
 import webbrowser
+from argparse import ArgumentParser, Namespace
 from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
@@ -157,8 +158,6 @@ SC4MP_URL_PREFIX = "sc4mp://"
 SC4MP_SERVERS_DOMAIN = "servers.sc4mp.org"
 SC4MP_INVITES_DOMAIN = "invite.sc4mp.org"
 
-sc4mp_args = sys.argv
-
 sc4mp_ui = None
 
 sc4mp_current_server = None
@@ -183,13 +182,15 @@ def main():
 
 	try:
 
+		# Parse arguments
+		args = parse_args()
+
 		# URL launch behavior
-		url_launch = len(sc4mp_args) > 1 and sc4mp_args[1] \
-			.startswith(SC4MP_URL_PREFIX)
+		url_launch = args.url is not None and args.url.startswith(SC4MP_URL_PREFIX)
 		url_launch_exit_after = True
 	
 		# Exit if already runnning (unless launching using URL)
-		if not "-allow-multiple" in sc4mp_args:
+		if not args.allow_multiple:
 			try:
 				count = process_count("sc4mpclient.exe")
 				if count is not None and count > 1:
@@ -234,51 +235,29 @@ def main():
 		# Title
 		print(SC4MP_TITLE)
 
-		# "-force-update"/"-skip-update" flags
+		# -u / --force-update and -k / --skip-update arguments (any other argument skips the update check too, unless forced)
 		global sc4mp_force_update, sc4mp_skip_update
-		sc4mp_force_update = "-force-update" in sc4mp_args
-		sc4mp_skip_update = "-skip-update" in sc4mp_args \
-			or (len(sc4mp_args) > 1 and not sc4mp_force_update)
+		sc4mp_force_update = args.force_update
+		sc4mp_skip_update = args.skip_update or (len(sys.argv) > 1 and not sc4mp_force_update)
 
-		# "-no-ui" flag
+		# --no-ui argument
 		global sc4mp_ui
-		sc4mp_ui = not "-no-ui" in sc4mp_args
+		sc4mp_ui = not args.no_ui
 
-		# "-exit-after" flag
+		# --exit-after argument
 		global sc4mp_exit_after
-		sc4mp_exit_after = "-exit-after" in sc4mp_args
+		sc4mp_exit_after = args.exit_after
 
-		# "--host" argument
-		global sc4mp_host
-		sc4mp_host = None
-		if "--host" in sc4mp_args:
-			try:
-				sc4mp_host = get_arg_value("--host", sc4mp_args)
-			except Exception as e:
-				raise ClientException("Invalid arguments.") from e
-
-		# "--port" argument
-		global sc4mp_port
-		sc4mp_port = None
-		if "--port" in sc4mp_args:
-			try:
-				sc4mp_port = int(get_arg_value("--port", sc4mp_args))
-			except Exception as e:
-				raise ClientException("Invalid arguments.") from e
-			
-		# "--password" argument
-		global sc4mp_password
-		sc4mp_password = None
-		if "--password" in sc4mp_args:
-			try:
-				sc4mp_password = get_arg_value("--password", sc4mp_args)
-			except Exception as e:
-				raise ClientException("Invalid arguments.") from e
+		# --host, --port and --password arguments
+		global sc4mp_host, sc4mp_port, sc4mp_password
+		sc4mp_host = args.host
+		sc4mp_port = args.port
+		sc4mp_password = args.password
 
 		# Launch using URL
 		if url_launch:
 			try:
-				url = sc4mp_args[1]
+				url = args.url
 				url = url.replace(SC4MP_URL_PREFIX, "", 1)
 				if url.endswith("/"):
 					url = url[:-1]
@@ -291,7 +270,7 @@ def main():
 					sc4mp_port = 7240
 				sc4mp_exit_after = url_launch_exit_after
 			except Exception:
-				show_error(f"Invalid URL.\n\nURLs must adhere to:\nsc4mp://<host>:<port>\n\nURL given:\n{sc4mp_args[1]}")
+				show_error(f"Invalid URL.\n\nURLs must adhere to:\nsc4mp://<host>:<port>\n\nURL given:\n{args.url}")
 				return
 
 		# Prep
@@ -339,6 +318,38 @@ def main():
 	# Cleanup
 	print("Shutting down...")
 	cleanup()
+
+
+def parse_args() -> Namespace:
+	"""Parse command line arguments"""
+
+	parser = ArgumentParser(prog="SC4MP Launcher",
+						 description="SimCity 4 Multiplayer Launcher")
+
+	parser.add_argument("url", nargs="?", help="join the server at an \"sc4mp://<host>:<port>\" link")
+
+	parser.add_argument("-k", "--skip-update", help="skip the update check at startup", action="store_true")
+
+	parser.add_argument("-u", "--force-update", help="force update at startup (Windows-only)", action="store_true")
+
+	parser.add_argument("--no-ui", help="run without the UI, asking for the server in the command line", action="store_true")
+
+	parser.add_argument("--host", help="join the server at this host when starting")
+
+	parser.add_argument("--port", help="the port of the server to join", type=int)
+
+	parser.add_argument("--password", help="the password of the server to join, if it has one")
+
+	parser.add_argument("--exit-after", help="exit after leaving the server", action="store_true")
+
+	parser.add_argument("--allow-multiple", help="allow more than one launcher to run at once", action="store_true")
+
+	# Unknown arguments, eg. the old single-dash flags, are ignored rather than stopping the launcher
+	args, unknown_args = parser.parse_known_args()
+	if unknown_args:
+		print(f"[WARNING] Ignoring unknown arguments: {' '.join(unknown_args)}")
+
+	return args
 
 
 def prep():
@@ -1176,11 +1187,6 @@ def get_fullpaths_recursively(dir: Path) -> list[Path]:
 def get_relpaths_recursively(dir: Path) -> list[Path]:
 	"""Returns relative paths of all files in a directory recursively."""
 	return [path.relative_to(dir) for path in dir.rglob("*") if path.is_file()]
-
-
-def get_arg_value(arg, args):
-	"""Returns the following token in commandline arguments."""
-	return args[args.index(arg) + 1]
 
 
 def set_server_data(entry, server):
@@ -4571,7 +4577,7 @@ class StorageSettingsUI(tk.Toplevel):
 			update_config_value("STORAGE", key, data)
 		if restart:
 			if Path(sys.executable).name == "sc4mpclient.exe":
-				subprocess.Popen([sys.executable, "-skip-update", "-allow-multiple"])
+				subprocess.Popen([sys.executable, "--skip-update", "--allow-multiple"])
 			else:
 				subprocess.Popen([sys.executable, os.path.abspath(__file__)])
 			sc4mp_ui.quit()
