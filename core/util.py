@@ -100,15 +100,60 @@ def filter_non_alpha_numeric(text: str) -> str:
 
 
 def sanitize_directory_name(text: str) -> str:
+	"""
+	Sanitize a directory name to prevent path traversal and invalid names.
 
-	text = text.replace("..", "")
-	
-	for character in ["/", "\\"]:
-		text = text.replace(character, "")
+	Args:
+		text: The directory name to sanitize
 
-	text = text.replace("..", "")
+	Returns:
+		Sanitized directory name safe for filesystem use
 
+	Raises:
+		ValueError: If the sanitized result is invalid or empty
+	"""
+
+	# Remove null bytes (can cause issues in C-based filesystem calls)
+	text = text.replace('\x00', '')
+
+	# Remove all path separators (/, \)
+	text = re.sub(r'[/\\]', '', text)
+
+	# Keep removing .. until none remain (handles cases like ....)
+	while '..' in text:
+		text = text.replace('..', '')
+
+	# Remove other dangerous characters
+	# Windows reserved: < > : " | ? *
+	# Also removing control characters
+	text = re.sub(r'[<>:"|?*\x00-\x1f]', '', text)
+
+	# Strip leading/trailing whitespace and dots
 	text = text.strip()
+	text = text.strip('.')
+
+	# Reject empty or invalid results
+	if not text:
+		raise ValueError("Directory name is empty after sanitization")
+
+	# Reject names that are only dots or whitespace
+	if text in ['.', '..'] or text.isspace():
+		raise ValueError("Invalid directory name after sanitization")
+
+	# Reject Windows reserved names (case-insensitive)
+	# These are special device names in Windows
+	reserved_names = [
+		'CON', 'PRN', 'AUX', 'NUL',
+		'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9',
+		'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'
+	]
+
+	# Check base name without extension
+	name_upper = text.upper()
+	base_name = name_upper.split('.')[0] if '.' in name_upper else name_upper
+
+	if base_name in reserved_names:
+		raise ValueError(f"Reserved device name not allowed: {text}")
 
 	return text
 
