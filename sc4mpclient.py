@@ -3311,8 +3311,13 @@ class GameMonitor(th.Thread):
 				self.overlay_ui = GameOverlayUI(self.ui, guest=self.guest)
 				if sc4mp_game_monitor_x > 0:
 					self.ui.withdraw()
-			else:
+			elif sc4mp_config["GENERAL"]["legacy_game_monitor"]:
 				self.ui.deiconify()
+
+			# Otherwise the game monitor stays hidden, since the SC4MP DLL shows the chat and status in game. It's shown if the DLL doesn't connect (see `check_dll`).
+			else:
+				self.monitor_hidden = True
+				self.ui.withdraw()
 
 			# Set window title to server name
 			self.ui.title(server.server_name)
