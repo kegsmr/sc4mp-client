@@ -8263,8 +8263,8 @@ class GameMonitorUI(tk.Toplevel):
 		self.chat_last_city = city
 		self.chat_last_time = sent
 
-		# Count unread messages on the tab while another tab is open
-		if self.notebook.select() != str(self.chat_frame):
+		# Count unread messages on the tab while another tab is open, but not the player's own
+		if not own and self.notebook.select() != str(self.chat_frame):
 			self.chat_unread += 1
 
 
