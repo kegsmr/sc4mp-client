@@ -805,7 +805,7 @@ def start_sc4():
 
 
 	# Arguments set based on config settings
-	arguments = [str(path),
+	arguments = [str(path.absolute()),  # absolute, since the game is started from its own folder
 			  f'-UserDir:"{SC4MP_LAUNCHPATH}{os.sep}"', # add trailing slash here because SC4 expects it
 			  '-intro:off',
 			  '-CustomResolution:enabled',
@@ -849,13 +849,13 @@ def start_sc4():
 		# Regular command
 		command = ' '.join(arguments)
 
-		# Launch the game
+		# Launch the game from its own folder, like its shortcut does (some DLL plugins use relative paths, e.g. SC4Fix writes "SC4Fix.log" to the working directory)
 		print(f"- launching directly ('{command}').")
 		try:
 			if is_windows():
-				subprocess.run(command, executable=arguments[0]) 			# `subprocess.run(arguments)` won't work on Windows for some unknowable reason; `executable` stops Windows guessing where the exe path ends
+				subprocess.run(command, executable=arguments[0], cwd=path.parent) 			# `subprocess.run(arguments)` won't work on Windows for some unknowable reason; `executable` stops Windows guessing where the exe path ends
 			else:
-				subprocess.run(arguments)  			# on Linux, the first String passed as argument must be a file that exists
+				subprocess.run(arguments, cwd=path.parent)  			# on Linux, the first String passed as argument must be a file that exists
 		except PermissionError as e:
 			show_error(f"The launcher does not have the necessary privileges to launch SimCity 4. Try running the SC4MP Launcher as administrator.")
 
