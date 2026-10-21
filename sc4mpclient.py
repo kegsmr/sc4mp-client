@@ -1222,16 +1222,18 @@ def format_url(url: str) -> str:
 		return url
 
 
-def open_server_url(url: str) -> None:
-	"""Opens a server URL in the browser after asking, since the URL is set by the server owner."""
+def open_server_url(url: str, ask: bool) -> None:
+	"""Opens a server URL in the browser, after asking if `ask`, since the URL is set by the server owner."""
 
 	if not url:
 		return
 
 	url = format_url(url)
 
-	if messagebox.askyesno(SC4MP_TITLE, f"Go to {url}?"):
-		webbrowser.open_new_tab(url)
+	if ask and not messagebox.askyesno(SC4MP_TITLE, f"Do you wish to proceed to {url}?", icon="warning"):
+		return
+
+	webbrowser.open_new_tab(url)
 
 
 def sync_simcity_4_cfg(to_mp=False):
@@ -5577,7 +5579,15 @@ class ServerListUI(tk.Frame):
 
 	def open_server_url(self):
 
-		open_server_url(self.url_label["text"])
+		server_id = self.tree.focus()
+		if server_id == "":
+			return
+		server = self.worker.servers[server_id]
+
+		# Asked in the same cases as joining a third-party server
+		ask = not ("Official" in server.categories or "History" in server.categories or sc4mp_config["GENERAL"]["ignore_third_party_server_warnings"])
+
+		open_server_url(self.url_label["text"], ask)
 
 	
 	def destroy(self):
@@ -7148,7 +7158,7 @@ class GameMonitorUI(tk.Toplevel):
 		self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2", background="white")
 		self.url_label.grid(row=1, column=0, columnspan=1, padx=10, pady=5, sticky="nw")
 		self.url_label['text'] = ""
-		self.url_label.bind("<Button-1>", lambda e:open_server_url(self.url_label["text"]))
+		self.url_label.bind("<Button-1>", lambda e:webbrowser.open_new_tab(format_url(self.url_label["text"])))
 
 		# Ping frame
 		self.ping_frame = tk.Frame(self, width=420, height=0)
