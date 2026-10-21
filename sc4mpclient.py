@@ -3244,10 +3244,6 @@ class GameMonitor(th.Thread):
 	# The game overlay's image for each save status (see `set_overlay_state`), which has none for a failed save or for being disconnected
 	OVERLAY_STATES = {"not_saved": "not-saved", "failed": "not-saved", "disconnected": None}
 
-	# How long the SC4MP DLL has to connect after the game starts, and how long it can be gone while the game runs, before the game monitor is shown again
-	DLL_WAIT = 30
-	DLL_GONE_WAIT = 3
-
 
 	def __init__(self, server):
 
@@ -3276,13 +3272,8 @@ class GameMonitor(th.Thread):
 		self.ping = None
 		self.last_ping_time = None
 
-		# The game monitor is hidden while the SC4MP DLL's chat panel is in game, and shown again if it doesn't connect or goes away
-		self.monitor_hidden = False
-		self.dll_connected = False
-		self.dll_disconnected_time = None
-		self.game_start_time = time.time()
-		self.dll_wait_over = False
 		self.disconnected = False	# whether the game was told the server is unreachable
+		self.save_failed = None	# the text of the last failed save, which stays shown until the server is reconnected or a save gets through
 
 		# Used to detect when the player opens the refresh region (`cfg_hashcode` is the md5 of `SimCity 4.cfg`)
 		self.cfg_hashcode = None
@@ -3314,9 +3305,8 @@ class GameMonitor(th.Thread):
 			elif sc4mp_config["GENERAL"]["legacy_game_monitor"]:
 				self.ui.deiconify()
 
-			# Otherwise the game monitor stays hidden, since the SC4MP DLL shows the chat and status in game. It's shown if the DLL doesn't connect (see `check_dll`).
+			# Otherwise the game monitor stays hidden, since the SC4MP DLL shows the chat and status in game
 			else:
-				self.monitor_hidden = True
 				self.ui.withdraw()
 
 			# Set window title to server name
@@ -3377,8 +3367,6 @@ class GameMonitor(th.Thread):
 						break
 					game_closed = not self.game_launcher.game_running
 
-					self.check_dll()
-
 					# Wait, but check the savegames right away if the game says it saved
 					if self.bridge.saved.wait(1):
 						self.bridge.saved.clear()
@@ -3403,58 +3391,6 @@ class GameMonitor(th.Thread):
 
 			self.event_listener.stop()
 			self.bridge.stop()
-
-
-	def hide_monitor(self) -> None:
-		"""Hides the game monitor when the SC4MP DLL connects, since its chat panel shows the chat, the save status and alerts in game. It keeps running, and is shown again if the DLL goes away. Not if the player turned the legacy game monitor or overlay back on."""
-
-		self.dll_connected = True
-		self.dll_disconnected_time = None
-		if sc4mp_ui is None or sc4mp_config["GENERAL"]["legacy_game_monitor"] or self.overlay_ui is not None or self.monitor_hidden:
-			return
-
-		print("- hiding the game monitor, since the SC4MP DLL shows the chat and status in game")
-		self.monitor_hidden = True
-		if self.ui:
-			self.ui.withdraw()
-
-
-	def show_monitor(self, reason: str) -> None:
-		"""Shows the game monitor (and the overlay) again, eg. if the SC4MP DLL isn't in game, so the player still sees the chat and the save status."""
-
-		if sc4mp_ui is None or not self.monitor_hidden:
-			return
-
-		print(f"- showing the game monitor again, since {reason}")
-		self.monitor_hidden = False
-		if self.overlay_ui:
-			self.overlay_ui.deiconify()
-		elif self.ui:
-			self.ui.deiconify()
-
-
-	def dll_lost(self) -> None:
-		"""Called when the SC4MP DLL disconnects. The game monitor is shown again if the game keeps running (see `check_dll`), so not just because the game is closing."""
-
-		self.dll_connected = False
-		self.dll_disconnected_time = time.time()
-
-
-	def check_dll(self) -> None:
-		"""Shows the game monitor again if the SC4MP DLL went away while the game runs, and logs if it never connected."""
-
-		if not self.game_launcher.game_running:
-			return
-
-		if self.dll_disconnected_time is not None and time.time() - self.dll_disconnected_time >= self.DLL_GONE_WAIT:
-			self.dll_disconnected_time = None
-			self.show_monitor("the SC4MP DLL disconnected while the game is running")
-
-		if not self.dll_connected and not self.dll_wait_over and time.time() - self.game_start_time >= self.DLL_WAIT:
-			self.dll_wait_over = True
-			print(f"- the SC4MP DLL didn't connect within {self.DLL_WAIT} seconds (eg. the game was started through Steam, or the DLL didn't load), so the game monitor stays shown")
-			self.monitor_hidden = True	# so it's shown, even if the overlay had hidden it
-			self.show_monitor("the SC4MP DLL isn't in game")
 
 
 	def welcome(self):
@@ -3538,7 +3474,7 @@ class GameMonitor(th.Thread):
 				time.sleep(1)
 			if tries >= 3:
 				self.report("[WARNING] ", "Save push failed! Server unreachable.", color="red")
-				self.set_overlay_state("not_saved", "Server unreachable")
+				self.set_overlay_state("failed", "Server unreachable")	# red: the city wasn't saved
 				break
 
 		time.sleep(5)
@@ -4307,7 +4243,7 @@ class GameMonitor(th.Thread):
 		if text == "Save push failed! Too many regions.":
 			return "Save failed", "Cities from more than one region were saved at once, which the server doesn't take.\nA copy of them is kept in SC4MP's _Salvage folder."
 		if text.startswith("Save push failed! "):
-			return "Save failed", f"The server didn't take your city: {text[len('Save push failed! '):]}\nA copy of it is kept in SC4MP's _Salvage folder."
+			return "Save failed", text[len('Save push failed! '):]	# as the server said it
 		return "SC4MP", text
 
 
@@ -4319,6 +4255,15 @@ class GameMonitor(th.Thread):
 
 	def set_overlay_state(self, state, text=""):
 		"""Shows the save status in the game overlay and in the game's chat panel (see `GameBridge.status`), with `text` as the panel's short label."""
+
+		# A failed save stays red, so the player knows their city isn't on the server, until the server is reconnected or a save gets through
+		if state == "failed":
+			self.save_failed = text
+		elif state in ("saved", "connected", "guest"):
+			self.save_failed = None
+		elif self.save_failed is not None and state != "saving":
+			state = "failed"
+			text = self.save_failed
 
 		overlay_state = self.OVERLAY_STATES.get(state, state)
 		if self.overlay_ui is not None and overlay_state is not None:
@@ -4539,7 +4484,6 @@ class GameBridge(th.Thread):
 					connection.close()
 					self.saving = False	# a save that was in progress won't be reported anymore
 					print("- the SC4MP DLL disconnected")
-					self.game_monitor.dll_lost()
 
 		except Exception as e:
 
@@ -4584,7 +4528,6 @@ class GameBridge(th.Thread):
 
 		if message_type == 'hello':
 			print(f"- the SC4MP DLL {text('version')} connected")
-			self.game_monitor.hide_monitor()
 			self.send_recent()
 			self.push_claims()
 
@@ -5351,7 +5294,7 @@ class GeneralSettingsUI(tk.Toplevel):
 		# Use the legacy game overlay, from before the SC4MP DLL showed the chat and status in game
 		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["legacy_game_overlay"])
 		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use legacy game overlay", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
-		self.ui_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=(10,65), pady=(10,5), sticky="w")
+		self.ui_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=(10,20), pady=(10,5), sticky="w")
 		self.config_update.append((self.ui_frame.checkbutton_variable, "legacy_game_overlay"))
 
 		# Keep the legacy game monitor shown while playing, even when the SC4MP DLL shows the chat and status in game
