@@ -29,7 +29,7 @@
 				<img src="resources/readme-password-prompt.png">
 				<p>If the launcher successfully establishes a connection to the server, it will begin downloading the server's plugins and regions. Loading a server for the first time might take a couple of minutes, but subsequent loading will be sped up significantly by the cache. This loading sequence can be cancelled at any time by x-ing out of the window or pressing escape.</p>
 				<img src="resources/readme-server-loader.png">
-				<p>Once the loading sequence is complete, the server monitor will start alongside Simcity 4. This window will stay open until the game exits. It displays the result of the last save push and the ping (ie. response time) of the server. A lower ping means a better connection.</p>
+				<p>Once the loading sequence is complete, the server monitor will start alongside Simcity 4. It stays hidden unless "Use legacy game monitor" is turned on in the general settings, since the chat and save status are shown in game. This window will stay open until the game exits. It displays the result of the last save push and the ping (ie. response time) of the server. A lower ping means a better connection. Its Chat tab shows the server's chat, where you can also send messages.</p>
 				<img src="resources/readme-server-monitor.png">
 		<h2>Playing in multiplayer</h2>
 			<h3>How claims work</h3>
@@ -38,13 +38,18 @@
 				<p>By default, claims expire after 30 days, but this can vary from server to server. By default, players are also limited to one claim per region, but this is also can vary from server to server.</p>
 				<p>Claims are linked to your automatically-generated, server-specific user id. User id's are stored on your computer locally, in your launch directory. This way you are never required to make an account to play on SC4MP, but you can only access your claims on another machine by migrating your launch directory manually.
 			<h3>Claiming a tile</h3>
-				<p>To claim a tile, start a city and save your game. Ensure that the save push succeeded by monitoring for the result in the server monitor window. By default, you must first establish a city to claim the tile. This way, occupied tiles always appear as established cities with city names in the region view.</p>
+				<p>To claim a tile, start a city and save your game. Ensure that the save push succeeded by looking for the result in the game's chat (or in the server monitor window, if it's shown). By default, you must first establish a city to claim the tile. This way, occupied tiles always appear as established cities with city names in the region view.</p>
 				<img src="resources/readme-save-successful.png">
 			<h3>Playing in a claimed city</h3>
 				<p>Once you have claimed your city, you can play in it and save it as usual. As long as you're still connected to the server, your saves will be pushed automatically.</p>
+				<p>If you open a city that belongs to another mayor, the game warns you that your saves there won't be kept, and offers to take you back to the region.</p>
 			<!--<h3>Playing in others' cities</h3>
 				<p>You are welcome to open and play in other users' claimed cities. You can even edit them and save them locally, but keep in mind that any changes will not be saved to the server. The saves will also be lost the next time you connect to a server unless you manually move them from the launch directory.</p>
 				<p><b>NOTE:</b> since SC4MP in its current state uses the datetime subfile of savegames as a secondary data point in triangulating save pushes in unusual region configurations, sometimes playing on neighboring tiles can lead to problems. If you encounter issues saving after playing on a neighboring tile, delete all the neighboring tiles of the tile you've claimed to ensure only one savegame is sent to the server.</p>-->
+			<h3>Chatting in game</h3>
+				<p>The launcher loads the SC4MP DLL into the game, which shows the server's chat in the city and region views. Press Enter to type a message, and Enter again to send it. You can also type "say" followed by your message in the cheat box (Ctrl+X). If a message can't be sent, eg. because you're sending messages too quickly, the reason is shown in the chat. Type "sc4mp help" in the cheat box for more commands.</p>
+				<p>The chat panel's title bar shows the server's name and the save status. While a save is being pushed, "Saving..." is shown in the chat, followed by the result. A failed save push also pops up in a dialog that says why (in the server's own words, if the server refused it), and the status stays red until the launcher reconnects to the server or a save push succeeds.</p>
+				<p>The in-game chat isn't available if the game is started through Steam. Turn on "Use legacy game monitor" in the general settings to see the chat and save status in the server monitor instead.</p>
 			<h3>Refreshing regions</h3>
 				<p>To refresh regions, simply load the region titled "Refresh..."</p>
 				<img src="resources/readme-regions.png">
@@ -52,13 +57,15 @@
 				<p>Refreshing regions will also overwrite your own cities, so ensure that your work has been saved to the server before refreshing.</p>
 				<!--<img src="resources/readme-refresh.png">-->
 			<h3>Disconnecting</h3>
-				<p>To disconnect from a server, simply exit the game. The server monitor will remain open for a few more seconds, but then the main window will subsequently re-open. You are able to then connect to another server seamlessly, without restarting the launcher.</p>
+				<p>To disconnect from a server, simply exit the game. The server monitor (if shown) will remain open for a few more seconds, but then the main window will subsequently re-open. You are able to then connect to another server seamlessly, without restarting the launcher.</p>
 		<h2>Configuring the launcher</h2>
 			<p>The launcher settings can be found in the menu bar under "Launcher" then "Settings." Each settings window contains a "reset" button that will reset the settings on screen to their default values.</p>
 			<h3>General settings</h3>
 				<p>The options in this window pertain to gameplay.</p>
 				<img src="resources/readme-general-settings.png">
 				<p><b>Custom plugins:</b> Some servers allow players to load their own plugins alongside the server's plugins. Specify the path to your own plugins directory and check "Enable" to use custom plugins, and your plugins will be loaded with the server's plugins the next time you connect to a server. The directory you choose will not be altered in any way.</p>
+				<p><b>Use legacy game overlay:</b> shows the launcher's old overlay over the game in fullscreen mode. It's off by default, since the chat and save status are shown in game.</p>
+				<p><b>Use legacy game monitor:</b> shows the server monitor while you play. It's off by default, and the server monitor isn't shown unless this or the legacy game overlay is turned on.</p>
 			<h3>Storage settings</h3>
 				<p>The settings in this window pertain to the files stored by the launcher on your disk.</p>
 				<img src="resources/readme-storage-settings.png">
@@ -72,7 +79,7 @@
 				<p><b>Custom installation path: </b>when attempting to launch Simcity 4, the launcher will look for the executable in the most common installation paths. If the launcher cannot find the game's install directory, you can provide a custom path to it.</p>
 				<p>You only need to set this value if the launcher asks for it.</p>
 				<p><b>Resolution: </b>you can specify a custom game resolution using the field provided here, either by selecting one of the common resolutions provided or entering one manually.</p>
-				<p>You can also choose here whether to run the game in fullscreen or windowed mode. But keep in mind the server monitor may not be visible in fullscreen mode. A game overlay is planned for future versions of the launcher.</p>
+				<p>You can also choose here whether to run the game in fullscreen or windowed mode. The chat and save status are shown in game in either mode.</p>
 				<p><b>CPU count: </b>since Simcity 4 was designed for older hardware than that available today, running the game with more than one CPU core can lead to crashes. Therefore, the SC4MP Launcher launches the game with one CPU core by default. A different CPU count however can be specified here.</p>
 				<p><b>CPU priority: </b>this setting specifies the CPU priority level of the application when minimized.</p>
 				<p><b>Additional launch properties: </b>this field allows you to manually specify more launch parameters if you wish to do so. A list of all launch parameters can be found <a href="https://community.simtropolis.com/omnibus/simcity-4/reference/sc4-command-line-options-r362/">here</a>.</p>
