@@ -3489,6 +3489,7 @@ class GameMonitor(th.Thread):
 
 		save_city_paths = []
 		start_time = time.time()
+		progress_shown = False	# whether "Saving..." is in the game's chat, from when the game starts saving until the push ends
 
 		# Loop until SC4 stops writing savegames (meant to prevent fragmented save pushes, not the best solution because it relies somewhat on the loop delay)
 		changed = True
@@ -3496,6 +3497,9 @@ class GameMonitor(th.Thread):
 		while changed or (incomplete and time.time() - start_time < self.SAVE_TIMEOUT):
 
 			# If the SC4MP DLL says the game is writing a save, wait until it's done, so the save isn't read in pieces
+			if self.bridge.saving and not progress_shown:
+				self.bridge.progress("Saving...")
+				progress_shown = True
 			while self.bridge.saving and time.time() - start_time < self.SAVE_TIMEOUT:
 				self.report_quietly("Saving...")
 				time.sleep(0.2)
@@ -3515,6 +3519,9 @@ class GameMonitor(th.Thread):
 
 				self.report("", "Saving...")
 				self.set_overlay_state("saving", "Saving...")
+				if not progress_shown:
+					self.bridge.progress("Saving...")
+					progress_shown = True
 
 				time.sleep(1) #TODO make configurable?
 
@@ -3537,6 +3544,10 @@ class GameMonitor(th.Thread):
 					finally:
 						for savegame in savegames:
 							savegame.close()	# an open savegame can't be saved by SC4
+
+		# Nothing to push after all, so the line goes again (otherwise the push clears it when it ends)
+		if progress_shown and not save_city_paths:
+			self.bridge.progress("")
 
 		return save_city_paths
 
