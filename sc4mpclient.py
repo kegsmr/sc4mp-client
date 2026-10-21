@@ -3273,6 +3273,7 @@ class GameMonitor(th.Thread):
 		self.last_ping_time = None
 
 		self.disconnected = False	# whether the game was told the server is unreachable
+		self.save_failed = None	# the text of the last failed save, which stays shown until the server is reconnected or a save gets through
 
 		# Used to detect when the player opens the refresh region (`cfg_hashcode` is the md5 of `SimCity 4.cfg`)
 		self.cfg_hashcode = None
@@ -3473,7 +3474,7 @@ class GameMonitor(th.Thread):
 				time.sleep(1)
 			if tries >= 3:
 				self.report("[WARNING] ", "Save push failed! Server unreachable.", color="red")
-				self.set_overlay_state("not_saved", "Server unreachable")
+				self.set_overlay_state("failed", "Server unreachable")	# red: the city wasn't saved
 				break
 
 		time.sleep(5)
@@ -4197,7 +4198,7 @@ class GameMonitor(th.Thread):
 		if text == "Save push failed! Too many regions.":
 			return "Save failed", "Cities from more than one region were saved at once, which the server doesn't take.\nA copy of them is kept in SC4MP's _Salvage folder."
 		if text.startswith("Save push failed! "):
-			return "Save failed", f"The server didn't take your city: {text[len('Save push failed! '):]}\nA copy of it is kept in SC4MP's _Salvage folder."
+			return "Save failed", text[len('Save push failed! '):]	# as the server said it
 		return "SC4MP", text
 
 
@@ -4209,6 +4210,15 @@ class GameMonitor(th.Thread):
 
 	def set_overlay_state(self, state, text=""):
 		"""Shows the save status in the game overlay and in the game's chat panel (see `GameBridge.status`), with `text` as the panel's short label."""
+
+		# A failed save stays red, so the player knows their city isn't on the server, until the server is reconnected or a save gets through
+		if state == "failed":
+			self.save_failed = text
+		elif state in ("saved", "connected", "guest"):
+			self.save_failed = None
+		elif self.save_failed is not None and state != "saving":
+			state = "failed"
+			text = self.save_failed
 
 		overlay_state = self.OVERLAY_STATES.get(state, state)
 		if self.overlay_ui is not None and overlay_state is not None:
