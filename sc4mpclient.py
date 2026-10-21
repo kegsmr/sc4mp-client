@@ -97,8 +97,8 @@ SC4MP_CONFIG_DEFAULTS = [
 		("show_offline_servers", True),
 		("use_fullscreen_background", True),
 		("use_launcher_map", True),
-		("use_game_overlay", 1),
-		("show_game_monitor", False),
+		("legacy_game_overlay", False),
+		("legacy_game_monitor", False),
 		("allow_game_monitor_exit", True),
 
 		("save_server_passwords", True),
@@ -3306,8 +3306,8 @@ class GameMonitor(th.Thread):
 			else:
 				self.ui = GameMonitorUI(self)
 
-			# Create game overlay window if the game overlay is enabled (`1` is fullscreen-mode only; `2` is always enabled)
-			if (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
+			# Create the legacy game overlay window if the player turned it back on (fullscreen mode only), since the SC4MP DLL shows the chat and status in game
+			if sc4mp_config["GENERAL"]["legacy_game_overlay"] and sc4mp_config["SC4"]["fullscreen"]:
 				self.overlay_ui = GameOverlayUI(self.ui, guest=self.guest)
 				if sc4mp_game_monitor_x > 0:
 					self.ui.withdraw()
@@ -3401,19 +3401,17 @@ class GameMonitor(th.Thread):
 
 
 	def hide_monitor(self) -> None:
-		"""Hides the game monitor (and the overlay) when the SC4MP DLL connects, since its chat panel shows the chat, the save status and alerts in game. They keep running, and are shown again if the DLL goes away. Not if the player chose to see the game monitor while playing."""
+		"""Hides the game monitor when the SC4MP DLL connects, since its chat panel shows the chat, the save status and alerts in game. It keeps running, and is shown again if the DLL goes away. Not if the player turned the legacy game monitor or overlay back on."""
 
 		self.dll_connected = True
 		self.dll_disconnected_time = None
-		if sc4mp_ui is None or sc4mp_config["GENERAL"]["show_game_monitor"] or self.monitor_hidden:
+		if sc4mp_ui is None or sc4mp_config["GENERAL"]["legacy_game_monitor"] or self.overlay_ui is not None or self.monitor_hidden:
 			return
 
 		print("- hiding the game monitor, since the SC4MP DLL shows the chat and status in game")
 		self.monitor_hidden = True
 		if self.ui:
 			self.ui.withdraw()
-		if self.overlay_ui:
-			self.overlay_ui.withdraw()
 
 
 	def show_monitor(self, reason: str) -> None:
@@ -5275,17 +5273,17 @@ class GeneralSettingsUI(tk.Toplevel):
 		self.ui_frame = tk.LabelFrame(self, text="UI")		
 		self.ui_frame.grid(row=1, column=0, columnspan=1, padx=10, pady=0, sticky="nw")
 
-		# Use game overlay
-		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_game_overlay"])
-		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use game overlay", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		# Use the legacy game overlay, from before the SC4MP DLL showed the chat and status in game
+		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["legacy_game_overlay"])
+		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use legacy game overlay", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
 		self.ui_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=(10,65), pady=(10,5), sticky="w")
-		self.config_update.append((self.ui_frame.checkbutton_variable, "use_game_overlay"))
+		self.config_update.append((self.ui_frame.checkbutton_variable, "legacy_game_overlay"))
 
-		# Show the game monitor while playing, even when the SC4MP DLL shows the chat and status in game
-		self.ui_frame.show_monitor_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["show_game_monitor"])
-		self.ui_frame.show_monitor_checkbutton = ttk.Checkbutton(self.ui_frame, text="Show the game monitor while playing", onvalue=True, offvalue=False, variable=self.ui_frame.show_monitor_variable)
+		# Keep the legacy game monitor shown while playing, even when the SC4MP DLL shows the chat and status in game
+		self.ui_frame.show_monitor_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["legacy_game_monitor"])
+		self.ui_frame.show_monitor_checkbutton = ttk.Checkbutton(self.ui_frame, text="Use legacy game monitor", onvalue=True, offvalue=False, variable=self.ui_frame.show_monitor_variable)
 		self.ui_frame.show_monitor_checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
-		self.config_update.append((self.ui_frame.show_monitor_variable, "show_game_monitor"))
+		self.config_update.append((self.ui_frame.show_monitor_variable, "legacy_game_monitor"))
 
 		# Use launcher map
 		#self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_launcher_map"])
