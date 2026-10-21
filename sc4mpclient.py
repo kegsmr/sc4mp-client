@@ -4188,9 +4188,9 @@ class GameMonitor(th.Thread):
 		# Results (green) are also sent to the game, and failures (red) pop up there, since the player needs to know their city wasn't saved
 		if color == "red":
 			title, body = self.get_alert(text)
-			self.bridge.alert(text, title, body)
+			self.bridge.alert(text, title, body, color=GameBridge.RESULT_COLORS[color])
 		elif color == "green":
-			self.bridge.notify(text)
+			self.bridge.notify(text, color=GameBridge.RESULT_COLORS[color])
 
 
 	def get_alert(self, text: str) -> tuple[str, str]:
@@ -4356,7 +4356,7 @@ class EventListener(th.Thread):
 class GameBridge(th.Thread):
 	"""Talks to the SC4MP DLL (`sc4mp.dll`) running inside SimCity 4.
 
-	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat, with the player's `name`, its `color` as [red, green, blue] and `self` on the player's own, and save results, shown in the chat panel), `alert` (shown in a dialog, with a `title` and `body`, and put in chat), `status` (the save status, shown in the chat panel's title bar), `progress` (how far a save push is, shown as the chat panel's last line until it's cleared), `server` (the server's name, the chat panel's title), `guard` (the open city belongs to another mayor, shown as a warning with a button to go back to the region) and `claims_reset` and `claim` (every city that belongs to another mayor, with its savegame's `path`, its `owner` and `city`, so the warning shows the moment one opens).
+	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat, with the player's `name`, its `color` as [red, green, blue] and `self` on the player's own, and save results, shown in the chat panel in their `color` if they have one), `alert` (shown in a dialog, with a `title` and `body`, and put in chat, in its `color` if it has one), `status` (the save status, shown in the chat panel's title bar), `progress` (how far a save push is, shown as the chat panel's last line until it's cleared), `server` (the server's name, the chat panel's title), `guard` (the open city belongs to another mayor, shown as a warning with a button to go back to the region) and `claims_reset` and `claim` (every city that belongs to another mayor, with its savegame's `path`, its `owner` and `city`, so the warning shows the moment one opens).
 
 	The game starts after the player joins, so when the DLL connects it's sent the server's name, the last status and the last few lines again, with `history` set, to fill its chat panel.
 
@@ -4371,6 +4371,9 @@ class GameBridge(th.Thread):
 
 	# As many rows as the DLL's chat panel keeps to scroll back through (kMaxLines), so joining fills its history
 	RECENT_LINES = 200
+
+	# The colors of save results in the game's chat, the DLL's green and red status icons' (GREEN and RED in its tools/make-ui-images.py)
+	RESULT_COLORS = {"green": "#2ea043", "red": "#ce3434"}
 
 	# The states the DLL has icons for
 	STATUS_STATES = ("saving", "saved", "failed", "not_saved", "connected", "disconnected", "refreshing", "refreshed", "guest")
@@ -4620,7 +4623,7 @@ class GameBridge(th.Thread):
 
 
 	def notify(self, text: str, history: bool = False, name: Optional[str] = None, color: Optional[str] = None, own: bool = False) -> None:
-		"""Sends a chat message or save result to the game, and keeps it to send again when the game connects. `history` marks old lines (eg. chat from before the player joined), which the game doesn't count as new. Chat comes with the player's `name`, which starts `text`, and its `color` in the Chat tab (eg. "#2e7d32"), so the game shows the name in the same color. `own` marks the player's own messages (sent as `self`), whose name the game follows with "(You)"."""
+		"""Sends a chat message or save result to the game, and keeps it to send again when the game connects. A save result can have a `color` (see `RESULT_COLORS`), which the game shows it in. `history` marks old lines (eg. chat from before the player joined), which the game doesn't count as new. Chat comes with the player's `name`, which starts `text`, and its `color` in the Chat tab (eg. "#2e7d32"), so the game shows the name in the same color. `own` marks the player's own messages (sent as `self`), whose name the game follows with "(You)"."""
 
 		message = {'type': 'notify', 'text': text}
 		if name is not None:
@@ -4669,14 +4672,16 @@ class GameBridge(th.Thread):
 			self.send(dict(message, history=True))
 
 
-	def alert(self, text: str, title: Optional[str] = None, body: Optional[str] = None) -> None:
-		"""Sends something the player needs to see to the game, which shows it in a dialog with `title` and `body` (lines separated by "\\n"), and puts `text` in chat. Older DLLs show `text` in a message box."""
+	def alert(self, text: str, title: Optional[str] = None, body: Optional[str] = None, color: Optional[str] = None) -> None:
+		"""Sends something the player needs to see to the game, which shows it in a dialog with `title` and `body` (lines separated by "\\n"), and puts `text` in chat, in `color` if given (eg. "#ce3434"). Older DLLs show `text` in a message box."""
 
 		message = {'type': 'alert', 'text': text}
 		if title is not None:
 			message['title'] = title
 		if body is not None:
 			message['body'] = body
+		if color is not None:
+			message['color'] = [int(color[i:i + 2], 16) for i in (1, 3, 5)]
 		self.send(message)
 
 
