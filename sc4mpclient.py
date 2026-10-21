@@ -4641,7 +4641,7 @@ class GameBridge(th.Thread):
 				self.game_monitor.send_chat(message)
 			except Exception as e:
 				show_error(e, no_ui=True)
-				self.alert(f"Your message wasn't sent. {e}")
+				self.notify(f"Your message wasn't sent. {e}")	# in the chat, where the player is looking, rather than a dialog
 
 		th.Thread(target=send, daemon=True).start()
 
