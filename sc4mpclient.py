@@ -3454,7 +3454,7 @@ class GameMonitor(th.Thread):
 				break
 			except (NetworkException, socket.timeout, socket.error) as e: # Is `ConnectionResetError` a `socket.error`?
 				show_error(e, no_ui=True)
-				self.set_overlay_state("failed", "Retrying save...")
+				self.set_overlay_state("not_saved", "Retrying save...")	# amber: the server can't be reached
 			except Exception as e:
 				show_error(e, no_ui=True)
 				self.report("[WARNING] ", "Save push failed! Unexpected client-side error.", color="red")
@@ -3466,7 +3466,7 @@ class GameMonitor(th.Thread):
 				time.sleep(1)
 			if tries >= 3:
 				self.report("[WARNING] ", "Save push failed! Server unreachable.", color="red")
-				self.set_overlay_state("failed", "Save failed")
+				self.set_overlay_state("not_saved", "Server unreachable")
 				break
 
 		time.sleep(5)
@@ -4108,7 +4108,7 @@ class GameMonitor(th.Thread):
 		regions = set([save_city_path.parent.name for save_city_path in save_city_paths])
 		if len(regions) > 1:
 			self.report(self.PREFIX, 'Save push failed! Too many regions.', color="red") 
-			self.set_overlay_state("not_saved", "Not saved")
+			self.set_overlay_state("failed", "Save failed")	# red: the city wasn't saved
 			return
 		else:
 			region = list(regions)[0]
@@ -4148,7 +4148,7 @@ class GameMonitor(th.Thread):
 				shutil.rmtree(salvage_directory) #TODO make configurable
 			else:
 				self.report(self.PREFIX + "[WARNING] ", f"Save push failed! {response}", color="red")
-				self.set_overlay_state("not_saved", "Not saved")
+				self.set_overlay_state("failed", "Save failed")	# red: the city wasn't saved
 
 
 	def backup_city(self, city_path: Path) -> None:
@@ -4170,9 +4170,24 @@ class GameMonitor(th.Thread):
 
 		# Results (green) are also sent to the game, and failures (red) pop up there, since the player needs to know their city wasn't saved
 		if color == "red":
-			self.bridge.alert(text)
+			title, body = self.get_alert(text)
+			self.bridge.alert(text, title, body)
 		elif color == "green":
 			self.bridge.notify(text)
+
+
+	def get_alert(self, text: str) -> tuple[str, str]:
+		"""Returns the title and text of the dialog the game shows for a failure reported as `text`, saying what happened to the player's city. Every push first copies the cities to the `_Salvage` folder, which is only cleared when the server takes them."""
+
+		if text == "Save push failed! Server unreachable.":
+			return "Server unreachable", "Your city couldn't be sent, since the server can't be reached.\nIt's still saved on your computer, so save again once the server is back."
+		if text == "Save push failed! Unexpected client-side error.":
+			return "Save failed", "Something went wrong sending your city to the server.\nIt's still saved on your computer, so save again to retry."
+		if text == "Save push failed! Too many regions.":
+			return "Save failed", "Cities from more than one region were saved at once, which the server doesn't take.\nA copy of them is kept in SC4MP's _Salvage folder."
+		if text.startswith("Save push failed! "):
+			return "Save failed", f"The server didn't take your city: {text[len('Save push failed! '):]}\nA copy of it is kept in SC4MP's _Salvage folder."
+		return "SC4MP", text
 
 
 	def report_quietly(self, text):
@@ -4315,7 +4330,7 @@ class EventListener(th.Thread):
 class GameBridge(th.Thread):
 	"""Talks to the SC4MP DLL (`sc4mp.dll`) running inside SimCity 4.
 
-	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat, with the player's `name`, its `color` as [red, green, blue] and `self` on the player's own, and save results, shown in the chat panel), `alert` (shown in a message box), `status` (the save status, shown in the chat panel's title bar), `server` (the server's name, the chat panel's title), `guard` (the open city belongs to another mayor, shown as a warning with a button to go back to the region) and `claims_reset` and `claim` (every city that belongs to another mayor, with its savegame's `path`, its `owner` and `city`, so the warning shows the moment one opens).
+	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat, with the player's `name`, its `color` as [red, green, blue] and `self` on the player's own, and save results, shown in the chat panel), `alert` (shown in a dialog, with a `title` and `body`, and put in chat), `status` (the save status, shown in the chat panel's title bar), `server` (the server's name, the chat panel's title), `guard` (the open city belongs to another mayor, shown as a warning with a button to go back to the region) and `claims_reset` and `claim` (every city that belongs to another mayor, with its savegame's `path`, its `owner` and `city`, so the warning shows the moment one opens).
 
 	The game starts after the player joins, so when the DLL connects it's sent the server's name, the last status and the last few lines again, with `history` set, to fill its chat panel.
 
@@ -4608,10 +4623,15 @@ class GameBridge(th.Thread):
 			self.send(dict(message, history=True))
 
 
-	def alert(self, text: str) -> None:
-		"""Sends something the player needs to see to the game, which shows it in a message box."""
+	def alert(self, text: str, title: Optional[str] = None, body: Optional[str] = None) -> None:
+		"""Sends something the player needs to see to the game, which shows it in a dialog with `title` and `body` (lines separated by "\\n"), and puts `text` in chat. Older DLLs show `text` in a message box."""
 
-		self.send({'type': 'alert', 'text': text})
+		message = {'type': 'alert', 'text': text}
+		if title is not None:
+			message['title'] = title
+		if body is not None:
+			message['body'] = body
+		self.send(message)
 
 
 	def send(self, message: dict) -> None:
