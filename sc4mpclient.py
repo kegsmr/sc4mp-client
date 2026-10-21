@@ -3828,8 +3828,8 @@ class GameMonitor(th.Thread):
 		return self.get_tile_owner(self.get_region_database(region).get(coords))
 
 
-	def get_tile_owner(self, entry: dict | None) -> str | None:
-		"""Returns the name of the mayor whose claim on a tile (its `entry` in the region's database) keeps the player from saving it, or `None` if the player can save it."""
+	def get_tile_owner(self, entry: dict | None, now: datetime | None = None) -> str | None:
+		"""Returns the name of the mayor whose claim on a tile (its `entry` in the region's database) keeps the player from saving it, or `None` if the player can save it. `now` is the server's time, asked for if it's needed and not given."""
 
 		if not entry:
 			return None
@@ -3841,7 +3841,9 @@ class GameMonitor(th.Thread):
 		# Claims expire if the owner doesn't save for `claim_duration` days, and then the tile can be taken over
 		if self.server.claim_duration is not None and entry.get("modified"):
 			expires = datetime.strptime(entry["modified"], "%Y-%m-%d %H:%M:%S") + timedelta(days=self.server.claim_duration)
-			if expires <= self.server.time():
+			if now is None:
+				now = self.server.time()
+			if expires <= now:
 				return None
 
 		return entry.get("mayor_name") or "another mayor"
@@ -3856,7 +3858,9 @@ class GameMonitor(th.Thread):
 	def get_claims(self) -> list[dict]:
 		"""Returns the cities in the server's regions that belong to other mayors, as `path` (the savegame), `owner` and `city` (its name), by the same rule as `get_city_owner`. They're sent to the DLL, which can then warn the moment one of them opens, before the game's own prompts."""
 
+		# The server's time and each region's database are asked for once, since the server blocks clients that connect too often
 		claims = []
+		now = self.server.time()
 		for region in self.server.regions:
 			region_name = PureWindowsPath(str(region)).name
 			database = self.get_region_database(region_name) or {}
@@ -3866,7 +3870,7 @@ class GameMonitor(th.Thread):
 						SC4ReadRegionalCity = savegame.get_SC4ReadRegionalCity()
 				except Exception:
 					continue	# eg. the game is saving it
-				owner = self.get_tile_owner(database.get(f'{SC4ReadRegionalCity["tileXLocation"]}_{SC4ReadRegionalCity["tileYLocation"]}'))
+				owner = self.get_tile_owner(database.get(f'{SC4ReadRegionalCity["tileXLocation"]}_{SC4ReadRegionalCity["tileYLocation"]}'), now)
 				if owner is not None:
 					claims.append({'path': str(city_path), 'owner': owner, 'city': SC4ReadRegionalCity.get("cityName") or city_path.stem})
 		return claims
@@ -4340,6 +4344,9 @@ class GameBridge(th.Thread):
 
 	MAX_LINE_LENGTH = 65536
 
+	# How long a push of the claims waits for more to be asked for, which it then covers
+	CLAIMS_DELAY = 2
+
 	# As many rows as the DLL's chat panel keeps to scroll back through (kMaxLines), so joining fills its history
 	RECENT_LINES = 200
 
@@ -4363,6 +4370,8 @@ class GameBridge(th.Thread):
 		self._socket = None
 		self._send_lock = th.Lock()
 		self._claims_lock = th.Lock()	# so two pushes of the claims don't interleave
+		self._claims_pending_lock = th.Lock()
+		self._claims_pending = False	# a push of the claims is about to start, which covers more asked for meanwhile
 		self._stopping = th.Event()
 
 		# Set when the game finishes saving a city, so the game monitor checks the savegames right away
@@ -4544,8 +4553,17 @@ class GameBridge(th.Thread):
 	def push_claims(self) -> None:
 		"""Sends the DLL the cities that belong to other mayors (see `GameMonitor.get_claims`), so it warns the moment one opens, before the game asks to reconcile the edges. A `claims_reset` is followed by one `claim` per city, since the DLL reads only flat JSON objects. In the background, since it reads the savegames and asks the server. `guard` still checks each city as it opens, for claims made since."""
 
+		# Pushes asked for close together (eg. when the DLL connects and then loads a region) are done once
+		with self._claims_pending_lock:
+			if self._claims_pending:
+				return
+			self._claims_pending = True
+
 		def push():
+			time.sleep(self.CLAIMS_DELAY)
 			with self._claims_lock:
+				with self._claims_pending_lock:
+					self._claims_pending = False
 				try:
 					claims = self.game_monitor.get_claims()
 				except Exception as e:
