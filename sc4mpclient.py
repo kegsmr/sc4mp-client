@@ -1230,7 +1230,7 @@ def open_server_url(url: str) -> None:
 
 	url = format_url(url)
 
-	if messagebox.askyesno(SC4MP_TITLE, f"You are about to open the following link, which was provided by the server owner:\n\n{url}\n\nOnly open links from servers you trust. Would you like to continue?", icon="warning"):
+	if messagebox.askyesno(SC4MP_TITLE, f"Go to {url}?", icon="warning"):
 		webbrowser.open_new_tab(url)
 
 
