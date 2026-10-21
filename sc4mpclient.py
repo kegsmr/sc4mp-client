@@ -5628,7 +5628,19 @@ class ServerListUI(tk.Frame):
 
 	def open_server_url(self):
 
-		webbrowser.open_new_tab(format_url(self.url_label["text"]))
+		server_id = self.tree.focus()
+		url = self.url_label["text"]
+		if server_id == "" or not url:
+			return
+		server = self.worker.servers[server_id]
+		url = format_url(url)
+
+		# The URL is set by the server owner, so ask first in the same cases as joining a third-party server
+		if not ("Official" in server.categories or "History" in server.categories or sc4mp_config["GENERAL"]["ignore_third_party_server_warnings"]):
+			if not messagebox.askyesno(SC4MP_TITLE, f"Do you wish to proceed to {url}?", icon="warning"):
+				return
+
+		webbrowser.open_new_tab(url)
 
 	
 	def destroy(self):
