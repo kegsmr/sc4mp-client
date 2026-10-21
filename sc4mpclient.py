@@ -3451,31 +3451,35 @@ class GameMonitor(th.Thread):
 
 		# Push them. If errors occur, log them in the console and display a warning
 		self.unpushed_cities.update(save_city_paths)
-		self.bridge.notify("Saving...")	# in the game's chat, followed by the result
 		tries = 0
-		while True:
-			try:
-				self.report("", "Saving...")
-				self.set_overlay_state('saving', "Saving...")
-				self.save(save_city_paths)
-				self.unpushed_cities.difference_update(save_city_paths)	# pushed (or rejected by the server, in which case they're salvaged)
-				break
-			except (NetworkException, socket.timeout, socket.error) as e: # Is `ConnectionResetError` a `socket.error`?
-				show_error(e, no_ui=True)
-				self.set_overlay_state("not_saved", "Retrying save...")	# amber: the server can't be reached
-			except Exception as e:
-				show_error(e, no_ui=True)
-				self.report("[WARNING] ", "Save push failed! Unexpected client-side error.", color="red")
-				self.set_overlay_state("failed", "Save failed")
-				break
-			tries += 1
-			for count in range(5):
-				self.report("[WARNING] ", f"Connection failed. Retrying {5 - count}...")
-				time.sleep(1)
-			if tries >= 3:
-				self.report("[WARNING] ", "Save push failed! Server unreachable.", color="red")
-				self.set_overlay_state("failed", "Server unreachable")	# red: the city wasn't saved
-				break
+		try:
+			while True:
+				try:
+					self.report("", "Saving...")
+					self.bridge.progress("Saving...")	# the last line of the game's chat while the push lasts, followed by the result
+					self.set_overlay_state('saving', "Saving...")
+					self.save(save_city_paths)
+					self.unpushed_cities.difference_update(save_city_paths)	# pushed (or rejected by the server, in which case they're salvaged)
+					break
+				except (NetworkException, socket.timeout, socket.error) as e: # Is `ConnectionResetError` a `socket.error`?
+					show_error(e, no_ui=True)
+					self.set_overlay_state("not_saved", "Retrying save...")	# amber: the server can't be reached
+				except Exception as e:
+					show_error(e, no_ui=True)
+					self.report("[WARNING] ", "Save push failed! Unexpected client-side error.", color="red")
+					self.set_overlay_state("failed", "Save failed")
+					break
+				tries += 1
+				for count in range(5):
+					self.report("[WARNING] ", f"Connection failed. Retrying {5 - count}...")
+					self.bridge.progress(f"Connection failed. Retrying {5 - count}...")
+					time.sleep(1)
+				if tries >= 3:
+					self.report("[WARNING] ", "Save push failed! Server unreachable.", color="red")
+					self.set_overlay_state("failed", "Server unreachable")	# red: the city wasn't saved
+					break
+		finally:
+			self.bridge.progress("")	# however the push ended, so the line doesn't stay
 
 		time.sleep(5)
 
@@ -4151,6 +4155,7 @@ class GameMonitor(th.Thread):
 						if filesize_sent == total_filesize or filesize_reported is None or filesize_sent > filesize_reported + 100000:
 							filesize_reported = filesize_sent
 							self.report_quietly(f'Saving... ({round(filesize_sent / 1000):,}/{round(total_filesize / 1000):,}KB)') 
+							self.bridge.progress(f'Saving... ({round(filesize_sent / 1000):,}/{round(total_filesize / 1000):,}KB)')
 
 			# Handle response from server
 			response = s.save_result()
