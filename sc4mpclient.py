@@ -411,18 +411,14 @@ def check_updates():
 								print(message)
 								ui.label["text"] = message
 
-							# Function to stop the update if the user cancelled it
+							# Function to stop the update if the user cancelled it. A partial download is left in the update directory,
+							# which is purged before the next update, since deleting a just-written installer can take minutes on Windows
 							def cancelled():
 								if ui is None or not ui.cancel:
 									return False
-								if destination is not None and os.path.exists(destination):
-									os.unlink(destination)
 								report("Update cancelled.")
 								ui.parent.quit()
 								return True
-
-							# Path of the installer, set once the download starts
-							destination = None
 
 							# Change working directory to the one where the 
 							# executable can be found
@@ -568,7 +564,7 @@ def check_updates():
 
 						# Ask the user before downloading and installing the update
 						close_splash()
-						if not messagebox.askyesno(SC4MP_TITLE, f"Version {latest_release_info['tag_name']} of the SC4MP Launcher is available. You are currently using v{SC4MP_VERSION}.\n\nWould you like to update now?"):
+						if not messagebox.askyesno(SC4MP_TITLE, f"A new version of the SC4MP Launcher is available ({latest_release_info['tag_name']}).\n\nWould you like to install the update now?"):
 							print("Update declined.")
 							sc4mp_ui.destroy()
 							sc4mp_ui = True
@@ -7545,7 +7541,7 @@ class UpdaterUI(tk.Toplevel):
 
 		# Cancel button
 		self.cancel_button = ttk.Button(self, text="Cancel", command=self.delete_window)
-		self.cancel_button.grid(column=0, row=2, columnspan=2, padx=10, pady=(5,10))
+		self.cancel_button.grid(column=0, row=2, columnspan=2, padx=10, pady=(5,10), sticky="e")
 
 		# Pause underlying thread
 		self.pause = False
