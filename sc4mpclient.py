@@ -5088,7 +5088,7 @@ class HostUI(tk.Toplevel):
 				text = server
 				server_config_ini_path = Path(configs_path) / server / "serverconfig.ini"
 				if server_config_ini_path.exists():
-					config = configparser.ConfigParser()
+					config = configparser.ConfigParser(interpolation=None)
 					config.read(server_config_ini_path)
 					server_name = config.get("INFO", "server_name", fallback="")
 					if server_name:
@@ -5111,8 +5111,8 @@ class HostUI(tk.Toplevel):
 
 			self.grid(sticky="nsew")  # Stretch both directions
 			
-			# Load configuration from file
-			self.config = configparser.ConfigParser()
+			# Load configuration from file (without interpolation, since passwords and descriptions can contain "%")
+			self.config = configparser.ConfigParser(interpolation=None)
 			self.config.read(self.config_path)
 			
 			# Tabbed interface
@@ -5332,17 +5332,20 @@ class HostUI(tk.Toplevel):
 				elif entry.get().strip().isdigit():
 					values[('RULES', key)] = entry.get().strip()
 
-			changed = False
-			for (section, key), value in values.items():
+			changed = [(section, key, value) for (section, key), value in values.items() if self.config.get(section, key, fallback=None) != value]
+			if not changed:
+				return
+
+			# Onto the file as it is now, so settings the server has added since (eg. its other sections) are kept
+			self.config = configparser.ConfigParser(interpolation=None)
+			self.config.read(self.config_path)
+			for section, key, value in changed:
 				if not self.config.has_section(section):
 					self.config.add_section(section)
-				if self.config.get(section, key, fallback=None) != value:
-					self.config.set(section, key, value)
-					changed = True
+				self.config.set(section, key, value)
 
-			if changed:
-				with open(self.config_path, "w", encoding="utf-8") as config_file:
-					self.config.write(config_file)
+			with open(self.config_path, "w", encoding="utf-8") as config_file:
+				self.config.write(config_file)
 
 
 		def get_port(self) -> int:
@@ -5356,21 +5359,20 @@ class HostUI(tk.Toplevel):
 
 
 		def check_running(self):
-			"""Checks every few seconds whether the server is running, by pinging it on its port (servers don't log pings), for as long as its settings are shown."""
+			"""Checks every few seconds whether the server is running, for as long as its settings are shown. The server keeps its process ID and start time in `process.json` (to stop another copy running from the same folder), so it's running if that process still exists."""
 
 			while True:
 				try:
 					if not self.winfo_exists():
 						return
-					port = self.get_port()
 				except Exception:
 					return	# the frame was destroyed
 				try:
-					with ClientSocket(("127.0.0.1", port), timeout=1) as s:
-						s.ping()
-					self.running = True
+					process_info = load_json(self.path / "process.json")
+					creation = datetime.strftime(get_process_creation_time(process_info["pid"]), "%Y%m%d%H%M%S")
+					self.running = creation == process_info["creation"]
 				except Exception:
-					self.running = False
+					self.running = False	# no process.json, or no such process
 				time.sleep(2)
 
 
