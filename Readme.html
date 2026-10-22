@@ -29,7 +29,7 @@
 				<img src="resources/readme-password-prompt.png">
 				<p>If the launcher successfully establishes a connection to the server, it will begin downloading the server's plugins and regions. Loading a server for the first time might take a couple of minutes, but subsequent loading will be sped up significantly by the cache. This loading sequence can be cancelled at any time by x-ing out of the window or pressing escape.</p>
 				<img src="resources/readme-server-loader.png">
-				<p>Once the loading sequence is complete, the server monitor will start alongside Simcity 4. This window will stay open until the game exits. It displays the result of the last save push and the ping (ie. response time) of the server. A lower ping means a better connection.</p>
+				<p>Once the loading sequence is complete, the server monitor will start alongside Simcity 4. This window will stay open until the game exits. It displays the result of the last save push and the ping (ie. response time) of the server. A lower ping means a better connection. Its Chat tab shows the server's chat, where you can also send messages.</p>
 				<img src="resources/readme-server-monitor.png">
 		<h2>Playing in multiplayer</h2>
 			<h3>How claims work</h3>
@@ -45,6 +45,10 @@
 			<!--<h3>Playing in others' cities</h3>
 				<p>You are welcome to open and play in other users' claimed cities. You can even edit them and save them locally, but keep in mind that any changes will not be saved to the server. The saves will also be lost the next time you connect to a server unless you manually move them from the launch directory.</p>
 				<p><b>NOTE:</b> since SC4MP in its current state uses the datetime subfile of savegames as a secondary data point in triangulating save pushes in unusual region configurations, sometimes playing on neighboring tiles can lead to problems. If you encounter issues saving after playing on a neighboring tile, delete all the neighboring tiles of the tile you've claimed to ensure only one savegame is sent to the server.</p>-->
+			<h3>Chatting in game</h3>
+				<p>The launcher loads the SC4MP DLL into the game, which shows the server's chat in the city and region views. Press Enter to type a message, and Enter again to send it. You can also type "say" followed by your message in the cheat box (Ctrl+X). If a message can't be sent, eg. because you're sending messages too quickly, the reason is shown in the chat. Type "sc4mp help" in the cheat box for more commands.</p>
+				<p>The chat panel's title bar shows the server's name and the status of your last save push. The result of each save push is shown in the chat, and a failed save push also pops up in a dialog.</p>
+				<p>The in-game chat isn't available if the game is started through Steam.</p>
 			<h3>Refreshing regions</h3>
 				<p>To refresh regions, simply load the region titled "Refresh..."</p>
 				<img src="resources/readme-regions.png">
