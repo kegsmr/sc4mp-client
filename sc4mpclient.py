@@ -1378,6 +1378,7 @@ class Server:
 		self.guest = None
 		self.chat_enabled = False
 		self.guest_chat = False
+		self.players_online = None
 
 		self.categories = ["All"]
 		if self.host == SC4MP_SERVERS_DOMAIN:
@@ -1419,6 +1420,7 @@ class Server:
 		self.user_plugins_enabled = server_info["user_plugins_enabled"] #self.request("user_plugins_enabled") == "y"
 		self.chat_enabled = server_info.get("chat_enabled", False)	# servers without chat don't send it
 		self.guest_chat = server_info.get("guest_chat", False)	# whether guests can chat, which older servers don't send
+		self.players_online = server_info.get("players_online")	# the players in game, which only servers with chat send
 		try:
 			self.claim_duration = server_info["claim_duration"]
 			self.max_region_claims = server_info["max_region_claims"]
@@ -1490,7 +1492,11 @@ class Server:
 
 			self.stat_mayors = len(mayors) #(random.randint(0,1000))
 			
-			self.stat_mayors_online = len(mayors_online) #int(self.stat_mayors * (float(random.randint(0, 100)) / 100))
+			# Servers with chat count the players actually in game, otherwise it's the mayors who saved recently
+			if self.players_online is not None:
+				self.stat_mayors_online = self.players_online
+			else:
+				self.stat_mayors_online = len(mayors_online) #int(self.stat_mayors * (float(random.randint(0, 100)) / 100))
 			
 			try:
 				self.stat_claimed = (float(claimed_area) / float(total_area)) #(float(random.randint(0, 100)) / 100)

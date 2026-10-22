@@ -54,6 +54,13 @@ class EventChannel:
 			self.push('user_leave', {**context, 'user_id': user_id}, exclude=[user_id])
 
 
+	def user_count(self) -> int:
+		"""How many users are subscribed, each counted once however many subscriptions they have."""
+
+		with self._lock:
+			return len(set(self._users.values()))
+
+
 	def push(self, event_type: str, event_context: dict, exclude=None):
 
 		event = {
