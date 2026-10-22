@@ -5195,7 +5195,7 @@ class HostUI(tk.Toplevel):
 
 			self.rules_frame.claim_duration_checkbutton = ttk.Checkbutton(self.rules_frame, text="Claim duration")
 			claim_duration = self.config.get('RULES', 'claim_duration', fallback="30")
-			self.rules_frame.claim_duration_checkbutton.state(['selected'] if claim_duration else ['!selected'])
+			self.rules_frame.claim_duration_checkbutton.state(['selected'] if claim_duration != "None" else ['!selected'])
 			self.rules_frame.claim_duration_checkbutton.grid(row=0, column=0, padx=10, pady=5, sticky="w")
 
 			self.rules_frame.claim_duration_entry = ttk.Entry(self.rules_frame, width=5)
@@ -5220,12 +5220,16 @@ class HostUI(tk.Toplevel):
 			# Godmode filter checkbutton
 			#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
 			self.rules_frame.godmode_filter_checkbutton = ttk.Checkbutton(self.rules_frame, text="Allow claims in godmode", onvalue=False, offvalue=True) #, variable=self.updates_frame.checkbutton_variable)
+			godmode_filter = self.config.getboolean('RULES', 'godmode_filter', fallback=True)
+			self.rules_frame.godmode_filter_checkbutton.state(['!selected'] if godmode_filter else ['selected'])
 			self.rules_frame.godmode_filter_checkbutton.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="w")
 			#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
 
 			# User plugins checkbutton
 			#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
 			self.rules_frame.user_plugins_checkbutton = ttk.Checkbutton(self.rules_frame, text="Allow user plugins", onvalue=True, offvalue=False) #, variable=self.updates_frame.checkbutton_variable)
+			user_plugins = self.config.getboolean('RULES', 'user_plugins', fallback=False)
+			self.rules_frame.user_plugins_checkbutton.state(['selected'] if user_plugins else ['!selected'])
 			self.rules_frame.user_plugins_checkbutton.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="w")
 			#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
 
@@ -5237,18 +5241,31 @@ class HostUI(tk.Toplevel):
 			# self.regions_frame = tk.Frame(self.regions_tab)
 			# self.regions_frame.grid(row=0, column=0, padx=10, pady=10)
 
+			# Whether the server is running
+			self.running = False
+			self.status_label = ttk.Label(self, text="Stopped")
+			self.status_label.grid(row=1, column=0, sticky="w", padx=10, pady=(5, 0))
+
 			# Buttons at bottom
-			# button_frame = tk.Frame(self)
-			# button_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
+			button_frame = tk.Frame(self)
+			button_frame.grid(row=2, column=0, sticky="ew", padx=5, pady=5)
 
-			# start_button = ttk.Button(button_frame, text="Start")
-			# start_button.grid(row=0, column=0, padx=5)
+			self.start_button = ttk.Button(button_frame, text="Start", width=8, command=self.start)
+			self.start_button.grid(row=0, column=0, padx=2)
 
-			# logs_button = ttk.Button(button_frame, text="Logs")
-			# logs_button.grid(row=0, column=1, padx=5)
+			self.stop_button = ttk.Button(button_frame, text="Stop", width=8, command=self.stop)
+			self.stop_button.grid(row=0, column=1, padx=2)
 
-			# connect_button = ttk.Button(button_frame, text="Connect")
-			# connect_button.grid(row=0, column=2, padx=5)
+			self.connect_button = ttk.Button(button_frame, text="Connect", width=8, command=self.connect)
+			self.connect_button.grid(row=0, column=2, padx=2)
+
+			logs_button = ttk.Button(button_frame, text="Logs", width=8, command=self.logs)
+			logs_button.grid(row=0, column=3, padx=2)
+
+			folder_button = ttk.Button(button_frame, text="Folder", width=8, command=lambda: startfile(self.path))
+			folder_button.grid(row=0, column=4, padx=2)
+
+			th.Thread(target=self.check_running, daemon=True).start()
 
 			# Configure stretching
 			self.columnconfigure(0, weight=1)
@@ -5271,28 +5288,126 @@ class HostUI(tk.Toplevel):
 				else:
 					entry.state(['disabled'])
 
-			self.update()
+			self.save()
+
+			if self.running:
+				self.status_label["text"] = f"Running on port {self.get_port()}"
+				self.start_button.state(['disabled'])
+				self.stop_button.state(['!disabled'])
+				self.connect_button.state(['!disabled'])
+			else:
+				self.status_label["text"] = "Stopped"
+				self.start_button.state(['!disabled'])
+				self.stop_button.state(['disabled'])
+				self.connect_button.state(['disabled'])
 
 			self.after(100, self.loop)
 
 
-		def update(self):
+		def save(self):
+			"""Writes the settings to the server's `serverconfig.ini` when they've changed. Numbers that aren't valid yet (eg. while being typed) are left as they were."""
 
-			def add_section(name):
-				if not self.config.has_section(name):
-					self.config.add_section(name)
+			values = {
+				('NETWORK', 'discoverable'): str(self.network_frame.checkbutton.instate(['selected'])),
+				('INFO', 'server_name'): self.info_frame.name_entry.get(),
+				('INFO', 'server_description'): self.info_frame.description_entry.get(),
+				('INFO', 'server_url'): self.info_frame.url_entry.get(),
+				('SECURITY', 'password_enabled'): str(self.security_frame.password_checkbutton.instate(['selected'])),
+				('SECURITY', 'password'): self.security_frame.password_entry.get(),
+				('RULES', 'godmode_filter'): str(not self.rules_frame.godmode_filter_checkbutton.instate(['selected'])),
+				('RULES', 'user_plugins'): str(self.rules_frame.user_plugins_checkbutton.instate(['selected'])),
+			}
 
-			add_section('NETWORK')
-			self.config.set('NETWORK', 'port', "7240") #TODO
-			self.config.set('NETWORK', 'discoverable', str(True)) #TODO
+			port = self.network_frame.port_entry.get().strip()
+			if port.isdigit() and 0 < int(port) < 65536:
+				values[('NETWORK', 'port')] = port
 
-			add_section('INFO')
-			self.config.set('INFO', 'server_name', self.info_frame.name_entry.get())
-			self.config.set('INFO', 'server_description', self.info_frame.description_entry.get())
-			self.config.set('INFO', 'server_url', self.info_frame.url_entry.get())
+			# Unticked is "None" (no limit)
+			for key, checkbutton, entry in [
+				('claim_duration', self.rules_frame.claim_duration_checkbutton, self.rules_frame.claim_duration_entry),
+				('max_region_claims', self.rules_frame.max_region_claims_checkbutton, self.rules_frame.max_region_claims_entry),
+			]:
+				if not checkbutton.instate(['selected']):
+					values[('RULES', key)] = "None"
+				elif entry.get().strip().isdigit():
+					values[('RULES', key)] = entry.get().strip()
 
-			with open(self.config_path, "w", encoding="utf-8") as config_file:
-				self.config.write(config_file)
+			changed = False
+			for (section, key), value in values.items():
+				if not self.config.has_section(section):
+					self.config.add_section(section)
+				if self.config.get(section, key, fallback=None) != value:
+					self.config.set(section, key, value)
+					changed = True
+
+			if changed:
+				with open(self.config_path, "w", encoding="utf-8") as config_file:
+					self.config.write(config_file)
+
+
+		def get_port(self) -> int:
+
+			return self.config.getint('NETWORK', 'port', fallback=SC4MP_PORT)
+
+
+		def get_server_exe(self) -> Path:
+
+			return Path(sc4mp_config['HOSTING']['server_path']) / "sc4mpserver.exe"
+
+
+		def check_running(self):
+			"""Checks every few seconds whether the server is running, by pinging it on its port (servers don't log pings), for as long as its settings are shown."""
+
+			while True:
+				try:
+					if not self.winfo_exists():
+						return
+					port = self.get_port()
+				except Exception:
+					return	# the frame was destroyed
+				try:
+					with ClientSocket(("127.0.0.1", port), timeout=1) as s:
+						s.ping()
+					self.running = True
+				except Exception:
+					self.running = False
+				time.sleep(2)
+
+
+		def start(self):
+
+			exe = self.get_server_exe()
+			if not exe.exists():
+				show_error(f"The SC4MP Server isn't installed in \"{exe.parent}\".")
+				return
+
+			self.save()
+
+			# The same as the server's own `start.bat`
+			subprocess.Popen([str(exe), "-s", str(self.path)], cwd=exe.parent)
+
+
+		def stop(self):
+
+			exe = self.get_server_exe()
+
+			# The server's `--stop` ends the server running from this path (like its `stop.bat`)
+			th.Thread(target=lambda: subprocess.run([str(exe), "-s", str(self.path), "--stop"], cwd=exe.parent), daemon=True).start()
+
+
+		def connect(self):
+
+			self.winfo_toplevel().destroy()
+			ServerLoaderUI(Server("localhost", self.get_port()))
+
+
+		def logs(self):
+
+			log_path = self.path / "sc4mpserver.log"
+			if log_path.exists():
+				startfile(log_path)
+			else:
+				messagebox.showinfo(SC4MP_TITLE, "This server has no logs yet. They appear once it has been started.", parent=self)
 
 
 	def __init__(self):
