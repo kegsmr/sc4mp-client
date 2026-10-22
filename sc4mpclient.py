@@ -3257,7 +3257,7 @@ class GameMonitor(th.Thread):
 		self.guest = bool(self.server.guest) or self.server.password == ""
 
 		# Guests get a user ID for the session on servers that let them chat, so the server can tell them apart and their own messages show as theirs
-		self.guest_chat = self.guest and self.server.guest_chat
+		self.guest_chat = self.guest and self.server.chat_enabled and self.server.guest_chat
 		if self.guest_chat and self.server.user_id is None:
 			self.server.user_id = random_string(32)
 
