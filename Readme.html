@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-		<title>Readme &bull; SC4MP Launcher v0.8.2</title>
+		<title>Readme &bull; SC4MP Launcher</title>
 		<link rel="icon" href="resources/readme-favicon.ico">
 		<link rel="stylesheet" href="resources/readme-styles.css">
 		<nav>
 			<h1><span style="color: #ffd74c">SC4</span><span style="color: #d03333;">MP</span> Launcher</h1>
-			<p>Readme &bull; Version 0.8.2</p>	
+			<p>Readme &bull; Version <version>0.8.11</version></p>	
 		</nav>
 	</head>
     <body>
@@ -81,10 +81,15 @@
 			<img src="resources/readme-import-city.png">
 		<h2>Advanced launch parameters</h2>
 			<p>Some launch parameters are provided for advanced users. Their definitions can be found below:</p>
-			<p><b>"-no-ui" flag:</b> this disables the ui and prompts the user to enter in the host, port and password (if required) of a server through the commandline, if not also specified through launch parameters.</p>
+			<p><b>"--no-ui" flag:</b> this disables the ui and prompts the user to enter in the host, port and password (if required) of a server through the commandline, if not also specified through launch parameters.</p>
 			<p><b>"--host [hostname]" option:</b> used to specify the hostname of a server to connect to immediately when starting the launcher.</p>
 			<p><b>"--port [port]" option:</b> used to specify the port of a server to connect to.</p>
 			<p><b>"--password [password]" option:</b> used to specify the password for a server (if required).</p>
+			<p><b>"--exit-after" flag:</b> closes the launcher when the game exits (or joining the server is cancelled), instead of returning to the server list.</p>
+			<p><b>"-k" or "--skip-update" flag:</b> skips checking for launcher updates at startup. The check is also skipped whenever other launch parameters are given.</p>
+			<p><b>"-u" or "--force-update" flag:</b> downloads and installs the latest launcher release at startup, even if it isn't newer.</p>
+			<p><b>"--allow-multiple" flag:</b> allows more than one launcher to run at the same time.</p>
+			<p><b>"sc4mp://[host]:[port]" link:</b> given on its own, joins that server, as when an invite link is opened in the browser.</p>
 		<h2>Issues</h2>
 			<p>If you encounter a bug or error when using the SC4MP Launcher, create a ticket on <a href="https://github.com/kegsmr/sc4mp-client/releases">GitHub</a>.</p>
 		<h2>Updates and more</h2>
@@ -92,7 +97,7 @@
 			<p></p>
 			<p>Visit the official SC4MP website at <a href="http://www.sc4mp.org/">sc4mp.org</a>.</p>
 		<h2>Credits</h2>
-			<p>This readme was prepared for the SC4MP Launcher version 0.8.2.</p>
+			<p>This readme was prepared for the SC4MP Launcher version <version>0.8.11</version>.</p>
 			<p>View the full list of collaborators on <a href="https://github.com/kegsmr/sc4mp-client/collaborators">GitHub</a>.</p>
 			<p>Special thanks to <a href="http://j5.io/">Julian Cizmic</a>, the original creator of PMR, the primary inspiration for SC4MP.</p>
     </body>
