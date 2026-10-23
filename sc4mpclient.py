@@ -8409,12 +8409,6 @@ class UpdaterUI(tk.Toplevel):
 		# Icon
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
-		# Geometry
-		self.minsize(400, 110)
-		self.maxsize(400, 110)
-		self.grid()
-		center_window(self)
-
 		# Background
 		self.configure(background="white")
 
@@ -8441,12 +8435,16 @@ class UpdaterUI(tk.Toplevel):
 			length=380,
 			maximum=100
 		)
-		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=20, pady=(10,5))
+		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10,5))
 		self.progress_bar.start(2)
 
 		# Cancel button
 		self.cancel_button = ttk.Button(self, text="Cancel", command=self.delete_window)
 		self.cancel_button.grid(column=0, row=2, columnspan=2, padx=10, pady=(5,10), sticky="e")
+
+		# Geometry (sized to fit the widgets above, which are larger with display scaling)
+		self.resizable(False, False)
+		center_window(self)
 
 		# Pause underlying thread
 		self.pause = False
