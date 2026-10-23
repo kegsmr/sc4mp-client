@@ -32,6 +32,7 @@ COMMAND_TOKEN = 'Token'
 COMMAND_TIME = 'Time'
 COMMAND_LOADING_BACKGROUND = 'LdgBkg'
 COMMAND_SUBSCRIBE = 'Subscr'
+COMMAND_CHAT = 'Chat'
 
 
 def send_json(s: socket.socket, data, length_encoding="I"):
@@ -650,6 +651,13 @@ class ClientSocket(Socket):
 		return pluck_header(response, 'events', list)
 
 
+	def chat(self, message: str, **headers):
+
+		self.request(
+			command=COMMAND_CHAT, message=message, **headers
+		)
+
+
 class ServerSocket(Socket):
 
 
@@ -705,13 +713,15 @@ class BaseRequestHandler(Thread):
 			COMMAND_TOKEN: self.res_token,
 			COMMAND_TIME: self.res_time,
 			COMMAND_LOADING_BACKGROUND: self.res_loading_background,
-			COMMAND_SUBSCRIBE: self.res_subscribe
+			COMMAND_SUBSCRIBE: self.res_subscribe,
+			COMMAND_CHAT: self.res_chat
 		}
 
 		self.require_auth = [
 			COMMAND_SAVE,
 			COMMAND_TOKEN,
-			COMMAND_SUBSCRIBE
+			COMMAND_SUBSCRIBE,
+			COMMAND_CHAT
 		]
 
 		if private:
@@ -743,6 +753,7 @@ class BaseRequestHandler(Thread):
 	def res_time(self): self.respond()
 	def res_loading_background(self): self.respond()
 	def res_subscribe(self): self.respond()
+	def res_chat(self): self.respond()
 
 
 	def get_header(self, key: str, type: Type):
