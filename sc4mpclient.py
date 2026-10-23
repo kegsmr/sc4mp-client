@@ -5438,7 +5438,7 @@ class HostUI(tk.Toplevel):
 
 			self.save()
 
-			# Don't start a second server on the same port (the server reuses the port, so both would start)
+			# Don't start a second server on the same port (it would keep failing to bind the port, retrying every few seconds)
 			port = self.get_port()
 			for other_path in self.path.parent.iterdir():
 				if other_path == self.path or not self.is_running(other_path):
