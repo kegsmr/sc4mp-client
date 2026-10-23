@@ -5148,7 +5148,7 @@ class HostUI(tk.Toplevel):
 
 			self.network_frame.checkbutton = ttk.Checkbutton(self.network_frame, text="Discoverable")
 			discoverable = self.config.getboolean('NETWORK', 'discoverable', fallback=True)
-			self.network_frame.checkbutton.state(['selected'] if discoverable else ['!selected'])
+			self.network_frame.checkbutton.state(['selected', '!alternate'] if discoverable else ['!selected', '!alternate'])
 			self.network_frame.checkbutton.grid(row=0, column=2, padx=10, pady=5, sticky="w")
 
 			# Info tab
@@ -5182,7 +5182,7 @@ class HostUI(tk.Toplevel):
 
 			self.security_frame.password_checkbutton = ttk.Checkbutton(self.security_frame, text="Password")
 			password_enabled = self.config.getboolean('SECURITY', 'password_enabled', fallback=False)
-			self.security_frame.password_checkbutton.state(['selected'] if password_enabled else ['!selected'])
+			self.security_frame.password_checkbutton.state(['selected', '!alternate'] if password_enabled else ['!selected', '!alternate'])
 			self.security_frame.password_checkbutton.grid(row=0, column=0, padx=10, pady=5, sticky="e")
 
 			self.security_frame.password_entry = ttk.Entry(self.security_frame, width=35) #, show="*")
@@ -5195,7 +5195,7 @@ class HostUI(tk.Toplevel):
 
 			self.rules_frame.claim_duration_checkbutton = ttk.Checkbutton(self.rules_frame, text="Claim duration")
 			claim_duration = self.config.get('RULES', 'claim_duration', fallback="30")
-			self.rules_frame.claim_duration_checkbutton.state(['selected'] if claim_duration != "None" else ['!selected'])
+			self.rules_frame.claim_duration_checkbutton.state(['selected', '!alternate'] if claim_duration != "None" else ['!selected', '!alternate'])
 			self.rules_frame.claim_duration_checkbutton.grid(row=0, column=0, padx=10, pady=5, sticky="w")
 
 			self.rules_frame.claim_duration_entry = ttk.Entry(self.rules_frame, width=5)
@@ -5207,7 +5207,7 @@ class HostUI(tk.Toplevel):
 
 			self.rules_frame.max_region_claims_checkbutton = ttk.Checkbutton(self.rules_frame, text="Max claims")
 			max_claims = self.config.get('RULES', 'max_region_claims', fallback="1")
-			self.rules_frame.max_region_claims_checkbutton.state(['selected'] if max_claims != "None" else ['!selected'])
+			self.rules_frame.max_region_claims_checkbutton.state(['selected', '!alternate'] if max_claims != "None" else ['!selected', '!alternate'])
 			self.rules_frame.max_region_claims_checkbutton.grid(row=1, column=0, padx=10, pady=5, sticky="w")
 
 			self.rules_frame.max_region_claims_entry = ttk.Entry(self.rules_frame, width=5)
@@ -5221,7 +5221,7 @@ class HostUI(tk.Toplevel):
 			#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
 			self.rules_frame.godmode_filter_checkbutton = ttk.Checkbutton(self.rules_frame, text="Allow claims in godmode", onvalue=False, offvalue=True) #, variable=self.updates_frame.checkbutton_variable)
 			godmode_filter = self.config.getboolean('RULES', 'godmode_filter', fallback=True)
-			self.rules_frame.godmode_filter_checkbutton.state(['!selected'] if godmode_filter else ['selected'])
+			self.rules_frame.godmode_filter_checkbutton.state(['!selected', '!alternate'] if godmode_filter else ['selected', '!alternate'])
 			self.rules_frame.godmode_filter_checkbutton.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="w")
 			#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
 
@@ -5229,7 +5229,7 @@ class HostUI(tk.Toplevel):
 			#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
 			self.rules_frame.user_plugins_checkbutton = ttk.Checkbutton(self.rules_frame, text="Allow user plugins", onvalue=True, offvalue=False) #, variable=self.updates_frame.checkbutton_variable)
 			user_plugins = self.config.getboolean('RULES', 'user_plugins', fallback=False)
-			self.rules_frame.user_plugins_checkbutton.state(['selected'] if user_plugins else ['!selected'])
+			self.rules_frame.user_plugins_checkbutton.state(['selected', '!alternate'] if user_plugins else ['!selected', '!alternate'])
 			self.rules_frame.user_plugins_checkbutton.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="w")
 			#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
 
@@ -5291,7 +5291,7 @@ class HostUI(tk.Toplevel):
 			self.save()
 
 			if self.running:
-				self.status_label["text"] = f"Running on port {self.get_port()}"
+				self.status_label["text"] = f"Running on port {self.get_port()}. Changes apply when it restarts."	# the server reads its settings when it starts
 				self.start_button.state(['disabled'])
 				self.stop_button.state(['!disabled'])
 				self.connect_button.state(['!disabled'])
@@ -5346,6 +5346,11 @@ class HostUI(tk.Toplevel):
 
 			with open(self.config_path, "w", encoding="utf-8") as config_file:
 				self.config.write(config_file)
+
+			# The list shows the new name
+			server_name = self.config.get('INFO', 'server_name', fallback="")
+			if server_name:
+				self.master.server_selection_frame.tree.item(self.path.name, text=server_name)
 
 
 		def get_port(self) -> int:
