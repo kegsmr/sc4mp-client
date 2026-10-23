@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import configparser
 import ctypes
+import gc
 import hashlib
 import inspect
 import json
@@ -22,6 +23,7 @@ import tkinter as tk
 import tkinter.font as tkfont
 import traceback
 import webbrowser
+from argparse import ArgumentParser, Namespace
 from datetime import datetime, timedelta
 from pathlib import Path
 from tkinter import Menu, filedialog, messagebox, ttk
@@ -157,8 +159,6 @@ SC4MP_URL_PREFIX = "sc4mp://"
 SC4MP_SERVERS_DOMAIN = "servers.sc4mp.org"
 SC4MP_INVITES_DOMAIN = "invite.sc4mp.org"
 
-sc4mp_args = sys.argv
-
 sc4mp_ui = None
 
 sc4mp_current_server = None
@@ -183,13 +183,15 @@ def main():
 
 	try:
 
+		# Parse arguments
+		args = parse_args()
+
 		# URL launch behavior
-		url_launch = len(sc4mp_args) > 1 and sc4mp_args[1] \
-			.startswith(SC4MP_URL_PREFIX)
+		url_launch = args.url is not None and args.url.startswith(SC4MP_URL_PREFIX)
 		url_launch_exit_after = True
 
 		# Exit if already runnning (unless launching using URL)
-		if not "-allow-multiple" in sc4mp_args:
+		if not args.allow_multiple:
 			try:
 				count = process_count("sc4mpclient.exe")
 				if count is not None and count > 1:
@@ -234,51 +236,29 @@ def main():
 		# Title
 		print(SC4MP_TITLE)
 
-		# "-force-update"/"-skip-update" flags
+		# -u / --force-update and -k / --skip-update arguments (any other argument skips the update check too, unless forced)
 		global sc4mp_force_update, sc4mp_skip_update
-		sc4mp_force_update = "-force-update" in sc4mp_args
-		sc4mp_skip_update = "-skip-update" in sc4mp_args \
-			or (len(sc4mp_args) > 1 and not sc4mp_force_update)
+		sc4mp_force_update = args.force_update
+		sc4mp_skip_update = args.skip_update or (len(sys.argv) > 1 and not sc4mp_force_update)
 
-		# "-no-ui" flag
+		# --no-ui argument
 		global sc4mp_ui
-		sc4mp_ui = not "-no-ui" in sc4mp_args
+		sc4mp_ui = not args.no_ui
 
-		# "-exit-after" flag
+		# --exit-after argument
 		global sc4mp_exit_after
-		sc4mp_exit_after = "-exit-after" in sc4mp_args
+		sc4mp_exit_after = args.exit_after
 
-		# "--host" argument
-		global sc4mp_host
-		sc4mp_host = None
-		if "--host" in sc4mp_args:
-			try:
-				sc4mp_host = get_arg_value("--host", sc4mp_args)
-			except Exception as e:
-				raise ClientException("Invalid arguments.") from e
-
-		# "--port" argument
-		global sc4mp_port
-		sc4mp_port = None
-		if "--port" in sc4mp_args:
-			try:
-				sc4mp_port = int(get_arg_value("--port", sc4mp_args))
-			except Exception as e:
-				raise ClientException("Invalid arguments.") from e
-
-		# "--password" argument
-		global sc4mp_password
-		sc4mp_password = None
-		if "--password" in sc4mp_args:
-			try:
-				sc4mp_password = get_arg_value("--password", sc4mp_args)
-			except Exception as e:
-				raise ClientException("Invalid arguments.") from e
+		# --host, --port and --password arguments
+		global sc4mp_host, sc4mp_port, sc4mp_password
+		sc4mp_host = args.host
+		sc4mp_port = args.port
+		sc4mp_password = args.password
 
 		# Launch using URL
 		if url_launch:
 			try:
-				url = sc4mp_args[1]
+				url = args.url
 				url = url.replace(SC4MP_URL_PREFIX, "", 1)
 				if url.endswith("/"):
 					url = url[:-1]
@@ -291,7 +271,7 @@ def main():
 					sc4mp_port = 7240
 				sc4mp_exit_after = url_launch_exit_after
 			except Exception:
-				show_error(f"Invalid URL.\n\nURLs must adhere to:\nsc4mp://<host>:<port>\n\nURL given:\n{sc4mp_args[1]}")
+				show_error(f"Invalid URL.\n\nURLs must adhere to:\nsc4mp://<host>:<port>\n\nURL given:\n{args.url}")
 				return
 
 		# Prep
@@ -339,6 +319,38 @@ def main():
 	# Cleanup
 	print("Shutting down...")
 	cleanup()
+
+
+def parse_args() -> Namespace:
+	"""Parse command line arguments"""
+
+	parser = ArgumentParser(prog="SC4MP Launcher",
+						 description="SimCity 4 Multiplayer Launcher")
+
+	parser.add_argument("url", nargs="?", help="join the server at an \"sc4mp://<host>:<port>\" link")
+
+	parser.add_argument("-k", "--skip-update", help="skip the update check at startup", action="store_true")
+
+	parser.add_argument("-u", "--force-update", help="force update at startup (Windows-only)", action="store_true")
+
+	parser.add_argument("--no-ui", help="run without the UI, asking for the server in the command line", action="store_true")
+
+	parser.add_argument("--host", help="join the server at this host when starting")
+
+	parser.add_argument("--port", help="the port of the server to join", type=int)
+
+	parser.add_argument("--password", help="the password of the server to join, if it has one")
+
+	parser.add_argument("--exit-after", help="exit after leaving the server", action="store_true")
+
+	parser.add_argument("--allow-multiple", help="allow more than one launcher to run at once", action="store_true")
+
+	# Unknown arguments, eg. the old single-dash flags, are ignored rather than stopping the launcher
+	args, unknown_args = parser.parse_known_args()
+	if unknown_args:
+		print(f"[WARNING] Ignoring unknown arguments: {' '.join(unknown_args)}")
+
+	return args
 
 
 def prep():
@@ -411,6 +423,15 @@ def check_updates():
 								print(message)
 								ui.label["text"] = message
 
+							# Function to stop the update if the user cancelled it. A partial download is left in the update directory,
+							# which is purged before the next update, since deleting a just-written installer can take minutes on Windows
+							def cancelled():
+								if ui is None or not ui.cancel:
+									return False
+								report("Update cancelled.")
+								ui.parent.quit()
+								return True
+
 							# Change working directory to the one where the
 							# executable can be found
 							if exec_file == "sc4mpclient.exe":
@@ -450,6 +471,10 @@ def check_updates():
 									# Pause if necessary
 									pause()
 
+									# Stop if the user cancelled
+									if cancelled():
+										return
+
 									# Get download URL
 									download_url = None
 									for asset in latest_release_info["assets"]:
@@ -473,25 +498,31 @@ def check_updates():
 									# Pause if necessary
 									pause()
 
-									# Download file
-									download_size = int(urllib.request.urlopen(download_url).headers["Content-Length"])
+									# Download file (with a timeout so a stalled
+									# connection can't block cancelling forever)
+									download_size = int(urllib.request.urlopen(download_url, timeout=10).headers["Content-Length"])
 									if ui is not None:
 										ui.label["text"] = "Downloading update... (0%)"
 										ui.progress_bar["mode"] = "determinate"
 										ui.progress_bar["maximum"] = download_size
 										ui.progress_bar["value"] = 0
-									with urllib.request.urlopen(download_url) as rfile:
+									with urllib.request.urlopen(download_url, timeout=10) as rfile:
 										with open(destination, "wb") as wfile:
 											download_size_downloaded = 0
 											while download_size_downloaded < download_size:
-												while ui.pause:
-													time.sleep(.1)
+												pause()
+												if ui is not None and ui.cancel:
+													break
 												if ui is not None:
 													ui.label["text"] = f"Downloading update... ({int(100 * (download_size_downloaded / download_size))}%)"
 													ui.progress_bar["value"] = download_size_downloaded
 												bytes_read = rfile.read(SC4MP_BUFFER_SIZE)
 												download_size_downloaded += len(bytes_read)
 												wfile.write(bytes_read)
+
+									# Stop and delete the partial download if the user cancelled
+									if cancelled():
+										return
 
 									# Pause if necessary
 									pause()
@@ -506,6 +537,10 @@ def check_updates():
 									# Pause if necessary
 									pause()
 
+									# Stop if the user cancelled
+									if cancelled():
+										return
+
 									# Start installer in very silent mode and exit
 									subprocess.Popen([os.path.abspath(destination), f"/dir={os.getcwd()}", "/verysilent"])
 									ui.destroy()
@@ -513,6 +548,10 @@ def check_updates():
 								except Exception as e:
 
 									show_error(f"An error occurred in the update thread.\n\n{e}", no_ui=True)
+
+									# Don't retry if the user cancelled
+									if cancelled():
+										return
 
 									# Retry
 									if ui is not None:
@@ -535,15 +574,40 @@ def check_updates():
 						sc4mp_ui.iconphoto(True, tk.PhotoImage(file=SC4MP_ICON))
 						sc4mp_ui.withdraw()
 
+						# Ask the user before downloading and installing the update
+						close_splash()
+						if not messagebox.askyesno(SC4MP_TITLE, f"A new version of the SC4MP Launcher is available ({latest_release_info['tag_name']}).\n\nWould you like to install the update now?"):
+							print("Update declined.")
+							sc4mp_ui.destroy()
+							sc4mp_ui = True
+							return
+
 						# Create updater UI
 						updater_ui = UpdaterUI(sc4mp_ui)
 
 						# Start update thread
-						th.Thread(target=update, kwargs={"ui": updater_ui}, daemon=True).start()
+						update_thread = th.Thread(target=update, kwargs={"ui": updater_ui}, daemon=True)
+						update_thread.start()
 
 						# Run the UI main loop
-						close_splash()
 						sc4mp_ui.mainloop()
+
+						# Continue to the launcher if the update was cancelled
+						if updater_ui.cancel:
+
+							# Wait for the update thread to let go of the Tk root, it must be freed on this thread
+							update_thread.join()
+
+							# Stop the progress bar's timer so it doesn't fire after the Tk root is destroyed
+							updater_ui.progress_bar.stop()
+							updater_ui.destroy()
+
+							# Free the old Tk root now, on this thread (Tcl aborts if another thread's garbage collection frees it)
+							updater_ui = None
+							sc4mp_ui = True
+							gc.collect()
+
+							return
 
 						# Exit when complete
 						sys.exit()
@@ -753,7 +817,15 @@ def get_sc4_path() -> Optional[Path]:
 	else:
 
 		# This list could be expanded if Linux/MacOS users want to put what paths they use
-		possible_paths: list[Path] = [config_path]
+		possible_paths: list[Path] = [
+
+			# Custom (specified by the user)
+			config_path,
+
+			# Steam on Linux (runs through Proton)
+			Path("~/.local/share/Steam/steamapps/common/SimCity 4 Deluxe/Apps/SimCity 4.exe").expanduser(),
+
+		]
 
 	# for possible_path in possible_paths:
 	# 	if possible_path.is_file():
@@ -807,7 +879,7 @@ def start_sc4():
 
 
 	# Arguments set based on config settings
-	arguments = [str(path),
+	arguments = [str(path.absolute()),  # absolute, since the game is started from its own folder
 			  f'-UserDir:"{SC4MP_LAUNCHPATH}{os.sep}"', # add trailing slash here because SC4 expects it
 			  '-intro:off',
 			  '-CustomResolution:enabled',
@@ -851,13 +923,13 @@ def start_sc4():
 		# Regular command
 		command = ' '.join(arguments)
 
-		# Launch the game
+		# Launch the game from its own folder, like its shortcut does (some DLL plugins use relative paths, e.g. SC4Fix writes "SC4Fix.log" to the working directory)
 		print(f"- launching directly ('{command}').")
 		try:
 			if is_windows():
-				subprocess.run(command, executable=arguments[0]) 			# `subprocess.run(arguments)` won't work on Windows for some unknowable reason; `executable` stops Windows guessing where the exe path ends
+				subprocess.run(command, executable=arguments[0], cwd=path.parent) 			# `subprocess.run(arguments)` won't work on Windows for some unknowable reason; `executable` stops Windows guessing where the exe path ends
 			else:
-				subprocess.run(arguments)  			# on Linux, the first String passed as argument must be a file that exists
+				subprocess.run(arguments, cwd=path.parent)  			# on Linux, the first String passed as argument must be a file that exists
 		except PermissionError as e:
 			show_error(f"The launcher does not have the necessary privileges to launch SimCity 4. Try running the SC4MP Launcher as administrator.")
 
@@ -1026,7 +1098,7 @@ def open_logs():
 	if has_powershell():
 		subprocess.Popen([
 			"cmd.exe", "/c", "start", "cmd.exe", "/k",
-			f"@echo off && powershell -NoProfile -ExecutionPolicy Bypass -Command $Host.UI.RawUI.WindowTitle = \"{SC4MP_TITLE}\"; gc sc4mpclient.log -Wait -Tail 1000"
+			f"@echo off && powershell -NoProfile -ExecutionPolicy Bypass -Command $Host.UI.RawUI.WindowTitle = \"{SC4MP_TITLE}\"; gc sc4mpclient.log -Encoding UTF8 -Wait -Tail 1000"
 		])
 	else:
 		startfile(SC4MP_LOG_PATH)
@@ -1116,11 +1188,6 @@ def get_fullpaths_recursively(dir: Path) -> list[Path]:
 def get_relpaths_recursively(dir: Path) -> list[Path]:
 	"""Returns relative paths of all files in a directory recursively."""
 	return [path.relative_to(dir) for path in dir.rglob("*") if path.is_file()]
-
-
-def get_arg_value(arg, args):
-	"""Returns the following token in commandline arguments."""
-	return args[args.index(arg) + 1]
 
 
 def set_server_data(entry, server):
@@ -3003,7 +3070,7 @@ class ServerLoader(th.Thread):
 
 						# Receive the file. Write to both the destination and cache
 						filesize_read = 0
-						with d.open("wb") as dest, t.open("wb") as cache:
+						with d.open("wb") as dest, t.with_name(t.name + ".tmp").open("wb") as cache:
 							for chunk in chunks:
 								for file in [dest, cache]:
 									file.write(chunk)
@@ -3032,6 +3099,7 @@ class ServerLoader(th.Thread):
 												self.ui.duration_label["text"] = f"{minutes}:{seconds:0>{2}}"
 									except ZeroDivisionError as e:
 										show_error(e, no_ui=True) # Lazy solution
+						t.with_name(t.name + ".tmp").replace(t)	# only cache the file once its checksum has been verified
 
 				self.report_progress(f"Synchronizing {target}... (100%)", 100, 100)
 
@@ -4194,7 +4262,7 @@ class RegionsRefresher(th.Thread):
 
 						# Receive the file. Write to both the destination and cache
 						filesize_read = 0
-						with d.open("wb") as dest, t.open("wb") as cache:
+						with d.open("wb") as dest, t.with_name(t.name + ".tmp").open("wb") as cache:
 							for chunk in chunks:
 								filesize_remaining = filesize - filesize_read
 								for file in [dest, cache]:
@@ -4205,6 +4273,7 @@ class RegionsRefresher(th.Thread):
 								percent = math.floor(100 * (size_downloaded / (size + 1)))
 								if percent > old_percent:
 									self.report_progress(f"Refreshing regions... ({percent}%)", percent, 100)
+						t.with_name(t.name + ".tmp").replace(t)	# only cache the file once its checksum has been verified
 
 				self.report_progress("Refreshing regions... (100%)", 100, 100)
 
@@ -4796,7 +4865,7 @@ class StorageSettingsUI(tk.Toplevel):
 			update_config_value("STORAGE", key, data)
 		if restart:
 			if Path(sys.executable).name == "sc4mpclient.exe":
-				subprocess.Popen([sys.executable, "-skip-update", "-allow-multiple"])
+				subprocess.Popen([sys.executable, "--skip-update", "--allow-multiple"])
 			else:
 				subprocess.Popen([sys.executable, os.path.abspath(__file__)])
 			sc4mp_ui.quit()
@@ -5854,7 +5923,19 @@ class ServerListUI(tk.Frame):
 
 	def open_server_url(self):
 
-		webbrowser.open_new_tab(format_url(self.url_label["text"]))
+		server_id = self.tree.focus()
+		url = self.url_label["text"]
+		if server_id == "" or not url:
+			return
+		server = self.worker.servers[server_id]
+		url = format_url(url)
+
+		# The URL is set by the server owner, so ask first in the same cases as joining a third-party server
+		if not ("Official" in server.categories or "History" in server.categories or sc4mp_config["GENERAL"]["ignore_third_party_server_warnings"]):
+			if not messagebox.askyesno(SC4MP_TITLE, f"Do you wish to proceed to {url}?", icon="warning"):
+				return
+
+		webbrowser.open_new_tab(url)
 
 
 	def destroy(self):
@@ -7744,8 +7825,8 @@ class UpdaterUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.minsize(400, 95)
-		self.maxsize(400, 95)
+		self.minsize(400, 110)
+		self.maxsize(400, 110)
 		self.grid()
 		center_window(self)
 
@@ -7775,15 +7856,22 @@ class UpdaterUI(tk.Toplevel):
 		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10,5))
 		self.progress_bar.start(2)
 
-		# Small label
-		self.label_small = tk.Label(self, fg="gray", font=("Segoe UI", 8), text="Press <ESC> to cancel")
-		self.label_small.grid(column=0, row=2, columnspan=2, padx=10, pady=(0,5))
+		# Cancel button
+		self.cancel_button = ttk.Button(self, text="Cancel", command=self.delete_window)
+		self.cancel_button.grid(column=0, row=2, columnspan=2, padx=10, pady=(5,10), sticky="e")
 
 		# Pause underlying thread
 		self.pause = False
 
+		# Cancel underlying thread
+		self.cancel = False
+
 
 	def delete_window(self):
+
+		# Already cancelled, waiting for the update thread to stop
+		if self.cancel:
+			return
 
 		self.pause = True
 
@@ -7792,8 +7880,9 @@ class UpdaterUI(tk.Toplevel):
 		if choice is None:
 			sys.exit()
 		elif choice is True:
-			subprocess.Popen([sys.executable, "-skip-update", "-allow-multiple"])
-			sys.exit()
+			self.cancel = True
+			self.cancel_button["state"] = tk.DISABLED
+			self.pause = False
 		elif choice is False:
 			self.pause = False
 
@@ -7946,6 +8035,8 @@ class Logger:
 	def __init__(self):
 
 		self.terminal = sys.stdout
+		if self.terminal is not None:
+			self.terminal.reconfigure(errors="replace")	# characters the console can't show (eg. emoji on a cp1252 console) are printed as "?"
 		self.log = Path(SC4MP_LOG_PATH)
 		self.log.unlink(missing_ok=True)
 
@@ -7997,7 +8088,7 @@ class Logger:
 		# Print
 		if self.terminal is not None:
 			self.terminal.write(output)
-		with open(self.log, "a") as log:
+		with open(self.log, "a", encoding="utf-8") as log:
 			log.write(output)
 			log.close()
 
