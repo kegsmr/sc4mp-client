@@ -165,14 +165,15 @@ SC4MP_URL_PREFIX = "sc4mp://"
 SC4MP_SERVERS_DOMAIN = "servers.sc4mp.org"
 SC4MP_INVITES_DOMAIN = "invite.sc4mp.org"
 
+# Where the SC4MP Server installer records its installation (its Inno Setup `AppId`)
+SC4MP_SERVER_UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{C580F605-37B3-4065-B595-5366F512E542}_is1"
+
 sc4mp_ui = None
 
 sc4mp_current_server = None
 
 sc4mp_game_monitor_x = 10
 sc4mp_game_monitor_y = 40
-
-sc4mp_server_update_check = True
 
 sc4mp_beta = None
 
@@ -1100,6 +1101,33 @@ def startfile(filename):
 	else:
 		opener = "open" if syst == "Darwin" else "xdg-open"  # Linux
 		subprocess.call([opener, filename])
+
+
+def find_server_installation() -> Optional[Path]:
+	"""Finds the SC4MP Server installation, from the `server_path` setting or else from where its installer recorded it."""
+
+	server_path = sc4mp_config["HOSTING"]["server_path"]
+	if server_path and (Path(server_path) / "sc4mpserver.exe").exists():
+		return Path(server_path)
+
+	try:
+		import winreg
+	except ImportError:
+		return None	# not on Windows
+
+	# The installer installs per user (HKCU), but check HKLM too in case it was installed for all users
+	for hive in [winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE]:
+		try:
+			with winreg.OpenKey(hive, SC4MP_SERVER_UNINSTALL_KEY) as key:
+				install_location = Path(winreg.QueryValueEx(key, "InstallLocation")[0])
+		except OSError:
+			continue	# not installed in this hive
+		if (install_location / "sc4mpserver.exe").exists():
+			sc4mp_config["HOSTING"]["server_path"] = str(install_location)
+			sc4mp_config.update()
+			return install_location
+
+	return None
 
 
 def open_logs():
@@ -4238,10 +4266,11 @@ class UI(tk.Tk):
 		print('"Host..."')
 
 		if is_windows():
-			if sc4mp_server_update_check and sc4mp_config["GENERAL"]["auto_update"] or not (Path(sc4mp_config["HOSTING"]['server_path']) / "sc4mpserver.exe").exists():
-				ServerUpdaterUI(sc4mp_ui)
-			else:
+			# Install the server if it isn't installed (servers update themselves when they start)
+			if find_server_installation():
 				HostUI()
+			else:
+				ServerUpdaterUI(sc4mp_ui)
 		else:
 			if messagebox.askyesno(SC4MP_TITLE, "Hosting a server requires the SC4MP Server application.\n\nWould you like to view the Github repository?"):
 				webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/")
@@ -8505,15 +8534,13 @@ class ServerUpdaterUI(UpdaterUI):
 
 		def run(self):
 
-			global sc4mp_server_update_check
-
 			set_thread_name("UpdtThread")
 
 			try:
 
 				self.pulse()
 
-				self.report("Checking for updates...")
+				self.report("Preparing to install SC4MP Server...")
 
 				if not sc4mp_config['HOSTING']['server_path']:
 					if Path("~/Documents/SimCity 4/SC4MP Launcher/sc4mpclient.exe").expanduser().exists():
@@ -8529,26 +8556,14 @@ class ServerUpdaterUI(UpdaterUI):
 
 				self.pause()
 
-				try:
+				if not self.get_server_path("sc4mpserver.exe"):
+
 					latest_release_info = get_release_info(repo="kegsmr/sc4mp-server")
 					latest_release_version = latest_release_info["tag_name"][1:]
-				except Exception as e:
-					if self.get_server_path("sc4mpserver.exe"):
-						show_error(e, no_ui=True)
-						latest_release_version = ""
-					else:
-						raise e
-
-				self.pause()
-
-				if latest_release_version and latest_release_version != sc4mp_config["HOSTING"]["server_version"]:
-					
-					self.report("Preparing update...")
-					time.sleep(3)
 
 					self.pause()
 
-					self.report("Downloading update...")
+					self.report("Downloading SC4MP Server...")
 
 					# Get download URL
 					download_url = None
@@ -8573,30 +8588,28 @@ class ServerUpdaterUI(UpdaterUI):
 
 					# Download file
 					download_size = int(urllib.request.urlopen(download_url).headers["Content-Length"])
-					self.report("Downloading update... (0%)")
+					self.report("Downloading SC4MP Server... (0%)")
 					self.progress(0, download_size)
 					with urllib.request.urlopen(download_url) as rfile:
 						with open(destination, "wb") as wfile:
 							download_size_downloaded = 0
 							while download_size_downloaded < download_size:
 								self.pause()
-								self.report(f"Downloading update... ({int(100 * (download_size_downloaded / download_size))}%)")
+								self.report(f"Downloading SC4MP Server... ({int(100 * (download_size_downloaded / download_size))}%)")
 								self.progress(download_size_downloaded)
 								bytes_read = rfile.read(SC4MP_BUFFER_SIZE) 
 								download_size_downloaded += len(bytes_read)
 								wfile.write(bytes_read)
-					self.report("Downloading update... (100%)")
+					self.report("Downloading SC4MP Server... (100%)")
 					self.progress(download_size, download_size)
 
 					self.pause()
 
 					self.pulse()
 
-					self.report("Installing update...")
+					self.report("Installing SC4MP Server...")
 
-					self.stop_servers()
 					result = subprocess.run([os.path.abspath(destination), "/verysilent", f"/dir={sc4mp_config['HOSTING']['server_path']}"])
-					self.start_servers()
 
 					if result.returncode not in [0, 5]:
 						raise ClientException(f"Setup returned code {result.returncode}.")
@@ -8608,15 +8621,13 @@ class ServerUpdaterUI(UpdaterUI):
 
 				if self.get_server_path("sc4mpserver.exe"):
 
-					sc4mp_server_update_check = False
-
 					# Open it from the UI thread, since Tk windows made from this thread can hang
 					self.ui.parent.after(0, HostUI)
 
 			except Exception as e:
 
 				if self.ui.winfo_exists():
-					show_error(f"An error occurred while checking for updates.\n\n{e}")
+					show_error(f"An error occurred while installing SC4MP Server.\n\n{e}")
 
 			finally:
 
@@ -8656,22 +8667,6 @@ class ServerUpdaterUI(UpdaterUI):
 				raise ClientException("Operation cancelled by user.")
 
 
-		def stop_servers(self):
-
-			bat_path = self.get_server_path("stop_all.bat")
-
-			if bat_path:
-				subprocess.run(bat_path, shell=True)
-
-
-		def start_servers(self):
-
-			bat_path = self.get_server_path("stop_all.bat")
-
-			if bat_path:
-				subprocess.run(bat_path, shell=True)
-
-
 		def get_server_path(self, path):
 			
 			server_path = sc4mp_config["HOSTING"]["server_path"]
@@ -8694,24 +8689,9 @@ class ServerUpdaterUI(UpdaterUI):
 
 	def delete_window(self):
 
-		global sc4mp_server_update_check
-
+		# Cancel the installation (the worker stops at its next pause)
 		self.pause = True
-
-		if not self.worker.get_server_path("sc4mpserver.exe"):
-			self.destroy()
-			return
-
-		choice = messagebox.askyesnocancel(title=SC4MP_TITLE, icon="warning", message="Are you sure you want to continue without updating?")
-
-		if choice is None:
-			self.destroy()
-		elif choice is True:
-			HostUI()
-			sc4mp_server_update_check = False
-			self.destroy()
-		elif choice is False:
-			self.pause = False
+		self.destroy()
 
 
 class ReleaseNotesUI(tk.Toplevel):
