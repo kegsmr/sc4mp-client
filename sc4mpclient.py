@@ -8610,7 +8610,8 @@ class ServerUpdaterUI(UpdaterUI):
 
 					sc4mp_server_update_check = False
 
-					HostUI()
+					# Open it from the UI thread, since Tk windows made from this thread can hang
+					self.ui.parent.after(0, HostUI)
 
 			except Exception as e:
 
