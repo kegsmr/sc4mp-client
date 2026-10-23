@@ -5244,7 +5244,8 @@ class HostUI(tk.Toplevel):
 			# Whether the server is running
 			self.running = False
 			self.status_label = ttk.Label(self, text="Stopped")
-			self.status_label.grid(row=1, column=0, sticky="w", padx=10, pady=(5, 0))
+			self.status_label.grid(row=1, column=0, sticky="we", padx=10, pady=(5, 0))
+			self.status_label.bind("<Configure>", lambda event: self.status_label.configure(wraplength=event.width))	# wrap instead of being cut off
 
 			# Buttons at bottom
 			button_frame = tk.Frame(self)
@@ -5426,11 +5427,9 @@ class HostUI(tk.Toplevel):
 		# Icon
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
-		# Set fixed window size
-		self.geometry('600x400')
+		# Set window size (grows to fit the server's settings, see `loop()`)
 		self.resizable(False, False)
 		self.minsize(600, 400)
-		self.maxsize(600, 400)
 
 		center_window(self)
 		
@@ -5556,6 +5555,14 @@ class HostUI(tk.Toplevel):
 				self.server_config_frame = self.ServerConfigFrame(self, path=(Path(sc4mp_config['HOSTING']['configs_path']) / selection))
 				self.server_config_frame.grid(row=0, column=1, sticky="nsew")
 				self.server_config_frame.tabs.select(tab_index)
+
+				# Grow the window to fit the settings, which take more space with larger text or display scaling
+				self.update_idletasks()
+				width = max(600, self.winfo_reqwidth())
+				height = max(400, self.winfo_reqheight())
+				if width > self.winfo_width() or height > self.winfo_height():
+					self.minsize(width, height)
+					center_window(self)
 
 				self.current_server = selection
 
