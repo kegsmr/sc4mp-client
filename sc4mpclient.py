@@ -6365,8 +6365,8 @@ class ServerDetailsUI(tk.Toplevel):
 		self.after(100, self.update_window_size)
 
 
-		# Select tab from last server detail view
-		self.after(200, self.select_last_tab)
+		# Select tab from last server detail view (the other tabs are only added once the server responds, so give it time)
+		self.after(1000, self.select_last_tab)
 
 
 	def select_last_tab(self):
