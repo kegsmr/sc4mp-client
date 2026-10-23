@@ -5189,6 +5189,15 @@ class HostUI(tk.Toplevel):
 			self.security_frame.password_entry.insert(0, self.config.get('SECURITY', 'password', fallback=""))
 			self.security_frame.password_entry.grid(row=0, column=1, padx=10, pady=5, sticky="w")
 
+			# Guests checkbutton (guests can download the server and look around without the password, but can't claim cities)
+			self.security_frame.guests_checkbutton = ttk.Checkbutton(self.security_frame, text="Allow guests without the password")
+			private = self.config.getboolean('SECURITY', 'private', fallback=False)
+			if private:
+				self.security_frame.guests_checkbutton.state(['!selected', '!alternate'])
+			else:
+				self.security_frame.guests_checkbutton.state(['selected', '!alternate'])
+			self.security_frame.guests_checkbutton.grid(row=1, column=1, padx=10, pady=5, sticky="w")
+
 			# Rules tab
 			self.rules_frame = tk.Frame(self.rules_tab)
 			self.rules_frame.grid(row=0, column=0, padx=10, pady=10)
@@ -5277,8 +5286,9 @@ class HostUI(tk.Toplevel):
 
 		def loop(self):
 		
-			CHECKBUTTON_ENTRY_MAP: list[tuple[ttk.Checkbutton, ttk.Entry]] = [
+			CHECKBUTTON_ENTRY_MAP: list[tuple[ttk.Checkbutton, ttk.Widget]] = [
 				(self.security_frame.password_checkbutton, self.security_frame.password_entry),
+				(self.security_frame.password_checkbutton, self.security_frame.guests_checkbutton),	# guests only matter with a password
 				(self.rules_frame.claim_duration_checkbutton, self.rules_frame.claim_duration_entry),
 				(self.rules_frame.max_region_claims_checkbutton, self.rules_frame.max_region_claims_entry),
 			]
@@ -5315,6 +5325,7 @@ class HostUI(tk.Toplevel):
 				('INFO', 'server_url'): self.info_frame.url_entry.get(),
 				('SECURITY', 'password_enabled'): str(self.security_frame.password_checkbutton.instate(['selected'])),
 				('SECURITY', 'password'): self.security_frame.password_entry.get(),
+				('SECURITY', 'private'): str(not self.security_frame.guests_checkbutton.instate(['selected'])),
 				('RULES', 'godmode_filter'): str(not self.rules_frame.godmode_filter_checkbutton.instate(['selected'])),
 				('RULES', 'user_plugins'): str(self.rules_frame.user_plugins_checkbutton.instate(['selected'])),
 			}
@@ -5365,7 +5376,7 @@ class HostUI(tk.Toplevel):
 
 
 		def check_running(self):
-			"""Checks every few seconds whether the server is running, for as long as its settings are shown. The server keeps its process ID and start time in `process.json` (to stop another copy running from the same folder), so it's running if that process still exists."""
+			"""Checks every few seconds whether the server is running, for as long as its settings are shown."""
 
 			while True:
 				try:
@@ -5373,13 +5384,20 @@ class HostUI(tk.Toplevel):
 						return
 				except Exception:
 					return	# the frame was destroyed
-				try:
-					process_info = load_json(self.path / "process.json")
-					creation = datetime.strftime(get_process_creation_time(process_info["pid"]), "%Y%m%d%H%M%S")
-					self.running = creation == process_info["creation"]
-				except Exception:
-					self.running = False	# no process.json, or no such process
+				self.running = self.is_running(self.path)
 				time.sleep(2)
+
+
+		@staticmethod
+		def is_running(path: Path) -> bool:
+			"""Whether the server in `path` is running. The server keeps its process ID and start time in `process.json`, so it's running if that process still exists."""
+
+			try:
+				process_info = load_json(path / "process.json")
+				creation = datetime.strftime(get_process_creation_time(process_info["pid"]), "%Y%m%d%H%M%S")
+				return creation == process_info["creation"]
+			except Exception:
+				return False	# no process.json, or no such process
 
 
 		def start(self):
@@ -5390,6 +5408,18 @@ class HostUI(tk.Toplevel):
 				return
 
 			self.save()
+
+			# Don't start a second server on the same port (the server reuses the port, so both would start)
+			port = self.get_port()
+			for other_path in self.path.parent.iterdir():
+				if other_path == self.path or not self.is_running(other_path):
+					continue
+				other_config = configparser.ConfigParser(interpolation=None)
+				other_config.read(other_path / "serverconfig.ini")
+				if other_config.getint('NETWORK', 'port', fallback=SC4MP_PORT) == port:
+					other_name = other_config.get('INFO', 'server_name', fallback=other_path.name)
+					messagebox.showerror(SC4MP_TITLE, f"\"{other_name}\" is already running on port {port}. Stop it or change this server's port first.", parent=self)
+					return
 
 			# The same as the server's own `start.bat`
 			subprocess.Popen([str(exe), "-s", str(self.path)], cwd=exe.parent)
@@ -5412,10 +5442,16 @@ class HostUI(tk.Toplevel):
 		def logs(self):
 
 			log_path = self.path / "sc4mpserver.log"
-			if log_path.exists():
-				startfile(log_path)
-			else:
+			if not log_path.exists():
 				messagebox.showinfo(SC4MP_TITLE, "This server has no logs yet. They appear once it has been started.", parent=self)
+			elif has_powershell():
+				# Follow the log like the launcher's own logs (see `open_logs()`) and the server's `logs.bat`
+				subprocess.Popen([
+					"cmd.exe", "/c", "start", "cmd.exe", "/k",
+					f"@echo off && powershell -NoProfile -ExecutionPolicy Bypass -Command $Host.UI.RawUI.WindowTitle = \"SC4MP Server - {self.path}\"; gc sc4mpserver.log -Encoding UTF8 -Wait -Tail 1000"
+				], cwd=self.path)
+			else:
+				startfile(log_path)
 
 
 	def __init__(self):
