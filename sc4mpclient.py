@@ -3868,8 +3868,8 @@ class GameMonitor(th.Thread):
 				conditionY1 = (neighborY == savegameY - neighborSizeY)
 				conditionY2 = (neighborY == savegameY + savegameSizeY)
 
-				conditionX = xor(conditionX1, conditionX2) and ((neighborY + neighborSizeY > savegameY) or (neighborY < savegameY + savegameSizeY))
-				conditionY = xor(conditionY1, conditionY2) and ((neighborX + neighborSizeX > savegameX) or (neighborX < savegameX + savegameSizeX))
+				conditionX = xor(conditionX1, conditionX2) and ((neighborY + neighborSizeY > savegameY) and (neighborY < savegameY + savegameSizeY))
+				conditionY = xor(conditionY1, conditionY2) and ((neighborX + neighborSizeX > savegameX) and (neighborX < savegameX + savegameSizeX))
 
 				condition = xor(conditionX, conditionY)
 
