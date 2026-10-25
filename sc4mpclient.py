@@ -3429,7 +3429,7 @@ class GameMonitor(th.Thread):
 
 	SAVE_TIMEOUT = 60			# seconds to wait for SC4 to finish writing a save before pushing what it wrote
 	SAVE_QUIET_TIME = 5			# seconds SC4 has to stop writing savegames for before a save is pushed (it rewrites the neighbouring cities too, not all at once)
-	NEIGHBOR_REWRITE_TIME = 60	# seconds after a save in which savegames bordering the saved city are taken as SC4 rewriting its neighbours
+	NEIGHBOR_REWRITE_TIME = 60	# seconds after a save in which the player is taken to still be in the city they saved
 	DATE_SUBFILE = "2990c1e5"	# the savegame subfile with the simulation date, which only changes in the city the player saved (the server checks it too)
 
 
@@ -3825,22 +3825,15 @@ class GameMonitor(th.Thread):
 			self.not_pushed("The saved city couldn't be read.")
 			return None
 
-		# SC4 rewrites the saved city's neighbours one by one, some of them after the saved city. Savegames that only touch the city saved a moment ago, without it, are those.
-		recently_saved = self.last_saved_city is not None and time.time() - self.last_saved_city[1] < self.NEIGHBOR_REWRITE_TIME
-		if recently_saved:
-			last_tile = self.last_saved_city[0]
-			if last_tile not in tiles.values() and all(self.tiles_touch(tile, last_tile) for tile in tiles.values()):
-				print(f"Not pushing {', '.join(path.name for path in modified_paths)}, rewritten by SC4 as neighbours of the city saved a moment ago.")
-				return None
+		# Only the city the player saved has a new simulation date, or is a new savegame (a city just founded). A savegame whose previous date isn't known could be a neighbour SC4 rewrote, so it isn't taken as saved.
+		save_city_paths = [path for path in modified_paths if modified_cities[path] is None or (path in previous_dates and previous_dates[path] != dates[path])]
 
-		# Leave out the savegames whose simulation date didn't change, since only the saved city's does
-		save_city_paths = [path for path in modified_paths if previous_dates.get(path) != dates[path]]
 		if not save_city_paths:
-			# Neighbours of the city saved last that SC4 rewrote later on
+			# SC4 rewrites the saved city's neighbours one by one, some of them after the saved city
 			if self.last_saved_city is not None and self.last_saved_city[0] not in tiles.values() and all(self.tiles_touch(tile, self.last_saved_city[0]) for tile in tiles.values()):
 				print(f"Not pushing {', '.join(path.name for path in modified_paths)}, rewritten by SC4 as neighbours of the city saved last.")
 				return None
-			self.not_pushed("The game's date hasn't changed since the last save. Unpause the game, then save again.")
+			self.not_pushed(modified_paths, "Couldn't tell which city you saved, so nothing was pushed. Unpause the game until the date changes, then save again.")
 			return None
 
 		if len(save_city_paths) == 1:
@@ -3849,10 +3842,10 @@ class GameMonitor(th.Thread):
 			# Leave out the savegames that don't border all the others (the saved city borders all its neighbours)
 			candidates = [path for path in save_city_paths if all(self.tiles_border(tiles[path], tiles[other]) for other in save_city_paths if other != path)]
 			# A city and its only neighbour border each other, but the player may still be in the city they saved a moment ago
-			if len(candidates) != 1 and recently_saved:
+			if len(candidates) != 1 and self.last_saved_city is not None and time.time() - self.last_saved_city[1] < self.NEIGHBOR_REWRITE_TIME:
 				candidates = [path for path in (candidates or save_city_paths) if tiles[path] == self.last_saved_city[0]]
 			if len(candidates) != 1:
-				self.not_pushed("Couldn't tell which city you saved, so nothing was pushed. Save again.")
+				self.not_pushed(modified_paths, "Couldn't tell which city you saved, so nothing was pushed. Save again.")
 				return None
 			save_city_path = candidates[0]
 
