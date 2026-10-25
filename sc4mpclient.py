@@ -166,14 +166,15 @@ SC4MP_URL_PREFIX = "sc4mp://"
 SC4MP_SERVERS_DOMAIN = "servers.sc4mp.org"
 SC4MP_INVITES_DOMAIN = "invite.sc4mp.org"
 
+# Where the SC4MP Server installer records its installation (its Inno Setup `AppId`)
+SC4MP_SERVER_UNINSTALL_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{C580F605-37B3-4065-B595-5366F512E542}_is1"
+
 sc4mp_ui = None
 
 sc4mp_current_server = None
 
 sc4mp_game_monitor_x = 10
 sc4mp_game_monitor_y = 40
-
-sc4mp_server_update_check = True
 
 sc4mp_beta = None
 
@@ -1101,6 +1102,33 @@ def startfile(filename):
 	else:
 		opener = "open" if syst == "Darwin" else "xdg-open"  # Linux
 		subprocess.call([opener, filename])
+
+
+def find_server_installation() -> Optional[Path]:
+	"""Finds the SC4MP Server installation, from the `server_path` setting or else from where its installer recorded it."""
+
+	server_path = sc4mp_config["HOSTING"]["server_path"]
+	if server_path and (Path(server_path) / "sc4mpserver.exe").exists():
+		return Path(server_path)
+
+	try:
+		import winreg
+	except ImportError:
+		return None	# not on Windows
+
+	# The installer installs per user (HKCU), but check HKLM too in case it was installed for all users
+	for hive in [winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE]:
+		try:
+			with winreg.OpenKey(hive, SC4MP_SERVER_UNINSTALL_KEY) as key:
+				install_location = Path(winreg.QueryValueEx(key, "InstallLocation")[0])
+		except OSError:
+			continue	# not installed in this hive
+		if (install_location / "sc4mpserver.exe").exists():
+			sc4mp_config["HOSTING"]["server_path"] = str(install_location)
+			sc4mp_config.update()
+			return install_location
+
+	return None
 
 
 def open_logs():
@@ -4526,10 +4554,11 @@ class UI(tk.Tk):
 		print('"Host..."')
 
 		if is_windows():
-			if sc4mp_server_update_check and sc4mp_config["GENERAL"]["auto_update"] or not (Path(sc4mp_config["HOSTING"]['server_path']) / "sc4mpserver.exe").exists():
-				ServerUpdaterUI(sc4mp_ui)
-			else:
+			# Install the server if it isn't installed (servers update themselves when they start)
+			if find_server_installation():
 				HostUI()
+			else:
+				ServerUpdaterUI(sc4mp_ui)
 		else:
 			if messagebox.askyesno(SC4MP_TITLE, "Hosting a server requires the SC4MP Server application.\n\nWould you like to view the Github repository?"):
 				webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/")
@@ -5376,7 +5405,7 @@ class HostUI(tk.Toplevel):
 				text = server
 				server_config_ini_path = Path(configs_path) / server / "serverconfig.ini"
 				if server_config_ini_path.exists():
-					config = configparser.ConfigParser()
+					config = configparser.ConfigParser(interpolation=None)
 					config.read(server_config_ini_path)
 					server_name = config.get("INFO", "server_name", fallback="")
 					if server_name:
@@ -5399,8 +5428,8 @@ class HostUI(tk.Toplevel):
 
 			self.grid(sticky="nsew")  # Stretch both directions
 			
-			# Load configuration from file
-			self.config = configparser.ConfigParser()
+			# Load configuration from file (without interpolation, since passwords and descriptions can contain "%")
+			self.config = configparser.ConfigParser(interpolation=None)
 			self.config.read(self.config_path)
 			
 			# Tabbed interface
@@ -5436,7 +5465,7 @@ class HostUI(tk.Toplevel):
 
 			self.network_frame.checkbutton = ttk.Checkbutton(self.network_frame, text="Discoverable")
 			discoverable = self.config.getboolean('NETWORK', 'discoverable', fallback=True)
-			self.network_frame.checkbutton.state(['selected'] if discoverable else ['!selected'])
+			self.network_frame.checkbutton.state(['selected', '!alternate'] if discoverable else ['!selected', '!alternate'])
 			self.network_frame.checkbutton.grid(row=0, column=2, padx=10, pady=5, sticky="w")
 
 			# Info tab
@@ -5470,12 +5499,21 @@ class HostUI(tk.Toplevel):
 
 			self.security_frame.password_checkbutton = ttk.Checkbutton(self.security_frame, text="Password")
 			password_enabled = self.config.getboolean('SECURITY', 'password_enabled', fallback=False)
-			self.security_frame.password_checkbutton.state(['selected'] if password_enabled else ['!selected'])
+			self.security_frame.password_checkbutton.state(['selected', '!alternate'] if password_enabled else ['!selected', '!alternate'])
 			self.security_frame.password_checkbutton.grid(row=0, column=0, padx=10, pady=5, sticky="e")
 
 			self.security_frame.password_entry = ttk.Entry(self.security_frame, width=35) #, show="*")
 			self.security_frame.password_entry.insert(0, self.config.get('SECURITY', 'password', fallback=""))
 			self.security_frame.password_entry.grid(row=0, column=1, padx=10, pady=5, sticky="w")
+
+			# Guests checkbutton (guests can download the server and look around without the password, but can't claim cities)
+			self.security_frame.guests_checkbutton = ttk.Checkbutton(self.security_frame, text="Allow guests without the password")
+			private = self.config.getboolean('SECURITY', 'private', fallback=False)
+			if private:
+				self.security_frame.guests_checkbutton.state(['!selected', '!alternate'])
+			else:
+				self.security_frame.guests_checkbutton.state(['selected', '!alternate'])
+			self.security_frame.guests_checkbutton.grid(row=1, column=1, padx=10, pady=5, sticky="w")
 
 			# Rules tab
 			self.rules_frame = tk.Frame(self.rules_tab)
@@ -5483,7 +5521,7 @@ class HostUI(tk.Toplevel):
 
 			self.rules_frame.claim_duration_checkbutton = ttk.Checkbutton(self.rules_frame, text="Claim duration")
 			claim_duration = self.config.get('RULES', 'claim_duration', fallback="30")
-			self.rules_frame.claim_duration_checkbutton.state(['selected'] if claim_duration else ['!selected'])
+			self.rules_frame.claim_duration_checkbutton.state(['selected', '!alternate'] if claim_duration != "None" else ['!selected', '!alternate'])
 			self.rules_frame.claim_duration_checkbutton.grid(row=0, column=0, padx=10, pady=5, sticky="w")
 
 			self.rules_frame.claim_duration_entry = ttk.Entry(self.rules_frame, width=5)
@@ -5495,7 +5533,7 @@ class HostUI(tk.Toplevel):
 
 			self.rules_frame.max_region_claims_checkbutton = ttk.Checkbutton(self.rules_frame, text="Max claims")
 			max_claims = self.config.get('RULES', 'max_region_claims', fallback="1")
-			self.rules_frame.max_region_claims_checkbutton.state(['selected'] if max_claims != "None" else ['!selected'])
+			self.rules_frame.max_region_claims_checkbutton.state(['selected', '!alternate'] if max_claims != "None" else ['!selected', '!alternate'])
 			self.rules_frame.max_region_claims_checkbutton.grid(row=1, column=0, padx=10, pady=5, sticky="w")
 
 			self.rules_frame.max_region_claims_entry = ttk.Entry(self.rules_frame, width=5)
@@ -5508,12 +5546,16 @@ class HostUI(tk.Toplevel):
 			# Godmode filter checkbutton
 			#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
 			self.rules_frame.godmode_filter_checkbutton = ttk.Checkbutton(self.rules_frame, text="Allow claims in godmode", onvalue=False, offvalue=True) #, variable=self.updates_frame.checkbutton_variable)
+			godmode_filter = self.config.getboolean('RULES', 'godmode_filter', fallback=True)
+			self.rules_frame.godmode_filter_checkbutton.state(['!selected', '!alternate'] if godmode_filter else ['selected', '!alternate'])
 			self.rules_frame.godmode_filter_checkbutton.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="w")
 			#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
 
 			# User plugins checkbutton
 			#self.updates_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["auto_update"])
 			self.rules_frame.user_plugins_checkbutton = ttk.Checkbutton(self.rules_frame, text="Allow user plugins", onvalue=True, offvalue=False) #, variable=self.updates_frame.checkbutton_variable)
+			user_plugins = self.config.getboolean('RULES', 'user_plugins', fallback=False)
+			self.rules_frame.user_plugins_checkbutton.state(['selected', '!alternate'] if user_plugins else ['!selected', '!alternate'])
 			self.rules_frame.user_plugins_checkbutton.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="w")
 			#self.config_update.append((self.updates_frame.checkbutton_variable, "auto_update"))
 
@@ -5525,18 +5567,32 @@ class HostUI(tk.Toplevel):
 			# self.regions_frame = tk.Frame(self.regions_tab)
 			# self.regions_frame.grid(row=0, column=0, padx=10, pady=10)
 
+			# Whether the server is running
+			self.running = False
+			self.status_label = ttk.Label(self, text="Stopped")
+			self.status_label.grid(row=1, column=0, sticky="we", padx=10, pady=(5, 0))
+			self.status_label.bind("<Configure>", lambda event: self.status_label.configure(wraplength=event.width))	# wrap instead of being cut off
+
 			# Buttons at bottom
-			# button_frame = tk.Frame(self)
-			# button_frame.grid(row=1, column=0, sticky="ew", padx=5, pady=5)
+			button_frame = tk.Frame(self)
+			button_frame.grid(row=2, column=0, sticky="ew", padx=5, pady=5)
 
-			# start_button = ttk.Button(button_frame, text="Start")
-			# start_button.grid(row=0, column=0, padx=5)
+			self.start_button = ttk.Button(button_frame, text="Start", width=8, command=self.start)
+			self.start_button.grid(row=0, column=0, padx=2)
 
-			# logs_button = ttk.Button(button_frame, text="Logs")
-			# logs_button.grid(row=0, column=1, padx=5)
+			self.stop_button = ttk.Button(button_frame, text="Stop", width=8, command=self.stop)
+			self.stop_button.grid(row=0, column=1, padx=2)
 
-			# connect_button = ttk.Button(button_frame, text="Connect")
-			# connect_button.grid(row=0, column=2, padx=5)
+			self.connect_button = ttk.Button(button_frame, text="Connect", width=8, command=self.connect)
+			self.connect_button.grid(row=0, column=2, padx=2)
+
+			logs_button = ttk.Button(button_frame, text="Logs", width=8, command=self.logs)
+			logs_button.grid(row=0, column=3, padx=2)
+
+			folder_button = ttk.Button(button_frame, text="Folder", width=8, command=lambda: startfile(self.path))
+			folder_button.grid(row=0, column=4, padx=2)
+
+			th.Thread(target=self.check_running, daemon=True).start()
 
 			# Configure stretching
 			self.columnconfigure(0, weight=1)
@@ -5547,8 +5603,9 @@ class HostUI(tk.Toplevel):
 
 		def loop(self):
 		
-			CHECKBUTTON_ENTRY_MAP: list[tuple[ttk.Checkbutton, ttk.Entry]] = [
+			CHECKBUTTON_ENTRY_MAP: list[tuple[ttk.Checkbutton, ttk.Widget]] = [
 				(self.security_frame.password_checkbutton, self.security_frame.password_entry),
+				(self.security_frame.password_checkbutton, self.security_frame.guests_checkbutton),	# guests only matter with a password
 				(self.rules_frame.claim_duration_checkbutton, self.rules_frame.claim_duration_entry),
 				(self.rules_frame.max_region_claims_checkbutton, self.rules_frame.max_region_claims_entry),
 			]
@@ -5559,28 +5616,159 @@ class HostUI(tk.Toplevel):
 				else:
 					entry.state(['disabled'])
 
-			self.update()
+			self.save()
+
+			if self.running:
+				self.status_label["text"] = f"Running on port {self.get_port()}. Changes apply when it restarts."	# the server reads its settings when it starts
+				self.start_button.state(['disabled'])
+				self.stop_button.state(['!disabled'])
+				self.connect_button.state(['!disabled'])
+			else:
+				self.status_label["text"] = "Stopped"
+				self.start_button.state(['!disabled'])
+				self.stop_button.state(['disabled'])
+				self.connect_button.state(['disabled'])
 
 			self.after(100, self.loop)
 
 
-		def update(self):
+		def save(self):
+			"""Writes the settings to the server's `serverconfig.ini` when they've changed. Numbers that aren't valid yet (eg. while being typed) are left as they were."""
 
-			def add_section(name):
-				if not self.config.has_section(name):
-					self.config.add_section(name)
+			values = {
+				('NETWORK', 'discoverable'): str(self.network_frame.checkbutton.instate(['selected'])),
+				('INFO', 'server_name'): self.info_frame.name_entry.get(),
+				('INFO', 'server_description'): self.info_frame.description_entry.get(),
+				('INFO', 'server_url'): self.info_frame.url_entry.get(),
+				('SECURITY', 'password_enabled'): str(self.security_frame.password_checkbutton.instate(['selected'])),
+				('SECURITY', 'password'): self.security_frame.password_entry.get(),
+				('SECURITY', 'private'): str(not self.security_frame.guests_checkbutton.instate(['selected'])),
+				('RULES', 'godmode_filter'): str(not self.rules_frame.godmode_filter_checkbutton.instate(['selected'])),
+				('RULES', 'user_plugins'): str(self.rules_frame.user_plugins_checkbutton.instate(['selected'])),
+			}
 
-			add_section('NETWORK')
-			self.config.set('NETWORK', 'port', "7240") #TODO
-			self.config.set('NETWORK', 'discoverable', str(True)) #TODO
+			port = self.network_frame.port_entry.get().strip()
+			if port.isdigit() and 0 < int(port) < 65536:
+				values[('NETWORK', 'port')] = port
 
-			add_section('INFO')
-			self.config.set('INFO', 'server_name', self.info_frame.name_entry.get())
-			self.config.set('INFO', 'server_description', self.info_frame.description_entry.get())
-			self.config.set('INFO', 'server_url', self.info_frame.url_entry.get())
+			# Unticked is "None" (no limit)
+			for key, checkbutton, entry in [
+				('claim_duration', self.rules_frame.claim_duration_checkbutton, self.rules_frame.claim_duration_entry),
+				('max_region_claims', self.rules_frame.max_region_claims_checkbutton, self.rules_frame.max_region_claims_entry),
+			]:
+				if not checkbutton.instate(['selected']):
+					values[('RULES', key)] = "None"
+				elif entry.get().strip().isdigit():
+					values[('RULES', key)] = entry.get().strip()
+
+			changed = [(section, key, value) for (section, key), value in values.items() if self.config.get(section, key, fallback=None) != value]
+			if not changed:
+				return
+
+			# Onto the file as it is now, so settings the server has added since (eg. its other sections) are kept
+			self.config = configparser.ConfigParser(interpolation=None)
+			self.config.read(self.config_path)
+			for section, key, value in changed:
+				if not self.config.has_section(section):
+					self.config.add_section(section)
+				self.config.set(section, key, value)
 
 			with open(self.config_path, "w", encoding="utf-8") as config_file:
 				self.config.write(config_file)
+
+			# The list shows the new name
+			server_name = self.config.get('INFO', 'server_name', fallback="")
+			if server_name:
+				self.master.server_selection_frame.tree.item(self.path.name, text=server_name)
+
+
+		def get_port(self) -> int:
+
+			return self.config.getint('NETWORK', 'port', fallback=SC4MP_PORT)
+
+
+		def get_server_exe(self) -> Path:
+
+			return Path(sc4mp_config['HOSTING']['server_path']) / "sc4mpserver.exe"
+
+
+		def check_running(self):
+			"""Checks every few seconds whether the server is running, for as long as its settings are shown."""
+
+			while True:
+				try:
+					if not self.winfo_exists():
+						return
+				except Exception:
+					return	# the frame was destroyed
+				self.running = self.is_running(self.path)
+				time.sleep(2)
+
+
+		@staticmethod
+		def is_running(path: Path) -> bool:
+			"""Whether the server in `path` is running. The server keeps its process ID and start time in `process.json`, so it's running if that process still exists."""
+
+			try:
+				process_info = load_json(path / "process.json")
+				creation = datetime.strftime(get_process_creation_time(process_info["pid"]), "%Y%m%d%H%M%S")
+				return creation == process_info["creation"]
+			except Exception:
+				return False	# no process.json, or no such process
+
+
+		def start(self):
+
+			exe = self.get_server_exe()
+			if not exe.exists():
+				show_error(f"The SC4MP Server isn't installed in \"{exe.parent}\".")
+				return
+
+			self.save()
+
+			# Don't start a second server on the same port (it would keep failing to bind the port, retrying every few seconds)
+			port = self.get_port()
+			for other_path in self.path.parent.iterdir():
+				if other_path == self.path or not self.is_running(other_path):
+					continue
+				other_config = configparser.ConfigParser(interpolation=None)
+				other_config.read(other_path / "serverconfig.ini")
+				if other_config.getint('NETWORK', 'port', fallback=SC4MP_PORT) == port:
+					other_name = other_config.get('INFO', 'server_name', fallback=other_path.name)
+					messagebox.showerror(SC4MP_TITLE, f"\"{other_name}\" is already running on port {port}. Stop it or change this server's port first.", parent=self)
+					return
+
+			# The same as the server's own `start.bat`
+			subprocess.Popen([str(exe), "-s", str(self.path)], cwd=exe.parent)
+
+
+		def stop(self):
+
+			exe = self.get_server_exe()
+
+			# The server's `--stop` ends the server running from this path (like its `stop.bat`)
+			th.Thread(target=lambda: subprocess.run([str(exe), "-s", str(self.path), "--stop"], cwd=exe.parent), daemon=True).start()
+
+
+		def connect(self):
+
+			self.winfo_toplevel().destroy()
+			ServerLoaderUI(Server("localhost", self.get_port()))
+
+
+		def logs(self):
+
+			log_path = self.path / "sc4mpserver.log"
+			if not log_path.exists():
+				messagebox.showinfo(SC4MP_TITLE, "This server has no logs yet. They appear once it has been started.", parent=self)
+			elif has_powershell():
+				# Follow the log like the launcher's own logs (see `open_logs()`) and the server's `logs.bat`
+				subprocess.Popen([
+					"cmd.exe", "/c", "start", "cmd.exe", "/k",
+					f"@echo off && powershell -NoProfile -ExecutionPolicy Bypass -Command $Host.UI.RawUI.WindowTitle = \"SC4MP Server - {self.path}\"; gc sc4mpserver.log -Encoding UTF8 -Wait -Tail 1000"
+				], cwd=self.path)
+			else:
+				startfile(log_path)
 
 
 	def __init__(self):
@@ -5592,11 +5780,9 @@ class HostUI(tk.Toplevel):
 		# Icon
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
-		# Set fixed window size
-		self.geometry('600x400')
+		# Set window size (grows to fit the server's settings, see `loop()`)
 		self.resizable(False, False)
 		self.minsize(600, 400)
-		self.maxsize(600, 400)
 
 		center_window(self)
 		
@@ -5722,6 +5908,14 @@ class HostUI(tk.Toplevel):
 				self.server_config_frame = self.ServerConfigFrame(self, path=(Path(sc4mp_config['HOSTING']['configs_path']) / selection))
 				self.server_config_frame.grid(row=0, column=1, sticky="nsew")
 				self.server_config_frame.tabs.select(tab_index)
+
+				# Grow the window to fit the settings, which take more space with larger text or display scaling
+				self.update_idletasks()
+				width = max(600, self.winfo_reqwidth())
+				height = max(400, self.winfo_reqheight())
+				if width > self.winfo_width() or height > self.winfo_height():
+					self.minsize(width, height)
+					center_window(self)
 
 				self.current_server = selection
 
@@ -8533,12 +8727,6 @@ class UpdaterUI(tk.Toplevel):
 		# Icon
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
-		# Geometry
-		self.minsize(400, 110)
-		self.maxsize(400, 110)
-		self.grid()
-		center_window(self)
-
 		# Background
 		self.configure(background="white")
 
@@ -8565,12 +8753,16 @@ class UpdaterUI(tk.Toplevel):
 			length=380,
 			maximum=100
 		)
-		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=20, pady=(10,5))
+		self.progress_bar.grid(column=0, row=1, columnspan=2, padx=10, pady=(10,5))
 		self.progress_bar.start(2)
 
 		# Cancel button
 		self.cancel_button = ttk.Button(self, text="Cancel", command=self.delete_window)
 		self.cancel_button.grid(column=0, row=2, columnspan=2, padx=10, pady=(5,10), sticky="e")
+
+		# Geometry (sized to fit the widgets above, which are larger with display scaling)
+		self.resizable(False, False)
+		center_window(self)
 
 		# Pause underlying thread
 		self.pause = False
@@ -8631,15 +8823,13 @@ class ServerUpdaterUI(UpdaterUI):
 
 		def run(self):
 
-			global sc4mp_server_update_check
-
 			set_thread_name("UpdtThread")
 
 			try:
 
 				self.pulse()
 
-				self.report("Checking for updates...")
+				self.report("Preparing to install SC4MP Server...")
 
 				if not sc4mp_config['HOSTING']['server_path']:
 					if Path("~/Documents/SimCity 4/SC4MP Launcher/sc4mpclient.exe").expanduser().exists():
@@ -8655,26 +8845,14 @@ class ServerUpdaterUI(UpdaterUI):
 
 				self.pause()
 
-				try:
+				if not self.get_server_path("sc4mpserver.exe"):
+
 					latest_release_info = get_release_info(repo="kegsmr/sc4mp-server")
 					latest_release_version = latest_release_info["tag_name"][1:]
-				except Exception as e:
-					if self.get_server_path("sc4mpserver.exe"):
-						show_error(e, no_ui=True)
-						latest_release_version = ""
-					else:
-						raise e
-
-				self.pause()
-
-				if latest_release_version and latest_release_version != sc4mp_config["HOSTING"]["server_version"]:
-					
-					self.report("Preparing update...")
-					time.sleep(3)
 
 					self.pause()
 
-					self.report("Downloading update...")
+					self.report("Downloading SC4MP Server...")
 
 					# Get download URL
 					download_url = None
@@ -8699,30 +8877,28 @@ class ServerUpdaterUI(UpdaterUI):
 
 					# Download file
 					download_size = int(urllib.request.urlopen(download_url).headers["Content-Length"])
-					self.report("Downloading update... (0%)")
+					self.report("Downloading SC4MP Server... (0%)")
 					self.progress(0, download_size)
 					with urllib.request.urlopen(download_url) as rfile:
 						with open(destination, "wb") as wfile:
 							download_size_downloaded = 0
 							while download_size_downloaded < download_size:
 								self.pause()
-								self.report(f"Downloading update... ({int(100 * (download_size_downloaded / download_size))}%)")
+								self.report(f"Downloading SC4MP Server... ({int(100 * (download_size_downloaded / download_size))}%)")
 								self.progress(download_size_downloaded)
 								bytes_read = rfile.read(SC4MP_BUFFER_SIZE) 
 								download_size_downloaded += len(bytes_read)
 								wfile.write(bytes_read)
-					self.report("Downloading update... (100%)")
+					self.report("Downloading SC4MP Server... (100%)")
 					self.progress(download_size, download_size)
 
 					self.pause()
 
 					self.pulse()
 
-					self.report("Installing update...")
+					self.report("Installing SC4MP Server...")
 
-					self.stop_servers()
 					result = subprocess.run([os.path.abspath(destination), "/verysilent", f"/dir={sc4mp_config['HOSTING']['server_path']}"])
-					self.start_servers()
 
 					if result.returncode not in [0, 5]:
 						raise ClientException(f"Setup returned code {result.returncode}.")
@@ -8734,14 +8910,13 @@ class ServerUpdaterUI(UpdaterUI):
 
 				if self.get_server_path("sc4mpserver.exe"):
 
-					sc4mp_server_update_check = False
-
-					HostUI()
+					# Open it from the UI thread, since Tk windows made from this thread can hang
+					self.ui.parent.after(0, HostUI)
 
 			except Exception as e:
 
 				if self.ui.winfo_exists():
-					show_error(f"An error occurred while checking for updates.\n\n{e}")
+					show_error(f"An error occurred while installing SC4MP Server.\n\n{e}")
 
 			finally:
 
@@ -8781,22 +8956,6 @@ class ServerUpdaterUI(UpdaterUI):
 				raise ClientException("Operation cancelled by user.")
 
 
-		def stop_servers(self):
-
-			bat_path = self.get_server_path("stop_all.bat")
-
-			if bat_path:
-				subprocess.run(bat_path, shell=True)
-
-
-		def start_servers(self):
-
-			bat_path = self.get_server_path("stop_all.bat")
-
-			if bat_path:
-				subprocess.run(bat_path, shell=True)
-
-
 		def get_server_path(self, path):
 			
 			server_path = sc4mp_config["HOSTING"]["server_path"]
@@ -8819,24 +8978,9 @@ class ServerUpdaterUI(UpdaterUI):
 
 	def delete_window(self):
 
-		global sc4mp_server_update_check
-
+		# Cancel the installation (the worker stops at its next pause)
 		self.pause = True
-
-		if not self.worker.get_server_path("sc4mpserver.exe"):
-			self.destroy()
-			return
-
-		choice = messagebox.askyesnocancel(title=SC4MP_TITLE, icon="warning", message="Are you sure you want to continue without updating?")
-
-		if choice is None:
-			self.destroy()
-		elif choice is True:
-			HostUI()
-			sc4mp_server_update_check = False
-			self.destroy()
-		elif choice is False:
-			self.pause = False
+		self.destroy()
 
 
 class ReleaseNotesUI(tk.Toplevel):
