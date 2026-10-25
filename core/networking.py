@@ -32,6 +32,10 @@ COMMAND_TOKEN = 'Token'
 COMMAND_TIME = 'Time'
 COMMAND_LOADING_BACKGROUND = 'LdgBkg'
 COMMAND_SUBSCRIBE = 'Subscr'
+COMMAND_ALBUM = 'Album'
+COMMAND_ALBUM_PICTURE = 'AlbPic'
+COMMAND_ALBUM_UPLOAD = 'AlbUpl'
+COMMAND_ALBUM_DELETE = 'AlbDel'
 
 
 def send_json(s: socket.socket, data, length_encoding="I"):
@@ -650,6 +654,51 @@ class ClientSocket(Socket):
 		return pluck_header(response, 'events', list)
 
 
+	def album(self, region, **headers) -> list:
+
+		self.request(COMMAND_ALBUM, region=region, **headers)
+
+		return self.recv_json()
+
+
+	def album_picture(self, region, picture, **headers) -> bytes:
+
+		response = self.request(
+			COMMAND_ALBUM_PICTURE, region=region, picture=picture, **headers
+		)
+
+		size = pluck_header(response, 'size', int)
+
+		return self.recv_exact(size)
+
+
+	def album_upload(self, region, album, filename, data: bytes, **headers) -> str:
+
+		# The server checks the limits before the picture is sent
+		self.request(
+			COMMAND_ALBUM_UPLOAD, region=region, album=album,
+			filename=filename, size=len(data), **headers
+		)
+
+		self.sendall(data)
+
+		_, _, response = self.recv_message()
+
+		if error := response.get('error'):
+			raise NetworkException(error)
+
+		return pluck_header(response, 'picture', str)
+
+
+	def album_delete(self, region, picture, **headers) -> bool:
+
+		return is_success(
+			self.request(
+				COMMAND_ALBUM_DELETE, region=region, picture=picture, **headers
+			)
+		)
+
+
 class ServerSocket(Socket):
 
 
@@ -705,13 +754,19 @@ class BaseRequestHandler(Thread):
 			COMMAND_TOKEN: self.res_token,
 			COMMAND_TIME: self.res_time,
 			COMMAND_LOADING_BACKGROUND: self.res_loading_background,
-			COMMAND_SUBSCRIBE: self.res_subscribe
+			COMMAND_SUBSCRIBE: self.res_subscribe,
+			COMMAND_ALBUM: self.res_album,
+			COMMAND_ALBUM_PICTURE: self.res_album_picture,
+			COMMAND_ALBUM_UPLOAD: self.res_album_upload,
+			COMMAND_ALBUM_DELETE: self.res_album_delete
 		}
 
 		self.require_auth = [
 			COMMAND_SAVE,
 			COMMAND_TOKEN,
-			COMMAND_SUBSCRIBE
+			COMMAND_SUBSCRIBE,
+			COMMAND_ALBUM_UPLOAD,
+			COMMAND_ALBUM_DELETE
 		]
 
 		if private:
@@ -719,7 +774,9 @@ class BaseRequestHandler(Thread):
 				COMMAND_PLUGINS_DATA,
 				COMMAND_PLUGINS_TABLE,
 				COMMAND_REGIONS_DATA,
-				COMMAND_REGIONS_TABLE
+				COMMAND_REGIONS_TABLE,
+				COMMAND_ALBUM,
+				COMMAND_ALBUM_PICTURE
 			]
 
 
@@ -743,6 +800,10 @@ class BaseRequestHandler(Thread):
 	def res_time(self): self.respond()
 	def res_loading_background(self): self.respond()
 	def res_subscribe(self): self.respond()
+	def res_album(self): self.respond()
+	def res_album_picture(self): self.respond()
+	def res_album_upload(self): self.respond()
+	def res_album_delete(self): self.respond()
 
 
 	def get_header(self, key: str, type: Type):
