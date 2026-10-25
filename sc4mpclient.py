@@ -3833,7 +3833,7 @@ class GameMonitor(th.Thread):
 			if self.last_saved_city is not None and self.last_saved_city[0] not in tiles.values() and all(self.tiles_touch(tile, self.last_saved_city[0]) for tile in tiles.values()):
 				print(f"Not pushing {', '.join(path.name for path in modified_paths)}, rewritten by SC4 as neighbours of the city saved last.")
 				return None
-			self.not_pushed(modified_paths, "Couldn't tell which city you saved, so nothing was pushed. Unpause the game until the date changes, then save again.")
+			self.not_pushed("Couldn't tell which city you saved, so nothing was pushed. Unpause the game until the date changes, then save again.")
 			return None
 
 		if len(save_city_paths) == 1:
@@ -3845,7 +3845,7 @@ class GameMonitor(th.Thread):
 			if len(candidates) != 1 and self.last_saved_city is not None and time.time() - self.last_saved_city[1] < self.NEIGHBOR_REWRITE_TIME:
 				candidates = [path for path in (candidates or save_city_paths) if tiles[path] == self.last_saved_city[0]]
 			if len(candidates) != 1:
-				self.not_pushed(modified_paths, "Couldn't tell which city you saved, so nothing was pushed. Save again.")
+				self.not_pushed("Couldn't tell which city you saved, so nothing was pushed. Save again.")
 				return None
 			save_city_path = candidates[0]
 
