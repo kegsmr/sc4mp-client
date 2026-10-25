@@ -1441,6 +1441,9 @@ class Server:
 
 		self.regions: list[Path] = []
 
+		# Set when connecting, for sharing pictures in SC4's album
+		self.album_sync: Optional[AlbumSync] = None
+
 
 	def fetch(self):
 		"""Retreives basic information from a server and saves them as instance variables. Updates the json entry for the server if possible."""
@@ -2629,6 +2632,9 @@ class ServerLoader(th.Thread):
 				self.report("", "Preparing regions...")
 				self.prep_regions()
 
+				self.report("", "Synchronizing albums...")
+				self.load_albums()
+
 				if sc4mp_config["GENERAL"]["sync_simcity_4_cfg"]:
 					self.report("", "Preparing config...")
 					self.prep_config()
@@ -3244,6 +3250,17 @@ class ServerLoader(th.Thread):
 					config_file.write(config_file_contents)
 
 
+	def load_albums(self):
+
+		self.server.album_sync = AlbumSync(self.server)
+
+		# Albums are optional, so the game still launches if they can't be loaded
+		try:
+			self.server.album_sync.load()
+		except Exception as e:
+			show_error(f"Unable to synchronize albums.\n\n{e}", no_ui=True)
+
+
 	def prep_config(self):
 
 		try:
@@ -3312,6 +3329,9 @@ class GameMonitor(th.Thread):
 
 		# Savegames the player changed that couldn't be pushed (eg. the server was unreachable), so they aren't overwritten by downloads
 		self.unpushed_cities: set[Path] = set()
+
+		# The region of the player's last save push, for sharing pictures of cities that haven't been saved yet
+		self.last_region = None
 
 		# Cities saved by other mayors that still need to be downloaded (`save` events), and whether to compare all savegames with the server's
 		self.pending_downloads: list[dict] = []
@@ -3391,6 +3411,7 @@ class GameMonitor(th.Thread):
 					# Push the player's saves before downloading other mayors' cities, so the player's changes are never overwritten before being pushed
 					if not self.guest:
 						self.push_cities()
+						self.push_pictures(final=game_closed)
 
 					self.download_cities()
 
@@ -3495,6 +3516,24 @@ class GameMonitor(th.Thread):
 				break
 
 		time.sleep(5)
+
+
+	def push_pictures(self, final=False):
+		"""Shares the pictures the player took in SC4's album with everyone in the same region."""
+
+		if self.server.album_sync is None:
+			return
+
+		try:
+			count = self.server.album_sync.push(final, self.last_region)
+		except Exception as e:
+			show_error(e, no_ui=True)
+			return
+
+		if count == 1:
+			self.report_quietly("Picture shared.")
+		elif count > 1:
+			self.report_quietly(f"{count} pictures shared.")
 
 
 	def get_modified_cities(self) -> list[Path]:
@@ -3911,6 +3950,7 @@ class GameMonitor(th.Thread):
 			return
 		else:
 			region = list(regions)[0]
+			self.last_region = region
 
 		with self.server.socket() as s:
 
@@ -4116,6 +4156,350 @@ class GameLauncher(th.Thread):
 
 			global sc4mp_current_server
 			sc4mp_current_server = None
+
+
+class AlbumSync:
+	"""Shares the pictures players take in SC4's photo album with everyone playing in the same region."""
+
+
+	QUIET_TIME = 60		# seconds a picture's files must be unchanged before it's shared, since SC4 writes its description after the picture
+	DESCRIPTION_PLACEHOLDER = "(add description here)"
+	INFO_KEY = 0x7b		# SC4 XORs each byte of a picture's `.info` file with this
+	PUBLIC_ALBUM = "{region} (Public)--1"		# the album other players' pictures go in, for each region (SC4 only lists albums ending in a negative number, which it hides)
+
+
+	def __init__(self, server):
+
+		self.server: Server = server
+
+		# SC4 keeps each city's pictures in its own folder here (eg. `Albums/New City--1691146935/`)
+		self.albums_path = Path(SC4MP_LAUNCHPATH) / "Albums"
+
+		# Records the pictures placed in SC4's album for this server, and the ones shared, so they're never shared twice
+		self.manifest_path = Path(SC4MP_LAUNCHPATH) / "_Database" / "albums.json"
+
+		# The pictures shared in each region of the server, by region name (regions without albums are left out)
+		self.albums: dict[str, list[dict]] = {}
+
+		# Only pictures taken while playing on this server are shared
+		self.start_time = time.time()
+
+		# Pictures that couldn't be shared (eg. the album is full), so they aren't retried every second
+		self.skipped: set[str] = set()
+
+		# Pictures of cities whose region isn't known yet, so the warning is only logged once
+		self.unknown_region: set[str] = set()
+
+		# Hash of the user id, as the server stores it, to tell which pictures are the player's own
+		self.owner = None
+		if self.server.user_id:
+			self.owner = hashlib.sha256(self.server.user_id.encode()).hexdigest()[:32]
+
+
+	def load(self) -> None:
+		"""Downloads the server's shared pictures into SC4's album, and removes the ones placed there for other servers or deleted from this one."""
+
+		manifest = load_json(self.manifest_path)
+		placed: dict[str, str] = manifest.setdefault("placed", {})
+
+		# Get the album of each region (fails for servers with albums turned off and servers too old to have them)
+		wanted = {}
+		for region in self.server.regions:
+			try:
+				with self.server.socket() as s:
+					entries = s.album(region.name)
+			except NetworkException as e:
+				print(f"[WARNING] No album for {region.name!r}: {e}")
+				continue
+			self.albums[region.name] = entries
+			for entry in entries:
+				entry["region"] = region.name
+				# The player's own pictures are already in their own albums
+				if self.is_own(entry):
+					continue
+				relpath = self.get_public_relpath(entry, wanted)
+				if relpath:
+					entry["placed"] = relpath
+					wanted[relpath] = entry
+
+		# Remove pictures placed for other servers, or that were deleted from this one
+		for relpath in list(placed.keys()):
+			if relpath not in wanted:
+				self.remove_picture(relpath)
+				del placed[relpath]
+
+		# Download the pictures missing from SC4's album
+		count = 0
+		for relpath, entry in wanted.items():
+			path = self.albums_path / relpath
+			if path.exists() and placed.get(relpath) == entry["md5"]:
+				continue
+			try:
+				with self.server.socket() as s:
+					data = s.album_picture(entry["region"], entry["picture"])
+				self.place_picture(path, data, entry)
+				placed[relpath] = entry["md5"]
+				count += 1
+			except Exception as e:
+				show_error(f"Unable to download {relpath!r}.\n\n{e}", no_ui=True)
+
+		update_json(self.manifest_path, manifest)
+
+		print(f"- {count} pictures downloaded, {len(wanted)} shared in total.")
+
+
+	def push(self, final=False, last_region=None) -> int:
+		"""Shares the pictures taken since the game started. Returns the number of pictures shared."""
+
+		if not self.albums or not self.albums_path.exists():
+			return 0
+
+		manifest = load_json(self.manifest_path)
+		placed: dict[str, str] = manifest.setdefault("placed", {})
+		shared: list[str] = manifest.setdefault("shared", {}).setdefault(self.server.server_id, [])
+
+		# Pictures already on the server are never shared again
+		known = set(shared)
+		for entries in self.albums.values():
+			for entry in entries:
+				known.add(entry["md5"])
+
+		count = 0
+		for path in self.albums_path.glob("*/*.png"):
+
+			relpath = f"{path.parent.name}/{path.name}"
+
+			# Other players' pictures are never shared again
+			if relpath in placed or relpath in self.skipped or path.parent.name.endswith(self.PUBLIC_ALBUM.format(region="")):
+				continue
+
+			if path.stat().st_mtime < self.start_time:
+				continue
+
+			# Wait for SC4 to finish writing the picture's description, unless the game closed
+			description_path = path.with_suffix(".txt")
+			info_path = path.with_suffix(".info")
+			modified = max(p.stat().st_mtime for p in [path, description_path, info_path] if p.exists())
+			if not final and time.time() - modified < self.QUIET_TIME:
+				continue
+
+			hashcode = md5(path)
+			if hashcode in known:
+				continue
+
+			# Retried, since a new city's region is known once it's saved
+			region = self.get_region(path.parent.name, last_region)
+			if region is None:
+				if relpath not in self.unknown_region:
+					print(f"[WARNING] Couldn't tell which region {relpath!r} was taken in yet. It's shared once the city is saved.")
+					self.unknown_region.add(relpath)
+				continue
+
+			# SC4 keeps its placeholder text when a description is typed after it
+			description = ""
+			if description_path.exists():
+				description = description_path.read_text(errors="replace")
+				if description.startswith(self.DESCRIPTION_PLACEHOLDER):
+					description = description[len(self.DESCRIPTION_PLACEHOLDER):]
+				description = description.strip()[:1000]
+
+			info = ""
+			if info_path.exists():
+				info = self.anonymize_info(info_path.read_bytes()[:500]).hex()
+
+			try:
+				with self.server.socket() as s:
+					picture = s.album_upload(
+						region, path.parent.name, path.name, path.read_bytes(),
+						description=description, info=info
+					)
+			except NetworkException as e:
+				print(f"[WARNING] Unable to share {relpath!r}: {e}")
+				self.skipped.add(relpath)
+				continue
+
+			print(f"Shared {relpath!r} in {region!r}.")
+
+			shared.append(hashcode)
+			known.add(hashcode)
+			self.albums[region].append({
+				"picture": picture,
+				"region": region,
+				"owner": self.owner,
+				"mayor": None,
+				"album": path.parent.name,
+				"filename": path.name,
+				"size": path.stat().st_size,
+				"md5": hashcode,
+				"uploaded": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+				"description": description,
+				"info": info,
+			})
+
+			count += 1
+
+		if count:
+			update_json(self.manifest_path, manifest)
+
+		return count
+
+
+	def anonymize_info(self, data: bytes) -> bytes:
+		"""Blanks the name of the Windows user in a picture's `.info` file (its second line), so it isn't shared with other players."""
+
+		lines = bytes(byte ^ self.INFO_KEY for byte in data).split(b"\n")
+
+		if len(lines) < 2 or lines[0] != b"SanityCheck":
+			return b""
+
+		lines[1] = b""
+
+		return bytes(byte ^ self.INFO_KEY for byte in b"\n".join(lines))
+
+
+	def delete(self, entry: dict) -> None:
+		"""Stops sharing one of the player's pictures (it stays in their own album)."""
+
+		with self.server.socket() as s:
+			s.album_delete(entry["region"], entry["picture"])
+
+		self.albums[entry["region"]].remove(entry)
+
+
+	def get_city_name(self, album_name: str) -> str:
+		"""Returns the name of the city an album belongs to (the album's name without the number SC4 adds)."""
+
+		match = re.fullmatch(r"(.*?)-(-?\d+)", album_name)
+		if match:
+			return match.group(1)
+
+		return album_name
+
+
+	def get_region(self, album_name: str, last_region=None) -> Optional[str]:
+		"""Returns the region of the city an album belongs to, going by the city's name."""
+
+		city_name = self.get_city_name(album_name)
+
+		candidates = set()
+		for region in self.server.regions:
+			if region.name not in self.albums:
+				continue
+			region_database = load_json(region / "_Database" / "region.json")
+			for entry in region_database.values():
+				if entry and entry.get("city_name") == city_name:
+					candidates.add(region.name)
+
+		if len(candidates) == 1:
+			return candidates.pop()
+
+		# A new city isn't in the region's database until it's saved, so assume it's in the region the player last saved in
+		if last_region in self.albums and (not candidates or last_region in candidates):
+			return last_region
+
+		return None
+
+
+	def is_own(self, entry: dict) -> bool:
+		"""Returns whether a shared picture is the player's own."""
+
+		return self.owner is not None and entry.get("owner") == self.owner
+
+
+	def get_public_relpath(self, entry: dict, wanted: dict) -> Optional[str]:
+		"""Returns where another player's picture goes in SC4's album: one album per region, so they aren't mixed up with the player's own albums."""
+
+		region = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", str(entry.get("region", ""))).strip(" .")
+		picture = str(entry.get("picture", ""))
+
+		if not region or not re.fullmatch(r"[0-9a-f]{32}", picture):
+			return None
+
+		album = self.PUBLIC_ALBUM.format(region=region)
+
+		# Keeps the name SC4 gave the picture (it's shown in SC4's album), unless another picture has it
+		relpath = self.get_relpath(entry)
+		if relpath is not None:
+			relpath = f"{album}/{relpath.split('/')[1]}"
+		if relpath is None or relpath in wanted:
+			relpath = f"{album}/{picture}.png"
+
+		return relpath
+
+
+	def get_relpath(self, entry: dict) -> Optional[str]:
+		"""Returns where the player's own shared picture is in SC4's album, with any characters that can't be in a path removed."""
+
+		names = []
+		for name in [entry.get("album", ""), entry.get("filename", "")]:
+			name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", str(name)).strip(" .")
+			if not name:
+				return None
+			names.append(name)
+
+		if not names[1].lower().endswith(".png"):
+			return None
+
+		return f"{names[0]}/{names[1]}"
+
+
+	def place_picture(self, path: Path, data: bytes, entry: dict) -> None:
+		"""Writes a shared picture to SC4's album, with its description and city info so SC4 shows them."""
+
+		path.parent.mkdir(parents=True, exist_ok=True)
+
+		# SC4 writes an empty `album.ini` in each album
+		album_ini_path = path.parent / "album.ini"
+		if not album_ini_path.exists():
+			album_ini_path.touch()
+
+		path.write_bytes(data)
+
+		if entry.get("description"):
+			path.with_suffix(".txt").write_text(entry["description"])
+
+		if entry.get("info"):
+			try:
+				path.with_suffix(".info").write_bytes(bytes.fromhex(entry["info"]))
+			except ValueError:
+				pass
+
+
+	def remove_picture(self, relpath: str) -> None:
+		"""Removes a picture placed in SC4's album, and its album if nothing else is left in it."""
+
+		path = self.albums_path / relpath
+
+		for p in [path, path.with_suffix(".txt"), path.with_suffix(".info")]:
+			try:
+				p.unlink()
+			except FileNotFoundError:
+				pass
+
+		try:
+			remaining = [p for p in path.parent.iterdir() if p.name != "album.ini"]
+			if not remaining:
+				shutil.rmtree(path.parent)
+		except FileNotFoundError:
+			pass
+
+
+	def get_path(self, entry: dict) -> Optional[Path]:
+		"""Returns the local file of a shared picture, if it's there."""
+
+		if self.is_own(entry):
+			relpath = self.get_relpath(entry)
+		else:
+			relpath = entry.get("placed")
+
+		if relpath is None:
+			return None
+
+		path = self.albums_path / relpath
+		if path.exists():
+			return path
+
+		return None
 
 
 class RegionsRefresher(th.Thread):
@@ -7521,6 +7905,12 @@ class GameMonitorUI(tk.Toplevel):
 		self.ping_frame.right = tk.Label(self, text="", fg="gray")
 		self.ping_frame.right.grid(column=1, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="e")
 
+		# Album button, only for servers that share pictures
+		album_sync = self.parent.server.album_sync
+		if album_sync is not None and album_sync.albums:
+			self.album_button = ttk.Button(self, text="Album", command=lambda: AlbumUI(self, album_sync))
+			self.album_button.grid(column=0, row=3, rowspan=1, columnspan=2, padx=0, pady=0)
+
 
 	def delete_window(self):
 
@@ -7547,6 +7937,226 @@ class GameMonitorUI(tk.Toplevel):
 			sc4mp_game_monitor_y = self.winfo_y()
 		except Exception:
 			pass
+
+		return super().destroy()
+
+
+class AlbumUI(tk.Toplevel):
+	"""Shows the pictures shared in the server's regions."""
+
+
+	THUMBNAIL_WIDTH = 160
+	THUMBNAIL_HEIGHT = 120
+	COLUMNS = 3
+	ALL_CITIES = "All cities"
+
+
+	def __init__(self, parent, album_sync: AlbumSync):
+
+		# A child of the status window, which grabs input while the game runs
+		super().__init__(parent)
+
+		self.album_sync = album_sync
+		self.destroyed = False
+
+		# Thumbnails are loaded in a thread, then shown from the main thread (Tk isn't thread-safe)
+		self.thumbnails: dict[str, tk.PhotoImage] = {}
+		self.loaded_thumbnails: list[tuple] = []
+		self.generation = 0
+		self.blank_image = tk.PhotoImage(width=self.THUMBNAIL_WIDTH, height=self.THUMBNAIL_HEIGHT)
+
+		# Title
+		self.title(f"{album_sync.server.server_name} - Album")
+
+		# Icon
+		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
+
+		# Geometry
+		self.geometry("585x520")
+		self.minsize(585, 300)
+		self.grid_columnconfigure(0, weight=1)
+		self.grid_rowconfigure(1, weight=1)
+		center_window(self)
+
+		# Key bindings
+		self.bind("<Escape>", lambda event: self.destroy())
+		self.bind("<MouseWheel>", lambda event: self.canvas.yview_scroll(int(-event.delta / 120), "units"))
+
+		# City filter
+		self.filter_frame = tk.Frame(self)
+		self.filter_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=(10, 5), sticky="w")
+
+		self.filter_frame.label = ttk.Label(self.filter_frame, text="City")
+		self.filter_frame.label.grid(row=0, column=0, padx=(0, 5))
+
+		self.city_combobox = ttk.Combobox(self.filter_frame, state="readonly", width=30)
+		self.city_combobox.set(self.ALL_CITIES)
+		self.city_combobox.grid(row=0, column=1)
+		self.city_combobox.bind("<<ComboboxSelected>>", lambda event: self.show_pictures())
+
+		# Pictures
+		self.canvas = tk.Canvas(self, highlightthickness=0)
+		self.canvas.grid(row=1, column=0, padx=(10, 0), pady=(0, 10), sticky="nsew")
+
+		self.scrollbar = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+		self.scrollbar.grid(row=1, column=1, padx=(0, 10), pady=(0, 10), sticky="ns")
+		self.canvas.configure(yscrollcommand=self.scrollbar.set)
+
+		self.inner_frame = tk.Frame(self.canvas)
+		self.canvas.create_window(0, 0, window=self.inner_frame, anchor="nw")
+		self.inner_frame.bind("<Configure>", lambda event: self.canvas.configure(scrollregion=self.canvas.bbox("all")))
+
+		self.show_pictures()
+
+
+	def show_pictures(self):
+
+		entries = []
+		for album in self.album_sync.albums.values():
+			entries += album
+		entries.sort(key=lambda entry: entry.get("uploaded") or "", reverse=True)
+
+		# Filter by city
+		cities = sorted(set(self.album_sync.get_city_name(entry["album"]) for entry in entries))
+		self.city_combobox["values"] = [self.ALL_CITIES] + cities
+		city = self.city_combobox.get()
+		if city not in cities:
+			city = self.ALL_CITIES
+			self.city_combobox.set(city)
+		if city != self.ALL_CITIES:
+			entries = [entry for entry in entries if self.album_sync.get_city_name(entry["album"]) == city]
+
+		for child in self.inner_frame.winfo_children():
+			child.destroy()
+		self.canvas.yview_moveto(0)
+
+		if not entries:
+			empty_label = ttk.Label(self.inner_frame, justify="center", text="No pictures yet.\n\nTake one in SimCity 4 with Ctrl+Shift+S, and it's\nshared with everyone playing in the same region.")
+			empty_label.grid(row=0, column=0, padx=100, pady=60)
+			return
+
+		tiles = []
+		for index, entry in enumerate(entries):
+
+			tile = tk.Frame(self.inner_frame)
+			tile.grid(row=index // self.COLUMNS, column=index % self.COLUMNS, padx=5, pady=5, sticky="n")
+
+			# Clicking a picture opens it full size
+			tile.image_label = tk.Label(tile, image=self.blank_image, background="gray85", cursor="hand2")
+			tile.image_label.grid(row=0, column=0)
+			tile.image_label.bind("<Button-1>", lambda event, entry=entry: self.open_picture(entry))
+
+			tile.city_label = ttk.Label(tile, text=self.album_sync.get_city_name(entry["album"]), font=("Segoe UI", 9, "bold"), wraplength=self.THUMBNAIL_WIDTH)
+			tile.city_label.grid(row=1, column=0, sticky="w")
+
+			byline = (entry.get("uploaded") or "")[:10]
+			if entry.get("mayor"):
+				byline = f"{entry['mayor']}, {byline}"
+			tile.byline_label = ttk.Label(tile, text=byline, foreground="gray", wraplength=self.THUMBNAIL_WIDTH)
+			tile.byline_label.grid(row=2, column=0, sticky="w")
+
+			if entry.get("description"):
+				tile.description_label = ttk.Label(tile, text=entry["description"][:120], wraplength=self.THUMBNAIL_WIDTH)
+				tile.description_label.grid(row=3, column=0, sticky="w")
+
+			# Players can stop sharing their own pictures
+			if self.album_sync.owner is not None and entry.get("owner") == self.album_sync.owner:
+				tile.delete_button = ttk.Button(tile, text="Stop sharing", command=lambda entry=entry: self.delete_picture(entry))
+				tile.delete_button.grid(row=4, column=0, sticky="w", pady=(2, 0))
+
+			tiles.append((entry, tile.image_label))
+
+		self.load_thumbnails(tiles)
+
+
+	def load_thumbnails(self, tiles):
+
+		self.generation += 1
+		generation = self.generation
+
+		def load():
+			for entry, label in tiles:
+				if self.destroyed or generation != self.generation:
+					return
+				path = self.album_sync.get_path(entry)
+				image = None
+				if path is not None and sc4mp_has_pil:
+					try:
+						image = Image.open(path)
+						image.thumbnail((self.THUMBNAIL_WIDTH, self.THUMBNAIL_HEIGHT))
+						image.load()
+					except Exception as e:
+						show_error(e, no_ui=True)
+						image = None
+				self.loaded_thumbnails.append((generation, entry, label, path, image))
+
+		th.Thread(target=load, daemon=True).start()
+
+		self.after(50, self.show_thumbnails)
+
+
+	def show_thumbnails(self):
+
+		if self.destroyed:
+			return
+
+		while self.loaded_thumbnails:
+
+			generation, entry, label, path, image = self.loaded_thumbnails.pop(0)
+
+			if generation != self.generation or not label.winfo_exists() or path is None:
+				continue
+
+			try:
+				if image is not None:
+					photo = ImageTk.PhotoImage(image)
+				else:
+					# Without PIL, Tk can only shrink pictures by whole factors
+					photo = tk.PhotoImage(file=str(path))
+					factor = max(1, math.ceil(photo.width() / self.THUMBNAIL_WIDTH), math.ceil(photo.height() / self.THUMBNAIL_HEIGHT))
+					photo = photo.subsample(factor)
+			except Exception as e:
+				show_error(e, no_ui=True)
+				continue
+
+			self.thumbnails[entry["picture"]] = photo
+			label.configure(image=photo)
+
+		self.after(50, self.show_thumbnails)
+
+
+	def open_picture(self, entry):
+
+		path = self.album_sync.get_path(entry)
+
+		if path is None:
+			messagebox.showerror(title=SC4MP_TITLE, message="This picture isn't downloaded yet. Reconnect to the server to download it.", parent=self)
+			return
+
+		startfile(str(path))
+
+
+	def delete_picture(self, entry):
+
+		if not messagebox.askokcancel(title=SC4MP_TITLE, message="Stop sharing this picture?\n\nIt stays in your own album.", parent=self):
+			return
+
+		# The request is sent from a thread, so the window doesn't freeze
+		def delete():
+			try:
+				self.album_sync.delete(entry)
+			except Exception as e:
+				show_error(f"Unable to stop sharing the picture.\n\n{e}", no_ui=True)
+				self.after(0, lambda: messagebox.showerror(title=SC4MP_TITLE, message=f"Unable to stop sharing the picture.\n\n{e}", parent=self))
+				return
+			self.after(0, self.show_pictures)
+
+		th.Thread(target=delete, daemon=True).start()
+
+
+	def destroy(self):
+
+		self.destroyed = True
 
 		return super().destroy()
 
