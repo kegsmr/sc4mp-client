@@ -77,7 +77,7 @@ SC4MP_DELAY = .1
 
 SC4MP_ARROW = "→" if is_windows() and platform.release() == "7" else "🡒"	# Windows 7 can't display "🡒"
 
-SC4MP_LAUNCHERMAP_ENABLED = False  #TODO replace with config setting eventually
+SC4MP_LAUNCHERMAP_ENABLED = True 		#TODO replace with config setting eventually
 
 SC4MP_CONFIG_DEFAULTS = [
 	("GENERAL", [
@@ -3338,7 +3338,7 @@ class GameMonitor(th.Thread):
 
 			# If launcher map enabled, use the map UI for the status window
 			if SC4MP_LAUNCHERMAP_ENABLED:
-				self.ui = GameMonitorMapUI()
+				self.ui = GameMonitorMapUI(self)
 
 			# Otherwise, use the legacy status window
 			else:
@@ -3448,13 +3448,13 @@ class GameMonitor(th.Thread):
 		# If the server is unresponsive, print a warning in the console and update the ui accordingly
 		if self.ping is None:
 			print("[WARNING] Disconnected.")
-			if self.ui != None:
+			if self.ui != None and not SC4MP_LAUNCHERMAP_ENABLED:
 				self.ui.ping_frame.right['text'] = "Disconnected"
 				self.ui.ping_frame.right['fg'] = "red"
 
 		# If the server is responsive, display the ping in the ui
 		else:
-			if self.ui != None:
+			if self.ui != None and not SC4MP_LAUNCHERMAP_ENABLED:
 				self.ui.ping_frame.right['text'] = f"{self.ping}ms"
 				self.ui.ping_frame.right['fg'] = "gray"
 			self.last_ping_time = time.time()
@@ -7531,6 +7531,8 @@ class GameMonitorUI(tk.Toplevel):
 					return
 				except Exception:
 					pass
+			else:
+				return
 		if messagebox.askokcancel(title=SC4MP_TITLE, message="Disconnect from the server?\n\nAll unsaved changes will be lost.", icon="warning"):
 			global sc4mp_game_exit_ovveride
 			sc4mp_game_exit_ovveride = True
@@ -7554,11 +7556,16 @@ class GameMonitorUI(tk.Toplevel):
 class GameMonitorMapUI(tk.Toplevel):
 
 
-
-	def __init__(self):
-
+	def __init__(self, parent):
+		
 
 		print("Initializing...")
+
+		# Parameters
+		self.parent = parent
+
+		# Parameters
+		self.parent = parent
 
 		# Init
 		super().__init__()
@@ -7572,11 +7579,13 @@ class GameMonitorMapUI(tk.Toplevel):
 		# Geometry
 		self.geometry("400x400")
 		self.minsize(443, 600)
-		self.maxsize(443, 600)
+		#self.maxsize(443, 600)
+		#self.maxsize(443, 600)
 		self.grid()
 
 		# Protocol
-		self.protocol("WM_DELETE_WINDOW", self.disable)
+		self.protocol("WM_DELETE_WINDOW", self.delete_window)
+		self.protocol("WM_DELETE_WINDOW", self.delete_window)
 
 		# Status label
 		self.label = tk.Label(self)
@@ -7621,21 +7630,67 @@ class GameMonitorMapUI(tk.Toplevel):
 		#self.ping_frame.right = ttk.Label(self.ping_frame, text="")
 		#self.ping_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="w")
 
+		self.prep_canvas_tiles()
+		self.prep_canvas_tiles()
 		self.draw_reigon()
 
 
-	def disable(self):
+	def delete_window(self):
+		
+		if not sc4mp_config["GENERAL"]["allow_game_monitor_exit"]:	
+			if sc4mp_allow_game_monitor_exit_if_error:
+				try:
+					process_exists("simcity 4.exe")
+					return
+				except:
+					pass
+			else:
+				return
+		if messagebox.askokcancel(title=SC4MP_TITLE, message="Disconnect from the server?\n\nAll unsaved changes will be lost.", icon="warning"):
+			global sc4mp_game_exit_ovveride
+			sc4mp_game_exit_ovveride = True
+			self.parent.end = True
+			self.destroy()
 
-		pass
+
+	def prep_canvas_tiles(self):
+
+		self.canvas.images = {}
+
+		LAUNCHER_MAP_TILE_STATES = ("abandoned", "claimed", "unclaimed", "you")
+		LAUNCHER_MAP_TILE_SIZES = ("small", "medium", "large")
+
+		for state in LAUNCHER_MAP_TILE_STATES:
+			self.canvas.images.setdefault(state, {})
+			for size in LAUNCHER_MAP_TILE_SIZES:
+				self.canvas.images[state][size] = tk.PhotoImage(file=get_sc4mp_path(f"launcher-map-tile-{state}-{size}.png"))
+
+
+	def prep_canvas_tiles(self):
+
+		self.canvas.images = {}
+
+		LAUNCHER_MAP_TILE_STATES = ("abandoned", "claimed", "unclaimed", "you")
+		LAUNCHER_MAP_TILE_SIZES = ("small", "medium", "large")
+
+		for state in LAUNCHER_MAP_TILE_STATES:
+			self.canvas.images.setdefault(state, {})
+			for size in LAUNCHER_MAP_TILE_SIZES:
+				self.canvas.images[state][size] = tk.PhotoImage(file=get_sc4mp_path(f"launcher-map-tile-{state}-{size}.png"))
+
+
+	def get_region_data(self):
+
+		#TODO
+
+		return {}
 
 
 	def draw_reigon(self):
-
-		self.canvas.LAUNCHER_MAP_TILE_UNCLAIMED_LARGE = tk.PhotoImage(file=os.path.join("resources", "launcher-map-tile-unclaimed-large.png"))
+		
+		region_data = self.get_region_data()
 
 		TILE_SIZE = 17
-
-		self.canvas.images = {}
 
 		REGION_WIDTH = 6 * 4
 		REGION_HEIGHT = 6 * 4
@@ -7645,21 +7700,21 @@ class GameMonitorMapUI(tk.Toplevel):
 
 		self.canvas.configure(scrollregion=(-.5 * WIDTH, -.5 * HEIGHT, .5 * WIDTH, .5 * HEIGHT))
 
-		#VIEWPORT_WIDTH = 408 / WIDTH
-		#VIEWPORT_HEIGHT = 408 / HEIGHT
+		VIEWPORT_WIDTH = 408 / WIDTH
+		VIEWPORT_HEIGHT = 408 / HEIGHT
 
-		#if VIEWPORT_WIDTH < 1:
-		#	self.canvas_horizontal_scrollbar.set((1 + VIEWPORT_WIDTH) / 2, (1 - VIEWPORT_WIDTH) / 2)
-
-		#if VIEWPORT_HEIGHT < 1:
-		#	self.canvas_vertical_scrollbar.set((1 + VIEWPORT_HEIGHT) / 2, (1 - VIEWPORT_HEIGHT) / 2)
-
+		if VIEWPORT_WIDTH < 1:
+			self.canvas_horizontal_scrollbar.set((1 + VIEWPORT_WIDTH) / 2, (1 - VIEWPORT_WIDTH) / 2)
+		if VIEWPORT_WIDTH < 1:
+			self.canvas_horizontal_scrollbar.set((1 + VIEWPORT_WIDTH) / 2, (1 - VIEWPORT_WIDTH) / 2)
+		
 		LARGE_TILE_COUNT_X = REGION_WIDTH / 4
 		LARGE_TILE_COUNT_Y = REGION_HEIGHT / 4
 
 		for y in range(int(-.5 * LARGE_TILE_COUNT_Y), int(.5 * LARGE_TILE_COUNT_Y)):
 			for x in range(int(-.5 * LARGE_TILE_COUNT_X), int(.5 * LARGE_TILE_COUNT_X)):
-				self.canvas.images[f"{x}_{y}"] = self.canvas.create_image(x*68, y*68, image=self.canvas.LAUNCHER_MAP_TILE_UNCLAIMED_LARGE, anchor="nw")
+				self.canvas.images[f"{x}_{y}"] = self.canvas.create_image(x*68, y*68, image=self.canvas.images["unclaimed"]["large"], anchor="nw")
+				self.canvas.images[f"{x}_{y}"] = self.canvas.create_image(x*68, y*68, image=self.canvas.images["unclaimed"]["large"], anchor="nw")
 
 
 class GameOverlayUI(tk.Toplevel):
