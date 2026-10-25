@@ -16,11 +16,13 @@ import string
 import struct
 import subprocess
 import sys
+import time
 import threading as th
 import urllib.request
 import urllib.error
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Callable
 
 try:
 	import requests
@@ -28,7 +30,7 @@ except ImportError:
 	pass
 
 
-#TODO add MacOS compatability
+#TODO add MacOS compatibility
 def process_count(process_name):
 
 	if platform.system() == "Windows":
@@ -213,8 +215,8 @@ def update_server_list(maximum=100):
 	with server_file.open("r") as file:
 		lines = file.readlines()
 	
-	# If the file has more than `maxiumum`, slice the list to keep only the 
-	# last `maxiumum` lines
+	# If the file has more than `maximum`, slice the list to keep only the
+	# last `maximum` lines
 	if len(lines) > maximum:
 
 		lines = lines[-maximum:]
@@ -645,3 +647,25 @@ def update_python_version(path: str, version: str) -> None:
         with open(path, 'w', encoding='utf-8') as f:
             f.write(updated_content)
         print(f'Updated SC4MP_VERSION to "{version}" in "{path}".')
+
+
+def sanitize_relpath(basepath: Path, relpath: str) -> Path:
+
+	fullpath = basepath / relpath
+
+	if str(fullpath.resolve()).startswith(str(basepath.resolve())):
+		return fullpath
+	else:
+		raise ValueError(f"Invalid relative path: \"{relpath}\".")
+
+
+def calculate_latency(function: Callable) -> tuple:
+	"""
+	Calls a function and returns the time in miliseconds it took to execute,
+	as well as the return value of the function.
+	"""
+
+	start = time.time()
+	r = function()
+	end = time.time()
+	return round(1000 * (end - start)), r
