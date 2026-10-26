@@ -3303,11 +3303,23 @@ class ServerLoader(th.Thread):
 				show_error(f"Failed to load default plugin \"{default_plugin_file_name}\".\n\n{e}", no_ui=True)
 
 		# Copy DLLs from subfolders (DLL plugins do not load in subfolders)
+		config_folders = []	# folders whose config files are already copied, so a folder with several DLLs isn't copied again
 		for path, basename in self.dll_plugin_paths:
 			checksum = md5(path)
 			if not checksum in toplevel_plugins_checksums:
 				shutil.copy(path, default_plugins_destination / f"{basename}-{checksum}.dll")
 				toplevel_plugins_checksums.append(checksum)
+
+				# Copy the DLL's config files too (DLL plugins read them from the folder they were loaded from)
+				if path.parent in config_folders:
+					continue
+				config_folders.append(path.parent)
+				for config_path in path.parent.glob("*.ini"):
+					config_destination = default_plugins_destination / config_path.name
+					if config_destination.exists():
+						print(f'[WARNING] Skipping "{config_path}", another plugin already uses "{config_path.name}".')
+					else:
+						shutil.copy(config_path, config_destination)
 
 		# Write server URL local plugin file
 		# with open(get_sc4mp_path("sc4mp-local-server-url.dat"), "rb") as rfile:
