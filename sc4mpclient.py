@@ -3493,7 +3493,7 @@ class GameMonitor(th.Thread):
 			return
 
 		# SC4 also rewrites the neighbouring cities, so only push the ones whose simulation date changed
-		save_city_paths = self.get_saved_cities(previous_cities, check_time)
+		save_city_paths = self.get_saved_cities(previous_cities, check_time, save_city_paths)
 
 		if not save_city_paths:
 			return
@@ -3527,8 +3527,8 @@ class GameMonitor(th.Thread):
 		time.sleep(5)
 
 
-	def get_saved_cities(self, previous_cities: dict[Path, str], check_time: float) -> list[Path]:
-		"""Returns the modified savegames the player saved: new ones, and the ones whose simulation date changed. The neighbours SC4 rewrites keep their date, and pushing one would claim it."""
+	def get_saved_cities(self, previous_cities: dict[Path, str], check_time: float, save_city_paths: list[Path]) -> list[Path]:
+		"""Returns the modified savegames the player saved: new ones, and the ones whose simulation date changed. The neighbours SC4 rewrites keep their date, and pushing one would claim it. When it can't tell, `save_city_paths` (the savegames picked by `get_modified_cities`) are returned as before."""
 
 		while True:
 
@@ -3576,10 +3576,8 @@ class GameMonitor(th.Thread):
 
 		# The game was saved while paused, or the savegames' previous dates aren't known, so the saved city can't be told apart
 		self.city_dates.update(dates)
-		self.report("[WARNING] ", "Save push failed! Unpause and save again.", color="red")
-		self.set_overlay_state("not-saved")
-		self.unpushed_cities.update(modified_paths)
-		return []
+		print(f"Couldn't tell the saved city from its neighbours by their dates, so pushing {', '.join(path.name for path in save_city_paths)} as before.")
+		return save_city_paths
 
 
 	def get_previous_date(self, path: Path, previous_hashcode: Optional[str]) -> Optional[bytes]:
