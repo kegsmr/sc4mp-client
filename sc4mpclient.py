@@ -3625,7 +3625,7 @@ class GameMonitor(th.Thread):
 
 						# SC4 also rewrites the neighbouring cities, so only push the ones whose simulation date changed
 						if len(save_city_paths) > 0:
-							save_city_paths = self.get_saved_cities(previous_cities, check_time)
+							save_city_paths = self.get_saved_cities(previous_cities, check_time, save_city_paths)
 
 						# If there are any new/modified savegame files, push them to the server. If errors occur, log them in the console and display a warning
 						if len(save_city_paths) > 0:
@@ -3819,8 +3819,8 @@ class GameMonitor(th.Thread):
 				#print('Downloading "' + filename + '" (' + str(filesize_read) + " / " + str(filesize) + " bytes)...", int(filesize_read), int(filesize)) #os.path.basename(os.path.normpath(filename))
 
 
-	def get_saved_cities(self, previous_cities, check_time):
-		"""Returns the modified savegames the player saved: new ones, and the ones whose simulation date changed. The neighbours SC4 rewrites keep their date, and pushing one would claim it."""
+	def get_saved_cities(self, previous_cities, check_time, save_city_paths):
+		"""Returns the modified savegames the player saved: new ones, and the ones whose simulation date changed. The neighbours SC4 rewrites keep their date, and pushing one would claim it. When it can't tell, `save_city_paths` (the savegames found by the save loop) are returned as before."""
 
 		while True:
 
@@ -3866,9 +3866,8 @@ class GameMonitor(th.Thread):
 
 		# The game was saved while paused, or the savegames' previous dates aren't known, so the saved city can't be told apart
 		self.city_dates.update(dates)
-		self.report("[WARNING] ", "Save push failed! Unpause and save again.", color="red")
-		self.set_overlay_state("not-saved")
-		return []
+		print(f"Couldn't tell the saved city from its neighbours by their dates, so pushing {', '.join(path.name for path in save_city_paths)} as before.")
+		return save_city_paths
 
 
 	def get_date(self, path):
