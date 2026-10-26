@@ -3293,9 +3293,8 @@ class GameMonitor(th.Thread):
 	PING_INTERVAL = 15			# seconds between pings
 	DOWNLOAD_RETRY_DELAY = 10	# seconds to wait before trying again when downloading cities saved by other mayors fails
 	SAVE_TIMEOUT = 60			# seconds to wait for SC4 to finish writing a save before pushing what it wrote
-	SAVE_QUIET_TIME = 5			# seconds SC4 has to stop writing savegames for before a save is pushed (it rewrites the neighbouring cities too, not all at once)
-	NEIGHBOR_REWRITE_TIME = 60	# seconds after a save in which the player is taken to still be in the city they saved
-	DATE_SUBFILE = "2990c1e5"	# the savegame subfile with the simulation date, which only changes in the city the player saved (the server checks it too)
+	NEIGHBOR_REWRITE_TIME = 60	# seconds after a push in which SC4 may still be rewriting the neighbours of the city that was saved
+	DATE_SUBFILE = "2990c1e5"	# the savegame subfile with the simulation date, which only changes in the city the player saved
 
 
 	def __init__(self, server):
@@ -3316,11 +3315,10 @@ class GameMonitor(th.Thread):
 		# Savegames the player changed that couldn't be pushed (eg. the server was unreachable), so they aren't overwritten by downloads
 		self.unpushed_cities: set[Path] = set()
 
-		# The simulation date subfile of savegames when they last changed, by path, to tell the saved city from the neighbours SC4 rewrote
+		# The simulation dates of savegames when they last changed, by path, and the cities last pushed and when, to tell saved cities from neighbours SC4 rewrote
 		self.city_dates: dict[Path, bytes] = {}
-
-		# The tile of the city the player last saved, and when, to tell SC4 rewriting its neighbours from the player saving them
-		self.last_saved_city: Optional[tuple[tuple[int, int, int, int], float]] = None
+		self.last_pushed_cities: list[Path] = []
+		self.last_push_time = None
 
 		# Cities saved by other mayors that still need to be downloaded (`save` events), and whether to compare all savegames with the server's
 		self.pending_downloads: list[dict] = []
@@ -3470,18 +3468,21 @@ class GameMonitor(th.Thread):
 
 
 	def push_cities(self):
-		"""Pushes the city the player saved to the server."""
+		"""Pushes new and modified savegames to the server."""
 
-		modified_cities = self.get_modified_cities()
+		previous_cities = dict(self.cities)
+		check_time = time.time()
 
-		if not modified_cities:
+		save_city_paths = self.get_modified_cities()
+
+		if not save_city_paths:
 			return
 
-		# SC4 also rewrites the neighbouring cities, so only push the city the player saved
-		save_city_path = self.get_saved_city(modified_cities)
-		if save_city_path is None:
+		# SC4 also rewrites the neighbouring cities, so only push the ones whose simulation date changed
+		save_city_paths = self.get_saved_cities(previous_cities, check_time)
+
+		if not save_city_paths:
 			return
-		save_city_paths = [save_city_path]
 
 		# Push them. If errors occur, log them in the console and display a warning
 		self.unpushed_cities.update(save_city_paths)
@@ -3512,107 +3513,66 @@ class GameMonitor(th.Thread):
 		time.sleep(5)
 
 
-	def get_modified_cities(self) -> dict[Path, Optional[str]]:
-		"""Returns the new and modified savegames, with the md5's of their previous versions (`None` for new ones), once SC4 has stopped writing savegames for `SAVE_QUIET_TIME` seconds, so a save isn't pushed before SC4 has written all of it."""
-
-		modified_cities = {}
-		start_time = time.time()
-		last_change_time = None
+	def get_saved_cities(self, previous_cities: dict[Path, str], check_time: float) -> list[Path]:
+		"""Returns the modified savegames the player saved: new ones, and the ones whose simulation date changed. The neighbours SC4 rewrites keep their date, and pushing one would claim it."""
 
 		while True:
 
-			# Compare the savegames in the regions with the ones from the last loop
-			cities = self.get_cities()
-			for path, hashcode in cities.items():
-				if self.cities.get(path) != hashcode:
-					last_change_time = time.time()
-					if path not in modified_cities:
-						modified_cities[path] = self.cities.get(path)
-			self.cities = cities
-
-			if not modified_cities:
-				return modified_cities
-
-			if time.time() - last_change_time >= self.SAVE_QUIET_TIME or time.time() - start_time >= self.SAVE_TIMEOUT:
-				return modified_cities
-
-			self.report("", "Saving...")
-			self.set_overlay_state("saving")
-
-			time.sleep(1)
-
-
-	def get_saved_city(self, modified_cities: dict[Path, Optional[str]]) -> Optional[Path]:
-		"""Works out which of the modified savegames is the city the player saved, since SC4 also rewrites the neighbouring cities. Returns `None` unless it's certain, since pushing a neighbouring city as the player's would claim it."""
-
-		modified_paths = list(modified_cities)
-
-		# Get the tile and simulation date of each savegame, and its previous simulation date if it's known
-		tiles: dict[Path, tuple[int, int, int, int]] = {}
-		dates: dict[Path, bytes] = {}
-		previous_dates: dict[Path, bytes] = {}
-		try:
+			modified_paths = [path for path, hashcode in self.cities.items() if previous_cities.get(path) != hashcode]
+			saved_paths = []
+			unchanged_paths = []
+			unknown_paths = []
+			dates = {}
 			for path in modified_paths:
-				with SC4Savegame(path, error_callback=None) as savegame:
-					savegame.get_SC4ReadRegionalCity()
-					tiles[path] = (
-						savegame.SC4ReadRegionalCity["tileXLocation"],
-						savegame.SC4ReadRegionalCity["tileYLocation"],
-						savegame.SC4ReadRegionalCity["citySizeX"],
-						savegame.SC4ReadRegionalCity["citySizeY"],
-					)
-					dates[path] = savegame.decompress_subfile(self.DATE_SUBFILE).getvalue()
-				previous_date = self.get_previous_date(path, modified_cities[path])
-				if previous_date is not None:
-					previous_dates[path] = previous_date
-			self.city_dates.update(dates)
-		except Exception as e:
-			show_error(e, no_ui=True)
-			self.not_pushed(modified_paths, "The saved city couldn't be read.")
-			return None
+				try:
+					with SC4Savegame(path, error_callback=None) as savegame:
+						dates[path] = savegame.decompress_subfile(self.DATE_SUBFILE).getvalue()
+				except Exception as e:
+					show_error(e, no_ui=True)
+					unknown_paths.append(path)
+					continue
+				previous_date = self.get_previous_date(path, previous_cities.get(path))
+				if path not in previous_cities:
+					saved_paths.append(path)
+				elif previous_date is None:
+					unknown_paths.append(path)
+				elif previous_date != dates[path]:
+					saved_paths.append(path)
+				else:
+					unchanged_paths.append(path)
 
-		# Only the city the player saved has a new simulation date, or is a new savegame (a city just founded). A savegame whose previous date isn't known could be a neighbour SC4 rewrote, so it isn't taken as saved.
-		save_city_paths = [path for path in modified_paths if modified_cities[path] is None or (path in previous_dates and previous_dates[path] != dates[path])]
+			if saved_paths:
+				self.city_dates.update(dates)
+				self.last_pushed_cities = saved_paths
+				self.last_push_time = time.time()
+				return saved_paths
 
-		if not save_city_paths:
-			# SC4 rewrites the saved city's neighbours one by one, some of them after the saved city
-			if self.last_saved_city is not None and self.last_saved_city[0] not in tiles.values() and all(self.tiles_touch(tile, self.last_saved_city[0]) for tile in tiles.values()):
-				print(f"Not pushing {', '.join(path.name for path in modified_paths)}, rewritten by SC4 as neighbours of the city saved last.")
-				return None
-			self.not_pushed(modified_paths, "Couldn't tell which city you saved, so nothing was pushed. Unpause the game until the date changes, then save again.")
-			return None
+			# SC4 rewrites some neighbours after the saved city, so these are expected for a while after a push
+			recently_pushed = self.last_push_time is not None and check_time - self.last_push_time < self.NEIGHBOR_REWRITE_TIME
+			if recently_pushed and not unknown_paths and not set(unchanged_paths) & set(self.last_pushed_cities):
+				self.city_dates.update(dates)
+				print(f"Not pushing {', '.join(path.name for path in unchanged_paths)}, rewritten by SC4 as neighbours of the city saved last.")
+				return []
 
-		if len(save_city_paths) == 1:
-			save_city_path = save_city_paths[0]
-		else:
-			# Leave out the savegames that don't border all the others (the saved city borders all its neighbours)
-			candidates = [path for path in save_city_paths if all(self.tiles_border(tiles[path], tiles[other]) for other in save_city_paths if other != path)]
-			# A city and its only neighbour border each other, but the player may still be in the city they saved a moment ago
-			if len(candidates) != 1 and self.last_saved_city is not None and time.time() - self.last_saved_city[1] < self.NEIGHBOR_REWRITE_TIME:
-				candidates = [path for path in (candidates or save_city_paths) if tiles[path] == self.last_saved_city[0]]
-			if len(candidates) != 1:
-				self.not_pushed(modified_paths, "Couldn't tell which city you saved, so nothing was pushed. Save again.")
-				return None
-			save_city_path = candidates[0]
+			# SC4 may write the neighbours before the saved city, so wait for it
+			if unknown_paths or time.time() - check_time >= self.SAVE_TIMEOUT:
+				break
+			time.sleep(1)
+			self.get_modified_cities()
 
-		self.last_saved_city = (tiles[save_city_path], time.time())
-
-		return save_city_path
-
-
-	def not_pushed(self, paths: list[Path], reason: str) -> None:
-		"""Reports that a save wasn't pushed, and keeps the savegames from being overwritten by downloads."""
-
-		self.report("[WARNING] ", f"Save push failed! {reason}", color="red")
+		# The game was saved while paused, or the savegames' previous dates aren't known, so the saved city can't be told apart
+		self.city_dates.update(dates)
+		self.report("[WARNING] ", "Save push failed! Unpause and save again.", color="red")
 		self.set_overlay_state("not-saved")
-		self.unpushed_cities.update(paths)
+		self.unpushed_cities.update(modified_paths)
+		return []
 
 
 	def get_previous_date(self, path: Path, previous_hashcode: Optional[str]) -> Optional[bytes]:
-		"""Returns the simulation date subfile of a savegame's previous version: from when it last changed, or from the cache if it was downloaded from the server since. `None` if it isn't known."""
+		"""Returns the simulation date of a savegame's previous version, from the cache (downloaded from the server) or from when it last changed. `None` if it isn't known."""
 
 		if previous_hashcode is not None:
-			previous_path = Path(SC4MP_LAUNCHPATH) / "_Cache" / sanitize_directory_name(previous_hashcode)
+			previous_path = Path(SC4MP_LAUNCHPATH) / "_Cache" / previous_hashcode
 			if previous_path.exists():
 				try:
 					with SC4Savegame(previous_path, error_callback=None) as previous:
@@ -3623,34 +3583,56 @@ class GameMonitor(th.Thread):
 		return self.city_dates.get(path)
 
 
-	@staticmethod
-	def tiles_touch(tile: tuple[int, int, int, int], other: tuple[int, int, int, int]) -> bool:
-		"""Whether two cities' tiles (x, y, width, height) share an edge or a corner."""
+	def get_modified_cities(self) -> list[Path]:
+		"""Returns the paths of new and modified savegames, waiting until SC4 stops writing savegames so a save isn't pushed in pieces."""
 
-		x, y, width, height = tile
-		other_x, other_y, other_width, other_height = other
+		save_city_paths = []
+		start_time = time.time()
 
-		overlap_x = other_x < x + width and x < other_x + other_width
-		overlap_y = other_y < y + height and y < other_y + other_height
-		touch_x = other_x == x + width or x == other_x + other_width
-		touch_y = other_y == y + height or y == other_y + other_height
+		# Loop until SC4 stops writing savegames (meant to prevent fragmented save pushes, not the best solution because it relies somewhat on the loop delay)
+		changed = True
+		incomplete = False
+		while changed or (incomplete and time.time() - start_time < self.SAVE_TIMEOUT):
 
-		return (touch_x and (overlap_y or touch_y)) or (touch_y and overlap_x)
+			# Compare the savegames in the regions with the ones from the last loop
+			changed = False
+			cities = self.get_cities()
+			for path, hashcode in cities.items():
+				if self.cities.get(path) != hashcode:
+					changed = True
+					if path not in save_city_paths:
+						save_city_paths.append(path)
+			self.cities = cities
 
+			# If new/modified savegames were found, wait to see if SC4 writes more
+			if save_city_paths:
 
-	@staticmethod
-	def tiles_border(tile: tuple[int, int, int, int], other: tuple[int, int, int, int]) -> bool:
-		"""Whether two cities' tiles (x, y, width, height) share an edge."""
+				self.report("", "Saving...")
+				self.set_overlay_state("saving")
 
-		x, y, width, height = tile
-		other_x, other_y, other_width, other_height = other
+				time.sleep(1) #TODO make configurable?
 
-		overlap_x = other_x < x + width and x < other_x + other_width
-		overlap_y = other_y < y + height and y < other_y + other_height
-		touch_x = other_x == x + width or x == other_x + other_width
-		touch_y = other_y == y + height or y == other_y + other_height
+				# SC4 also rewrites neighbouring cities when saving, so filter the savegames if more than one is found
+				if changed and len(save_city_paths) > 1:
+					savegames = []
+					try:
+						for save_city_path in save_city_paths:
+							savegame = SC4Savegame(save_city_path, error_callback=None)
+							savegames.append(savegame)
+							savegame.get_SC4ReadRegionalCity()
+						filtered_savegames = self.filter_bordering_tiles(savegames)
+						if len(filtered_savegames) == 1:
+							save_city_paths = [savegame.filename for savegame in filtered_savegames]
+							break
+						# If none of them borders all the others, SC4 has only written the neighbours so far, so wait for the saved city
+						incomplete = not filtered_savegames
+					except Exception as e:
+						show_error(e, no_ui=True)
+					finally:
+						for savegame in savegames:
+							savegame.close()	# an open savegame can't be saved by SC4
 
-		return (touch_x and overlap_y) or (touch_y and overlap_x)
+		return save_city_paths
 
 
 	def check_refresh(self):
@@ -3938,6 +3920,59 @@ class GameMonitor(th.Thread):
 			cached = (key, md5(city_path))
 			self.city_hashcode_cache[city_path] = cached
 		return cached[1]
+
+
+	def filter_bordering_tiles(self, savegames):
+
+		#report("Savegame filter 1", self)
+
+		filtered_savegames = []
+
+		for savegame in savegames:
+
+			add = True
+
+			savegameX = savegame.SC4ReadRegionalCity["tileXLocation"]
+			savegameY = savegame.SC4ReadRegionalCity["tileYLocation"]
+
+			savegameSizeX = savegame.SC4ReadRegionalCity["citySizeX"]
+			savegameSizeY = savegame.SC4ReadRegionalCity["citySizeY"]
+
+			for neighbor in savegames:
+
+				if neighbor == savegame:
+					continue
+
+				neighborX = neighbor.SC4ReadRegionalCity["tileXLocation"]
+				neighborY = neighbor.SC4ReadRegionalCity["tileYLocation"]
+
+				neighborSizeX = neighbor.SC4ReadRegionalCity["citySizeX"]
+				neighborSizeY = neighbor.SC4ReadRegionalCity["citySizeY"]
+
+				conditionX1 = (neighborX == savegameX - neighborSizeX)
+				conditionX2 = (neighborX == savegameX + savegameSizeX)
+				conditionY1 = (neighborY == savegameY - neighborSizeY)
+				conditionY2 = (neighborY == savegameY + savegameSizeY)
+
+				conditionX = xor(conditionX1, conditionX2) and ((neighborY + neighborSizeY > savegameY) or (neighborY < savegameY + savegameSizeY))
+				conditionY = xor(conditionY1, conditionY2) and ((neighborX + neighborSizeX > savegameX) or (neighborX < savegameX + savegameSizeX))
+
+				condition = xor(conditionX, conditionY)
+
+				if not condition:
+					add = False
+
+			if add:
+
+				filtered_savegames.append(savegame)
+
+				#report("YES (" + str(savegameX) + ", " + str(savegameY) + ")", self)
+
+			#else:
+
+				#report("NO (" + str(savegameX) + ", " + str(savegameY) + ")", self)
+
+		return filtered_savegames
 
 
 	def save(self, save_city_paths: list[Path]) -> None:
