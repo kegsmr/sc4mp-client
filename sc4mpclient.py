@@ -7728,7 +7728,7 @@ class GameMonitorUI(tk.Toplevel):
 		self.protocol("WM_DELETE_WINDOW", self.delete_window)
 
 		# Status label
-		self.label = tk.Label(self, text="")
+		self.label = tk.Label(self, text="", wraplength=400)	# wrap long messages to fit the narrowest window
 		self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=(12,8), sticky="n")
 
 		# Tabs
