@@ -46,7 +46,7 @@ SC4MP_VERSION = "0.8.12"
 
 SC4MP_SERVERS = get_server_list()
 
-SC4MP_GITHUB_REPO = "kegsmr/sc4mp-client"
+SC4MP_GITHUB_REPO = "sc4multiplayer/sc4mp-client"
 
 SC4MP_URL = "https://www.sc4mp.org/"
 SC4MP_CONTRIBUTORS_URL = f"https://github.com/{SC4MP_GITHUB_REPO}/contributors/"
@@ -4615,7 +4615,7 @@ class UI(tk.Tk):
 			"for more information.\n\n" if is_windows() else ""
 
 		if messagebox.askyesno(SC4MP_TITLE, f"Hosting a server requires the SC4MP Server application.\n\n{message}Would you like to view the GitHub repository?"):
-			webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/")
+			webbrowser.open_new_tab("https://github.com/sc4multiplayer/sc4mp-server/")
 
 
 
