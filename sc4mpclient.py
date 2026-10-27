@@ -166,6 +166,8 @@ sc4mp_game_monitor_y = 40
 
 sc4mp_beta = None
 
+sc4mp_shutting_down = False	# set when the launcher closes, so threads still running don't report errors from its closed windows
+
 
 # Functions
 
@@ -349,6 +351,9 @@ def prep():
 
 
 def cleanup():
+
+	global sc4mp_shutting_down
+	sc4mp_shutting_down = True
 	
 	sc4mp_servers_database.end = True
 
@@ -2051,6 +2056,10 @@ class ServerList(th.Thread):
 				self.ended = True
 			except Exception:
 				pass
+
+			# The launcher is closing, so its window is gone
+			if sc4mp_shutting_down:
+				return
 
 			show_error(f"An error occurred while fetching servers.\n\n{e}") #, no_ui=True)
 
