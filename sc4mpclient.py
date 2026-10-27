@@ -99,7 +99,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("show_offline_servers", True),
 		("use_fullscreen_background", True),
 		("use_launcher_map", True),
-		("legacy_game_overlay", False),
+		("use_game_overlay", 1),
 		("legacy_game_monitor", False),
 		("allow_game_monitor_exit", True),
 
@@ -3174,6 +3174,9 @@ class ServerLoader(th.Thread):
 			"sc4mp-local.dat",
 			"sc4mp-ui.dat",
 		]:
+			# The SC4MP DLL isn't used with the legacy game monitor
+			if default_plugin_file_name in ("sc4mp.dll", "sc4mp-dll-ui.dat", "sc4mp-third-party-notices.txt") and sc4mp_config["GENERAL"]["legacy_game_monitor"]:
+				continue
 			try:
 				default_plugin_file_path = default_plugins_source / default_plugin_file_name
 				default_plugin_checksum = md5(default_plugin_file_path)
@@ -3308,12 +3311,8 @@ class GameMonitor(th.Thread):
 	CONNECTED_PING_INTERVAL = 60	# seconds between pings while the event listener is connected (so the server is reachable)
 	DOWNLOAD_RETRY_DELAY = 10	# seconds to wait before trying again when downloading cities saved by other mayors fails
 	SAVE_TIMEOUT = 60			# seconds to wait for SC4 to finish writing a save before pushing what it wrote
-	SAVE_QUIET_TIME = 5			# seconds SC4 has to stop writing savegames for before a save is pushed (it rewrites the neighbouring cities too, not all at once)
-	NEIGHBOR_REWRITE_TIME = 60	# seconds after a save in which the player is taken to still be in the city they saved
-	DATE_SUBFILE = "2990c1e5"	# the savegame subfile with the simulation date, which only changes in the city the player saved (the server checks it too)
-
-	# The game overlay's image for each save status (see `set_overlay_state`), which has none for a failed save or for being disconnected
-	OVERLAY_STATES = {"not_saved": "not-saved", "failed": "not-saved", "disconnected": None}
+	NEIGHBOR_REWRITE_TIME = 60	# seconds after a push in which SC4 may still be rewriting the neighbours of the city that was saved
+	DATE_SUBFILE = "2990c1e5"	# the savegame subfile with the simulation date, which only changes in the city the player saved
 
 
 	def __init__(self, server):
@@ -3334,11 +3333,10 @@ class GameMonitor(th.Thread):
 		# Savegames the player changed that couldn't be pushed (eg. the server was unreachable), so they aren't overwritten by downloads
 		self.unpushed_cities: set[Path] = set()
 
-		# The simulation date subfile of savegames when they last changed, by path, to tell the saved city from the neighbours SC4 rewrote
+		# The simulation dates of savegames when they last changed, by path, and the cities last pushed and when, to tell saved cities from neighbours SC4 rewrote
 		self.city_dates: dict[Path, bytes] = {}
-
-		# The tile of the city the player last saved, and when, to tell SC4 rewriting its neighbours from the player saving them
-		self.last_saved_city: Optional[tuple[tuple[int, int, int, int], float]] = None
+		self.last_pushed_cities: list[Path] = []
+		self.last_push_time = None
 
 		# Cities saved by other mayors that still need to be downloaded (`save` events), and whether to compare all savegames with the server's
 		self.pending_downloads: list[dict] = []
@@ -3348,9 +3346,7 @@ class GameMonitor(th.Thread):
 		# Ping
 		self.ping = None
 		self.last_ping_time = None
-
 		self.disconnected = False	# whether the game was told the server is unreachable
-		self.save_failed = None	# the text of the last failed save, which stays shown until the server is reconnected or a save gets through
 
 		# Used to detect when the player opens the refresh region (`cfg_hashcode` is the md5 of `SimCity 4.cfg`)
 		self.cfg_hashcode = None
@@ -3374,27 +3370,30 @@ class GameMonitor(th.Thread):
 			else:
 				self.ui = GameMonitorUI(self)
 
-			# Create the legacy game overlay window if the player turned it back on (fullscreen mode only), since the SC4MP DLL shows the chat and status in game
-			if sc4mp_config["GENERAL"]["legacy_game_overlay"] and sc4mp_config["SC4"]["fullscreen"]:
+			# The SC4MP DLL shows the chat and the save status in game, unless the player chose the legacy game monitor (and overlay) instead
+			if not sc4mp_config["GENERAL"]["legacy_game_monitor"]:
+				self.ui.withdraw()
+
+			# Create game overlay window if the game overlay is enabled (`1` is fullscreen-mode only; `2` is always enabled)
+			elif (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
 				self.overlay_ui = GameOverlayUI(self.ui, guest=self.guest)
 				if sc4mp_game_monitor_x > 0:
 					self.ui.withdraw()
-			elif sc4mp_config["GENERAL"]["legacy_game_monitor"]:
-				self.ui.deiconify()
-
-			# Otherwise the game monitor stays hidden, since the SC4MP DLL shows the chat and status in game
 			else:
-				self.ui.withdraw()
+				self.ui.deiconify()
 
 			# Set window title to server name
 			self.ui.title(server.server_name)
 
-		# Listen for the SC4MP DLL before the game starts, so the game can be told where to connect
+		# Listen for the SC4MP DLL before the game starts, so the game can be told where to connect (not with the legacy game monitor)
 		self.bridge = GameBridge(self)
-		self.bridge.start()
+		bridge_port = None
+		if not sc4mp_config["GENERAL"]["legacy_game_monitor"]:
+			self.bridge.start()
+			bridge_port = self.bridge.port
 
 		# Start the game launcher thread (starts the game)
-		self.game_launcher = GameLauncher(self.bridge.port)
+		self.game_launcher = GameLauncher(bridge_port)
 		self.game_launcher.start()
 
 		# Chat messages already shown (recent messages are sent again when the event listener reconnects)
@@ -3505,7 +3504,7 @@ class GameMonitor(th.Thread):
 				self.ui.ping_frame.right['fg'] = "red"
 			if not self.disconnected:
 				self.disconnected = True
-				self.set_overlay_state("disconnected", "Disconnected")
+				self.bridge.status("disconnected")
 
 		# If the server is responsive, display the ping in the ui
 		else:
@@ -3519,170 +3518,113 @@ class GameMonitor(th.Thread):
 
 
 	def push_cities(self):
-		"""Pushes the city the player saved to the server."""
+		"""Pushes new and modified savegames to the server."""
 
-		modified_cities = self.get_modified_cities()
+		previous_cities = dict(self.cities)
+		check_time = time.time()
 
-		if not modified_cities:
+		save_city_paths = self.get_modified_cities()
+
+		if not save_city_paths:
 			return
 
-		# SC4 also rewrites the neighbouring cities, so only push the city the player saved
-		save_city_path = self.get_saved_city(modified_cities)
-		if save_city_path is None:
-			self.bridge.progress("")	# nothing to push after all, so the "Saving..." line goes again (otherwise the push clears it when it ends)
+		# SC4 also rewrites the neighbouring cities, so only push the ones whose simulation date changed
+		save_city_paths = self.get_saved_cities(previous_cities, check_time, save_city_paths)
+
+		if not save_city_paths:
+			self.bridge.progress("")	# nothing to push after all, so the "Saving..." line in the game's chat goes again
 			return
-		save_city_paths = [save_city_path]
 
 		# Push them. If errors occur, log them in the console and display a warning
 		self.unpushed_cities.update(save_city_paths)
 		tries = 0
-		try:
-			while True:
-				try:
-					self.report("", "Saving...")
-					self.bridge.progress("Saving...")	# the last line of the game's chat while the push lasts, followed by the result
-					self.set_overlay_state('saving', "Saving...")
-					self.save(save_city_paths)
-					self.unpushed_cities.difference_update(save_city_paths)	# pushed (or rejected by the server, in which case they're salvaged)
-					break
-				except (NetworkException, socket.timeout, socket.error) as e: # Is `ConnectionResetError` a `socket.error`?
-					show_error(e, no_ui=True)
-					self.set_overlay_state("not_saved", "Retrying save...")	# amber: the server can't be reached
-				except Exception as e:
-					show_error(e, no_ui=True)
-					self.report("[WARNING] ", "Save push failed! Unexpected client-side error.", color="red")
-					self.set_overlay_state("failed", "Save failed")
-					break
-				tries += 1
-				for count in range(5):
-					self.report("[WARNING] ", f"Connection failed. Retrying {5 - count}...")
-					self.bridge.progress(f"Connection failed. Retrying {5 - count}...")
-					time.sleep(1)
-				if tries >= 3:
-					self.report("[WARNING] ", "Save push failed! Server unreachable.", color="red")
-					self.set_overlay_state("failed", "Server unreachable")	# red: the city wasn't saved
-					break
-		finally:
-			self.bridge.progress("")	# however the push ended, so the line doesn't stay
+		while True:
+			try:
+				self.report("", "Saving...")
+				self.bridge.progress("Saving...")	# the last line of the game's chat while the push lasts, followed by the result
+				self.set_overlay_state('saving')
+				self.save(save_city_paths)
+				self.unpushed_cities.difference_update(save_city_paths)	# pushed (or rejected by the server, in which case they're salvaged)
+				break
+			except (NetworkException, socket.timeout, socket.error) as e: # Is `ConnectionResetError` a `socket.error`?
+				show_error(e, no_ui=True)
+			except Exception as e:
+				show_error(e, no_ui=True)
+				self.report("[WARNING] ", "Save push failed! Unexpected client-side error.", color="red")
+				self.set_overlay_state("not-saved")
+				break
+			tries += 1
+			for count in range(5):
+				self.report("[WARNING] ", f"Connection failed. Retrying {5 - count}...")
+				self.bridge.progress(f"Connection failed. Retrying {5 - count}...")
+				time.sleep(1)
+			if tries >= 3:
+				self.report("[WARNING] ", "Save push failed! Server unreachable.", color="red")
+				self.set_overlay_state("not-saved")
+				break
+		self.bridge.progress("")	# however the push ended, so the line doesn't stay
 
 		time.sleep(5)
 
 
-	def get_modified_cities(self) -> dict[Path, Optional[str]]:
-		"""Returns the new and modified savegames, with the md5's of their previous versions (`None` for new ones), once SC4 has stopped writing savegames for `SAVE_QUIET_TIME` seconds, so a save isn't pushed before SC4 has written all of it."""
-
-		modified_cities = {}
-		start_time = time.time()
-		last_change_time = None
-		progress_shown = False	# whether "Saving..." is in the game's chat, from when the game starts saving until the push ends
+	def get_saved_cities(self, previous_cities: dict[Path, str], check_time: float, save_city_paths: list[Path]) -> list[Path]:
+		"""Returns the modified savegames the player saved: new ones, and the ones whose simulation date changed. The neighbours SC4 rewrites keep their date, and pushing one would claim it. When it can't tell, `save_city_paths` (the savegames picked by `get_modified_cities`) are returned as before."""
 
 		while True:
 
-			# If the SC4MP DLL says the game is writing a save, wait until it's done, so the save isn't read in pieces
-			if self.bridge.saving and not progress_shown:
-				self.bridge.progress("Saving...")
-				progress_shown = True
-			while self.bridge.saving and time.time() - start_time < self.SAVE_TIMEOUT:
-				self.report_quietly("Saving...")
-				time.sleep(0.2)
-
-			# Compare the savegames in the regions with the ones from the last loop
-			cities = self.get_cities()
-			for path, hashcode in cities.items():
-				if self.cities.get(path) != hashcode:
-					last_change_time = time.time()
-					if path not in modified_cities:
-						modified_cities[path] = self.cities.get(path)
-			self.cities = cities
-
-			if not modified_cities:
-				if progress_shown:
-					self.bridge.progress("")	# nothing to push after all, so the line goes again
-				return modified_cities
-
-			if time.time() - last_change_time >= self.SAVE_QUIET_TIME or time.time() - start_time >= self.SAVE_TIMEOUT:
-				return modified_cities
-
-			self.report("", "Saving...")
-			self.set_overlay_state("saving", "Saving...")
-			if not progress_shown:
-				self.bridge.progress("Saving...")
-				progress_shown = True
-
-			time.sleep(1)
-
-
-	def get_saved_city(self, modified_cities: dict[Path, Optional[str]]) -> Optional[Path]:
-		"""Works out which of the modified savegames is the city the player saved, since SC4 also rewrites the neighbouring cities. Returns `None` unless it's certain, since pushing a neighbouring city as the player's would claim it."""
-
-		modified_paths = list(modified_cities)
-
-		# Get the tile and simulation date of each savegame, and its previous simulation date if it's known
-		tiles: dict[Path, tuple[int, int, int, int]] = {}
-		dates: dict[Path, bytes] = {}
-		previous_dates: dict[Path, bytes] = {}
-		try:
+			modified_paths = [path for path, hashcode in self.cities.items() if previous_cities.get(path) != hashcode]
+			saved_paths = []
+			unchanged_paths = []
+			unknown_paths = []
+			dates = {}
 			for path in modified_paths:
-				with SC4Savegame(path, error_callback=None) as savegame:
-					savegame.get_SC4ReadRegionalCity()
-					tiles[path] = (
-						savegame.SC4ReadRegionalCity["tileXLocation"],
-						savegame.SC4ReadRegionalCity["tileYLocation"],
-						savegame.SC4ReadRegionalCity["citySizeX"],
-						savegame.SC4ReadRegionalCity["citySizeY"],
-					)
-					dates[path] = savegame.decompress_subfile(self.DATE_SUBFILE).getvalue()
-				previous_date = self.get_previous_date(path, modified_cities[path])
-				if previous_date is not None:
-					previous_dates[path] = previous_date
-			self.city_dates.update(dates)
-		except Exception as e:
-			show_error(e, no_ui=True)
-			self.not_pushed(modified_paths, "The saved city couldn't be read.")
-			return None
+				try:
+					with SC4Savegame(path, error_callback=None) as savegame:
+						dates[path] = savegame.decompress_subfile(self.DATE_SUBFILE).getvalue()
+				except Exception as e:
+					show_error(e, no_ui=True)
+					unknown_paths.append(path)
+					continue
+				previous_date = self.get_previous_date(path, previous_cities.get(path))
+				if path not in previous_cities:
+					saved_paths.append(path)
+				elif previous_date is None:
+					unknown_paths.append(path)
+				elif previous_date != dates[path]:
+					saved_paths.append(path)
+				else:
+					unchanged_paths.append(path)
 
-		# Only the city the player saved has a new simulation date, or is a new savegame (a city just founded). A savegame whose previous date isn't known could be a neighbour SC4 rewrote, so it isn't taken as saved.
-		save_city_paths = [path for path in modified_paths if modified_cities[path] is None or (path in previous_dates and previous_dates[path] != dates[path])]
+			if saved_paths:
+				self.city_dates.update(dates)
+				self.last_pushed_cities = saved_paths
+				self.last_push_time = time.time()
+				return saved_paths
 
-		if not save_city_paths:
-			# SC4 rewrites the saved city's neighbours one by one, some of them after the saved city
-			if self.last_saved_city is not None and self.last_saved_city[0] not in tiles.values() and all(self.tiles_touch(tile, self.last_saved_city[0]) for tile in tiles.values()):
-				print(f"Not pushing {', '.join(path.name for path in modified_paths)}, rewritten by SC4 as neighbours of the city saved last.")
-				return None
-			self.not_pushed(modified_paths, "Couldn't tell which city you saved, so nothing was pushed. Unpause the game until the date changes, then save again.")
-			return None
+			# SC4 rewrites some neighbours after the saved city, so these are expected for a while after a push
+			recently_pushed = self.last_push_time is not None and check_time - self.last_push_time < self.NEIGHBOR_REWRITE_TIME
+			if recently_pushed and not unknown_paths and not set(unchanged_paths) & set(self.last_pushed_cities):
+				self.city_dates.update(dates)
+				print(f"Not pushing {', '.join(path.name for path in unchanged_paths)}, rewritten by SC4 as neighbours of the city saved last.")
+				return []
 
-		if len(save_city_paths) == 1:
-			save_city_path = save_city_paths[0]
-		else:
-			# Leave out the savegames that don't border all the others (the saved city borders all its neighbours)
-			candidates = [path for path in save_city_paths if all(self.tiles_border(tiles[path], tiles[other]) for other in save_city_paths if other != path)]
-			# A city and its only neighbour border each other, but the player may still be in the city they saved a moment ago
-			if len(candidates) != 1 and self.last_saved_city is not None and time.time() - self.last_saved_city[1] < self.NEIGHBOR_REWRITE_TIME:
-				candidates = [path for path in (candidates or save_city_paths) if tiles[path] == self.last_saved_city[0]]
-			if len(candidates) != 1:
-				self.not_pushed(modified_paths, "Couldn't tell which city you saved, so nothing was pushed. Save again.")
-				return None
-			save_city_path = candidates[0]
+			# SC4 may write the neighbours before the saved city, so wait for it
+			if unknown_paths or time.time() - check_time >= self.SAVE_TIMEOUT:
+				break
+			time.sleep(1)
+			self.get_modified_cities()
 
-		self.last_saved_city = (tiles[save_city_path], time.time())
-
-		return save_city_path
-
-
-	def not_pushed(self, paths: list[Path], reason: str) -> None:
-		"""Reports that a save wasn't pushed, and keeps the savegames from being overwritten by downloads."""
-
-		self.report("[WARNING] ", f"Save push failed! {reason}", color="red")
-		self.set_overlay_state("failed", "Save failed")	# red: the city wasn't saved
-		self.unpushed_cities.update(paths)
+		# The game was saved while paused, or the savegames' previous dates aren't known, so the saved city can't be told apart
+		self.city_dates.update(dates)
+		print(f"Couldn't tell the saved city from its neighbours by their dates, so pushing {', '.join(path.name for path in save_city_paths)} as before.")
+		return save_city_paths
 
 
 	def get_previous_date(self, path: Path, previous_hashcode: Optional[str]) -> Optional[bytes]:
-		"""Returns the simulation date subfile of a savegame's previous version: from when it last changed, or from the cache if it was downloaded from the server since. `None` if it isn't known."""
+		"""Returns the simulation date of a savegame's previous version, from the cache (downloaded from the server) or from when it last changed. `None` if it isn't known."""
 
 		if previous_hashcode is not None:
-			previous_path = Path(SC4MP_LAUNCHPATH) / "_Cache" / sanitize_directory_name(previous_hashcode)
+			previous_path = Path(SC4MP_LAUNCHPATH) / "_Cache" / previous_hashcode
 			if previous_path.exists():
 				try:
 					with SC4Savegame(previous_path, error_callback=None) as previous:
@@ -3693,34 +3635,61 @@ class GameMonitor(th.Thread):
 		return self.city_dates.get(path)
 
 
-	@staticmethod
-	def tiles_touch(tile: tuple[int, int, int, int], other: tuple[int, int, int, int]) -> bool:
-		"""Whether two cities' tiles (x, y, width, height) share an edge or a corner."""
+	def get_modified_cities(self) -> list[Path]:
+		"""Returns the paths of new and modified savegames, waiting until SC4 stops writing savegames so a save isn't pushed in pieces."""
 
-		x, y, width, height = tile
-		other_x, other_y, other_width, other_height = other
+		save_city_paths = []
+		start_time = time.time()
 
-		overlap_x = other_x < x + width and x < other_x + other_width
-		overlap_y = other_y < y + height and y < other_y + other_height
-		touch_x = other_x == x + width or x == other_x + other_width
-		touch_y = other_y == y + height or y == other_y + other_height
+		# Loop until SC4 stops writing savegames (meant to prevent fragmented save pushes, not the best solution because it relies somewhat on the loop delay)
+		changed = True
+		incomplete = False
+		while changed or (incomplete and time.time() - start_time < self.SAVE_TIMEOUT):
 
-		return (touch_x and (overlap_y or touch_y)) or (touch_y and overlap_x)
+			# If the SC4MP DLL says the game is writing a save, wait until it's done, so the save isn't read in pieces
+			while self.bridge.saving and time.time() - start_time < self.SAVE_TIMEOUT:
+				time.sleep(0.2)
 
+			# Compare the savegames in the regions with the ones from the last loop
+			changed = False
+			cities = self.get_cities()
+			for path, hashcode in cities.items():
+				if self.cities.get(path) != hashcode:
+					changed = True
+					if path not in save_city_paths:
+						save_city_paths.append(path)
+			self.cities = cities
 
-	@staticmethod
-	def tiles_border(tile: tuple[int, int, int, int], other: tuple[int, int, int, int]) -> bool:
-		"""Whether two cities' tiles (x, y, width, height) share an edge."""
+			# If new/modified savegames were found, wait to see if SC4 writes more
+			if save_city_paths:
 
-		x, y, width, height = tile
-		other_x, other_y, other_width, other_height = other
+				self.report("", "Saving...")
+				self.set_overlay_state("saving")
+				self.bridge.progress("Saving...")	# in the game's chat, from when the game saves until the push ends
 
-		overlap_x = other_x < x + width and x < other_x + other_width
-		overlap_y = other_y < y + height and y < other_y + other_height
-		touch_x = other_x == x + width or x == other_x + other_width
-		touch_y = other_y == y + height or y == other_y + other_height
+				time.sleep(1) #TODO make configurable?
 
-		return (touch_x and overlap_y) or (touch_y and overlap_x)
+				# SC4 also rewrites neighbouring cities when saving, so filter the savegames if more than one is found
+				if changed and len(save_city_paths) > 1:
+					savegames = []
+					try:
+						for save_city_path in save_city_paths:
+							savegame = SC4Savegame(save_city_path, error_callback=None)
+							savegames.append(savegame)
+							savegame.get_SC4ReadRegionalCity()
+						filtered_savegames = self.filter_bordering_tiles(savegames)
+						if len(filtered_savegames) == 1:
+							save_city_paths = [savegame.filename for savegame in filtered_savegames]
+							break
+						# If none of them borders all the others, SC4 has only written the neighbours so far, so wait for the saved city
+						incomplete = not filtered_savegames
+					except Exception as e:
+						show_error(e, no_ui=True)
+					finally:
+						for savegame in savegames:
+							savegame.close()	# an open savegame can't be saved by SC4
+
+		return save_city_paths
 
 
 	def check_refresh(self):
@@ -3752,7 +3721,7 @@ class GameMonitor(th.Thread):
 			return
 
 		self.report("", "Refreshing...")
-		self.set_overlay_state("refreshing", "Refreshing...")
+		self.set_overlay_state("refreshing")
 
 		if sc4mp_ui:
 			regions_refresher_ui = RegionsRefresherUI(self.server)
@@ -3772,7 +3741,7 @@ class GameMonitor(th.Thread):
 
 		if sc4mp_game_launcher.game_running:
 			self.report("", "Regions refreshed at " + datetime.now().strftime("%H:%M") + ".", color="green")
-			self.set_overlay_state("refreshed", "Refreshed " + datetime.now().strftime("%H:%M"))
+			self.set_overlay_state("refreshed")
 
 
 	def download_cities(self):
@@ -4247,10 +4216,63 @@ class GameMonitor(th.Thread):
 		return cached[1]
 
 
+	def filter_bordering_tiles(self, savegames):
+
+		#report("Savegame filter 1", self)
+
+		filtered_savegames = []
+
+		for savegame in savegames:
+
+			add = True
+
+			savegameX = savegame.SC4ReadRegionalCity["tileXLocation"]
+			savegameY = savegame.SC4ReadRegionalCity["tileYLocation"]
+
+			savegameSizeX = savegame.SC4ReadRegionalCity["citySizeX"]
+			savegameSizeY = savegame.SC4ReadRegionalCity["citySizeY"]
+
+			for neighbor in savegames:
+
+				if neighbor == savegame:
+					continue
+
+				neighborX = neighbor.SC4ReadRegionalCity["tileXLocation"]
+				neighborY = neighbor.SC4ReadRegionalCity["tileYLocation"]
+
+				neighborSizeX = neighbor.SC4ReadRegionalCity["citySizeX"]
+				neighborSizeY = neighbor.SC4ReadRegionalCity["citySizeY"]
+
+				conditionX1 = (neighborX == savegameX - neighborSizeX)
+				conditionX2 = (neighborX == savegameX + savegameSizeX)
+				conditionY1 = (neighborY == savegameY - neighborSizeY)
+				conditionY2 = (neighborY == savegameY + savegameSizeY)
+
+				conditionX = xor(conditionX1, conditionX2) and ((neighborY + neighborSizeY > savegameY) or (neighborY < savegameY + savegameSizeY))
+				conditionY = xor(conditionY1, conditionY2) and ((neighborX + neighborSizeX > savegameX) or (neighborX < savegameX + savegameSizeX))
+
+				condition = xor(conditionX, conditionY)
+
+				if not condition:
+					add = False
+
+			if add:
+
+				filtered_savegames.append(savegame)
+
+				#report("YES (" + str(savegameX) + ", " + str(savegameY) + ")", self)
+
+			#else:
+
+				#report("NO (" + str(savegameX) + ", " + str(savegameY) + ")", self)
+
+		return filtered_savegames
+
+
 	def save(self, save_city_paths: list[Path]) -> None:
 
 		# Update overlay
-		self.set_overlay_state("saving", "Saving...")
+		self.set_overlay_state("saving")
 
 		# Salvage
 		salvage_directory = Path(SC4MP_LAUNCHPATH) / "_Salvage" / self.server.server_id / datetime.now().strftime("%Y%m%d%H%M%S")
@@ -4265,7 +4287,7 @@ class GameMonitor(th.Thread):
 		regions = set([save_city_path.parent.name for save_city_path in save_city_paths])
 		if len(regions) > 1:
 			self.report(self.PREFIX, 'Save push failed! Too many regions.', color="red")
-			self.set_overlay_state("failed", "Save failed")	# red: the city wasn't saved
+			self.set_overlay_state("not-saved")
 			return
 		else:
 			region = list(regions)[0]
@@ -4302,11 +4324,11 @@ class GameMonitor(th.Thread):
 			response = s.save_result()
 			if response == "ok":
 				self.report(self.PREFIX, f'Saved successfully at {datetime.now().strftime("%H:%M")}.', color="green") #TODO keep track locally of the client's claims
-				self.set_overlay_state("saved", f'Saved {datetime.now().strftime("%H:%M")}')
+				self.set_overlay_state("saved")
 				shutil.rmtree(salvage_directory) #TODO make configurable
 			else:
 				self.report(self.PREFIX + "[WARNING] ", f"Save push failed! {response}", color="red")
-				self.set_overlay_state("failed", "Save failed")	# red: the city wasn't saved
+				self.set_overlay_state("not-saved")
 
 
 	def backup_city(self, city_path: Path) -> None:
@@ -4354,30 +4376,18 @@ class GameMonitor(th.Thread):
 			self.ui.label['text'] = text
 
 
-	def set_overlay_state(self, state, text=""):
-		"""Shows the save status in the game overlay and in the game's chat panel (see `GameBridge.status`), with `text` as the panel's short label."""
-
-		# A failed save stays red, so the player knows their city isn't on the server, until the server is reconnected or a save gets through
-		if state == "failed":
-			self.save_failed = text
-		elif state in ("saved", "connected", "guest"):
-			self.save_failed = None
-		elif self.save_failed is not None and state != "saving":
-			state = "failed"
-			text = self.save_failed
-
-		overlay_state = self.OVERLAY_STATES.get(state, state)
-		if self.overlay_ui is not None and overlay_state is not None:
-			self.overlay_ui.set_state(overlay_state)
-		self.bridge.status(state, text)
+	def set_overlay_state(self, state):
+		if self.overlay_ui is not None:
+			self.overlay_ui.set_state(state)
+		self.bridge.status(state)	# the save status in the game's chat panel too
 
 
 	def set_connected_state(self):
 
 		if self.guest:
-			self.set_overlay_state("guest", "Guest")
+			self.bridge.status("guest")
 		else:
-			self.set_overlay_state("connected", "Connected")
+			self.bridge.status("connected")
 
 
 class EventListener(th.Thread):
@@ -4516,8 +4526,19 @@ class GameBridge(th.Thread):
 	# The colors of save results in the game's chat, the DLL's green and red status icons' (GREEN and RED in its tools/make-ui-images.py)
 	RESULT_COLORS = {"green": "#2ea043", "red": "#ce3434"}
 
-	# The states the DLL has icons for
+	# The states the DLL has icons for, with the labels it shows for them
 	STATUS_STATES = ("saving", "saved", "failed", "not_saved", "connected", "disconnected", "refreshing", "refreshed", "guest")
+	STATUS_TEXTS = {
+		"saving": "Saving...",
+		"saved": "Saved",
+		"not_saved": "Not saved",
+		"failed": "Save failed",
+		"connected": "Connected",
+		"disconnected": "Disconnected",
+		"refreshing": "Refreshing...",
+		"refreshed": "Refreshed",
+		"guest": "Guest",
+	}
 
 
 	def __init__(self, game_monitor):
@@ -4554,6 +4575,9 @@ class GameBridge(th.Thread):
 
 		# The last save status, also sent again when the game connects
 		self.last_status = None
+
+		# Whether the last save failed (see `status`)
+		self.save_failed = False
 
 
 	def run(self):
@@ -4782,8 +4806,24 @@ class GameBridge(th.Thread):
 		self.send(message)
 
 
-	def status(self, state: str, text: str = "") -> None:
-		"""Sends the save status (one of `STATUS_STATES`) and a short label for it (eg. "Saved 13:01") to the game, which shows them in the chat panel's title bar."""
+	def status(self, state: str) -> None:
+		"""Sends the save status (a game overlay state, or one of `STATUS_STATES`) and a short label for it (eg. "Saved 13:01") to the game, which shows them in the chat panel's title bar."""
+
+		# The game overlay calls a failed save "not-saved", which the game shows in red
+		if state == "not-saved":
+			state = "failed"
+
+		# A failed save stays shown, so the player knows their city isn't on the server, until the server is reconnected or a save gets through
+		if state == "failed":
+			self.save_failed = True
+		elif state in ("saved", "connected", "guest"):
+			self.save_failed = False
+		elif self.save_failed and state != "saving":
+			state = "failed"
+
+		text = self.STATUS_TEXTS.get(state, "")
+		if state in ("saved", "refreshed"):
+			text = f"{text} {datetime.now().strftime('%H:%M')}"
 
 		message = {'type': 'status', 'state': state, 'text': text}
 		with self._send_lock:
@@ -5380,17 +5420,19 @@ class GeneralSettingsUI(tk.Toplevel):
 		self.ui_frame = tk.LabelFrame(self, text="UI")
 		self.ui_frame.grid(row=1, column=0, columnspan=1, padx=10, pady=0, sticky="nw")
 
-		# Use the legacy game overlay, from before the SC4MP DLL showed the chat and status in game
-		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["legacy_game_overlay"])
-		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use legacy game overlay", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
-		self.ui_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=(10,20), pady=(10,5), sticky="w")
-		self.config_update.append((self.ui_frame.checkbutton_variable, "legacy_game_overlay"))
+		# Use the legacy game monitor instead of the SC4MP DLL's chat in game
+		self.ui_frame.monitor_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["legacy_game_monitor"])
+		self.ui_frame.monitor_checkbutton = ttk.Checkbutton(self.ui_frame, text="Use legacy game monitor", onvalue=True, offvalue=False, variable=self.ui_frame.monitor_variable, command=self.update_overlay_checkbutton)
+		self.ui_frame.monitor_checkbutton.grid(row=0, column=0, columnspan=1, padx=(10,25), pady=(10,5), sticky="w")
+		self.config_update.append((self.ui_frame.monitor_variable, "legacy_game_monitor"))
 
-		# Keep the legacy game monitor shown while playing, even when the SC4MP DLL shows the chat and status in game
-		self.ui_frame.show_monitor_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["legacy_game_monitor"])
-		self.ui_frame.show_monitor_checkbutton = ttk.Checkbutton(self.ui_frame, text="Use legacy game monitor", onvalue=True, offvalue=False, variable=self.ui_frame.show_monitor_variable)
-		self.ui_frame.show_monitor_checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
-		self.config_update.append((self.ui_frame.show_monitor_variable, "legacy_game_monitor"))
+		# Use game overlay
+		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_game_overlay"])
+		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use legacy game overlay", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		self.ui_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=(30,10), pady=(5,5), sticky="w")
+		self.config_update.append((self.ui_frame.checkbutton_variable, "use_game_overlay"))
+		self.ui_frame.overlay_checkbutton = self.ui_frame.checkbutton
+		self.update_overlay_checkbutton()
 
 		# Use launcher map
 		#self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_launcher_map"])
@@ -5494,6 +5536,15 @@ class GeneralSettingsUI(tk.Toplevel):
 			data = item[0].get()
 			key = item[1]
 			update_config_value("GENERAL", key, data)
+
+
+	def update_overlay_checkbutton(self):
+		"""The legacy game overlay belongs to the legacy game monitor, so it's only an option when that's used."""
+
+		if self.ui_frame.monitor_variable.get():
+			self.ui_frame.overlay_checkbutton["state"] = tk.NORMAL
+		else:
+			self.ui_frame.overlay_checkbutton["state"] = tk.DISABLED
 
 
 	def ok(self):
@@ -8282,7 +8333,7 @@ class GameMonitorUI(tk.Toplevel):
 		self.protocol("WM_DELETE_WINDOW", self.delete_window)
 
 		# Status label
-		self.label = tk.Label(self, text="")
+		self.label = tk.Label(self, text="", wraplength=400)	# wrap long messages to fit the narrowest window
 		self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=(12,8), sticky="n")
 
 		# Tabs
