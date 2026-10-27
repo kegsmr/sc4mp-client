@@ -8430,7 +8430,7 @@ class GameMonitorUI(tk.Toplevel):
 
 		# Geometry
 		self.geometry(f"460x560+{sc4mp_game_monitor_x}+{sc4mp_game_monitor_y}")
-		self.minsize(420, 480)
+		self.minsize(420, 280)
 		self.columnconfigure(0, weight=1)
 		self.rowconfigure(1, weight=1)
 
