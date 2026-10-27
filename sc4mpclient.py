@@ -50,7 +50,7 @@ SC4MP_VERSION = "0.9.0"
 
 SC4MP_SERVERS = get_server_list()
 
-SC4MP_GITHUB_REPO = "kegsmr/sc4mp-client"
+SC4MP_GITHUB_REPO = "sc4multiplayer/sc4mp-client"
 
 SC4MP_URL = "https://www.sc4mp.org/"
 SC4MP_CONTRIBUTORS_URL = f"https://github.com/{SC4MP_GITHUB_REPO}/contributors/"
@@ -169,6 +169,8 @@ sc4mp_game_monitor_x = 10
 sc4mp_game_monitor_y = 40
 
 sc4mp_beta = None
+
+sc4mp_shutting_down = False	# set when the launcher closes, so threads still running don't report errors from its closed windows
 
 
 # Functions
@@ -365,6 +367,9 @@ def prep():
 
 
 def cleanup():
+
+	global sc4mp_shutting_down
+	sc4mp_shutting_down = True
 
 	sc4mp_servers_database.end = True
 
@@ -2039,6 +2044,10 @@ class ServerList(th.Thread):
 				self.ended = True
 			except Exception:
 				pass
+
+			# The launcher is closing, so its window is gone
+			if sc4mp_shutting_down:
+				return
 
 			show_error(f"An error occurred while fetching servers.\n\n{e}") #, no_ui=True)
 
@@ -5441,7 +5450,7 @@ class UI(tk.Tk):
 			"for more information.\n\n" if is_windows() else ""
 
 		if messagebox.askyesno(SC4MP_TITLE, f"Hosting a server requires the SC4MP Server application.\n\n{message}Would you like to view the GitHub repository?"):
-			webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/")
+			webbrowser.open_new_tab("https://github.com/sc4multiplayer/sc4mp-server/")
 
 
 
