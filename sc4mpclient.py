@@ -2576,6 +2576,9 @@ class ServerLoader(th.Thread):
 		self.ui = ui
 		self.server: Server = server
 
+		self.cancelled = False	# the player closed the loading window
+		self.loaded = False	# done loading and launching the game, which closing the window no longer stops
+
 		self.setDaemon(True)
 
 		if sc4mp_ui != None:
@@ -2664,6 +2667,7 @@ class ServerLoader(th.Thread):
 					self.prep_config()
 
 				self.report("", "Launching SC4...")
+				self.loaded = True
 
 				loading_end = time.time()
 
@@ -2739,7 +2743,16 @@ class ServerLoader(th.Thread):
 			show_error(f"An unexpected error occurred in the server loader thread.\n\n{e}")
 
 
+	def check_cancelled(self):
+		"""Stops loading if the player closed the loading window."""
+
+		if self.cancelled:
+			raise ClientException("Connection cancelled.")
+
+
 	def report(self, prefix, text):
+
+		self.check_cancelled()
 
 		if self.ui != None:
 			self.ui.label['text'] = text
@@ -2753,6 +2766,8 @@ class ServerLoader(th.Thread):
 
 
 	def report_progress(self, text, value, maximum):
+
+		self.check_cancelled()
 
 		if self.ui != None:
 			self.ui.label['text'] = text
@@ -2983,6 +2998,8 @@ class ServerLoader(th.Thread):
 				ft = []
 				for entry in file_table:
 
+					self.check_cancelled()
+
 					# Get necessary values from entry
 					checksum = sanitize_directory_name(entry[0])
 					filesize = entry[1]
@@ -3070,6 +3087,8 @@ class ServerLoader(th.Thread):
 
 					for entry in s.file_table_data(target, file_table):
 
+						self.check_cancelled()
+
 						# Get necessary values from entry
 						checksum = sanitize_directory_name(entry[0])
 						filesize = entry[1]
@@ -3113,6 +3132,7 @@ class ServerLoader(th.Thread):
 						filesize_read = 0
 						with d.open("wb") as dest, t.with_name(t.name + ".tmp").open("wb") as cache:
 							for chunk in chunks:
+								self.check_cancelled()
 								for file in [dest, cache]:
 									file.write(chunk)
 								filesize_read += len(chunk)
@@ -6959,7 +6979,8 @@ class ServerLoaderUI(tk.Toplevel):
 		self.grab_set()
 
 		# Key bindings
-		self.bind("<Escape>", lambda event:self.destroy())
+		self.bind("<Escape>", lambda event:self.cancel())
+		self.protocol("WM_DELETE_WINDOW", self.cancel)
 
 		# Label
 		self.label = ttk.Label(self)
@@ -6990,6 +7011,18 @@ class ServerLoaderUI(tk.Toplevel):
 		# Worker
 		self.worker = ServerLoader(self, server)
 		self.worker.start()
+
+
+	def cancel(self):
+		"""Closes the window and stops loading. The main window comes back right away, rather than once the loader notices,
+		which can take a while if it's waiting on the server (eg. for a regions export)."""
+
+		if not self.worker.loaded:
+			self.worker.cancelled = True
+			if sc4mp_ui and not sc4mp_exit_after:
+				sc4mp_ui.deiconify()
+
+		self.destroy()
 
 
 	def destroy(self):
