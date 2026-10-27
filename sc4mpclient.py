@@ -3293,6 +3293,8 @@ class GameMonitor(th.Thread):
 	PING_INTERVAL = 15			# seconds between pings
 	DOWNLOAD_RETRY_DELAY = 10	# seconds to wait before trying again when downloading cities saved by other mayors fails
 	SAVE_TIMEOUT = 60			# seconds to wait for SC4 to finish writing a save before pushing what it wrote
+	NEIGHBOR_REWRITE_TIME = 60	# seconds after a push in which SC4 may still be rewriting the neighbours of the city that was saved
+	DATE_SUBFILE = "2990c1e5"	# the savegame subfile with the simulation date, which only changes in the city the player saved
 
 
 	def __init__(self, server):
@@ -3312,6 +3314,11 @@ class GameMonitor(th.Thread):
 
 		# Savegames the player changed that couldn't be pushed (eg. the server was unreachable), so they aren't overwritten by downloads
 		self.unpushed_cities: set[Path] = set()
+
+		# The simulation dates of savegames when they last changed, by path, and the cities last pushed and when, to tell saved cities from neighbours SC4 rewrote
+		self.city_dates: dict[Path, bytes] = {}
+		self.last_pushed_cities: list[Path] = []
+		self.last_push_time = None
 
 		# Cities saved by other mayors that still need to be downloaded (`save` events), and whether to compare all savegames with the server's
 		self.pending_downloads: list[dict] = []
@@ -3463,7 +3470,16 @@ class GameMonitor(th.Thread):
 	def push_cities(self):
 		"""Pushes new and modified savegames to the server."""
 
+		previous_cities = dict(self.cities)
+		check_time = time.time()
+
 		save_city_paths = self.get_modified_cities()
+
+		if not save_city_paths:
+			return
+
+		# SC4 also rewrites the neighbouring cities, so only push the ones whose simulation date changed
+		save_city_paths = self.get_saved_cities(previous_cities, check_time, save_city_paths)
 
 		if not save_city_paths:
 			return
@@ -3495,6 +3511,74 @@ class GameMonitor(th.Thread):
 				break
 
 		time.sleep(5)
+
+
+	def get_saved_cities(self, previous_cities: dict[Path, str], check_time: float, save_city_paths: list[Path]) -> list[Path]:
+		"""Returns the modified savegames the player saved: new ones, and the ones whose simulation date changed. The neighbours SC4 rewrites keep their date, and pushing one would claim it. When it can't tell, `save_city_paths` (the savegames picked by `get_modified_cities`) are returned as before."""
+
+		while True:
+
+			modified_paths = [path for path, hashcode in self.cities.items() if previous_cities.get(path) != hashcode]
+			saved_paths = []
+			unchanged_paths = []
+			unknown_paths = []
+			dates = {}
+			for path in modified_paths:
+				try:
+					with SC4Savegame(path, error_callback=None) as savegame:
+						dates[path] = savegame.decompress_subfile(self.DATE_SUBFILE).getvalue()
+				except Exception as e:
+					show_error(e, no_ui=True)
+					unknown_paths.append(path)
+					continue
+				previous_date = self.get_previous_date(path, previous_cities.get(path))
+				if path not in previous_cities:
+					saved_paths.append(path)
+				elif previous_date is None:
+					unknown_paths.append(path)
+				elif previous_date != dates[path]:
+					saved_paths.append(path)
+				else:
+					unchanged_paths.append(path)
+
+			if saved_paths:
+				self.city_dates.update(dates)
+				self.last_pushed_cities = saved_paths
+				self.last_push_time = time.time()
+				return saved_paths
+
+			# SC4 rewrites some neighbours after the saved city, so these are expected for a while after a push
+			recently_pushed = self.last_push_time is not None and check_time - self.last_push_time < self.NEIGHBOR_REWRITE_TIME
+			if recently_pushed and not unknown_paths and not set(unchanged_paths) & set(self.last_pushed_cities):
+				self.city_dates.update(dates)
+				print(f"Not pushing {', '.join(path.name for path in unchanged_paths)}, rewritten by SC4 as neighbours of the city saved last.")
+				return []
+
+			# SC4 may write the neighbours before the saved city, so wait for it
+			if unknown_paths or time.time() - check_time >= self.SAVE_TIMEOUT:
+				break
+			time.sleep(1)
+			self.get_modified_cities()
+
+		# The game was saved while paused, or the savegames' previous dates aren't known, so the saved city can't be told apart
+		self.city_dates.update(dates)
+		print(f"Couldn't tell the saved city from its neighbours by their dates, so pushing {', '.join(path.name for path in save_city_paths)} as before.")
+		return save_city_paths
+
+
+	def get_previous_date(self, path: Path, previous_hashcode: Optional[str]) -> Optional[bytes]:
+		"""Returns the simulation date of a savegame's previous version, from the cache (downloaded from the server) or from when it last changed. `None` if it isn't known."""
+
+		if previous_hashcode is not None:
+			previous_path = Path(SC4MP_LAUNCHPATH) / "_Cache" / previous_hashcode
+			if previous_path.exists():
+				try:
+					with SC4Savegame(previous_path, error_callback=None) as previous:
+						return previous.decompress_subfile(self.DATE_SUBFILE).getvalue()
+				except Exception as e:
+					show_error(e, no_ui=True)
+
+		return self.city_dates.get(path)
 
 
 	def get_modified_cities(self) -> list[Path]:
