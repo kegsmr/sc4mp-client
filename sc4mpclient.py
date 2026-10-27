@@ -100,7 +100,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("use_fullscreen_background", True),
 		("use_launcher_map", True),
 		("use_game_overlay", 1),
-		("use_sc4mp_dll", True),
+		("legacy_game_monitor", False),
 		("allow_game_monitor_exit", True),
 
 		("save_server_passwords", True),
@@ -3174,8 +3174,8 @@ class ServerLoader(th.Thread):
 			"sc4mp-local.dat",
 			"sc4mp-ui.dat",
 		]:
-			# The SC4MP DLL can be turned off in the settings
-			if default_plugin_file_name in ("sc4mp.dll", "sc4mp-dll-ui.dat", "sc4mp-third-party-notices.txt") and not sc4mp_config["GENERAL"]["use_sc4mp_dll"]:
+			# The SC4MP DLL isn't used with the legacy game monitor
+			if default_plugin_file_name in ("sc4mp.dll", "sc4mp-dll-ui.dat", "sc4mp-third-party-notices.txt") and sc4mp_config["GENERAL"]["legacy_game_monitor"]:
 				continue
 			try:
 				default_plugin_file_path = default_plugins_source / default_plugin_file_name
@@ -3370,8 +3370,8 @@ class GameMonitor(th.Thread):
 			else:
 				self.ui = GameMonitorUI(self)
 
-			# The SC4MP DLL shows the chat and the save status in game instead of the game monitor and its overlay
-			if sc4mp_config["GENERAL"]["use_sc4mp_dll"]:
+			# The SC4MP DLL shows the chat and the save status in game, unless the player chose the legacy game monitor (and overlay) instead
+			if not sc4mp_config["GENERAL"]["legacy_game_monitor"]:
 				self.ui.withdraw()
 
 			# Create game overlay window if the game overlay is enabled (`1` is fullscreen-mode only; `2` is always enabled)
@@ -3385,10 +3385,10 @@ class GameMonitor(th.Thread):
 			# Set window title to server name
 			self.ui.title(server.server_name)
 
-		# Listen for the SC4MP DLL before the game starts, so the game can be told where to connect (unless it's turned off in the settings)
+		# Listen for the SC4MP DLL before the game starts, so the game can be told where to connect (not with the legacy game monitor)
 		self.bridge = GameBridge(self)
 		bridge_port = None
-		if sc4mp_config["GENERAL"]["use_sc4mp_dll"]:
+		if not sc4mp_config["GENERAL"]["legacy_game_monitor"]:
 			self.bridge.start()
 			bridge_port = self.bridge.port
 
@@ -5224,15 +5224,15 @@ class GeneralSettingsUI(tk.Toplevel):
 		self.ui_frame = tk.LabelFrame(self, text="UI")
 		self.ui_frame.grid(row=1, column=0, columnspan=1, padx=10, pady=0, sticky="nw")
 
-		# Use the SC4MP DLL's chat in game, or the game monitor
-		self.ui_frame.dll_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_sc4mp_dll"])
-		self.ui_frame.dll_checkbutton = ttk.Checkbutton(self.ui_frame, text="Use in-game chat", onvalue=True, offvalue=False, variable=self.ui_frame.dll_variable, command=self.update_overlay_checkbutton)
-		self.ui_frame.dll_checkbutton.grid(row=0, column=0, columnspan=1, padx=(10,65), pady=(10,5), sticky="w")
-		self.config_update.append((self.ui_frame.dll_variable, "use_sc4mp_dll"))
+		# Use the legacy game monitor instead of the SC4MP DLL's chat in game
+		self.ui_frame.monitor_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["legacy_game_monitor"])
+		self.ui_frame.monitor_checkbutton = ttk.Checkbutton(self.ui_frame, text="Use legacy game monitor", onvalue=True, offvalue=False, variable=self.ui_frame.monitor_variable, command=self.update_overlay_checkbutton)
+		self.ui_frame.monitor_checkbutton.grid(row=0, column=0, columnspan=1, padx=(10,25), pady=(10,5), sticky="w")
+		self.config_update.append((self.ui_frame.monitor_variable, "legacy_game_monitor"))
 
 		# Use game overlay
 		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_game_overlay"])
-		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use game overlay", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use legacy game overlay", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
 		self.ui_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=(30,10), pady=(5,5), sticky="w")
 		self.config_update.append((self.ui_frame.checkbutton_variable, "use_game_overlay"))
 		self.ui_frame.overlay_checkbutton = self.ui_frame.checkbutton
@@ -5343,12 +5343,12 @@ class GeneralSettingsUI(tk.Toplevel):
 
 
 	def update_overlay_checkbutton(self):
-		"""The game overlay belongs to the game monitor, so it's only an option when the in-game chat isn't used."""
+		"""The legacy game overlay belongs to the legacy game monitor, so it's only an option when that's used."""
 
-		if self.ui_frame.dll_variable.get():
-			self.ui_frame.overlay_checkbutton["state"] = tk.DISABLED
-		else:
+		if self.ui_frame.monitor_variable.get():
 			self.ui_frame.overlay_checkbutton["state"] = tk.NORMAL
+		else:
+			self.ui_frame.overlay_checkbutton["state"] = tk.DISABLED
 
 
 	def ok(self):
