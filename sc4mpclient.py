@@ -3612,6 +3612,10 @@ class GameMonitor(th.Thread):
 				print(f"Not pushing {', '.join(path.name for path in unchanged_paths)}, rewritten by SC4 as neighbours of the city saved last.")
 				return []
 
+			# The SC4MP DLL says when the game is done saving, so then there's nothing more to wait for
+			if self.bridge.connected() and not self.bridge.saving:
+				break
+
 			# SC4 may write the neighbours before the saved city, so wait while it's still writing savegames
 			if unknown_paths or time.time() - last_change_time >= self.SAVED_CITY_WAIT or time.time() - wait_start >= self.SAVE_TIMEOUT:
 				break
@@ -4693,6 +4697,13 @@ class GameBridge(th.Thread):
 		"""Sends something the player needs to see to the game, which shows it in a message box."""
 
 		self.send({'type': 'alert', 'text': text})
+
+
+	def connected(self) -> bool:
+		"""Whether the SC4MP DLL is connected."""
+
+		with self._send_lock:
+			return self._socket is not None
 
 
 	def send(self, message: dict) -> None:
