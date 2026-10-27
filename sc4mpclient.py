@@ -3100,6 +3100,10 @@ class ServerLoader(th.Thread):
 				# Send pruned file table
 				send_json(s, file_table)
 
+				# Measure the cache once, rather than before every file, since it can hold thousands of files
+				cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
+				cache_size = directory_size(cache_directory)
+
 				# Receive files
 				for entry in file_table:
 
@@ -3130,13 +3134,16 @@ class ServerLoader(th.Thread):
 					d.unlink(missing_ok=True)
 
 					# Delete the cache file if it exists
+					if t.exists():
+						cache_size -= t.stat().st_size
 					t.unlink(missing_ok=True)
 
 					# Delete cache files if cache too large to accomadate the new cache file
-					cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
-					while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
+					while any(cache_directory.iterdir()) and cache_size > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
 						random_cache = random.choice(list(cache_directory.iterdir()))
+						cache_size -= random_cache.stat().st_size
 						random_cache.unlink()
+					cache_size += filesize
 
 					# Receive the file. Write to both the destination and cache
 					filesize_read = 0
@@ -4215,6 +4222,10 @@ class RegionsRefresher(th.Thread):
 				# Send pruned file table
 				send_json(s, file_table)
 
+				# Measure the cache once, rather than before every file, since it can hold thousands of files
+				cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
+				cache_size = directory_size(cache_directory)
+
 				# Receive files
 				for entry in file_table:
 
@@ -4246,13 +4257,16 @@ class RegionsRefresher(th.Thread):
 					d.unlink(missing_ok=True)
 
 					# Delete the cache file if it exists
+					if t.exists():
+						cache_size -= t.stat().st_size
 					t.unlink(missing_ok=True)
 
 					# Delete cache files if cache too large to accomadate the new cache file
-					cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
-					while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
+					while any(cache_directory.iterdir()) and cache_size > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
 						random_cache = random.choice(list(cache_directory.iterdir()))
+						cache_size -= random_cache.stat().st_size
 						random_cache.unlink()
+					cache_size += filesize
 
 					# Receive the file. Write to both the destination and cache
 					filesize_read = 0
