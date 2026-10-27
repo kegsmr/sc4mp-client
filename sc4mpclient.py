@@ -5569,7 +5569,7 @@ class GeneralSettingsUI(tk.Toplevel):
 
 		# Security frame
 		self.security_frame = tk.LabelFrame(self, text="Security")
-		self.security_frame.grid(row=0, column=1, columnspan=1, rowspan=2, padx=10, pady=10, sticky="nw")
+		self.security_frame.grid(row=0, column=1, columnspan=1, rowspan=2, padx=10, pady=(10,0), sticky="nsw")
 
 		# Save server passwords checkbutton
 		self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["save_server_passwords"])
