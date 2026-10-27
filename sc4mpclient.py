@@ -1434,6 +1434,7 @@ class Server:
 		self.password = None
 		self.user_id = None
 		self.guest = None
+		self.chat_enabled = False
 
 		self.categories = ["All"]
 		if self.host == SC4MP_SERVERS_DOMAIN:
@@ -1473,6 +1474,7 @@ class Server:
 		self.password_enabled = server_info["password_enabled"] #self.request("password_enabled") == "y"
 		self.private = server_info["private"] #self.request("private") == "y"
 		self.user_plugins_enabled = server_info["user_plugins_enabled"] #self.request("user_plugins_enabled") == "y"
+		self.chat_enabled = server_info.get("chat_enabled", False)	# servers without chat don't send it
 		try:
 			self.claim_duration = server_info["claim_duration"]
 			self.max_region_claims = server_info["max_region_claims"]
@@ -3291,6 +3293,7 @@ class GameMonitor(th.Thread):
 
 
 	PING_INTERVAL = 15			# seconds between pings
+	CONNECTED_PING_INTERVAL = 60	# seconds between pings while the event listener is connected (so the server is reachable)
 	DOWNLOAD_RETRY_DELAY = 10	# seconds to wait before trying again when downloading cities saved by other mayors fails
 	SAVE_TIMEOUT = 60			# seconds to wait for SC4 to finish writing a save before pushing what it wrote
 	NEIGHBOR_REWRITE_TIME = 60	# seconds after a push in which SC4 may still be rewriting the neighbours of the city that was saved
@@ -3366,9 +3369,14 @@ class GameMonitor(th.Thread):
 		self.game_launcher = GameLauncher()
 		self.game_launcher.start()
 
-		# Start the event listener (listens for events on the server)
+		# Chat messages already shown (recent messages are sent again when the event listener reconnects)
+		self.chat_messages = set()
+		self.chat_welcomed = False	# whether "You joined" and the message of the day were shown
+		self.chat_motd_last = False	# whether the last line in chat is the message of the day
+
+		# Start the event listener (listens for events on the server, eg. saves and chat messages)
 		self.event_listener = EventListener(self.server)
-		if not self.guest and sc4mp_config["GENERAL"]["auto_refresh"]:
+		if not self.guest:
 			self.event_listener.start()
 
 		# Thread shutsdown when this is set to `True`
@@ -3400,6 +3408,8 @@ class GameMonitor(th.Thread):
 						self.push_cities()
 
 					self.download_cities()
+
+					self.update_chat()
 
 					# Break the loop the iteration after the game closes
 					if game_closed:
@@ -3445,9 +3455,13 @@ class GameMonitor(th.Thread):
 
 
 	def update_ping(self):
-		"""Pings the server every `PING_INTERVAL` seconds (every loop while disconnected) and shows the ping in the UI."""
+		"""Pings the server every `PING_INTERVAL` seconds (every loop while disconnected, and every `CONNECTED_PING_INTERVAL` seconds while the event listener is connected, since each ping counts toward the server's request limit) and shows the ping in the UI."""
 
-		if self.last_ping_time is not None and time.time() - self.last_ping_time < self.PING_INTERVAL:
+		interval = self.PING_INTERVAL
+		if self.event_listener.connected():
+			interval = self.CONNECTED_PING_INTERVAL
+
+		if self.last_ping_time is not None and time.time() - self.last_ping_time < interval:
 			return
 
 		self.ping = self.server.ping()
@@ -3693,6 +3707,11 @@ class GameMonitor(th.Thread):
 		while self.event_listener.pop('subscribed'):
 			self.resync = True
 
+		if not sc4mp_config["GENERAL"]["auto_refresh"]:
+			self.pending_downloads.clear()
+			self.resync = False
+			return
+
 		if not (self.pending_downloads or self.resync):
 			return
 		if self.download_retry_time is not None and time.time() < self.download_retry_time:
@@ -3787,6 +3806,117 @@ class GameMonitor(th.Thread):
 				self.download_retry_time = time.time() + self.DOWNLOAD_RETRY_DELAY
 			except Exception as e:
 				show_error(f"An error occurred while downloading a city saved by another mayor.\n\n{e}", no_ui=True)
+
+
+	def update_chat(self):
+		"""Shows new chat messages, and players joining and leaving, in the game monitor and the game overlay. A message that can't be shown is skipped and logged, never shown as an error."""
+
+		while event := self.event_listener.pop(('chat', 'user_join', 'user_leave', 'city_founded', 'welcome', 'motd')):
+			try:
+				self.show_chat_event(*event)
+			except Exception as e:
+				show_error(f"Unable to show a chat message.\n\n{e}", no_ui=True)
+
+
+	def show_chat_event(self, event_type: str, event: dict):
+
+		def text(value, default=""):
+			if isinstance(value, str):
+				return value
+			return default
+
+		name = text(event.get('name')) or "Defacto"
+		user_id = text(event.get('user_id')) or None
+
+		# Joining, and the server's message of the day (once, not again when the event listener reconnects)
+		if event_type == 'welcome':
+			if self.chat_welcomed:
+				return
+			self.chat_welcomed = True
+			lines = [f"You joined {text(event.get('server_name'), self.server.server_name)}."]
+			motd = text(event.get('motd')).strip()
+			if motd:
+				lines.append(motd)
+				if self.overlay_ui is not None:
+					self.overlay_ui.show_message(motd)
+			if isinstance(self.ui, GameMonitorUI):
+				for line in lines:
+					self.ui.add_chat_info(line)
+			self.chat_motd_last = bool(motd)
+			return
+
+		# The message of the day again (servers can repeat it every so often), unless it's already the last line in chat
+		if event_type == 'motd':
+			motd = text(event.get('motd')).strip()
+			if not motd or self.chat_motd_last:
+				return
+			self.chat_motd_last = True
+			if isinstance(self.ui, GameMonitorUI):
+				self.ui.add_chat_info(motd)
+			if self.overlay_ui is not None:
+				self.overlay_ui.show_message(motd)
+			return
+
+		# Players joining and leaving
+		if event_type in ('user_join', 'user_leave'):
+			if event_type == 'user_join':
+				line = f"{name} joined the server."
+			else:
+				line = f"{name} left the server."
+			print(line)
+			if isinstance(self.ui, GameMonitorUI):
+				self.ui.add_chat_info(line)
+			self.chat_motd_last = False
+			return
+
+		# New cities
+		if event_type == 'city_founded':
+			city = text(event.get('city')) or "a city"
+			region = text(event.get('region'))
+			if event.get('reclaimed') is True:
+				line = f"{name} took over {city}"
+			else:
+				line = f"{name} founded {city}"
+			if region:
+				line += f" in {region}."
+			else:
+				line += "."
+			key = (str(event.get('time')), user_id, line)	# skip the ones already shown (recent ones are sent again when the event listener reconnects)
+			if key in self.chat_messages:
+				return
+			self.chat_messages.add(key)
+			self.chat_motd_last = False
+			print(line)
+			if isinstance(self.ui, GameMonitorUI):
+				self.ui.add_chat_info(line)
+			if self.overlay_ui is not None and not event.get('history'):
+				self.overlay_ui.show_message(line)
+			return
+
+		message = text(event.get('message'))
+		if not message:
+			return
+		try:
+			timestamp = float(event.get('time'))
+			datetime.fromtimestamp(timestamp)	# out of range, nan, etc. raise an error
+		except Exception:
+			timestamp = None
+
+		# Skip messages already shown (recent messages are sent again when the event listener reconnects)
+		key = (timestamp, user_id, message)
+		if key in self.chat_messages:
+			return
+		self.chat_messages.add(key)
+		self.chat_motd_last = False
+
+		print(f"[CHAT] {name}: {message}")
+
+		if isinstance(self.ui, GameMonitorUI):
+			self.ui.add_chat_message(name, message, timestamp, user_id, text(event.get('city')) or None)
+
+		# Only pop up new messages, not the recent ones sent when joining
+		if self.overlay_ui is not None and not event.get('history'):
+			self.overlay_ui.show_message(f"{name}: {message}")
 
 
 	def replace_city(self, region_path: Path, coords: tuple, cache_path: Path, relpath: str) -> None:
@@ -4066,7 +4196,7 @@ class GameMonitor(th.Thread):
 class EventListener(th.Thread):
 
 
-	MAX_EVENTS = 1000
+	MAX_EVENTS = 10000	# more than a server's chat history
 	RETRY_DELAY = 5			# seconds to wait before reconnecting
 	MAX_RETRY_DELAY = 300	# the delay doubles up to this while reconnecting fails (eg. servers without the `Subscr` command)
 
@@ -4118,7 +4248,7 @@ class EventListener(th.Thread):
 
 		except Exception as e:
 
-			show_error(f"An unexpected error occurred in the event listener thread.\n\n{e}")
+			show_error(f"An unexpected error occurred in the event listener thread.\n\n{e}", no_ui=True)	# never show a popup because of an event
 
 		finally:
 
@@ -4140,6 +4270,12 @@ class EventListener(th.Thread):
 		return self._socket is not None
 
 
+	def connected(self):
+		"""Whether the listener is subscribed to the server (the server sends something every 5 seconds, so a lost connection is noticed within the socket's timeout)."""
+
+		return self._connected()
+
+
 	def _disconnect(self):
 
 		if self._connected():
@@ -4155,12 +4291,16 @@ class EventListener(th.Thread):
 
 
 	def pop(self, target_event_type=None) -> tuple[str, dict] | None:
+		"""Returns the oldest event of the given type (or one of the given types, if a tuple), or any type if `None`."""
+
+		if isinstance(target_event_type, str):
+			target_event_type = (target_event_type,)
 
 		with self._lock:
 			for index in range(len(self._events)):
 				event: dict = self._events[index]
 				event_type: str = event.get('event') or ''
-				if not target_event_type or target_event_type == event_type:
+				if not target_event_type or event_type in target_event_type:
 					self._events.pop(index)
 					return event_type, event
 
@@ -7525,14 +7665,43 @@ class StatisticsTreeUI(tk.Frame):
 		return 361
 
 
+def tk_safe(text: str) -> str:
+	"""Replaces characters Tk can't show (eg. emoji, which are above U+FFFF) with U+FFFD, since inserting them raises an error."""
+
+	characters = []
+	for character in str(text):
+		if ord(character) <= 0xFFFF:
+			characters.append(character)
+		else:
+			characters.append("\ufffd")
+	return "".join(characters)
+
+
 class GameMonitorUI(tk.Toplevel):
 
+
+	# Colors for player names in chat, from SimCity 4's zone and data view colors (darkened to read on white)
+	CHAT_NAME_COLORS = [
+		"#2e7d32",	# residential
+		"#1565c0",	# commercial
+		"#a66300",	# industrial
+		"#6a3d9a",	# civic
+		"#00796b",	# utilities
+		"#b23a1e",	# fire
+		"#5d7a1f",	# parks
+		"#0d47a1",	# water
+		"#8d4f2b",	# transportation
+		"#ad1457",	# health
+		"#37474f",	# police
+		"#7b5e00",	# farms
+	]
+
+	# Messages from the same player within this many seconds are grouped under one name
+	CHAT_GROUP_SECONDS = 300
 
 
 	def __init__(self, parent):
 
-
-		# print("Initializing...")
 
 		# Parameters
 		self.parent = parent
@@ -7548,62 +7717,241 @@ class GameMonitorUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.geometry(f"400x400+{sc4mp_game_monitor_x}+{sc4mp_game_monitor_y}")
-		self.minsize(420, 280)
-		self.maxsize(420, 280)
-		self.grid()
-
-		# Iconify
-		# if sc4mp_config["SC4"]["fullscreen"]:
-		# 	self.iconify()
-
-		# Priority
-		# self.grab_set()
+		self.geometry(f"460x560+{sc4mp_game_monitor_x}+{sc4mp_game_monitor_y}")
+		self.minsize(420, 480)
+		self.columnconfigure(0, weight=1)
+		self.rowconfigure(1, weight=1)
 
 		# Protocol
 		self.protocol("WM_DELETE_WINDOW", self.delete_window)
 
-		# Status frame
-		self.status_frame = tk.Frame(self)
-		self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=2, padx=0, pady=20, sticky="n")
+		# Status label
+		self.label = tk.Label(self, text="", wraplength=400)	# wrap long messages to fit the narrowest window
+		self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=(12,8), sticky="n")
 
-		# Status label left
-		#self.status_frame.left = tk.Label(self.status_frame, text="Status:")
-		#self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
+		# Tabs
+		self.notebook = ttk.Notebook(self)
+		self.notebook.grid(column=0, row=1, columnspan=2, padx=10, pady=0, sticky="nsew")
+		self.notebook.bind("<<NotebookTabChanged>>", lambda event: self.chat_tab_changed())
 
-		# Status label right
-		self.status_frame.right = tk.Label(self.status_frame, text="")
-		self.status_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="n")
-		self.label = self.status_frame.right
+		# Chat tab
+		self.chat_frame = tk.Frame(self.notebook)
+		self.chat_frame.columnconfigure(0, weight=1)
+		self.chat_frame.rowconfigure(0, weight=1)
+		self.notebook.add(self.chat_frame, text="Chat")
 
-		# Server info frame
-		self.server_info = tk.Frame(self, width=400, height=180, background="white", highlightbackground="gray", highlightthickness=1)
-		self.server_info.grid(row=1, column=0, columnspan=2, padx=10, pady=0, sticky="nw")
-		self.server_info.grid_propagate(0)
+		# Chat messages
+		font = tkfont.nametofont("TkDefaultFont")
+		self.chat_fonts = {
+			"name": font.copy(),
+			"time": font.copy(),
+			"day": font.copy(),
+			"info": font.copy(),
+		}
+		self.chat_fonts["name"].configure(weight="bold")
+		size = font.cget("size")
+		if size > 0:
+			self.chat_fonts["time"].configure(size=size - 1)
+		else:
+			self.chat_fonts["time"].configure(size=size + 1)	# negative sizes are in pixels, so this makes it smaller too
+		self.chat_fonts["day"].configure(size=self.chat_fonts["time"].cget("size"))
+		self.chat_fonts["info"].configure(slant="italic")
+		self.chat_frame.text = tk.Text(self.chat_frame, wrap="word", state="disabled", font=font, background="white", relief="flat", borderwidth=0, highlightthickness=0, padx=12, pady=8, cursor="arrow", spacing1=0, spacing3=2)
+		self.chat_frame.text.grid(column=0, row=0, sticky="nsew")
+		self.chat_frame.text.tag_configure("header", spacing1=8)
+		self.chat_frame.text.tag_configure("time", font=self.chat_fonts["time"], foreground="#8a8a8a")
+		self.chat_frame.text.tag_configure("day", font=self.chat_fonts["day"], foreground="#8a8a8a", justify="center", spacing1=10, spacing3=2)
+		self.chat_frame.text.tag_configure("info", font=self.chat_fonts["info"], foreground="#8a8a8a", spacing1=6)
+		for index, color in enumerate(self.CHAT_NAME_COLORS):
+			self.chat_frame.text.tag_configure(f"name{index}", font=self.chat_fonts["name"], foreground=color)
+
+		# Chat scrollbar
+		self.chat_frame.scrollbar = ttk.Scrollbar(self.chat_frame, orient="vertical", command=self.chat_frame.text.yview)
+		self.chat_frame.scrollbar.grid(column=1, row=0, sticky="ns")
+		self.chat_frame.text["yscrollcommand"] = self.chat_frame.scrollbar.set
+
+		# Chat input
+		self.chat_frame.input = tk.Frame(self.chat_frame, background="white", highlightbackground="#c8c8c8", highlightcolor="#7a9cc6", highlightthickness=1)
+		self.chat_frame.input.grid(column=0, row=1, columnspan=2, padx=8, pady=8, sticky="ew")
+		self.chat_frame.input.columnconfigure(0, weight=1)
+		validate = (self.register(lambda text: len(text) <= 200), "%P")
+		self.chat_frame.entry = tk.Entry(self.chat_frame.input, relief="flat", borderwidth=0, background="white", font=font, validate="key", validatecommand=validate)
+		self.chat_frame.entry.grid(column=0, row=0, padx=(8,4), pady=6, sticky="ew")
+		self.chat_frame.entry.bind("<Return>", lambda event: self.send_chat())
+		self.chat_frame.entry.bind("<FocusIn>", lambda event: self.chat_placeholder(False))
+		self.chat_frame.entry.bind("<FocusOut>", lambda event: self.chat_placeholder(True))
+		self.chat_frame.button = ttk.Button(self.chat_frame.input, text="Send", width=7, command=self.send_chat)
+		self.chat_frame.button.grid(column=1, row=0, padx=(0,4), pady=4, sticky="e")
+		self.chat_placeholder_text = "Message other mayors"
+		self.chat_placeholder_shown = False
+		self.chat_placeholder(True)
+
+		# Chat state
+		self.chat_last_user_id = None
+		self.chat_last_city = None
+		self.chat_last_time = None
+		self.chat_unread = 0
+
+		# Guests can't chat, and neither can players on servers with chat turned off
+		if self.parent.guest or not getattr(self.parent.server, "chat_enabled", False):
+			self.chat_placeholder(False)	# remove "Message other mayors" so the reason below is shown instead
+			if self.parent.guest:
+				self.chat_placeholder_text = "Guests can't chat"
+			else:
+				self.chat_placeholder_text = "Chat is turned off on this server"
+			self.chat_placeholder(True)
+			self.chat_frame.entry["state"] = tk.DISABLED
+			self.chat_frame.button["state"] = tk.DISABLED
+
+		# Server tab
+		self.server_info = tk.Frame(self.notebook, background="white")
+		self.server_info.columnconfigure(0, weight=1)
+		self.notebook.add(self.server_info, text="Server")
 
 		# Description label
-		self.description_label = ttk.Label(self.server_info, background="white", wraplength=(self.server_info["width"] - 20))
-		self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=10, pady=(10,0), sticky="nw")
+		self.description_label = ttk.Label(self.server_info, background="white", wraplength=400)
+		self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=12, pady=(12,0), sticky="nw")
 		self.description_label['text'] = ""
 
 		# URL label
 		self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2", background="white")
-		self.url_label.grid(row=1, column=0, columnspan=1, padx=10, pady=5, sticky="nw")
+		self.url_label.grid(row=1, column=0, columnspan=1, padx=12, pady=8, sticky="nw")
 		self.url_label['text'] = ""
 		self.url_label.bind("<Button-1>", lambda e:webbrowser.open_new_tab(format_url(self.url_label["text"])))
 
-		# Ping frame
-		self.ping_frame = tk.Frame(self, width=420, height=0)
-		self.ping_frame.grid(column=0, row=2, rowspan=1, columnspan=2, padx=0, pady=4, sticky="ew")
-		self.ping_frame.grid_propagate(0)
+		# Ping frame (address on the left, ping on the right)
+		self.ping_frame = tk.Frame(self)
+		self.ping_frame.grid(column=0, row=2, columnspan=2, padx=10, pady=(4,8), sticky="ew")
+		self.ping_frame.columnconfigure(1, weight=1)
+		self.ping_frame.left = tk.Label(self.ping_frame, text="", fg="gray")
+		self.ping_frame.left.grid(column=0, row=0, sticky="w")
+		self.ping_frame.right = tk.Label(self.ping_frame, text="", fg="gray")
+		self.ping_frame.right.grid(column=1, row=0, sticky="e")
 
-		# Ping label left
-		self.ping_frame.left = tk.Label(self, text="", fg="gray")
-		self.ping_frame.left.grid(column=0, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
 
-		# Ping label right
-		self.ping_frame.right = tk.Label(self, text="", fg="gray")
-		self.ping_frame.right.grid(column=1, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="e")
+	def chat_placeholder(self, show):
+
+		entry = self.chat_frame.entry
+		state = entry["state"]
+		entry["state"] = tk.NORMAL
+		if show and not entry.get():
+			entry.insert(0, self.chat_placeholder_text)
+			entry["foreground"] = "#9a9a9a"
+			self.chat_placeholder_shown = True
+		elif not show and self.chat_placeholder_shown:
+			entry.delete(0, "end")
+			entry["foreground"] = "black"
+			self.chat_placeholder_shown = False
+		entry["state"] = state
+
+
+	def add_chat_message(self, name, message, timestamp=None, user_id=None, city=None):
+		"""Adds a chat message. Messages from the same player close together are grouped under one name (with the city they saved most recently, if any), and a line with the day is added when the day changes."""
+
+		text = self.chat_frame.text
+		if timestamp:
+			sent = datetime.fromtimestamp(timestamp)
+		else:
+			sent = datetime.now()
+		name = tk_safe(name)
+		message = tk_safe(message)
+		if city:
+			city = tk_safe(city)
+		else:
+			city = None
+
+		# Only scroll to the new message if the player hasn't scrolled up to read older ones
+		at_bottom = text.yview()[1] >= 0.999
+
+		text["state"] = tk.NORMAL
+
+		# Day
+		if self.chat_last_time is None or sent.date() != self.chat_last_time.date():
+			today = datetime.now().date()
+			if sent.date() == today:
+				day = "Today"
+			elif sent.date() == today - timedelta(days=1):
+				day = "Yesterday"
+			else:
+				day = f"{sent.strftime('%A, %B')} {sent.day}"
+			self.chat_insert_line(day, "day")
+			self.chat_last_user_id = None
+
+		# Name and time, unless the same player sent the last message a moment ago
+		if user_id is None or user_id != self.chat_last_user_id or city != self.chat_last_city or (sent - self.chat_last_time).total_seconds() > self.CHAT_GROUP_SECONDS:
+			color = int(hashlib.md5((user_id or name).encode()).hexdigest(), 16) % len(self.CHAT_NAME_COLORS)
+			self.chat_insert_line(name, (f"name{color}", "header"))
+			if city:
+				text.insert("end", " of " + city, ("time", "header"))
+			text.insert("end", "  " + sent.strftime("%H:%M"), ("time", "header"))
+
+		self.chat_insert_line(message, "message")
+
+		text["state"] = tk.DISABLED
+
+		if at_bottom:
+			text.see("end")
+
+		self.chat_last_user_id = user_id
+		self.chat_last_city = city
+		self.chat_last_time = sent
+
+		# Count unread messages on the tab while another tab is open
+		if self.notebook.select() != str(self.chat_frame):
+			self.chat_unread += 1
+			self.notebook.tab(self.chat_frame, text=f"Chat ({self.chat_unread})")
+
+
+	def add_chat_info(self, message):
+
+		message = tk_safe(message)
+		text = self.chat_frame.text
+		text["state"] = tk.NORMAL
+		self.chat_insert_line(message, "info")
+		text["state"] = tk.DISABLED
+		text.see("end")
+		self.chat_last_user_id = None
+
+
+	def chat_insert_line(self, line, tags):
+
+		text = self.chat_frame.text
+		if text.index("end-1c") != "1.0":
+			text.insert("end", "\n")
+		text.insert("end", line, tags)
+
+
+	def chat_tab_changed(self):
+
+		if self.notebook.select() == str(self.chat_frame):
+			self.chat_unread = 0
+			self.notebook.tab(self.chat_frame, text="Chat")
+
+
+	def send_chat(self):
+
+		if self.chat_placeholder_shown:
+			return
+
+		message = self.chat_frame.entry.get().strip()
+		if not message:
+			return
+
+		self.chat_frame.entry.delete(0, "end")
+
+		# Send in the background, so the window doesn't freeze while connecting
+		def send():
+			try:
+				with self.parent.server.socket() as s:
+					s.chat(message)
+			except Exception as e:
+				show_error(e, no_ui=True)
+				try:
+					self.add_chat_info(f"Your message wasn't sent. {e}")
+				except Exception:
+					pass
+
+		th.Thread(target=send, daemon=True).start()
 
 
 	def delete_window(self):
@@ -7828,6 +8176,34 @@ class GameOverlayUI(tk.Toplevel):
 			self.game_monitor_ui.grab_set()
 		except Exception as e:
 			show_error(e, no_ui=True)
+
+
+	def show_message(self, text, duration=8000):
+		"""Shows a message (eg. a chat message) above the overlay for a few seconds. Click it to open the game monitor."""
+
+		try:
+
+			if sc4mp_ui.focus_get() is self.game_monitor_ui:
+				return	# the player can already see it
+
+			popup = tk.Toplevel(self)
+			popup.overrideredirect(True)
+			popup.wm_attributes("-topmost", True)
+
+			label = tk.Label(popup, text=tk_safe(text), bg="black", fg="white", wraplength=400, justify="left", padx=8, pady=4, cursor="hand2")
+			label.pack()
+			label.bind("<Button-1>", self.click)
+
+			popup.update_idletasks()
+			width = popup.winfo_reqwidth()
+			height = popup.winfo_reqheight()
+			popup.geometry(f"{width}x{height}+{self.winfo_screenwidth() - width}+{self.winfo_screenheight() - 20 - height}")
+
+			popup.after(duration, popup.destroy)
+
+		except Exception as e:
+
+			show_error(f"Cannot show the message in the game overlay.\n\n{e}", no_ui=True)
 
 
 class RegionsRefresherUI(tk.Toplevel):
@@ -8171,7 +8547,12 @@ class Logger:
 
 		# Print
 		if self.terminal is not None:
-			self.terminal.write(output)
+			try:
+				self.terminal.write(output)
+			except UnicodeEncodeError:
+				# The console can't show some characters (eg. emoji in a chat message on a cp1252 console)
+				encoding = getattr(self.terminal, "encoding", None) or "ascii"
+				self.terminal.write(output.encode(encoding, errors="replace").decode(encoding))
 		with open(self.log, "a", encoding="utf-8") as log:
 			log.write(output)
 			log.close()
