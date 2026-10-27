@@ -34,13 +34,26 @@ class Database:
 	
 	@staticmethod
 	def _update_file(filename: Path, serialized_data: str):
-		with open(filename, 'w', encoding='utf-8') as file:
+		# Write to a temporary file first so a crash or error mid-write can't truncate the original
+		temp_filename = Path(f"{filename}.tmp")
+		with open(temp_filename, 'w', encoding='utf-8') as file:
 			file.write(serialized_data)
+			file.flush()
+			os.fsync(file.fileno())
+		try:
+			os.replace(temp_filename, filename)
+		except PermissionError:
+			# On Windows, the replace fails while another process or thread has the file open, so fall back to writing in place
+			with open(filename, 'w', encoding='utf-8') as file:
+				file.write(serialized_data)
+			os.unlink(temp_filename)
 
 	
 	@staticmethod
 	def _serialize(data: dict) -> str:
-		return json.dumps(data, indent=4)
+		# Other threads can change nested entries while they're being serialized, and the indented encoder is pure Python, so
+		# it fails with "dictionary changed size during iteration". Snapshot the data with the unindented C encoder first.
+		return json.dumps(json.loads(json.dumps(data)), indent=4)
 	
 
 	@staticmethod
