@@ -1,8 +1,8 @@
 # SC4MP Client
-A launcher for the PC videogame [SimCity 4](https://en.wikipedia.org/wiki/SimCity_4) that facilitates multiplayer gameplay. Uses [python 3.8.10](https://www.python.org/downloads/release/python-3810/), [pyinstaller](https://pyinstaller.org/) and [Inno Setup](https://jrsoftware.org/isinfo.php) script. Built to work with the [SC4MP Server](https://github.com/kegsmr/sc4mp-server).
+A launcher for the PC videogame [SimCity 4](https://en.wikipedia.org/wiki/SimCity_4) that facilitates multiplayer gameplay. Uses [python 3.8.10](https://www.python.org/downloads/release/python-3810/), [pyinstaller](https://pyinstaller.org/) and [Inno Setup](https://jrsoftware.org/isinfo.php) script. Built to work with the [SC4MP Server](https://github.com/sc4multiplayer/sc4mp-server).
 
 # Installation
-Download and run the installer from the [latest release](https://github.com/kegsmr/sc4mp-client/releases/latest).
+Download and run the installer from the [latest release](https://github.com/sc4multiplayer/sc4mp-client/releases/latest).
 
 # Usage
 Follow the instructions included in the `Readme.html` file.

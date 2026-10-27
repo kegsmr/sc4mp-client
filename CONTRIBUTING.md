@@ -16,10 +16,10 @@ Thank you for your interest in contributing to the **SimCity 4 Multiplayer Proje
 
 Contributions can be made by forking the appropriate repository and submitting a pull request with your changes:  
 
-- **SC4MP Client**: [https://github.com/kegsmr/sc4mp-client](https://github.com/kegsmr/sc4mp-client)  
-- **SC4MP Server**: [https://github.com/kegsmr/sc4mp-server](https://github.com/kegsmr/sc4mp-server)  
-- **SC4MP API**: [https://github.com/kegsmr/sc4mp-api](https://github.com/kegsmr/sc4mp-api)
-- **SC4MP Invites**: [https://github.com/kegsmr/sc4mp-invite](https://github.com/kegsmr/sc4mp-invite)
+- **SC4MP Client**: [https://github.com/sc4multiplayer/sc4mp-client](https://github.com/sc4multiplayer/sc4mp-client)  
+- **SC4MP Server**: [https://github.com/sc4multiplayer/sc4mp-server](https://github.com/sc4multiplayer/sc4mp-server)  
+- **SC4MP API**: [https://github.com/sc4multiplayer/sc4mp-api](https://github.com/sc4multiplayer/sc4mp-api)
+- **SC4MP Invites**: [https://github.com/sc4multiplayer/sc4mp-invite](https://github.com/sc4multiplayer/sc4mp-invite)
 
 *This repository list may be incomplete and may require future updates.*
 

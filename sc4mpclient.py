@@ -24,8 +24,9 @@ import tkinter.font as tkfont
 import traceback
 import webbrowser
 from argparse import ArgumentParser, Namespace
+from collections import deque
 from datetime import datetime, timedelta
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from tkinter import Menu, filedialog, messagebox, ttk
 from tkinter import font as tkfont
 from typing import Optional, Union
@@ -49,7 +50,7 @@ SC4MP_VERSION = "0.9.0"
 
 SC4MP_SERVERS = get_server_list()
 
-SC4MP_GITHUB_REPO = "kegsmr/sc4mp-client"
+SC4MP_GITHUB_REPO = "sc4multiplayer/sc4mp-client"
 
 SC4MP_URL = "https://www.sc4mp.org/"
 SC4MP_CONTRIBUTORS_URL = f"https://github.com/{SC4MP_GITHUB_REPO}/contributors/"
@@ -99,6 +100,7 @@ SC4MP_CONFIG_DEFAULTS = [
 		("use_fullscreen_background", True),
 		("use_launcher_map", True),
 		("use_game_overlay", 1),
+		("legacy_game_monitor", False),
 		("allow_game_monitor_exit", True),
 
 		("save_server_passwords", True),
@@ -167,6 +169,8 @@ sc4mp_game_monitor_x = 10
 sc4mp_game_monitor_y = 40
 
 sc4mp_beta = None
+
+sc4mp_shutting_down = False	# set when the launcher closes, so threads still running don't report errors from its closed windows
 
 
 # Functions
@@ -363,6 +367,9 @@ def prep():
 
 
 def cleanup():
+
+	global sc4mp_shutting_down
+	sc4mp_shutting_down = True
 
 	sc4mp_servers_database.end = True
 
@@ -840,8 +847,8 @@ def get_sc4_path() -> Optional[Path]:
 	return None
 
 
-def start_sc4():
-	"""Attempts to find the install path of SimCity 4 and launches the game with custom launch parameters if found."""
+def start_sc4(bridge_port=None):
+	"""Attempts to find the install path of SimCity 4 and launches the game with custom launch parameters if found. `bridge_port` is passed to the SC4MP DLL, so it can connect to the game monitor (see `GameBridge`)."""
 
 	print("Starting SimCity 4...")
 
@@ -910,6 +917,8 @@ def start_sc4():
 
 		# Launch the game
 		print(f"- using Steam browser protocol ('{command}').")
+		if bridge_port is not None:
+			print("[WARNING] The game can't be passed environment variables through Steam, so the SC4MP DLL won't connect to the launcher.")
 		try:
 			steam_launch = webbrowser.open(command)
 			if not steam_launch:
@@ -923,13 +932,18 @@ def start_sc4():
 		# Regular command
 		command = ' '.join(arguments)
 
+		# Tell the SC4MP DLL where to connect
+		env = None
+		if bridge_port is not None:
+			env = dict(os.environ, SC4MP_BRIDGE_PORT=str(bridge_port))
+
 		# Launch the game from its own folder, like its shortcut does (some DLL plugins use relative paths, e.g. SC4Fix writes "SC4Fix.log" to the working directory)
 		print(f"- launching directly ('{command}').")
 		try:
 			if is_windows():
-				subprocess.run(command, executable=arguments[0], cwd=path.parent) 			# `subprocess.run(arguments)` won't work on Windows for some unknowable reason; `executable` stops Windows guessing where the exe path ends
+				subprocess.run(command, executable=arguments[0], cwd=path.parent, env=env) 			# `subprocess.run(arguments)` won't work on Windows for some unknowable reason; `executable` stops Windows guessing where the exe path ends
 			else:
-				subprocess.run(arguments, cwd=path.parent)  			# on Linux, the first String passed as argument must be a file that exists
+				subprocess.run(arguments, cwd=path.parent, env=env)  			# on Linux, the first String passed as argument must be a file that exists
 		except PermissionError as e:
 			show_error(f"The launcher does not have the necessary privileges to launch SimCity 4. Try running the SC4MP Launcher as administrator.")
 
@@ -1006,15 +1020,20 @@ def random_string(length):
 
 
 def purge_directory(directory: Path, recursive=True) -> None:
-	"""Deletes all files and subdirectories of a directory"""
+	"""Deletes all files and subdirectories of a directory. Files something else deletes meanwhile (eg. a loader that was cancelled but is still finishing) are skipped."""
+
+	def ignore_missing(function, path, exc_info):
+		if not issubclass(exc_info[0], FileNotFoundError):
+			raise exc_info[1]
+
 	for path in directory.iterdir():
 		for attempt in range(5):	# retry, since another process (e.g. OneDrive or antivirus) may only be using the file briefly
 			try:
 				if path.is_file():
-					path.unlink()
+					path.unlink(missing_ok=True)
 				elif path.is_dir():
 					if recursive:
-						shutil.rmtree(path)
+						shutil.rmtree(path, onerror=ignore_missing)
 				break
 			except PermissionError as e:
 				if attempt == 4:
@@ -1434,6 +1453,8 @@ class Server:
 		self.password = None
 		self.user_id = None
 		self.guest = None
+		self.chat_enabled = False
+		self.guest_chat = False
 
 		self.categories = ["All"]
 		if self.host == SC4MP_SERVERS_DOMAIN:
@@ -1473,6 +1494,8 @@ class Server:
 		self.password_enabled = server_info["password_enabled"] #self.request("password_enabled") == "y"
 		self.private = server_info["private"] #self.request("private") == "y"
 		self.user_plugins_enabled = server_info["user_plugins_enabled"] #self.request("user_plugins_enabled") == "y"
+		self.chat_enabled = server_info.get("chat_enabled", False)	# servers without chat don't send it
+		self.guest_chat = server_info.get("guest_chat", False)	# whether guests can chat, which older servers don't send
 		try:
 			self.claim_duration = server_info["claim_duration"]
 			self.max_region_claims = server_info["max_region_claims"]
@@ -1829,6 +1852,14 @@ class ServerList(th.Thread):
 			for delete_server_id in delete_server_ids:
 				sc4mp_servers_database.pop(delete_server_id)
 
+			# Fetch the servers the player joined first, the most recent first (servers joined before this was recorded come after)
+			joined_servers = []
+			for server_entry in list(sc4mp_servers_database.values()):
+				if "last_connected" in server_entry or server_entry.get("user_id", None) != None:
+					joined_servers.append((server_entry.get("last_connected", ""), (server_entry["host"], server_entry["port"])))
+			joined_servers.sort(reverse=True)
+			self.unfetched_servers = [server for last_connected, server in joined_servers] + self.unfetched_servers
+
 			if self.kill != None:
 				self.kill.end = True
 				while not self.kill.ended:
@@ -2026,6 +2057,10 @@ class ServerList(th.Thread):
 				self.ended = True
 			except Exception:
 				pass
+
+			# The launcher is closing, so its window is gone
+			if sc4mp_shutting_down:
+				return
 
 			show_error(f"An error occurred while fetching servers.\n\n{e}") #, no_ui=True)
 
@@ -2546,6 +2581,9 @@ class ServerLoader(th.Thread):
 		self.ui = ui
 		self.server: Server = server
 
+		self.cancelled = False	# the player closed the loading window
+		self.loaded = False	# done loading and launching the game, which closing the window no longer stops
+
 		self.setDaemon(True)
 
 		if sc4mp_ui != None:
@@ -2634,6 +2672,7 @@ class ServerLoader(th.Thread):
 					self.prep_config()
 
 				self.report("", "Launching SC4...")
+				self.loaded = True
 
 				loading_end = time.time()
 
@@ -2661,6 +2700,10 @@ class ServerLoader(th.Thread):
 				sc4mp_config.update()
 
 				self.server.categories.append("History")
+
+				# Remember when the player joined, so the server browser fetches this server first
+				if self.server.server_id in sc4mp_servers_database:
+					sc4mp_servers_database[self.server.server_id]["last_connected"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 				game_monitor = GameMonitor(self.server)
 				game_monitor.start()
@@ -2705,7 +2748,16 @@ class ServerLoader(th.Thread):
 			show_error(f"An unexpected error occurred in the server loader thread.\n\n{e}")
 
 
+	def check_cancelled(self):
+		"""Stops loading if the player closed the loading window."""
+
+		if self.cancelled:
+			raise ClientException("Connection cancelled.")
+
+
 	def report(self, prefix, text):
+
+		self.check_cancelled()
 
 		if self.ui != None:
 			self.ui.label['text'] = text
@@ -2719,6 +2771,8 @@ class ServerLoader(th.Thread):
 
 
 	def report_progress(self, text, value, maximum):
+
+		self.check_cancelled()
 
 		if self.ui != None:
 			self.ui.label['text'] = text
@@ -2949,6 +3003,8 @@ class ServerLoader(th.Thread):
 				ft = []
 				for entry in file_table:
 
+					self.check_cancelled()
+
 					# Get necessary values from entry
 					checksum = sanitize_directory_name(entry[0])
 					filesize = entry[1]
@@ -3027,10 +3083,16 @@ class ServerLoader(th.Thread):
 				old_eta = None
 				old_eta_display_time = download_start_time + 2
 
+				# Measure the cache once, rather than before every file, since it can hold thousands of files
+				cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
+				cache_size = directory_size(cache_directory)
+
 				# Receive files
 				with self.server.socket() as s:
 
 					for entry in s.file_table_data(target, file_table):
+
+						self.check_cancelled()
 
 						# Get necessary values from entry
 						checksum = sanitize_directory_name(entry[0])
@@ -3060,18 +3122,22 @@ class ServerLoader(th.Thread):
 						d.unlink(missing_ok=True)
 
 						# Delete the cache file if it exists
+						if t.exists():
+							cache_size -= t.stat().st_size
 						t.unlink(missing_ok=True)
 
 						# Delete cache files if cache too large to accomadate the new cache file
-						cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
-						while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
+						while any(cache_directory.iterdir()) and cache_size > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
 							random_cache = random.choice(list(cache_directory.iterdir()))
+							cache_size -= random_cache.stat().st_size
 							random_cache.unlink()
+						cache_size += filesize
 
 						# Receive the file. Write to both the destination and cache
 						filesize_read = 0
 						with d.open("wb") as dest, t.with_name(t.name + ".tmp").open("wb") as cache:
 							for chunk in chunks:
+								self.check_cancelled()
 								for file in [dest, cache]:
 									file.write(chunk)
 								filesize_read += len(chunk)
@@ -3153,6 +3219,9 @@ class ServerLoader(th.Thread):
 		for default_plugin_file_name in [
 			"sc4-fix.dll",
 			"sc4-fix-license.txt",
+			"sc4mp.dll",
+			"sc4mp-dll-ui.dat",
+			"sc4mp-third-party-notices.txt",
 			"sc4-thumbnail-fix.dll",
 			"sc4-thumbnail-fix-license.txt",
 			"sc4-thumbnail-fix-third-party-notices.txt",
@@ -3160,6 +3229,9 @@ class ServerLoader(th.Thread):
 			"sc4mp-local.dat",
 			"sc4mp-ui.dat",
 		]:
+			# The SC4MP DLL isn't used with the legacy game monitor
+			if default_plugin_file_name in ("sc4mp.dll", "sc4mp-dll-ui.dat", "sc4mp-third-party-notices.txt") and sc4mp_config["GENERAL"]["legacy_game_monitor"]:
+				continue
 			try:
 				default_plugin_file_path = default_plugins_source / default_plugin_file_name
 				default_plugin_checksum = md5(default_plugin_file_path)
@@ -3291,8 +3363,12 @@ class GameMonitor(th.Thread):
 
 
 	PING_INTERVAL = 15			# seconds between pings
+	CONNECTED_PING_INTERVAL = 60	# seconds between pings while the event listener is connected (so the server is reachable)
 	DOWNLOAD_RETRY_DELAY = 10	# seconds to wait before trying again when downloading cities saved by other mayors fails
 	SAVE_TIMEOUT = 60			# seconds to wait for SC4 to finish writing a save before pushing what it wrote
+	NEIGHBOR_REWRITE_TIME = 60	# seconds after a push in which SC4 may still be rewriting the neighbours of the city that was saved
+	DATE_SUBFILE = "2990c1e5"	# the savegame subfile with the simulation date, which only changes in the city the player saved
+	SAVED_CITY_WAIT = 3			# seconds without SC4 writing a savegame after which it's taken to be done saving, when it has only written neighbours
 
 
 	def __init__(self, server):
@@ -3304,6 +3380,11 @@ class GameMonitor(th.Thread):
 		# Guests join with an empty password (`server.guest` is only set by the password dialog)
 		self.guest = bool(self.server.guest) or self.server.password == ""
 
+		# Guests get a user ID for the session on servers that let them chat, so the server can tell them apart and their own messages show as theirs
+		self.guest_chat = self.guest and self.server.chat_enabled and self.server.guest_chat
+		if self.guest_chat and self.server.user_id is None:
+			self.server.user_id = random_string(32)
+
 		# Cached md5's of savegames, by path, with the size and modification time they were computed for
 		self.city_hashcode_cache = {}
 
@@ -3313,6 +3394,12 @@ class GameMonitor(th.Thread):
 		# Savegames the player changed that couldn't be pushed (eg. the server was unreachable), so they aren't overwritten by downloads
 		self.unpushed_cities: set[Path] = set()
 
+		# The simulation dates of savegames when they last changed, by path, and the cities last pushed and when, to tell saved cities from neighbours SC4 rewrote
+		self.city_dates: dict[Path, bytes] = {}
+		self.last_pushed_cities: list[Path] = []
+		self.last_push_time = None
+		self.pushed_saved_path = None	# the savegame the SC4MP DLL last said the game saved, once it's been pushed
+
 		# Cities saved by other mayors that still need to be downloaded (`save` events), and whether to compare all savegames with the server's
 		self.pending_downloads: list[dict] = []
 		self.resync = False
@@ -3321,6 +3408,7 @@ class GameMonitor(th.Thread):
 		# Ping
 		self.ping = None
 		self.last_ping_time = None
+		self.disconnected = False	# whether the game was told the server is unreachable
 
 		# Used to detect when the player opens the refresh region (`cfg_hashcode` is the md5 of `SimCity 4.cfg`)
 		self.cfg_hashcode = None
@@ -3344,8 +3432,12 @@ class GameMonitor(th.Thread):
 			else:
 				self.ui = GameMonitorUI(self)
 
+			# The SC4MP DLL shows the chat and the save status in game, unless the player chose the legacy game monitor (and overlay) instead
+			if not sc4mp_config["GENERAL"]["legacy_game_monitor"]:
+				self.ui.withdraw()
+
 			# Create game overlay window if the game overlay is enabled (`1` is fullscreen-mode only; `2` is always enabled)
-			if (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
+			elif (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
 				self.overlay_ui = GameOverlayUI(self.ui, guest=self.guest)
 				if sc4mp_game_monitor_x > 0:
 					self.ui.withdraw()
@@ -3355,13 +3447,25 @@ class GameMonitor(th.Thread):
 			# Set window title to server name
 			self.ui.title(server.server_name)
 
+		# Listen for the SC4MP DLL before the game starts, so the game can be told where to connect (not with the legacy game monitor)
+		self.bridge = GameBridge(self)
+		bridge_port = None
+		if not sc4mp_config["GENERAL"]["legacy_game_monitor"]:
+			self.bridge.start()
+			bridge_port = self.bridge.port
+
 		# Start the game launcher thread (starts the game)
-		self.game_launcher = GameLauncher()
+		self.game_launcher = GameLauncher(bridge_port)
 		self.game_launcher.start()
 
-		# Start the event listener (listens for events on the server)
+		# Chat messages already shown (recent messages are sent again when the event listener reconnects)
+		self.chat_messages = set()
+		self.chat_welcomed = False	# whether "You joined" and the message of the day were shown
+		self.chat_motd_last = False	# whether the last line in chat is the message of the day
+
+		# Start the event listener (listens for events on the server, eg. saves and chat messages)
 		self.event_listener = EventListener(self.server)
-		if not self.guest and sc4mp_config["GENERAL"]["auto_refresh"]:
+		if not self.guest or self.guest_chat:
 			self.event_listener.start()
 
 		# Thread shutsdown when this is set to `True`
@@ -3394,13 +3498,16 @@ class GameMonitor(th.Thread):
 
 					self.download_cities()
 
+					self.update_chat()
+
 					# Break the loop the iteration after the game closes
 					if game_closed:
 						break
 					game_closed = not self.game_launcher.game_running
 
-					# Wait
-					time.sleep(1)
+					# Wait, but check the savegames right away if the game says it saved
+					if self.bridge.saved.wait(1):
+						self.bridge.saved.clear()
 
 					self.check_refresh()
 
@@ -3421,6 +3528,7 @@ class GameMonitor(th.Thread):
 		finally:
 
 			self.event_listener.stop()
+			self.bridge.stop()
 
 
 	def welcome(self):
@@ -3429,6 +3537,7 @@ class GameMonitor(th.Thread):
 			self.report_quietly("Welcome, you've joined as a guest.")
 		else:
 			self.report_quietly("Welcome, start a city and save to claim a tile.")
+		self.set_connected_state()
 
 		# Show server description in UI (only for the legacy status window)
 		if sc4mp_ui and not SC4MP_LAUNCHERMAP_ENABLED:
@@ -3438,9 +3547,13 @@ class GameMonitor(th.Thread):
 
 
 	def update_ping(self):
-		"""Pings the server every `PING_INTERVAL` seconds (every loop while disconnected) and shows the ping in the UI."""
+		"""Pings the server every `PING_INTERVAL` seconds (every loop while disconnected, and every `CONNECTED_PING_INTERVAL` seconds while the event listener is connected, since each ping counts toward the server's request limit) and shows the ping in the UI."""
 
-		if self.last_ping_time is not None and time.time() - self.last_ping_time < self.PING_INTERVAL:
+		interval = self.PING_INTERVAL
+		if self.event_listener.connected():
+			interval = self.CONNECTED_PING_INTERVAL
+
+		if self.last_ping_time is not None and time.time() - self.last_ping_time < interval:
 			return
 
 		self.ping = self.server.ping()
@@ -3451,6 +3564,9 @@ class GameMonitor(th.Thread):
 			if self.ui != None:
 				self.ui.ping_frame.right['text'] = "Disconnected"
 				self.ui.ping_frame.right['fg'] = "red"
+			if not self.disconnected:
+				self.disconnected = True
+				self.bridge.status("disconnected")
 
 		# If the server is responsive, display the ping in the ui
 		else:
@@ -3458,14 +3574,27 @@ class GameMonitor(th.Thread):
 				self.ui.ping_frame.right['text'] = f"{self.ping}ms"
 				self.ui.ping_frame.right['fg'] = "gray"
 			self.last_ping_time = time.time()
+			if self.disconnected:
+				self.disconnected = False
+				self.set_connected_state()
 
 
 	def push_cities(self):
 		"""Pushes new and modified savegames to the server."""
 
+		previous_cities = dict(self.cities)
+		check_time = time.time()
+
 		save_city_paths = self.get_modified_cities()
 
 		if not save_city_paths:
+			return
+
+		# SC4 also rewrites the neighbouring cities, so only push the ones whose simulation date changed
+		save_city_paths = self.get_saved_cities(previous_cities, check_time, save_city_paths)
+
+		if not save_city_paths:
+			self.bridge.progress("")	# nothing to push after all, so the "Saving..." line in the game's chat goes again
 			return
 
 		# Push them. If errors occur, log them in the console and display a warning
@@ -3474,6 +3603,7 @@ class GameMonitor(th.Thread):
 		while True:
 			try:
 				self.report("", "Saving...")
+				self.bridge.progress("Saving...")	# the last line of the game's chat while the push lasts, followed by the result
 				self.set_overlay_state('saving')
 				self.save(save_city_paths)
 				self.unpushed_cities.difference_update(save_city_paths)	# pushed (or rejected by the server, in which case they're salvaged)
@@ -3488,13 +3618,127 @@ class GameMonitor(th.Thread):
 			tries += 1
 			for count in range(5):
 				self.report("[WARNING] ", f"Connection failed. Retrying {5 - count}...")
+				self.bridge.progress(f"Connection failed. Retrying {5 - count}...")
 				time.sleep(1)
 			if tries >= 3:
 				self.report("[WARNING] ", "Save push failed! Server unreachable.", color="red")
 				self.set_overlay_state("not-saved")
 				break
+		self.bridge.progress("")	# however the push ended, so the line doesn't stay
 
 		time.sleep(5)
+
+
+	def get_saved_cities(self, previous_cities: dict[Path, str], check_time: float, save_city_paths: list[Path]) -> list[Path]:
+		"""Returns the modified savegames the player saved: new ones, and the ones whose simulation date changed. The neighbours SC4 rewrites keep their date, and pushing one would claim it. When it can't tell, `save_city_paths` (the savegames picked by `get_modified_cities`) are returned as before."""
+
+		read_dates = {}	# the date of each version of a savegame, by path and md5, so each is only read once
+		previous_dates = {}
+		wait_start = time.time()
+		last_change_time = wait_start
+		cities = self.cities
+
+		while True:
+
+			modified_paths = [path for path, hashcode in self.cities.items() if previous_cities.get(path) != hashcode]
+
+			# The SC4MP DLL says which savegame the game saved, so only that one is pushed, never the neighbours it rewrote
+			saved_path = self.bridge.saved_path
+			if self.bridge.connected() and not self.bridge.saving and saved_path:
+				saved_parts = [part for part in saved_path.replace("/", "\\").lower().split("\\") if part]
+				matches = [path for path in modified_paths if [path.parent.name.lower(), path.name.lower()] == saved_parts[-2:]]
+				if matches:
+					for path in matches:
+						date = self.get_date(path)
+						if date is not None:
+							self.city_dates[path] = date
+					self.pushed_saved_path = saved_path
+					self.last_pushed_cities = matches
+					self.last_push_time = time.time()
+					return matches
+				if saved_path == self.pushed_saved_path:
+					print(f"Not pushing {', '.join(path.name for path in modified_paths)}, rewritten by SC4 as neighbours of the city saved last.")
+					return []
+
+			saved_paths = []
+			unchanged_paths = []
+			unknown_paths = []
+			dates = {}
+			for path in modified_paths:
+				key = (path, self.cities[path])
+				if key not in read_dates:
+					read_dates[key] = self.get_date(path)
+				if read_dates[key] is None:
+					unknown_paths.append(path)
+					continue
+				dates[path] = read_dates[key]
+				if path not in previous_dates:
+					previous_dates[path] = self.get_previous_date(path, previous_cities.get(path))
+				if path not in previous_cities:
+					saved_paths.append(path)
+				elif previous_dates[path] is None:
+					unknown_paths.append(path)
+				elif previous_dates[path] != dates[path]:
+					saved_paths.append(path)
+				else:
+					unchanged_paths.append(path)
+
+			if saved_paths:
+				self.city_dates.update(dates)
+				self.last_pushed_cities = saved_paths
+				self.last_push_time = time.time()
+				return saved_paths
+
+			# SC4 rewrites some neighbours after the saved city, so these are expected for a while after a push
+			recently_pushed = self.last_push_time is not None and check_time - self.last_push_time < self.NEIGHBOR_REWRITE_TIME
+			if recently_pushed and not unknown_paths and not set(unchanged_paths) & set(self.last_pushed_cities):
+				self.city_dates.update(dates)
+				print(f"Not pushing {', '.join(path.name for path in unchanged_paths)}, rewritten by SC4 as neighbours of the city saved last.")
+				return []
+
+			# The SC4MP DLL says when the game is done saving, so then there's nothing more to wait for
+			if self.bridge.connected() and not self.bridge.saving:
+				break
+
+			# SC4 may write the neighbours before the saved city, so wait while it's still writing savegames
+			if unknown_paths or time.time() - last_change_time >= self.SAVED_CITY_WAIT or time.time() - wait_start >= self.SAVE_TIMEOUT:
+				break
+			time.sleep(1)
+			self.cities = self.get_cities()
+			if self.cities != cities:
+				cities = self.cities
+				last_change_time = time.time()
+
+		# The game was saved while paused, or the savegames' previous dates aren't known, so the saved city can't be told apart
+		self.city_dates.update(dates)
+		print(f"Couldn't tell the saved city from its neighbours by their dates, so pushing {', '.join(path.name for path in save_city_paths)} as before.")
+		return save_city_paths
+
+
+	def get_date(self, path: Path) -> Optional[bytes]:
+		"""Returns a savegame's simulation date subfile, or `None` if it can't be read."""
+
+		try:
+			with SC4Savegame(path, error_callback=None) as savegame:
+				return savegame.decompress_subfile(self.DATE_SUBFILE).getvalue()
+		except Exception as e:
+			show_error(e, no_ui=True)
+			return None
+
+
+	def get_previous_date(self, path: Path, previous_hashcode: Optional[str]) -> Optional[bytes]:
+		"""Returns the simulation date of a savegame's previous version, from the cache (downloaded from the server) or from when it last changed. `None` if it isn't known."""
+
+		if previous_hashcode is not None:
+			previous_path = Path(SC4MP_LAUNCHPATH) / "_Cache" / previous_hashcode
+			if previous_path.exists():
+				try:
+					with SC4Savegame(previous_path, error_callback=None) as previous:
+						return previous.decompress_subfile(self.DATE_SUBFILE).getvalue()
+				except Exception as e:
+					show_error(e, no_ui=True)
+
+		return self.city_dates.get(path)
 
 
 	def get_modified_cities(self) -> list[Path]:
@@ -3507,6 +3751,10 @@ class GameMonitor(th.Thread):
 		changed = True
 		incomplete = False
 		while changed or (incomplete and time.time() - start_time < self.SAVE_TIMEOUT):
+
+			# If the SC4MP DLL says the game is writing a save, wait until it's done, so the save isn't read in pieces
+			while self.bridge.saving and time.time() - start_time < self.SAVE_TIMEOUT:
+				time.sleep(0.2)
 
 			# Compare the savegames in the regions with the ones from the last loop
 			changed = False
@@ -3523,6 +3771,7 @@ class GameMonitor(th.Thread):
 
 				self.report("", "Saving...")
 				self.set_overlay_state("saving")
+				self.bridge.progress("Saving...")	# in the game's chat, from when the game saves until the push ends
 
 				time.sleep(1) #TODO make configurable?
 
@@ -3538,8 +3787,9 @@ class GameMonitor(th.Thread):
 						if len(filtered_savegames) == 1:
 							save_city_paths = [savegame.filename for savegame in filtered_savegames]
 							break
-						# If none of them borders all the others, SC4 has only written the neighbours so far, so wait for the saved city
-						incomplete = not filtered_savegames
+						# If none of them borders all the others, SC4 has only written the neighbours so far, so wait for the saved city.
+						# Not if the SC4MP DLL says the game is done saving: then they're neighbours it rewrote after the save
+						incomplete = not filtered_savegames and not (self.bridge.connected() and not self.bridge.saving)
 					except Exception as e:
 						show_error(e, no_ui=True)
 					finally:
@@ -3594,6 +3844,7 @@ class GameMonitor(th.Thread):
 		# All savegames now match the server's
 		self.cities = self.get_cities()
 		self.unpushed_cities.clear()
+		self.bridge.push_claims()	# claims may have changed too
 
 		if sc4mp_game_launcher.game_running:
 			self.report("", "Regions refreshed at " + datetime.now().strftime("%H:%M") + ".", color="green")
@@ -3608,6 +3859,12 @@ class GameMonitor(th.Thread):
 			self.pending_downloads.append(event[1])
 		while self.event_listener.pop('subscribed'):
 			self.resync = True
+
+		# Guests' own cities aren't pushed, so downloads could overwrite them
+		if self.guest or not sc4mp_config["GENERAL"]["auto_refresh"]:
+			self.pending_downloads.clear()
+			self.resync = False
+			return
 
 		if not (self.pending_downloads or self.resync):
 			return
@@ -3703,6 +3960,284 @@ class GameMonitor(th.Thread):
 				self.download_retry_time = time.time() + self.DOWNLOAD_RETRY_DELAY
 			except Exception as e:
 				show_error(f"An error occurred while downloading a city saved by another mayor.\n\n{e}", no_ui=True)
+
+
+	def update_chat(self):
+		"""Shows new chat messages, and players joining and leaving, in the game monitor and the game overlay. A message that can't be shown is skipped and logged, never shown as an error."""
+
+		# Gather the lines, so everything that arrived together (eg. the chat history when joining) is added to the Chat tab at once
+		if isinstance(self.ui, GameMonitorUI):
+			self.ui.chat_batch_start()
+
+		while event := self.event_listener.pop(('chat', 'user_join', 'user_leave', 'city_founded', 'welcome', 'motd')):
+			try:
+				self.show_chat_event(*event)
+			except Exception as e:
+				show_error(f"Unable to show a chat message.\n\n{e}", no_ui=True)
+
+		if isinstance(self.ui, GameMonitorUI):
+			self.ui.chat_batch_end()
+
+
+	def show_chat_event(self, event_type: str, event: dict):
+
+		def text(value, default=""):
+			if isinstance(value, str):
+				return value
+			return default
+
+		name = text(event.get('name')) or "Defacto"
+		user_id = text(event.get('user_id')) or None
+
+		# Joining, and the server's message of the day (once, not again when the event listener reconnects)
+		if event_type == 'welcome':
+			if self.chat_welcomed:
+				return
+			self.chat_welcomed = True
+			lines = [f"You joined {text(event.get('server_name'), self.server.server_name)}."]
+			motd = text(event.get('motd')).strip()
+			if motd:
+				lines.append(motd)
+				if self.overlay_ui is not None:
+					self.overlay_ui.show_message(motd)
+				self.bridge.notify(motd)
+			if isinstance(self.ui, GameMonitorUI):
+				for line in lines:
+					self.ui.add_chat_info(line)
+			self.chat_motd_last = bool(motd)
+			return
+
+		# The message of the day again (servers can repeat it every so often), unless it's already the last line in chat
+		if event_type == 'motd':
+			motd = text(event.get('motd')).strip()
+			if not motd or self.chat_motd_last:
+				return
+			self.chat_motd_last = True
+			if isinstance(self.ui, GameMonitorUI):
+				self.ui.add_chat_info(motd)
+			if self.overlay_ui is not None:
+				self.overlay_ui.show_message(motd)
+			self.bridge.notify(motd)
+			return
+
+		# Players joining and leaving
+		if event_type in ('user_join', 'user_leave'):
+			if event_type == 'user_join':
+				line = f"{name} joined the server."
+			else:
+				line = f"{name} left the server."
+			print(line)
+			if isinstance(self.ui, GameMonitorUI):
+				self.ui.add_chat_info(line)
+			self.bridge.notify(line)	# only to the game's chat panel, not the overlay, since these would pop up a lot
+			self.chat_motd_last = False
+			return
+
+		# New cities
+		if event_type == 'city_founded':
+			city = text(event.get('city')) or "a city"
+			region = text(event.get('region'))
+			if event.get('reclaimed') is True:
+				line = f"{name} took over {city}"
+			else:
+				line = f"{name} founded {city}"
+			if region:
+				line += f" in {region}."
+			else:
+				line += "."
+			key = (str(event.get('time')), user_id, line)	# skip the ones already shown (recent ones are sent again when the event listener reconnects)
+			if key in self.chat_messages:
+				return
+			self.chat_messages.add(key)
+			self.chat_motd_last = False
+			if not event.get('history'):
+				print(line)	# not the recent ones sent when joining, which would fill the log
+			if isinstance(self.ui, GameMonitorUI):
+				self.ui.add_chat_info(line)
+			if self.overlay_ui is not None and not event.get('history'):
+				self.overlay_ui.show_message(line)
+			self.bridge.notify(line, history=bool(event.get('history')))
+			return
+
+		message = text(event.get('message'))
+		if not message:
+			return
+		try:
+			timestamp = float(event.get('time'))
+			datetime.fromtimestamp(timestamp)	# out of range, nan, etc. raise an error
+		except Exception:
+			timestamp = None
+
+		# Skip messages already shown (recent messages are sent again when the event listener reconnects)
+		key = (timestamp, user_id, message)
+		if key in self.chat_messages:
+			return
+		self.chat_messages.add(key)
+		self.chat_motd_last = False
+
+		# Not the recent messages sent when joining, which would fill the log
+		if not event.get('history'):
+			print(f"[CHAT] {name}: {message}")
+
+		if isinstance(self.ui, GameMonitorUI):
+			self.ui.add_chat_message(name, message, timestamp, user_id, text(event.get('city')) or None, own=self.is_own(user_id))
+
+		# Only pop up new messages, not the recent ones sent when joining
+		if self.overlay_ui is not None and not event.get('history'):
+			self.overlay_ui.show_message(f"{name}: {message}")
+		# The name's color is picked from the name as the Chat tab gets it (with characters Tk can't show replaced), so it's the same in both
+		color = GameMonitorUI.CHAT_NAME_COLORS[chat_name_color(tk_safe(name), user_id)]
+		self.bridge.notify(f"{name}: {message}", history=bool(event.get('history')), name=name, color=color, own=self.is_own(user_id))
+
+
+	def send_chat(self, message: str) -> None:
+		"""Sends a chat message to the server, from the Chat tab or the `say` cheat code in game. Raises an error if it can't."""
+
+		with self.server.socket() as s:
+			s.chat(message)
+
+
+	def get_city_owner(self, path: str) -> str | None:
+		"""Returns the name of the mayor who owns the city saved at `path` (the savegame open in game, reported by the SC4MP DLL) if the player can't save it, since another mayor's claim on it hasn't expired. Otherwise returns `None`, eg. for the player's own, unclaimed and expired tiles.
+
+		The rules are the server's, which rejects such saves with "City already claimed." The region's database is downloaded again, so claims made since the player joined count."""
+
+		return self.get_tile_owner(self.get_city_entry(path))
+
+
+	def get_city_entry(self, path: str) -> dict | None:
+		"""Returns the entry in the region's database (downloaded again) of the tile of the city saved at `path`, or `None` if it has none or isn't in the server's regions."""
+
+		# SC4 reports a Windows path (also through Wine), which `PureWindowsPath` splits on either slash
+		region = PureWindowsPath(path).parent.name
+		if region not in [region_path.name for region_path in self.server.regions]:
+			return None
+
+		with SC4Savegame(Path(SC4MP_LAUNCHPATH) / "Regions" / region / PureWindowsPath(path).name, error_callback=None) as savegame:
+			SC4ReadRegionalCity = savegame.get_SC4ReadRegionalCity()
+		coords = f'{SC4ReadRegionalCity["tileXLocation"]}_{SC4ReadRegionalCity["tileYLocation"]}'
+
+		return self.get_region_database(region).get(coords)
+
+
+	def get_tile_owner(self, entry: dict | None, now: datetime | None = None) -> str | None:
+		"""Returns the name of the mayor whose claim on a tile (its `entry` in the region's database) keeps the player from saving it, or `None` if the player can save it. `now` is the server's time, asked for if it's needed and not given."""
+
+		if not entry:
+			return None
+
+		owner = entry.get("owner")
+		if owner is None or self.is_own(owner):
+			return None
+
+		# Claims expire if the owner doesn't save for `claim_duration` days, and then the tile can be taken over
+		if self.server.claim_duration is not None and entry.get("modified"):
+			expires = datetime.strptime(entry["modified"], "%Y-%m-%d %H:%M:%S") + timedelta(days=self.server.claim_duration)
+			if now is None:
+				now = self.server.time()
+			if expires <= now:
+				return None
+
+		return entry.get("mayor_name") or "another mayor"
+
+
+	def is_takeover(self, entry: dict | None) -> bool:
+		"""Whether the player is taking over a tile (its `entry` in the region's database) that `get_tile_owner` says they can save: one founded before by another mayor, whose claim expired or who never claimed it, so the city still has their mayor name."""
+
+		if self.guest:
+			return False	# guests' saves aren't kept
+
+		# Empty tiles get the player's name when they found the city
+		if not entry or not entry.get("mayor_name"):
+			return False
+
+		return not self.is_own(entry.get("owner"))
+
+
+	def get_mayor_name(self) -> str | None:
+		"""Returns the player's mayor name: the one of their most recently saved city on this server, which the server also calls them by in chat, or else the one SC4 puts in new cities. `None` if there's neither.
+
+		The server's `mayor_name` is the one in the savegame, so a city saved by the player has the name they use. The regions' databases are the copies from the last time the regions were refreshed, since the server blocks clients that connect too often."""
+
+		mayor_name = None
+		modified = ""
+		for region in self.server.regions:
+			database = load_json(Path(SC4MP_LAUNCHPATH) / "Regions" / PureWindowsPath(str(region)).name / "_Database" / "region.json")
+			for entry in database.values():
+				if not entry or not entry.get("mayor_name") or not self.is_own(entry.get("owner")):
+					continue
+				if (entry.get("modified") or "") >= modified:
+					mayor_name = entry["mayor_name"]
+					modified = entry.get("modified") or ""
+		if mayor_name:
+			return mayor_name
+
+		# The name typed when founding a city, which SC4 keeps for the next one (and copies from singleplayer with `sync_simcity_4_cfg`)
+		try:
+			with SC4Config(get_sc4_cfg_path(), error_callback=None) as config:
+				return config.get_simcity_4_cfg()["LastMayorName"] or None
+		except Exception:
+			return None
+
+
+	def is_own(self, user_id: str | None) -> bool:
+		"""Whether a user ID from the server (a tile's owner, or a chat message's sender) is the player's. The server keeps the first 32 characters of the hash of the user ID."""
+
+		return user_id is not None and self.server.user_id is not None and user_id == hashlib.sha256(self.server.user_id.encode()).hexdigest()[:32]
+
+
+	def get_claims(self) -> list[dict]:
+		"""Returns the cities in the server's regions that belong to other mayors, as `path` (the savegame), `owner` and `city` (its name), by the same rule as `get_city_owner`. They're sent to the DLL, which can then warn the moment one of them opens, before the game's own prompts."""
+
+		# The server's time and each region's database are asked for once, since the server blocks clients that connect too often
+		claims = []
+		now = self.server.time()
+		for region in self.server.regions:
+			region_name = PureWindowsPath(str(region)).name
+			database = self.get_region_database(region_name) or {}
+			# The database has each tile's savegame and city name, so the savegames aren't parsed (which would keep the game from saving them meanwhile)
+			for entry in database.values():
+				if not entry or not entry.get("filename"):
+					continue
+				owner = self.get_tile_owner(entry, now)
+				if owner is not None:
+					city_path = Path(SC4MP_LAUNCHPATH) / "Regions" / region_name / PureWindowsPath(entry["filename"]).name
+					claims.append({'path': str(city_path), 'owner': owner, 'city': entry.get("city_name") or city_path.stem})
+		return claims
+
+
+	def get_region_database(self, region: str) -> dict:
+		"""Returns the server's database of a region (who owns each tile), downloaded again, or the copy from the last time the regions were refreshed if that fails."""
+
+		relpath = f"{region}/_Database/region.json"
+
+		try:
+			with self.server.socket() as s:
+				file_table = s.regions_table()
+			entries = [entry for entry in file_table if entry[2] == relpath]
+			if entries:
+				data = b""
+				with self.server.socket() as s:
+					for _, _, _, chunks in s.regions_data(entries):
+						for chunk in chunks:
+							data += chunk
+				return json.loads(data.decode())
+		except Exception as e:
+			show_error(f"Unable to download the region database, using the local copy instead.\n\n{e}", no_ui=True)
+
+		return load_json(Path(SC4MP_LAUNCHPATH) / "Regions" / region / "_Database" / "region.json")
+
+
+	def show_city(self, name: str | None) -> None:
+		"""Shows the city open in game (reported by the SC4MP DLL) in the title of the status window, or just the server name in the region view."""
+
+		if self.ui is None:
+			return
+
+		title = self.server.server_name
+		if name:
+			title = f"{name} - {title}"
+		self.ui.title(title)
 
 
 	def replace_city(self, region_path: Path, coords: tuple, cache_path: Path, relpath: str) -> None:
@@ -3938,6 +4473,7 @@ class GameMonitor(th.Thread):
 						if filesize_sent == total_filesize or filesize_reported is None or filesize_sent > filesize_reported + 100000:
 							filesize_reported = filesize_sent
 							self.report_quietly(f'Saving... ({round(filesize_sent / 1000):,}/{round(total_filesize / 1000):,}KB)')
+							self.bridge.progress(f'Saving... ({round(filesize_sent / 1000):,}/{round(total_filesize / 1000):,}KB)')
 
 			# Handle response from server
 			response = s.save_result()
@@ -3967,6 +4503,27 @@ class GameMonitor(th.Thread):
 			self.ui.label.config(fg=color)
 		print(prefix + text)
 
+		# Results (green) are also sent to the game, and failures (red) pop up there, since the player needs to know their city wasn't saved
+		if color == "red":
+			title, body = self.get_alert(text)
+			self.bridge.alert(text, title, body, color=GameBridge.RESULT_COLORS[color])
+		elif color == "green":
+			self.bridge.notify(text, color=GameBridge.RESULT_COLORS[color])
+
+
+	def get_alert(self, text: str) -> tuple[str, str]:
+		"""Returns the title and text of the dialog the game shows for a failure reported as `text`, saying what happened to the player's city. Every push first copies the cities to the `_Salvage` folder, which is only cleared when the server takes them."""
+
+		if text == "Save push failed! Server unreachable.":
+			return "Server unreachable", "Your city failed to save because the server is currently unreachable.\n\nNo progress has been lost. You can continue playing normally. Try saving again once you reconnect to the server.\n\nIf you need to leave the server, you can also salvage your save when you rejoin by importing the city."
+		if text == "Save push failed! Unexpected client-side error.":
+			return "Save failed", "Something went wrong sending your city to the server.\nIt's still saved on your computer, so save again to retry."
+		if text == "Save push failed! Too many regions.":
+			return "Save failed", "Cities from more than one region were saved at once, which the server doesn't take.\nA copy of them is kept in SC4MP's _Salvage folder."
+		if text.startswith("Save push failed! "):
+			return "Save failed", text[len('Save push failed! '):]	# as the server said it
+		return "SC4MP", text
+
 
 	def report_quietly(self, text):
 
@@ -3977,12 +4534,21 @@ class GameMonitor(th.Thread):
 	def set_overlay_state(self, state):
 		if self.overlay_ui is not None:
 			self.overlay_ui.set_state(state)
+		self.bridge.status(state)	# the save status in the game's chat panel too
+
+
+	def set_connected_state(self):
+
+		if self.guest:
+			self.bridge.status("guest")
+		else:
+			self.bridge.status("connected")
 
 
 class EventListener(th.Thread):
 
 
-	MAX_EVENTS = 1000
+	MAX_EVENTS = 10000	# more than a server's chat history
 	RETRY_DELAY = 5			# seconds to wait before reconnecting
 	MAX_RETRY_DELAY = 300	# the delay doubles up to this while reconnecting fails (eg. servers without the `Subscr` command)
 
@@ -4034,7 +4600,7 @@ class EventListener(th.Thread):
 
 		except Exception as e:
 
-			show_error(f"An unexpected error occurred in the event listener thread.\n\n{e}")
+			show_error(f"An unexpected error occurred in the event listener thread.\n\n{e}", no_ui=True)	# never show a popup because of an event
 
 		finally:
 
@@ -4056,6 +4622,12 @@ class EventListener(th.Thread):
 		return self._socket is not None
 
 
+	def connected(self):
+		"""Whether the listener is subscribed to the server (the server sends something every 5 seconds, so a lost connection is noticed within the socket's timeout)."""
+
+		return self._connected()
+
+
 	def _disconnect(self):
 
 		if self._connected():
@@ -4071,28 +4643,455 @@ class EventListener(th.Thread):
 
 
 	def pop(self, target_event_type=None) -> tuple[str, dict] | None:
+		"""Returns the oldest event of the given type (or one of the given types, if a tuple), or any type if `None`."""
+
+		if isinstance(target_event_type, str):
+			target_event_type = (target_event_type,)
 
 		with self._lock:
 			for index in range(len(self._events)):
 				event: dict = self._events[index]
 				event_type: str = event.get('event') or ''
-				if not target_event_type or target_event_type == event_type:
+				if not target_event_type or event_type in target_event_type:
 					self._events.pop(index)
 					return event_type, event
 
 		return None
 
 
+class GameBridge(th.Thread):
+	"""Talks to the SC4MP DLL (`sc4mp.dll`) running inside SimCity 4.
+
+	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat, with the player's `name`, its `color` as [red, green, blue] and `self` on the player's own, and save results, shown in the chat panel in their `color` if they have one), `alert` (shown in a dialog, with a `title` and `body`, and put in chat, in its `color` if it has one), `status` (the save status, shown in the chat panel's title bar), `progress` (how far a save push is, shown as the chat panel's last line until it's cleared), `server` (the server's name, the chat panel's title), `guard` (the open city belongs to another mayor, shown as a warning with a button to go back to the region), `claims_reset` and `claim` (every city that belongs to another mayor, with its savegame's `path`, its `owner` and `city`, so the warning shows the moment one opens) and `takeover` (the player is taking over the open city, saved at `path`, which the DLL gives the player's `mayor` name).
+
+	The game starts after the player joins, so when the DLL connects it's sent the server's name, the last status and the last few lines again, with `history` set, to fill its chat panel.
+
+	Everything keeps working without the DLL (eg. when the game is started through Steam), since the game monitor still watches the savegame files.
+	"""
+
+
+	MAX_LINE_LENGTH = 65536
+
+	# How long a push of the claims waits for more to be asked for, which it then covers
+	CLAIMS_DELAY = 2
+
+	# As many rows as the DLL's chat panel keeps to scroll back through (kMaxLines), so joining fills its history
+	RECENT_LINES = 200
+
+	# The colors of save results in the game's chat, the DLL's green and red status icons' (GREEN and RED in its tools/make-ui-images.py)
+	RESULT_COLORS = {"green": "#2ea043", "red": "#ce3434"}
+
+	# The states the DLL has icons for, with the labels it shows for them
+	STATUS_STATES = ("saving", "saved", "failed", "not_saved", "connected", "disconnected", "refreshing", "refreshed", "guest")
+	STATUS_TEXTS = {
+		"saving": "Saving...",
+		"saved": "Saved",
+		"not_saved": "Not saved",
+		"failed": "Save failed",
+		"connected": "Connected",
+		"disconnected": "Disconnected",
+		"refreshing": "Refreshing...",
+		"refreshed": "Refreshed",
+		"guest": "Guest",
+	}
+
+
+	def __init__(self, game_monitor):
+
+		super().__init__(daemon=True)
+
+		self.game_monitor: GameMonitor = game_monitor
+
+		# Only accept connections from this computer, on any free port
+		self.listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.listener.bind(("127.0.0.1", 0))
+		self.listener.listen(1)
+		self.listener.settimeout(1)	# so `stop()` is noticed while waiting
+		self.port = self.listener.getsockname()[1]
+
+		self._socket = None
+		self._send_lock = th.Lock()
+		self._claims_lock = th.Lock()	# so two pushes of the claims don't interleave
+		self._claims_pending_lock = th.Lock()
+		self._claims_pending = False	# a push of the claims is about to start, which covers more asked for meanwhile
+		self._stopping = th.Event()
+
+		# Set when the game finishes saving a city, so the game monitor checks the savegames right away
+		self.saved = th.Event()
+
+		# Whether the game is writing a save right now (between `pre_save` and `saved`)
+		self.saving = False
+
+		# The savegame the game last saved, if the DLL says (older DLLs don't)
+		self.saved_path = None
+
+		# The city open in game, or `None` in the region view
+		self.city = None
+
+		# The last lines for the game, including the ones from before it connected, to send again when it connects
+		self.recent = deque(maxlen=self.RECENT_LINES)
+
+		# The last save status, also sent again when the game connects
+		self.last_status = None
+
+		# Whether the last save failed (see `status`)
+		self.save_failed = False
+
+
+	def run(self):
+
+		try:
+
+			set_thread_name("BrdgThread", enumerate=False)
+
+			print(f"- waiting for the SC4MP DLL on port {self.port}")
+
+			while not self._stopping.is_set():
+
+				try:
+					connection, _ = self.listener.accept()
+				except socket.timeout:
+					continue
+				except OSError:
+					break	# stopped
+
+				connection.settimeout(None)
+
+				with self._send_lock:
+					self._socket = connection
+
+				try:
+					self.receive(connection)
+				except OSError as e:
+					print(f"[WARNING] Lost the connection to the SC4MP DLL. {e}")
+				finally:
+					with self._send_lock:
+						self._socket = None
+					connection.close()
+					self.saving = False	# a save that was in progress won't be reported anymore
+					print("- the SC4MP DLL disconnected")
+
+		except Exception as e:
+
+			show_error(f"An unexpected error occurred in the SC4MP DLL bridge.\n\n{e}", no_ui=True)
+
+
+	def receive(self, connection):
+
+		with connection.makefile("rb") as file:
+			while True:
+
+				line = file.readline(self.MAX_LINE_LENGTH)
+				if not line:
+					return	# the game closed
+
+				try:
+					message = json.loads(line.decode("utf-8", errors="replace"))
+				except ValueError:
+					print(f"[WARNING] Ignored a message from the SC4MP DLL that isn't JSON: {line[:200]}")
+					continue
+
+				if not isinstance(message, dict):
+					continue
+
+				# A bad message is logged, never shown as an error
+				try:
+					self.handle(message)
+				except Exception as e:
+					show_error(f"Unable to handle a message from the SC4MP DLL.\n\n{e}", no_ui=True)
+
+
+	def handle(self, message: dict) -> None:
+
+		def text(key):
+			value = message.get(key)
+			if isinstance(value, str):
+				return value
+			return ""
+
+		message_type = text('type')
+		name = text('name')
+
+		if message_type == 'hello':
+			print(f"- the SC4MP DLL {text('version')} connected")
+			self.send_recent()
+			self.push_claims()
+
+		elif message_type == 'region_loaded':
+			print(f'- the game loaded the region "{name}"')
+			self.city = None
+			self.game_monitor.show_city(None)
+			self.push_claims()
+
+		elif message_type == 'city_loaded':
+			print(f'- the game loaded the city "{name}"')
+			self.city = name
+			self.game_monitor.show_city(name)
+			self.guard(text('path'), name)
+
+		elif message_type == 'city_established':
+			print(f'- the player established the city "{name}"')
+			self.city = name
+			self.game_monitor.show_city(name)
+
+		elif message_type == 'city_exited':
+			print(f'- the game is exiting the city "{name}"')
+			self.city = None
+			self.game_monitor.show_city(None)
+
+		elif message_type == 'pre_save':
+			print(f'- the game is saving "{name}"')
+			self.saved_path = None
+			self.saving = True
+
+		elif message_type == 'saved':
+			self.saved_path = text('path') or None
+			print(f'- the game saved "{name}" ({self.saved_path})')
+			self.saving = False
+			self.saved.set()
+
+		elif message_type == 'chat':
+			self.chat(text('message').strip())
+
+		elif message_type == 'command':
+			self.command(text('command').strip())
+
+		else:
+			print(f'[WARNING] Ignored a message from the SC4MP DLL with type "{message_type}"')
+
+
+	def chat(self, message: str) -> None:
+		"""Sends a chat message typed in game, in the background so the bridge keeps reading."""
+
+		if not message:
+			return
+
+		print("- sending a chat message from the game")
+
+		def send():
+			try:
+				self.game_monitor.send_chat(message)
+			except Exception as e:
+				show_error(e, no_ui=True)
+				self.notify(f"Your message wasn't sent. {e}")	# in the chat, where the player is looking, rather than a dialog
+
+		th.Thread(target=send, daemon=True).start()
+
+
+	def command(self, command: str) -> None:
+		"""Answers a `sc4mp <command>` cheat code."""
+
+		print(f'- the player ran "sc4mp {command}" in game')
+
+		if command == 'status':
+			lines = [f"Server: {self.game_monitor.server.server_name}"]
+			if self.game_monitor.ping is None:
+				lines.append("Disconnected")
+			else:
+				lines.append(f"Ping: {self.game_monitor.ping}ms")
+			if self.city:
+				lines.append(f"City: {self.city}")
+			if self.game_monitor.ui is not None:
+				lines.append(f"Status: {self.game_monitor.ui.label['text']}")
+			self.alert("\n".join(lines))
+		elif command == 'help':
+			self.alert("Press Enter in game to chat. Messages starting with / run these commands, eg. /status.\n\nSC4MP cheat codes:\n\nsay <message>: send a chat message\nsc4mp status: show the server and save status")
+		else:
+			self.alert(f'Unknown command "{command}". Type "sc4mp help" for help.')
+
+
+	def push_claims(self) -> None:
+		"""Sends the DLL the cities that belong to other mayors (see `GameMonitor.get_claims`), so it warns the moment one opens, before the game asks to reconcile the edges. A `claims_reset` is followed by one `claim` per city, since the DLL reads only flat JSON objects. In the background, since it asks the server. `guard` still checks each city as it opens, for claims made since."""
+
+		# Pushes asked for close together (eg. when the DLL connects and then loads a region) are done once
+		with self._claims_pending_lock:
+			if self._claims_pending:
+				return
+			self._claims_pending = True
+
+		def push():
+			time.sleep(self.CLAIMS_DELAY)
+			with self._claims_lock:
+				with self._claims_pending_lock:
+					self._claims_pending = False
+				try:
+					claims = self.game_monitor.get_claims()
+				except Exception as e:
+					show_error(f"Unable to list the cities that belong to other mayors.\n\n{e}", no_ui=True)
+					return
+				self.send({'type': 'claims_reset'})
+				for claim in claims:
+					self.send(dict(claim, type='claim'))
+			print(f"- sent the DLL {len(claims)} cities that belong to other mayors")
+
+		th.Thread(target=push, daemon=True).start()
+
+
+	def guard(self, path: str, name: str) -> None:
+		"""Warns the player in game if the city they opened (saved at `path`) belongs to another mayor, so they know before playing that their saves won't be kept. Checked in the background, since it asks the server, so the bridge keeps reading.
+
+		If instead the player is taking the city over (see `GameMonitor.is_takeover`), the DLL is sent a `takeover` with the player's `mayor` name, which it gives the city, so the next save has it."""
+
+		if not path:
+			return	# an older DLL, which doesn't send the savegame's path
+
+		def check():
+			try:
+				entry = self.game_monitor.get_city_entry(path)
+				owner = self.game_monitor.get_tile_owner(entry)
+			except Exception as e:
+				show_error(f"Unable to check who owns the city the game opened.\n\n{e}", no_ui=True)
+				return
+			if owner is None:
+				if self.game_monitor.is_takeover(entry):
+					self.take_over(path, name, entry["mayor_name"])
+				return
+			print(f'- "{name}" belongs to {owner}, warning the player')
+			self.send({'type': 'guard', 'owner': owner, 'city': name, 'path': path})	# only the warning, not a line in chat too
+
+		th.Thread(target=check, daemon=True).start()
+
+
+	def take_over(self, path: str, name: str, old_mayor_name: str) -> None:
+		"""Has the DLL give the city the player is taking over (saved at `path`) the player's mayor name instead of `old_mayor_name`."""
+
+		try:
+			mayor_name = self.game_monitor.get_mayor_name()
+		except Exception as e:
+			show_error(f"Unable to find the player's mayor name.\n\n{e}", no_ui=True)
+			return
+
+		if not mayor_name:
+			print(f'- taking over "{name}" from {old_mayor_name}, but its mayor name is kept, since the player has no city on this server and SimCity 4.cfg has no mayor name')
+			return
+		if mayor_name == old_mayor_name:
+			return	# eg. both are SC4's default, "Defacto"
+
+		print(f'- taking over "{name}" from {old_mayor_name}, setting its mayor name to {mayor_name}')
+		self.send({'type': 'takeover', 'path': path, 'mayor': mayor_name})
+
+
+	def notify(self, text: str, history: bool = False, name: Optional[str] = None, color: Optional[str] = None, own: bool = False) -> None:
+		"""Sends a chat message or save result to the game, and keeps it to send again when the game connects. A save result can have a `color` (see `RESULT_COLORS`), which the game shows it in. `history` marks old lines (eg. chat from before the player joined), which the game doesn't count as new. Chat comes with the player's `name`, which starts `text`, and its `color` in the Chat tab (eg. "#2e7d32"), so the game shows the name in the same color. `own` marks the player's own messages (sent as `self`), whose name the game follows with "(You)"."""
+
+		message = {'type': 'notify', 'text': text}
+		if name is not None:
+			message['name'] = name
+		if color is not None:
+			message['color'] = [int(color[i:i + 2], 16) for i in (1, 3, 5)]
+		if own:
+			message['self'] = True
+
+		with self._send_lock:
+			self.recent.append(message)
+
+		if history:
+			message = dict(message, history=True)
+		self.send(message)
+
+
+	def status(self, state: str) -> None:
+		"""Sends the save status (a game overlay state, or one of `STATUS_STATES`) and a short label for it (eg. "Saved 13:01") to the game, which shows them in the chat panel's title bar."""
+
+		# The game overlay calls a failed save "not-saved", which the game shows in red
+		if state == "not-saved":
+			state = "failed"
+
+		# A failed save stays shown, so the player knows their city isn't on the server, until the server is reconnected or a save gets through
+		if state == "failed":
+			self.save_failed = True
+		elif state in ("saved", "connected", "guest"):
+			self.save_failed = False
+		elif self.save_failed and state != "saving":
+			state = "failed"
+
+		text = self.STATUS_TEXTS.get(state, "")
+		if state in ("saved", "refreshed"):
+			text = f"{text} {datetime.now().strftime('%H:%M')}"
+
+		message = {'type': 'status', 'state': state, 'text': text}
+		with self._send_lock:
+			self.last_status = message
+		self.send(message)
+
+
+	def progress(self, text: str) -> None:
+		"""Sends how far a save push is (eg. "Saving... (120/3,456KB)") to the game, which shows it as the chat panel's last line, replacing the one before, without keeping it in the chat. An empty `text` clears it. Older DLLs ignore it."""
+
+		self.send({'type': 'progress', 'text': text})
+
+
+	def send_recent(self) -> None:
+		"""Sends the server's name, the last status and the last lines again, eg. when the game connects. The lines are marked as history so they aren't shown as new."""
+
+		server = getattr(self.game_monitor, 'server', None)
+		if server is not None:
+			self.send({'type': 'server', 'name': server.server_name})
+
+		with self._send_lock:
+			messages = list(self.recent)
+			last_status = self.last_status
+		if last_status is not None:
+			self.send(last_status)
+		for message in messages:
+			self.send(dict(message, history=True))
+
+
+	def alert(self, text: str, title: Optional[str] = None, body: Optional[str] = None, color: Optional[str] = None) -> None:
+		"""Sends something the player needs to see to the game, which shows it in a dialog with `title` and `body` (lines separated by "\\n"), and puts `text` in chat, in `color` if given (eg. "#ce3434"). Older DLLs show `text` in a message box."""
+
+		message = {'type': 'alert', 'text': text}
+		if title is not None:
+			message['title'] = title
+		if body is not None:
+			message['body'] = body
+		if color is not None:
+			message['color'] = [int(color[i:i + 2], 16) for i in (1, 3, 5)]
+		self.send(message)
+
+
+	def connected(self) -> bool:
+		"""Whether the SC4MP DLL is connected."""
+
+		with self._send_lock:
+			return self._socket is not None
+
+
+	def send(self, message: dict) -> None:
+
+		with self._send_lock:
+			if self._socket is None:
+				return	# the DLL isn't connected, so there's no one to tell
+			try:
+				self._socket.sendall((json.dumps(message) + "\n").encode())
+			except OSError as e:
+				print(f"[WARNING] Unable to send a message to the SC4MP DLL. {e}")
+
+
+	def stop(self):
+
+		self._stopping.set()
+		self.listener.close()
+		with self._send_lock:
+			if self._socket is not None:
+				try:
+					self._socket.shutdown(socket.SHUT_RDWR)	# wakes up `receive()`
+				except OSError:
+					pass
+
+
 class GameLauncher(th.Thread):
 
 
 
-	def __init__(self):
-
+	def __init__(self, bridge_port=None):
+		
 		super().__init__()
 
 		global sc4mp_game_launcher
 		sc4mp_game_launcher = self
+
+		self.bridge_port = bridge_port
 
 		self.game_running = True
 		self.setDaemon(True)
@@ -4104,7 +5103,7 @@ class GameLauncher(th.Thread):
 
 			set_thread_name("GlThread", enumerate=False)
 
-			start_sc4()
+			start_sc4(self.bridge_port)
 
 		except Exception as e:
 
@@ -4218,6 +5217,10 @@ class RegionsRefresher(th.Thread):
 				file_table = ft
 
 
+				# Measure the cache once, rather than before every file, since it can hold thousands of files
+				cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
+				cache_size = directory_size(cache_directory)
+
 				# Receive files
 				with self.server.socket() as s:
 
@@ -4252,13 +5255,16 @@ class RegionsRefresher(th.Thread):
 						d.unlink(missing_ok=True)
 
 						# Delete the cache file if it exists
+						if t.exists():
+							cache_size -= t.stat().st_size
 						t.unlink(missing_ok=True)
 
 						# Delete cache files if cache too large to accomadate the new cache file
-						cache_directory = Path(SC4MP_LAUNCHPATH) / "_Cache"
-						while any(cache_directory.iterdir()) and directory_size(cache_directory) > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
+						while any(cache_directory.iterdir()) and cache_size > (1000000 * int(sc4mp_config["STORAGE"]["cache_size"])) - filesize:
 							random_cache = random.choice(list(cache_directory.iterdir()))
+							cache_size -= random_cache.stat().st_size
 							random_cache.unlink()
+						cache_size += filesize
 
 						# Receive the file. Write to both the destination and cache
 						filesize_read = 0
@@ -4520,7 +5526,7 @@ class UI(tk.Tk):
 			"for more information.\n\n" if is_windows() else ""
 
 		if messagebox.askyesno(SC4MP_TITLE, f"Hosting a server requires the SC4MP Server application.\n\n{message}Would you like to view the GitHub repository?"):
-			webbrowser.open_new_tab("https://github.com/kegsmr/sc4mp-server/")
+			webbrowser.open_new_tab("https://github.com/sc4multiplayer/sc4mp-server/")
 
 
 
@@ -4612,11 +5618,19 @@ class GeneralSettingsUI(tk.Toplevel):
 		self.ui_frame = tk.LabelFrame(self, text="UI")
 		self.ui_frame.grid(row=1, column=0, columnspan=1, padx=10, pady=0, sticky="nw")
 
+		# Use the legacy game monitor instead of the SC4MP DLL's chat in game
+		self.ui_frame.monitor_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["legacy_game_monitor"])
+		self.ui_frame.monitor_checkbutton = ttk.Checkbutton(self.ui_frame, text="Use legacy game monitor", onvalue=True, offvalue=False, variable=self.ui_frame.monitor_variable, command=self.update_overlay_checkbutton)
+		self.ui_frame.monitor_checkbutton.grid(row=0, column=0, columnspan=1, padx=(10,25), pady=(10,5), sticky="w")
+		self.config_update.append((self.ui_frame.monitor_variable, "legacy_game_monitor"))
+
 		# Use game overlay
 		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_game_overlay"])
-		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use game overlay", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
-		self.ui_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=(10,65), pady=(10,5), sticky="w")
+		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use legacy game overlay", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
+		self.ui_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
 		self.config_update.append((self.ui_frame.checkbutton_variable, "use_game_overlay"))
+		self.ui_frame.overlay_checkbutton = self.ui_frame.checkbutton
+		self.update_overlay_checkbutton()
 
 		# Use launcher map
 		#self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_launcher_map"])
@@ -4640,7 +5654,7 @@ class GeneralSettingsUI(tk.Toplevel):
 
 		# Security frame
 		self.security_frame = tk.LabelFrame(self, text="Security")
-		self.security_frame.grid(row=0, column=1, columnspan=1, rowspan=2, padx=10, pady=10, sticky="nw")
+		self.security_frame.grid(row=0, column=1, columnspan=1, rowspan=2, padx=10, pady=(10,0), sticky="nsw")
 
 		# Save server passwords checkbutton
 		self.security_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["save_server_passwords"])
@@ -4720,6 +5734,15 @@ class GeneralSettingsUI(tk.Toplevel):
 			data = item[0].get()
 			key = item[1]
 			update_config_value("GENERAL", key, data)
+
+
+	def update_overlay_checkbutton(self):
+		"""The legacy game overlay belongs to the legacy game monitor, so it's only an option when that's used."""
+
+		if self.ui_frame.monitor_variable.get():
+			self.ui_frame.overlay_checkbutton["state"] = tk.NORMAL
+		else:
+			self.ui_frame.overlay_checkbutton["state"] = tk.DISABLED
 
 
 	def ok(self):
@@ -5987,7 +7010,8 @@ class ServerLoaderUI(tk.Toplevel):
 		self.grab_set()
 
 		# Key bindings
-		self.bind("<Escape>", lambda event:self.destroy())
+		self.bind("<Escape>", lambda event:self.cancel())
+		self.protocol("WM_DELETE_WINDOW", self.cancel)
 
 		# Label
 		self.label = ttk.Label(self)
@@ -6018,6 +7042,16 @@ class ServerLoaderUI(tk.Toplevel):
 		# Worker
 		self.worker = ServerLoader(self, server)
 		self.worker.start()
+
+
+	def cancel(self):
+		"""Closes the window and stops loading at the loader's next step. The main window only comes back once the loader has
+		stopped, so a new one can't start while it's still changing the files."""
+
+		if not self.worker.loaded:
+			self.worker.cancelled = True
+
+		self.destroy()
 
 
 	def destroy(self):
@@ -7441,14 +8475,49 @@ class StatisticsTreeUI(tk.Frame):
 		return 361
 
 
+def tk_safe(text: str) -> str:
+	"""Replaces characters Tk can't show (eg. emoji, which are above U+FFFF) with U+FFFD, since inserting them raises an error."""
+
+	characters = []
+	for character in str(text):
+		if ord(character) <= 0xFFFF:
+			characters.append(character)
+		else:
+			characters.append("\ufffd")
+	return "".join(characters)
+
+
+def chat_name_color(name: str, user_id: Optional[str] = None) -> int:
+	"""Returns the index in `GameMonitorUI.CHAT_NAME_COLORS` of a player's name color, which is the same in the Chat tab and the game's chat panel."""
+
+	return int(hashlib.md5((user_id or name).encode()).hexdigest(), 16) % len(GameMonitorUI.CHAT_NAME_COLORS)
+
+
 class GameMonitorUI(tk.Toplevel):
 
+
+	# Colors for player names in chat, from SimCity 4's zone and data view colors (darkened to read on white)
+	CHAT_NAME_COLORS = [
+		"#2e7d32",	# residential
+		"#1565c0",	# commercial
+		"#a66300",	# industrial
+		"#6a3d9a",	# civic
+		"#00796b",	# utilities
+		"#b23a1e",	# fire
+		"#5d7a1f",	# parks
+		"#0d47a1",	# water
+		"#8d4f2b",	# transportation
+		"#ad1457",	# health
+		"#37474f",	# police
+		"#7b5e00",	# farms
+	]
+
+	# Messages from the same player within this many seconds are grouped under one name
+	CHAT_GROUP_SECONDS = 300
 
 
 	def __init__(self, parent):
 
-
-		# print("Initializing...")
 
 		# Parameters
 		self.parent = parent
@@ -7464,62 +8533,296 @@ class GameMonitorUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.geometry(f"400x400+{sc4mp_game_monitor_x}+{sc4mp_game_monitor_y}")
+		self.geometry(f"420x280+{sc4mp_game_monitor_x}+{sc4mp_game_monitor_y}")
 		self.minsize(420, 280)
-		self.maxsize(420, 280)
-		self.grid()
-
-		# Iconify
-		# if sc4mp_config["SC4"]["fullscreen"]:
-		# 	self.iconify()
-
-		# Priority
-		# self.grab_set()
+		self.columnconfigure(0, weight=1)
+		self.rowconfigure(1, weight=1)
 
 		# Protocol
 		self.protocol("WM_DELETE_WINDOW", self.delete_window)
 
-		# Status frame
-		self.status_frame = tk.Frame(self)
-		self.status_frame.grid(column=0, row=0, rowspan=1, columnspan=2, padx=0, pady=20, sticky="n")
+		# Status label
+		self.label = tk.Label(self, text="", wraplength=400)	# wrap long messages to fit the narrowest window
+		self.label.grid(column=0, row=0, columnspan=2, padx=10, pady=(12,8), sticky="n")
 
-		# Status label left
-		#self.status_frame.left = tk.Label(self.status_frame, text="Status:")
-		#self.status_frame.left.grid(column=0, row=0, rowspan=1, columnspan=1, padx=10, pady=10, sticky="w")
+		# Tabs
+		self.notebook = ttk.Notebook(self)
+		self.notebook.grid(column=0, row=1, columnspan=2, padx=10, pady=0, sticky="nsew")
+		self.notebook.bind("<<NotebookTabChanged>>", lambda event: self.chat_tab_changed())
 
-		# Status label right
-		self.status_frame.right = tk.Label(self.status_frame, text="")
-		self.status_frame.right.grid(column=1, row=0, rowspan=1, columnspan=1, padx=0, pady=0, sticky="n")
-		self.label = self.status_frame.right
+		# Chat tab
+		self.chat_frame = tk.Frame(self.notebook)
+		self.chat_frame.columnconfigure(0, weight=1)
+		self.chat_frame.rowconfigure(0, weight=1)
+		self.notebook.add(self.chat_frame, text="Chat")
 
-		# Server info frame
-		self.server_info = tk.Frame(self, width=400, height=180, background="white", highlightbackground="gray", highlightthickness=1)
-		self.server_info.grid(row=1, column=0, columnspan=2, padx=10, pady=0, sticky="nw")
-		self.server_info.grid_propagate(0)
+		# Chat messages
+		font = tkfont.nametofont("TkDefaultFont")
+		self.chat_fonts = {
+			"name": font.copy(),
+			"time": font.copy(),
+			"day": font.copy(),
+			"info": font.copy(),
+		}
+		self.chat_fonts["name"].configure(weight="bold")
+		size = font.cget("size")
+		if size > 0:
+			self.chat_fonts["time"].configure(size=size - 1)
+		else:
+			self.chat_fonts["time"].configure(size=size + 1)	# negative sizes are in pixels, so this makes it smaller too
+		self.chat_fonts["day"].configure(size=self.chat_fonts["time"].cget("size"))
+		self.chat_fonts["info"].configure(slant="italic")
+		self.chat_frame.text = tk.Text(self.chat_frame, wrap="word", state="disabled", font=font, background="white", relief="flat", borderwidth=0, highlightthickness=0, padx=12, pady=8, cursor="arrow", spacing1=0, spacing3=2)
+		self.chat_frame.text.grid(column=0, row=0, sticky="nsew")
+		self.chat_frame.text.tag_configure("header", spacing1=8)
+		self.chat_frame.text.tag_configure("time", font=self.chat_fonts["time"], foreground="#8a8a8a")
+		self.chat_frame.text.tag_configure("day", font=self.chat_fonts["day"], foreground="#8a8a8a", justify="center", spacing1=10, spacing3=2)
+		self.chat_frame.text.tag_configure("info", font=self.chat_fonts["info"], foreground="#8a8a8a", spacing1=6)
+		for index, color in enumerate(self.CHAT_NAME_COLORS):
+			self.chat_frame.text.tag_configure(f"name{index}", font=self.chat_fonts["name"], foreground=color)
+
+		# Chat scrollbar
+		self.chat_frame.scrollbar = ttk.Scrollbar(self.chat_frame, orient="vertical", command=self.chat_frame.text.yview)
+		self.chat_frame.scrollbar.grid(column=1, row=0, sticky="ns")
+		self.chat_frame.text["yscrollcommand"] = self.chat_frame.scrollbar.set
+
+		# Chat input
+		self.chat_frame.input = tk.Frame(self.chat_frame, background="white", highlightbackground="#c8c8c8", highlightcolor="#7a9cc6", highlightthickness=1)
+		self.chat_frame.input.grid(column=0, row=1, columnspan=2, padx=8, pady=8, sticky="ew")
+		self.chat_frame.input.columnconfigure(0, weight=1)
+		validate = (self.register(lambda text: len(text) <= 200), "%P")
+		self.chat_frame.entry = tk.Entry(self.chat_frame.input, relief="flat", borderwidth=0, background="white", font=font, validate="key", validatecommand=validate)
+		self.chat_frame.entry.grid(column=0, row=0, padx=(8,4), pady=6, sticky="ew")
+		self.chat_frame.entry.bind("<Return>", lambda event: self.send_chat())
+		self.chat_frame.entry.bind("<FocusIn>", lambda event: self.chat_placeholder(False))
+		self.chat_frame.entry.bind("<FocusOut>", lambda event: self.chat_placeholder(True))
+		self.chat_frame.button = ttk.Button(self.chat_frame.input, text="Send", width=7, command=self.send_chat)
+		self.chat_frame.button.grid(column=1, row=0, padx=(0,4), pady=4, sticky="e")
+		self.chat_placeholder_text = "Message other mayors"
+		self.chat_placeholder_shown = False
+		self.chat_placeholder(True)
+
+		# Chat state
+		self.chat_last_user_id = None
+		self.chat_last_city = None
+		self.chat_last_time = None
+		self.chat_unread = 0
+		self.chat_batch = None	# the lines gathered by `chat_batch_start`
+		self.chat_lock = th.Lock()
+
+		# Guests can't chat on servers that don't let them, and neither can players on servers with chat turned off
+		if (self.parent.guest and not self.parent.guest_chat) or not getattr(self.parent.server, "chat_enabled", False):
+			self.chat_placeholder(False)	# remove "Message other mayors" so the reason below is shown instead
+			if self.parent.guest and not self.parent.guest_chat:
+				self.chat_placeholder_text = "Guests can't chat"
+			else:
+				self.chat_placeholder_text = "Chat is turned off on this server"
+			self.chat_placeholder(True)
+			self.chat_frame.entry["state"] = tk.DISABLED
+			self.chat_frame.button["state"] = tk.DISABLED
+
+		# Server tab
+		self.server_info = tk.Frame(self.notebook, background="white")
+		self.server_info.columnconfigure(0, weight=1)
+		self.notebook.add(self.server_info, text="Server")
 
 		# Description label
-		self.description_label = ttk.Label(self.server_info, background="white", wraplength=(self.server_info["width"] - 20))
-		self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=10, pady=(10,0), sticky="nw")
+		self.description_label = ttk.Label(self.server_info, background="white", wraplength=400)
+		self.description_label.grid(row=0, column=0, rowspan=1, columnspan=1, padx=12, pady=(12,0), sticky="nw")
 		self.description_label['text'] = ""
 
 		# URL label
 		self.url_label = tk.Label(self.server_info, fg="blue", cursor="hand2", background="white")
-		self.url_label.grid(row=1, column=0, columnspan=1, padx=10, pady=5, sticky="nw")
+		self.url_label.grid(row=1, column=0, columnspan=1, padx=12, pady=8, sticky="nw")
 		self.url_label['text'] = ""
 		self.url_label.bind("<Button-1>", lambda e:webbrowser.open_new_tab(format_url(self.url_label["text"])))
 
-		# Ping frame
-		self.ping_frame = tk.Frame(self, width=420, height=0)
-		self.ping_frame.grid(column=0, row=2, rowspan=1, columnspan=2, padx=0, pady=4, sticky="ew")
-		self.ping_frame.grid_propagate(0)
+		# Ping frame (address on the left, ping on the right)
+		self.ping_frame = tk.Frame(self)
+		self.ping_frame.grid(column=0, row=2, columnspan=2, padx=10, pady=(4,8), sticky="ew")
+		self.ping_frame.columnconfigure(1, weight=1)
+		self.ping_frame.left = tk.Label(self.ping_frame, text="", fg="gray")
+		self.ping_frame.left.grid(column=0, row=0, sticky="w")
+		self.ping_frame.right = tk.Label(self.ping_frame, text="", fg="gray")
+		self.ping_frame.right.grid(column=1, row=0, sticky="e")
 
-		# Ping label left
-		self.ping_frame.left = tk.Label(self, text="", fg="gray")
-		self.ping_frame.left.grid(column=0, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="w")
 
-		# Ping label right
-		self.ping_frame.right = tk.Label(self, text="", fg="gray")
-		self.ping_frame.right.grid(column=1, row=3, rowspan=1, columnspan=1, padx=10, pady=0, sticky="e")
+	def chat_placeholder(self, show):
+
+		entry = self.chat_frame.entry
+		state = entry["state"]
+		entry["state"] = tk.NORMAL
+		if show and not entry.get():
+			entry.insert(0, self.chat_placeholder_text)
+			entry["foreground"] = "#9a9a9a"
+			self.chat_placeholder_shown = True
+		elif not show and self.chat_placeholder_shown:
+			entry.delete(0, "end")
+			entry["foreground"] = "black"
+			self.chat_placeholder_shown = False
+		entry["state"] = state
+
+
+	def chat_batch_start(self):
+		"""Gathers the chat lines added from now on, until `chat_batch_end` adds them all at once."""
+
+		with self.chat_lock:
+			self.chat_batch = []
+
+
+	def chat_batch_end(self):
+
+		with self.chat_lock:
+			lines = self.chat_batch
+			self.chat_batch = None
+		if lines:
+			self.after(0, lambda: self.chat_insert_lines(lines))
+
+
+	def add_chat_message(self, name, message, timestamp=None, user_id=None, city=None, own=False):
+		"""Adds a chat message (see `chat_insert_message`). Can be called from any thread."""
+
+		self.chat_add(self.chat_insert_message, name, message, timestamp, user_id, city, own)
+
+
+	def add_chat_info(self, message):
+		"""Adds a line about the server or chat (eg. a player joining), in italics. Can be called from any thread."""
+
+		self.chat_add(self.chat_insert_info, message)
+
+
+	def chat_add(self, function, *args):
+
+		# Tk redraws between calls made from another thread, so the chat would visibly scroll through lines added one at a time (eg. the chat history when joining); instead, lines are added in a single callback on Tk's thread
+		with self.chat_lock:
+			if self.chat_batch is not None:
+				self.chat_batch.append((function, args))
+				return
+		self.after(0, lambda: self.chat_insert_lines([(function, args)]))
+
+
+	def chat_insert_lines(self, lines):
+		"""Adds chat lines (functions that add a line, with their arguments) at once, and scrolls to the end once after them."""
+
+		text = self.chat_frame.text
+
+		# Only scroll to the new lines if the player hasn't scrolled up to read older ones
+		at_bottom = text.yview()[1] >= 0.999
+
+		for function, args in lines:
+			try:
+				function(*args)
+			except Exception as e:
+				show_error(f"Unable to show a chat message.\n\n{e}", no_ui=True)
+
+		if at_bottom:
+			text.see("end")
+
+		# Show the unread messages on the tab once, not after each one
+		if self.chat_unread:
+			self.notebook.tab(self.chat_frame, text=f"Chat ({self.chat_unread})")
+
+
+	def chat_insert_message(self, name, message, timestamp=None, user_id=None, city=None, own=False):
+		"""Adds a chat message. Messages from the same player close together are grouped under one name (with the city they saved most recently, if any), and a line with the day is added when the day changes."""
+
+		text = self.chat_frame.text
+		if timestamp:
+			sent = datetime.fromtimestamp(timestamp)
+		else:
+			sent = datetime.now()
+		name = tk_safe(name)
+		message = tk_safe(message)
+		if city:
+			city = tk_safe(city)
+		else:
+			city = None
+
+		text["state"] = tk.NORMAL
+
+		# Day
+		if self.chat_last_time is None or sent.date() != self.chat_last_time.date():
+			today = datetime.now().date()
+			if sent.date() == today:
+				day = "Today"
+			elif sent.date() == today - timedelta(days=1):
+				day = "Yesterday"
+			else:
+				day = f"{sent.strftime('%A, %B')} {sent.day}"
+			self.chat_insert_line(day, "day")
+			self.chat_last_user_id = None
+
+		# Name and time, unless the same player sent the last message a moment ago
+		if user_id is None or user_id != self.chat_last_user_id or city != self.chat_last_city or (sent - self.chat_last_time).total_seconds() > self.CHAT_GROUP_SECONDS:
+			color = chat_name_color(name, user_id)
+			self.chat_insert_line(name, (f"name{color}", "header"))
+			if own:
+				text.insert("end", " (You)", ("time", "header"))	# the player's own messages, found by user ID since names can be shared
+			if city:
+				text.insert("end", " of " + city, ("time", "header"))
+			text.insert("end", "  " + sent.strftime("%H:%M"), ("time", "header"))
+
+		self.chat_insert_line(message, "message")
+
+		text["state"] = tk.DISABLED
+
+		self.chat_last_user_id = user_id
+		self.chat_last_city = city
+		self.chat_last_time = sent
+
+		# Count unread messages on the tab while another tab is open, but not the player's own
+		if not own and self.notebook.select() != str(self.chat_frame):
+			self.chat_unread += 1
+
+
+	def chat_insert_info(self, message):
+
+		message = tk_safe(message)
+		text = self.chat_frame.text
+		text["state"] = tk.NORMAL
+		self.chat_insert_line(message, "info")
+		text["state"] = tk.DISABLED
+		self.chat_last_user_id = None
+
+
+	def chat_insert_line(self, line, tags):
+
+		text = self.chat_frame.text
+		if text.index("end-1c") != "1.0":
+			text.insert("end", "\n")
+		text.insert("end", line, tags)
+
+
+	def chat_tab_changed(self):
+
+		if self.notebook.select() == str(self.chat_frame):
+			self.chat_unread = 0
+			self.notebook.tab(self.chat_frame, text="Chat")
+
+
+	def send_chat(self):
+
+		if self.chat_placeholder_shown:
+			return
+
+		message = self.chat_frame.entry.get().strip()
+		if not message:
+			return
+
+		self.chat_frame.entry.delete(0, "end")
+
+		# Send in the background, so the window doesn't freeze while connecting
+		def send():
+			try:
+				self.parent.send_chat(message)
+			except Exception as e:
+				show_error(e, no_ui=True)
+				try:
+					self.add_chat_info(f"Your message wasn't sent. {e}")
+				except Exception:
+					pass
+
+		th.Thread(target=send, daemon=True).start()
 
 
 	def delete_window(self):
@@ -7744,6 +9047,34 @@ class GameOverlayUI(tk.Toplevel):
 			self.game_monitor_ui.grab_set()
 		except Exception as e:
 			show_error(e, no_ui=True)
+
+
+	def show_message(self, text, duration=8000):
+		"""Shows a message (eg. a chat message) above the overlay for a few seconds. Click it to open the game monitor."""
+
+		try:
+
+			if sc4mp_ui.focus_get() is self.game_monitor_ui:
+				return	# the player can already see it
+
+			popup = tk.Toplevel(self)
+			popup.overrideredirect(True)
+			popup.wm_attributes("-topmost", True)
+
+			label = tk.Label(popup, text=tk_safe(text), bg="black", fg="white", wraplength=400, justify="left", padx=8, pady=4, cursor="hand2")
+			label.pack()
+			label.bind("<Button-1>", self.click)
+
+			popup.update_idletasks()
+			width = popup.winfo_reqwidth()
+			height = popup.winfo_reqheight()
+			popup.geometry(f"{width}x{height}+{self.winfo_screenwidth() - width}+{self.winfo_screenheight() - 20 - height}")
+
+			popup.after(duration, popup.destroy)
+
+		except Exception as e:
+
+			show_error(f"Cannot show the message in the game overlay.\n\n{e}", no_ui=True)
 
 
 class RegionsRefresherUI(tk.Toplevel):
@@ -8087,7 +9418,12 @@ class Logger:
 
 		# Print
 		if self.terminal is not None:
-			self.terminal.write(output)
+			try:
+				self.terminal.write(output)
+			except UnicodeEncodeError:
+				# The console can't show some characters (eg. emoji in a chat message on a cp1252 console)
+				encoding = getattr(self.terminal, "encoding", None) or "ascii"
+				self.terminal.write(output.encode(encoding, errors="replace").decode(encoding))
 		with open(self.log, "a", encoding="utf-8") as log:
 			log.write(output)
 			log.close()
