@@ -932,15 +932,20 @@ def random_string(length):
 
 
 def purge_directory(directory: Path, recursive=True) -> None:
-	"""Deletes all files and subdirectories of a directory"""
+	"""Deletes all files and subdirectories of a directory. Files something else deletes meanwhile (eg. a loader that was cancelled but is still finishing) are skipped."""
+
+	def ignore_missing(function, path, exc_info):
+		if not issubclass(exc_info[0], FileNotFoundError):
+			raise exc_info[1]
+
 	for path in directory.iterdir():
 		for attempt in range(5):	# retry, since another process (e.g. OneDrive or antivirus) may only be using the file briefly
 			try:
 				if path.is_file():
-					path.unlink()
+					path.unlink(missing_ok=True)
 				elif path.is_dir():
 					if recursive:
-						shutil.rmtree(path)
+						shutil.rmtree(path, onerror=ignore_missing)
 				break
 			except PermissionError as e:
 				if attempt == 4:
@@ -2605,6 +2610,9 @@ class ServerLoader(th.Thread):
 		self.ui = ui
 		self.server: Server = server
 
+		self.cancelled = False	# the player closed the loading window
+		self.loaded = False	# done loading and launching the game, which closing the window no longer stops
+
 		self.setDaemon(True)
 
 		if sc4mp_ui != None:
@@ -2693,6 +2701,7 @@ class ServerLoader(th.Thread):
 					self.prep_config()
 
 				self.report("", "Launching SC4...")
+				self.loaded = True
 
 				loading_end = time.time()
 
@@ -2764,7 +2773,16 @@ class ServerLoader(th.Thread):
 			show_error(f"An unexpected error occurred in the server loader thread.\n\n{e}")
 
 
+	def check_cancelled(self):
+		"""Stops loading if the player closed the loading window."""
+
+		if self.cancelled:
+			raise ClientException("Connection cancelled.")
+
+
 	def report(self, prefix, text):
+
+		self.check_cancelled()
 		
 		if self.ui != None:
 			self.ui.label['text'] = text
@@ -2778,6 +2796,8 @@ class ServerLoader(th.Thread):
 
 
 	def report_progress(self, text, value, maximum):
+
+		self.check_cancelled()
 		
 		if self.ui != None:
 			self.ui.label['text'] = text
@@ -3018,6 +3038,8 @@ class ServerLoader(th.Thread):
 				ft = []
 				for entry in file_table:
 
+					self.check_cancelled()
+
 					# Get necessary values from entry
 					checksum = sanitize_directory_name(entry[0])
 					filesize = entry[1]
@@ -3103,6 +3125,8 @@ class ServerLoader(th.Thread):
 				# Receive files
 				for entry in file_table:
 
+					self.check_cancelled()
+
 					# Get necessary values from entry
 					checksum = sanitize_directory_name(entry[0])
 					filesize = entry[1]
@@ -3142,6 +3166,7 @@ class ServerLoader(th.Thread):
 					filesize_read = 0
 					with d.open("wb") as dest, t.open("wb") as cache:
 						while filesize_read < filesize:
+							self.check_cancelled()
 							filesize_remaining = filesize - filesize_read
 							buffersize = SC4MP_BUFFER_SIZE if filesize_remaining > SC4MP_BUFFER_SIZE else filesize_remaining
 							bytes_read = s.recv(buffersize)
@@ -6069,7 +6094,8 @@ class ServerLoaderUI(tk.Toplevel):
 		self.grab_set()
 
 		# Key bindings
-		self.bind("<Escape>", lambda event:self.destroy())
+		self.bind("<Escape>", lambda event:self.cancel())
+		self.protocol("WM_DELETE_WINDOW", self.cancel)
 
 		# Label
 		self.label = ttk.Label(self)
@@ -6100,6 +6126,16 @@ class ServerLoaderUI(tk.Toplevel):
 		# Worker
 		self.worker = ServerLoader(self, server)
 		self.worker.start()
+
+
+	def cancel(self):
+		"""Closes the window and stops loading at the loader's next step. The main window only comes back once the loader has
+		stopped, so a new one can't start while it's still changing the files."""
+
+		if not self.worker.loaded:
+			self.worker.cancelled = True
+
+		self.destroy()
 
 	
 	def destroy(self):
