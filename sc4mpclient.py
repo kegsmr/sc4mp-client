@@ -1020,15 +1020,20 @@ def random_string(length):
 
 
 def purge_directory(directory: Path, recursive=True) -> None:
-	"""Deletes all files and subdirectories of a directory"""
+	"""Deletes all files and subdirectories of a directory. Files something else deletes meanwhile (eg. a loader that was cancelled but is still finishing) are skipped."""
+
+	def ignore_missing(function, path, exc_info):
+		if not issubclass(exc_info[0], FileNotFoundError):
+			raise exc_info[1]
+
 	for path in directory.iterdir():
 		for attempt in range(5):	# retry, since another process (e.g. OneDrive or antivirus) may only be using the file briefly
 			try:
 				if path.is_file():
-					path.unlink()
+					path.unlink(missing_ok=True)
 				elif path.is_dir():
 					if recursive:
-						shutil.rmtree(path)
+						shutil.rmtree(path, onerror=ignore_missing)
 				break
 			except PermissionError as e:
 				if attempt == 4:
