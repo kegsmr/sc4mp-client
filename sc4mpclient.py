@@ -3370,8 +3370,12 @@ class GameMonitor(th.Thread):
 			else:
 				self.ui = GameMonitorUI(self)
 
+			# The SC4MP DLL shows the chat and the save status in game instead of the game monitor and its overlay
+			if sc4mp_config["GENERAL"]["use_sc4mp_dll"]:
+				self.ui.withdraw()
+
 			# Create game overlay window if the game overlay is enabled (`1` is fullscreen-mode only; `2` is always enabled)
-			if (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
+			elif (sc4mp_config["GENERAL"]["use_game_overlay"] == 1 and sc4mp_config["SC4"]["fullscreen"]) or sc4mp_config["GENERAL"]["use_game_overlay"] == 2:
 				self.overlay_ui = GameOverlayUI(self.ui, guest=self.guest)
 				if sc4mp_game_monitor_x > 0:
 					self.ui.withdraw()
@@ -5220,17 +5224,19 @@ class GeneralSettingsUI(tk.Toplevel):
 		self.ui_frame = tk.LabelFrame(self, text="UI")
 		self.ui_frame.grid(row=1, column=0, columnspan=1, padx=10, pady=0, sticky="nw")
 
+		# Use the SC4MP DLL's chat in game, or the game monitor
+		self.ui_frame.dll_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_sc4mp_dll"])
+		self.ui_frame.dll_checkbutton = ttk.Checkbutton(self.ui_frame, text="Use in-game chat", onvalue=True, offvalue=False, variable=self.ui_frame.dll_variable, command=self.update_overlay_checkbutton)
+		self.ui_frame.dll_checkbutton.grid(row=0, column=0, columnspan=1, padx=(10,65), pady=(10,5), sticky="w")
+		self.config_update.append((self.ui_frame.dll_variable, "use_sc4mp_dll"))
+
 		# Use game overlay
 		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_game_overlay"])
 		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use game overlay", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
-		self.ui_frame.checkbutton.grid(row=0, column=0, columnspan=1, padx=(10,65), pady=(10,5), sticky="w")
+		self.ui_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=(30,10), pady=(5,5), sticky="w")
 		self.config_update.append((self.ui_frame.checkbutton_variable, "use_game_overlay"))
-
-		# Use the SC4MP DLL
-		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_sc4mp_dll"])
-		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use in-game chat", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
-		self.ui_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
-		self.config_update.append((self.ui_frame.checkbutton_variable, "use_sc4mp_dll"))
+		self.ui_frame.overlay_checkbutton = self.ui_frame.checkbutton
+		self.update_overlay_checkbutton()
 
 		# Use launcher map
 		#self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_launcher_map"])
@@ -5334,6 +5340,15 @@ class GeneralSettingsUI(tk.Toplevel):
 			data = item[0].get()
 			key = item[1]
 			update_config_value("GENERAL", key, data)
+
+
+	def update_overlay_checkbutton(self):
+		"""The game overlay belongs to the game monitor, so it's only an option when the in-game chat isn't used."""
+
+		if self.ui_frame.dll_variable.get():
+			self.ui_frame.overlay_checkbutton["state"] = tk.DISABLED
+		else:
+			self.ui_frame.overlay_checkbutton["state"] = tk.NORMAL
 
 
 	def ok(self):
