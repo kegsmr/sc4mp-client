@@ -4389,7 +4389,7 @@ class GameMonitor(th.Thread):
 		"""Returns the title and text of the dialog the game shows for a failure reported as `text`, saying what happened to the player's city. Every push first copies the cities to the `_Salvage` folder, which is only cleared when the server takes them."""
 
 		if text == "Save push failed! Server unreachable.":
-			return "Server unreachable", "Your city couldn't be sent, since the server can't be reached.\nIt's still saved on your computer, so save again once the server is back."
+			return "Server unreachable", "Your city failed to save because the server is currently unreachable.\n\nNo progress has been lost. You can continue playing normally. Try saving again once you reconnect to the server.\n\nIf you need to leave the server, you can also salvage your save when you rejoin by importing the city."
 		if text == "Save push failed! Unexpected client-side error.":
 			return "Save failed", "Something went wrong sending your city to the server.\nIt's still saved on your computer, so save again to retry."
 		if text == "Save push failed! Too many regions.":
