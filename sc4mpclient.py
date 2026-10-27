@@ -1444,6 +1444,7 @@ class Server:
 		self.user_id = None
 		self.guest = None
 		self.chat_enabled = False
+		self.guest_chat = False
 
 		self.categories = ["All"]
 		if self.host == SC4MP_SERVERS_DOMAIN:
@@ -1484,6 +1485,7 @@ class Server:
 		self.private = server_info["private"] #self.request("private") == "y"
 		self.user_plugins_enabled = server_info["user_plugins_enabled"] #self.request("user_plugins_enabled") == "y"
 		self.chat_enabled = server_info.get("chat_enabled", False)	# servers without chat don't send it
+		self.guest_chat = server_info.get("guest_chat", False)	# whether guests can chat, which older servers don't send
 		try:
 			self.claim_duration = server_info["claim_duration"]
 			self.max_region_claims = server_info["max_region_claims"]
@@ -3324,6 +3326,11 @@ class GameMonitor(th.Thread):
 		# Guests join with an empty password (`server.guest` is only set by the password dialog)
 		self.guest = bool(self.server.guest) or self.server.password == ""
 
+		# Guests get a user ID for the session on servers that let them chat, so the server can tell them apart and their own messages show as theirs
+		self.guest_chat = self.guest and self.server.chat_enabled and self.server.guest_chat
+		if self.guest_chat and self.server.user_id is None:
+			self.server.user_id = random_string(32)
+
 		# Cached md5's of savegames, by path, with the size and modification time they were computed for
 		self.city_hashcode_cache = {}
 
@@ -3403,7 +3410,7 @@ class GameMonitor(th.Thread):
 
 		# Start the event listener (listens for events on the server, eg. saves and chat messages)
 		self.event_listener = EventListener(self.server)
-		if not self.guest:
+		if not self.guest or self.guest_chat:
 			self.event_listener.start()
 
 		# Thread shutsdown when this is set to `True`
@@ -3753,7 +3760,8 @@ class GameMonitor(th.Thread):
 		while self.event_listener.pop('subscribed'):
 			self.resync = True
 
-		if not sc4mp_config["GENERAL"]["auto_refresh"]:
+		# Guests' own cities aren't pushed, so downloads could overwrite them
+		if self.guest or not sc4mp_config["GENERAL"]["auto_refresh"]:
 			self.pending_downloads.clear()
 			self.resync = False
 			return
@@ -8470,10 +8478,10 @@ class GameMonitorUI(tk.Toplevel):
 		self.chat_batch = None	# the lines gathered by `chat_batch_start`
 		self.chat_lock = th.Lock()
 
-		# Guests can't chat, and neither can players on servers with chat turned off
-		if self.parent.guest or not getattr(self.parent.server, "chat_enabled", False):
+		# Guests can't chat on servers that don't let them, and neither can players on servers with chat turned off
+		if (self.parent.guest and not self.parent.guest_chat) or not getattr(self.parent.server, "chat_enabled", False):
 			self.chat_placeholder(False)	# remove "Message other mayors" so the reason below is shown instead
-			if self.parent.guest:
+			if self.parent.guest and not self.parent.guest_chat:
 				self.chat_placeholder_text = "Guests can't chat"
 			else:
 				self.chat_placeholder_text = "Chat is turned off on this server"
