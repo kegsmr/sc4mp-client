@@ -3782,8 +3782,9 @@ class GameMonitor(th.Thread):
 						if len(filtered_savegames) == 1:
 							save_city_paths = [savegame.filename for savegame in filtered_savegames]
 							break
-						# If none of them borders all the others, SC4 has only written the neighbours so far, so wait for the saved city
-						incomplete = not filtered_savegames
+						# If none of them borders all the others, SC4 has only written the neighbours so far, so wait for the saved city.
+						# Not if the SC4MP DLL says the game is done saving: then they're neighbours it rewrote after the save
+						incomplete = not filtered_savegames and not (self.bridge.connected() and not self.bridge.saving)
 					except Exception as e:
 						show_error(e, no_ui=True)
 					finally:
