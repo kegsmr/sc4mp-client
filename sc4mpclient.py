@@ -5498,7 +5498,7 @@ class GeneralSettingsUI(tk.Toplevel):
 		# Use game overlay
 		self.ui_frame.checkbutton_variable = tk.BooleanVar(value=sc4mp_config["GENERAL"]["use_game_overlay"])
 		self.ui_frame.checkbutton = ttk.Checkbutton(self.ui_frame, text="Use legacy game overlay", onvalue=True, offvalue=False, variable=self.ui_frame.checkbutton_variable)
-		self.ui_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=(30,10), pady=(5,5), sticky="w")
+		self.ui_frame.checkbutton.grid(row=1, column=0, columnspan=1, padx=10, pady=(5,5), sticky="w")
 		self.config_update.append((self.ui_frame.checkbutton_variable, "use_game_overlay"))
 		self.ui_frame.overlay_checkbutton = self.ui_frame.checkbutton
 		self.update_overlay_checkbutton()
