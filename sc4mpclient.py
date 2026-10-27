@@ -3886,7 +3886,8 @@ class GameMonitor(th.Thread):
 				return
 			self.chat_messages.add(key)
 			self.chat_motd_last = False
-			print(line)
+			if not event.get('history'):
+				print(line)	# not the recent ones sent when joining, which would fill the log
 			if isinstance(self.ui, GameMonitorUI):
 				self.ui.add_chat_info(line)
 			if self.overlay_ui is not None and not event.get('history'):
@@ -3909,7 +3910,9 @@ class GameMonitor(th.Thread):
 		self.chat_messages.add(key)
 		self.chat_motd_last = False
 
-		print(f"[CHAT] {name}: {message}")
+		# Not the recent messages sent when joining, which would fill the log
+		if not event.get('history'):
+			print(f"[CHAT] {name}: {message}")
 
 		if isinstance(self.ui, GameMonitorUI):
 			self.ui.add_chat_message(name, message, timestamp, user_id, text(event.get('city')) or None)
