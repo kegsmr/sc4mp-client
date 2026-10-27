@@ -24,7 +24,7 @@ elif target == "feature":
 	name = f"Preview {version}"
 	body = "\n\n".join([
 		"This is a pre-release introducing new features from the next update, but also likely many bugs.",
-		"If you encounter any issues, please report them on GitHub or in the SC4MP Discord.",
+		"If you encounter any issues, please report them on GitHub, in the SC4MP Discord or by emailing help@sc4mp.org.",
 		"Thank you for playing on the SC4MP network, and stay tuned for further updates!",
 	])
 	prerelease = True
