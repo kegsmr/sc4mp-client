@@ -1847,6 +1847,14 @@ class ServerList(th.Thread):
 			for delete_server_id in delete_server_ids:
 				sc4mp_servers_database.pop(delete_server_id)
 
+			# Fetch the servers the player joined first, the most recent first (servers joined before this was recorded come after)
+			joined_servers = []
+			for server_entry in list(sc4mp_servers_database.values()):
+				if "last_connected" in server_entry or server_entry.get("user_id", None) != None:
+					joined_servers.append((server_entry.get("last_connected", ""), (server_entry["host"], server_entry["port"])))
+			joined_servers.sort(reverse=True)
+			self.unfetched_servers = [server for last_connected, server in joined_servers] + self.unfetched_servers
+
 			if self.kill != None:
 				self.kill.end = True
 				while not self.kill.ended:
@@ -2683,6 +2691,10 @@ class ServerLoader(th.Thread):
 				sc4mp_config.update()
 
 				self.server.categories.append("History")
+
+				# Remember when the player joined, so the server browser fetches this server first
+				if self.server.server_id in sc4mp_servers_database:
+					sc4mp_servers_database[self.server.server_id]["last_connected"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 				game_monitor = GameMonitor(self.server)
 				game_monitor.start()
