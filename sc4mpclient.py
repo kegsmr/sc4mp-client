@@ -3313,6 +3313,7 @@ class GameMonitor(th.Thread):
 	SAVE_TIMEOUT = 60			# seconds to wait for SC4 to finish writing a save before pushing what it wrote
 	NEIGHBOR_REWRITE_TIME = 60	# seconds after a push in which SC4 may still be rewriting the neighbours of the city that was saved
 	DATE_SUBFILE = "2990c1e5"	# the savegame subfile with the simulation date, which only changes in the city the player saved
+	SAVED_CITY_WAIT = 3			# seconds without SC4 writing a savegame after which it's taken to be done saving, when it has only written neighbours
 
 
 	def __init__(self, server):
@@ -3566,6 +3567,12 @@ class GameMonitor(th.Thread):
 	def get_saved_cities(self, previous_cities: dict[Path, str], check_time: float, save_city_paths: list[Path]) -> list[Path]:
 		"""Returns the modified savegames the player saved: new ones, and the ones whose simulation date changed. The neighbours SC4 rewrites keep their date, and pushing one would claim it. When it can't tell, `save_city_paths` (the savegames picked by `get_modified_cities`) are returned as before."""
 
+		read_dates = {}	# the date of each version of a savegame, by path and md5, so each is only read once
+		previous_dates = {}
+		wait_start = time.time()
+		last_change_time = wait_start
+		cities = self.cities
+
 		while True:
 
 			modified_paths = [path for path, hashcode in self.cities.items() if previous_cities.get(path) != hashcode]
@@ -3574,19 +3581,20 @@ class GameMonitor(th.Thread):
 			unknown_paths = []
 			dates = {}
 			for path in modified_paths:
-				try:
-					with SC4Savegame(path, error_callback=None) as savegame:
-						dates[path] = savegame.decompress_subfile(self.DATE_SUBFILE).getvalue()
-				except Exception as e:
-					show_error(e, no_ui=True)
+				key = (path, self.cities[path])
+				if key not in read_dates:
+					read_dates[key] = self.get_date(path)
+				if read_dates[key] is None:
 					unknown_paths.append(path)
 					continue
-				previous_date = self.get_previous_date(path, previous_cities.get(path))
+				dates[path] = read_dates[key]
+				if path not in previous_dates:
+					previous_dates[path] = self.get_previous_date(path, previous_cities.get(path))
 				if path not in previous_cities:
 					saved_paths.append(path)
-				elif previous_date is None:
+				elif previous_dates[path] is None:
 					unknown_paths.append(path)
-				elif previous_date != dates[path]:
+				elif previous_dates[path] != dates[path]:
 					saved_paths.append(path)
 				else:
 					unchanged_paths.append(path)
@@ -3604,16 +3612,30 @@ class GameMonitor(th.Thread):
 				print(f"Not pushing {', '.join(path.name for path in unchanged_paths)}, rewritten by SC4 as neighbours of the city saved last.")
 				return []
 
-			# SC4 may write the neighbours before the saved city, so wait for it
-			if unknown_paths or time.time() - check_time >= self.SAVE_TIMEOUT:
+			# SC4 may write the neighbours before the saved city, so wait while it's still writing savegames
+			if unknown_paths or time.time() - last_change_time >= self.SAVED_CITY_WAIT or time.time() - wait_start >= self.SAVE_TIMEOUT:
 				break
 			time.sleep(1)
-			self.get_modified_cities()
+			self.cities = self.get_cities()
+			if self.cities != cities:
+				cities = self.cities
+				last_change_time = time.time()
 
 		# The game was saved while paused, or the savegames' previous dates aren't known, so the saved city can't be told apart
 		self.city_dates.update(dates)
 		print(f"Couldn't tell the saved city from its neighbours by their dates, so pushing {', '.join(path.name for path in save_city_paths)} as before.")
 		return save_city_paths
+
+
+	def get_date(self, path: Path) -> Optional[bytes]:
+		"""Returns a savegame's simulation date subfile, or `None` if it can't be read."""
+
+		try:
+			with SC4Savegame(path, error_callback=None) as savegame:
+				return savegame.decompress_subfile(self.DATE_SUBFILE).getvalue()
+		except Exception as e:
+			show_error(e, no_ui=True)
+			return None
 
 
 	def get_previous_date(self, path: Path, previous_hashcode: Optional[str]) -> Optional[bytes]:
@@ -3929,7 +3951,8 @@ class GameMonitor(th.Thread):
 				return
 			self.chat_messages.add(key)
 			self.chat_motd_last = False
-			print(line)
+			if not event.get('history'):
+				print(line)	# not the recent ones sent when joining, which would fill the log
 			if isinstance(self.ui, GameMonitorUI):
 				self.ui.add_chat_info(line)
 			if self.overlay_ui is not None and not event.get('history'):
@@ -3953,7 +3976,9 @@ class GameMonitor(th.Thread):
 		self.chat_messages.add(key)
 		self.chat_motd_last = False
 
-		print(f"[CHAT] {name}: {message}")
+		# Not the recent messages sent when joining, which would fill the log
+		if not event.get('history'):
+			print(f"[CHAT] {name}: {message}")
 
 		if isinstance(self.ui, GameMonitorUI):
 			self.ui.add_chat_message(name, message, timestamp, user_id, text(event.get('city')) or None)
