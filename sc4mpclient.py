@@ -3345,6 +3345,7 @@ class GameMonitor(th.Thread):
 		self.city_dates: dict[Path, bytes] = {}
 		self.last_pushed_cities: list[Path] = []
 		self.last_push_time = None
+		self.pushed_saved_path = None	# the savegame the SC4MP DLL last said the game saved, once it's been pushed
 
 		# Cities saved by other mayors that still need to be downloaded (`save` events), and whether to compare all savegames with the server's
 		self.pending_downloads: list[dict] = []
@@ -3587,6 +3588,25 @@ class GameMonitor(th.Thread):
 		while True:
 
 			modified_paths = [path for path, hashcode in self.cities.items() if previous_cities.get(path) != hashcode]
+
+			# The SC4MP DLL says which savegame the game saved, so only that one is pushed, never the neighbours it rewrote
+			saved_path = self.bridge.saved_path
+			if self.bridge.connected() and not self.bridge.saving and saved_path:
+				saved_parts = [part for part in saved_path.replace("/", "\\").lower().split("\\") if part]
+				matches = [path for path in modified_paths if [path.parent.name.lower(), path.name.lower()] == saved_parts[-2:]]
+				if matches:
+					for path in matches:
+						date = self.get_date(path)
+						if date is not None:
+							self.city_dates[path] = date
+					self.pushed_saved_path = saved_path
+					self.last_pushed_cities = matches
+					self.last_push_time = time.time()
+					return matches
+				if saved_path == self.pushed_saved_path:
+					print(f"Not pushing {', '.join(path.name for path in modified_paths)}, rewritten by SC4 as neighbours of the city saved last.")
+					return []
+
 			saved_paths = []
 			unchanged_paths = []
 			unknown_paths = []
@@ -4648,6 +4668,9 @@ class GameBridge(th.Thread):
 		# Whether the game is writing a save right now (between `pre_save` and `saved`)
 		self.saving = False
 
+		# The savegame the game last saved, if the DLL says (older DLLs don't)
+		self.saved_path = None
+
 		# The city open in game, or `None` in the region view
 		self.city = None
 
@@ -4764,10 +4787,12 @@ class GameBridge(th.Thread):
 
 		elif message_type == 'pre_save':
 			print(f'- the game is saving "{name}"')
+			self.saved_path = None
 			self.saving = True
 
 		elif message_type == 'saved':
-			print(f'- the game saved "{name}"')
+			self.saved_path = text('path') or None
+			print(f'- the game saved "{name}" ({self.saved_path})')
 			self.saving = False
 			self.saved.set()
 
