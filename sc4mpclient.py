@@ -8385,7 +8385,7 @@ class GameMonitorUI(tk.Toplevel):
 		self.iconphoto(False, tk.PhotoImage(file=SC4MP_ICON))
 
 		# Geometry
-		self.geometry(f"460x560+{sc4mp_game_monitor_x}+{sc4mp_game_monitor_y}")
+		self.geometry(f"420x280+{sc4mp_game_monitor_x}+{sc4mp_game_monitor_y}")
 		self.minsize(420, 280)
 		self.columnconfigure(0, weight=1)
 		self.rowconfigure(1, weight=1)
