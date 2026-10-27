@@ -3428,6 +3428,7 @@ class GameMonitor(th.Thread):
 	
 
 	SAVE_TIMEOUT = 60			# seconds to wait for SC4 to write the saved city when it writes the neighbours first
+	SAVED_CITY_WAIT = 3			# seconds without SC4 writing a savegame after which it's taken to be done saving, when it has only written neighbours
 	NEIGHBOR_REWRITE_TIME = 60	# seconds after a push in which SC4 may still be rewriting the neighbours of the city that was saved
 	DATE_SUBFILE = "2990c1e5"	# the savegame subfile with the simulation date, which only changes in the city the player saved
 
@@ -3822,6 +3823,12 @@ class GameMonitor(th.Thread):
 	def get_saved_cities(self, previous_cities, check_time, save_city_paths):
 		"""Returns the modified savegames the player saved: new ones, and the ones whose simulation date changed. The neighbours SC4 rewrites keep their date, and pushing one would claim it. When it can't tell, `save_city_paths` (the savegames found by the save loop) are returned as before."""
 
+		read_dates = {}	# the date of each version of a savegame, by path and md5, so each is only read once
+		previous_dates = {}
+		wait_start = time.time()
+		last_change_time = wait_start
+		cities = list(zip(self.city_paths, self.city_hashcodes))
+
 		while True:
 
 			modified_paths = [path for path, hashcode in zip(self.city_paths, self.city_hashcodes) if previous_cities.get(path) != hashcode]
@@ -3829,18 +3836,23 @@ class GameMonitor(th.Thread):
 			unchanged_paths = []
 			unknown_paths = []
 			dates = {}
-			for path in modified_paths:
-				date = self.get_date(path)
-				if date is None:
+			for path, hashcode in zip(self.city_paths, self.city_hashcodes):
+				if path not in modified_paths:
+					continue
+				key = (path, hashcode)
+				if key not in read_dates:
+					read_dates[key] = self.get_date(path)
+				if read_dates[key] is None:
 					unknown_paths.append(path)
 					continue
-				dates[path] = date
-				previous_date = self.get_previous_date(path, previous_cities.get(path))
+				dates[path] = read_dates[key]
+				if path not in previous_dates:
+					previous_dates[path] = self.get_previous_date(path, previous_cities.get(path))
 				if path not in previous_cities:
 					saved_paths.append(path)
-				elif previous_date is None:
+				elif previous_dates[path] is None:
 					unknown_paths.append(path)
-				elif previous_date != date:
+				elif previous_dates[path] != dates[path]:
 					saved_paths.append(path)
 				else:
 					unchanged_paths.append(path)
@@ -3858,11 +3870,14 @@ class GameMonitor(th.Thread):
 				print(f"Not pushing {', '.join(path.name for path in unchanged_paths)}, rewritten by SC4 as neighbours of the city saved last.")
 				return []
 
-			# SC4 may write the neighbours before the saved city, so wait for it
-			if unknown_paths or time.time() - check_time >= self.SAVE_TIMEOUT:
+			# SC4 may write the neighbours before the saved city, so wait while it's still writing savegames
+			if unknown_paths or time.time() - last_change_time >= self.SAVED_CITY_WAIT or time.time() - wait_start >= self.SAVE_TIMEOUT:
 				break
 			time.sleep(1)
 			self.city_paths, self.city_hashcodes = self.get_cities()
+			if list(zip(self.city_paths, self.city_hashcodes)) != cities:
+				cities = list(zip(self.city_paths, self.city_hashcodes))
+				last_change_time = time.time()
 
 		# The game was saved while paused, or the savegames' previous dates aren't known, so the saved city can't be told apart
 		self.city_dates.update(dates)
