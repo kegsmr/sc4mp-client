@@ -4068,15 +4068,14 @@ class GameMonitor(th.Thread):
 		for region in self.server.regions:
 			region_name = PureWindowsPath(str(region)).name
 			database = self.get_region_database(region_name) or {}
-			for city_path in (Path(SC4MP_LAUNCHPATH) / "Regions" / region_name).glob('*.sc4'):
-				try:
-					with SC4Savegame(city_path, error_callback=None) as savegame:
-						SC4ReadRegionalCity = savegame.get_SC4ReadRegionalCity()
-				except Exception:
-					continue	# eg. the game is saving it
-				owner = self.get_tile_owner(database.get(f'{SC4ReadRegionalCity["tileXLocation"]}_{SC4ReadRegionalCity["tileYLocation"]}'), now)
+			# The database has each tile's savegame and city name, so the savegames aren't parsed (which would keep the game from saving them meanwhile)
+			for entry in database.values():
+				if not entry or not entry.get("filename"):
+					continue
+				owner = self.get_tile_owner(entry, now)
 				if owner is not None:
-					claims.append({'path': str(city_path), 'owner': owner, 'city': SC4ReadRegionalCity.get("cityName") or city_path.stem})
+					city_path = Path(SC4MP_LAUNCHPATH) / "Regions" / region_name / PureWindowsPath(entry["filename"]).name
+					claims.append({'path': str(city_path), 'owner': owner, 'city': entry.get("city_name") or city_path.stem})
 		return claims
 
 
@@ -4770,7 +4769,7 @@ class GameBridge(th.Thread):
 
 
 	def push_claims(self) -> None:
-		"""Sends the DLL the cities that belong to other mayors (see `GameMonitor.get_claims`), so it warns the moment one opens, before the game asks to reconcile the edges. A `claims_reset` is followed by one `claim` per city, since the DLL reads only flat JSON objects. In the background, since it reads the savegames and asks the server. `guard` still checks each city as it opens, for claims made since."""
+		"""Sends the DLL the cities that belong to other mayors (see `GameMonitor.get_claims`), so it warns the moment one opens, before the game asks to reconcile the edges. A `claims_reset` is followed by one `claim` per city, since the DLL reads only flat JSON objects. In the background, since it asks the server. `guard` still checks each city as it opens, for claims made since."""
 
 		# Pushes asked for close together (eg. when the DLL connects and then loads a region) are done once
 		with self._claims_pending_lock:
