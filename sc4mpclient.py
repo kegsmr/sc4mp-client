@@ -4041,6 +4041,12 @@ class GameMonitor(th.Thread):
 
 		The rules are the server's, which rejects such saves with "City already claimed." The region's database is downloaded again, so claims made since the player joined count."""
 
+		return self.get_tile_owner(self.get_city_entry(path))
+
+
+	def get_city_entry(self, path: str) -> dict | None:
+		"""Returns the entry in the region's database (downloaded again) of the tile of the city saved at `path`, or `None` if it has none or isn't in the server's regions."""
+
 		# SC4 reports a Windows path (also through Wine), which `PureWindowsPath` splits on either slash
 		region = PureWindowsPath(path).parent.name
 		if region not in [region_path.name for region_path in self.server.regions]:
@@ -4050,7 +4056,7 @@ class GameMonitor(th.Thread):
 			SC4ReadRegionalCity = savegame.get_SC4ReadRegionalCity()
 		coords = f'{SC4ReadRegionalCity["tileXLocation"]}_{SC4ReadRegionalCity["tileYLocation"]}'
 
-		return self.get_tile_owner(self.get_region_database(region).get(coords))
+		return self.get_region_database(region).get(coords)
 
 
 	def get_tile_owner(self, entry: dict | None, now: datetime | None = None) -> str | None:
@@ -4072,6 +4078,45 @@ class GameMonitor(th.Thread):
 				return None
 
 		return entry.get("mayor_name") or "another mayor"
+
+
+	def is_takeover(self, entry: dict | None) -> bool:
+		"""Whether the player is taking over a tile (its `entry` in the region's database) that `get_tile_owner` says they can save: one founded before by another mayor, whose claim expired or who never claimed it, so the city still has their mayor name."""
+
+		if self.guest:
+			return False	# guests' saves aren't kept
+
+		# Empty tiles get the player's name when they found the city
+		if not entry or not entry.get("mayor_name"):
+			return False
+
+		return not self.is_own(entry.get("owner"))
+
+
+	def get_mayor_name(self) -> str | None:
+		"""Returns the player's mayor name: the one of their most recently saved city on this server, which the server also calls them by in chat, or else the one SC4 puts in new cities. `None` if there's neither.
+
+		The server's `mayor_name` is the one in the savegame, so a city saved by the player has the name they use. The regions' databases are the copies from the last time the regions were refreshed, since the server blocks clients that connect too often."""
+
+		mayor_name = None
+		modified = ""
+		for region in self.server.regions:
+			database = load_json(Path(SC4MP_LAUNCHPATH) / "Regions" / PureWindowsPath(str(region)).name / "_Database" / "region.json")
+			for entry in database.values():
+				if not entry or not entry.get("mayor_name") or not self.is_own(entry.get("owner")):
+					continue
+				if (entry.get("modified") or "") >= modified:
+					mayor_name = entry["mayor_name"]
+					modified = entry.get("modified") or ""
+		if mayor_name:
+			return mayor_name
+
+		# The name typed when founding a city, which SC4 keeps for the next one (and copies from singleplayer with `sync_simcity_4_cfg`)
+		try:
+			with SC4Config(get_sc4_cfg_path(), error_callback=None) as config:
+				return config.get_simcity_4_cfg()["LastMayorName"] or None
+		except Exception:
+			return None
 
 
 	def is_own(self, user_id: str | None) -> bool:
@@ -4556,7 +4601,7 @@ class EventListener(th.Thread):
 class GameBridge(th.Thread):
 	"""Talks to the SC4MP DLL (`sc4mp.dll`) running inside SimCity 4.
 
-	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat, with the player's `name`, its `color` as [red, green, blue] and `self` on the player's own, and save results, shown in the chat panel in their `color` if they have one), `alert` (shown in a dialog, with a `title` and `body`, and put in chat, in its `color` if it has one), `status` (the save status, shown in the chat panel's title bar), `progress` (how far a save push is, shown as the chat panel's last line until it's cleared), `server` (the server's name, the chat panel's title), `guard` (the open city belongs to another mayor, shown as a warning with a button to go back to the region) and `claims_reset` and `claim` (every city that belongs to another mayor, with its savegame's `path`, its `owner` and `city`, so the warning shows the moment one opens).
+	The DLL connects to the port passed in the `SC4MP_BRIDGE_PORT` environment variable, and both sides send JSON objects, one per line, each with a `type`. The DLL reports what happens in game (eg. `saved`) and sends chat messages typed in its chat panel or with the `say` cheat code, and the launcher sends back `notify` (chat, with the player's `name`, its `color` as [red, green, blue] and `self` on the player's own, and save results, shown in the chat panel in their `color` if they have one), `alert` (shown in a dialog, with a `title` and `body`, and put in chat, in its `color` if it has one), `status` (the save status, shown in the chat panel's title bar), `progress` (how far a save push is, shown as the chat panel's last line until it's cleared), `server` (the server's name, the chat panel's title), `guard` (the open city belongs to another mayor, shown as a warning with a button to go back to the region), `claims_reset` and `claim` (every city that belongs to another mayor, with its savegame's `path`, its `owner` and `city`, so the warning shows the moment one opens) and `takeover` (the player is taking over the open city, saved at `path`, which the DLL gives the player's `mayor` name).
 
 	The game starts after the player joins, so when the DLL connects it's sent the server's name, the last status and the last few lines again, with `history` set, to fill its chat panel.
 
@@ -4822,23 +4867,47 @@ class GameBridge(th.Thread):
 
 
 	def guard(self, path: str, name: str) -> None:
-		"""Warns the player in game if the city they opened (saved at `path`) belongs to another mayor, so they know before playing that their saves won't be kept. Checked in the background, since it asks the server, so the bridge keeps reading."""
+		"""Warns the player in game if the city they opened (saved at `path`) belongs to another mayor, so they know before playing that their saves won't be kept. Checked in the background, since it asks the server, so the bridge keeps reading.
+
+		If instead the player is taking the city over (see `GameMonitor.is_takeover`), the DLL is sent a `takeover` with the player's `mayor` name, which it gives the city, so the next save has it."""
 
 		if not path:
 			return	# an older DLL, which doesn't send the savegame's path
 
 		def check():
 			try:
-				owner = self.game_monitor.get_city_owner(path)
+				entry = self.game_monitor.get_city_entry(path)
+				owner = self.game_monitor.get_tile_owner(entry)
 			except Exception as e:
 				show_error(f"Unable to check who owns the city the game opened.\n\n{e}", no_ui=True)
 				return
 			if owner is None:
+				if self.game_monitor.is_takeover(entry):
+					self.take_over(path, name, entry["mayor_name"])
 				return
 			print(f'- "{name}" belongs to {owner}, warning the player')
 			self.send({'type': 'guard', 'owner': owner, 'city': name, 'path': path})	# only the warning, not a line in chat too
 
 		th.Thread(target=check, daemon=True).start()
+
+
+	def take_over(self, path: str, name: str, old_mayor_name: str) -> None:
+		"""Has the DLL give the city the player is taking over (saved at `path`) the player's mayor name instead of `old_mayor_name`."""
+
+		try:
+			mayor_name = self.game_monitor.get_mayor_name()
+		except Exception as e:
+			show_error(f"Unable to find the player's mayor name.\n\n{e}", no_ui=True)
+			return
+
+		if not mayor_name:
+			print(f'- taking over "{name}" from {old_mayor_name}, but its mayor name is kept, since the player has no city on this server and SimCity 4.cfg has no mayor name')
+			return
+		if mayor_name == old_mayor_name:
+			return	# eg. both are SC4's default, "Defacto"
+
+		print(f'- taking over "{name}" from {old_mayor_name}, setting its mayor name to {mayor_name}')
+		self.send({'type': 'takeover', 'path': path, 'mayor': mayor_name})
 
 
 	def notify(self, text: str, history: bool = False, name: Optional[str] = None, color: Optional[str] = None, own: bool = False) -> None:
