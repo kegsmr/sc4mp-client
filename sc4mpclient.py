@@ -6129,13 +6129,11 @@ class ServerLoaderUI(tk.Toplevel):
 
 
 	def cancel(self):
-		"""Closes the window and stops loading. The main window comes back right away, rather than once the loader notices,
-		which can take a while if it's waiting on the server (eg. for a regions export)."""
+		"""Closes the window and stops loading at the loader's next step. The main window only comes back once the loader has
+		stopped, so a new one can't start while it's still changing the files."""
 
 		if not self.worker.loaded:
 			self.worker.cancelled = True
-			if sc4mp_ui and not sc4mp_exit_after:
-				sc4mp_ui.deiconify()
 
 		self.destroy()
 
