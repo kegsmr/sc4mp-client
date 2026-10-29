@@ -9,6 +9,7 @@ from threading import Thread
 
 
 BUFFER_SIZE = 4096
+MAX_JSON_SIZE = 16_000_000	# bytes. File tables are the largest messages, and even big plugin folders make a few MB
 
 MESSAGE_PROTOCOL = 'SC4MP'
 
@@ -68,7 +69,10 @@ def recv_json(s: socket.socket, length_encoding="I"):
 		data_size = struct.unpack(length_encoding, length_header)[0]
 		data_size_read = 0
 
-		data = b""
+		if data_size > MAX_JSON_SIZE:
+			raise NetworkException(f"Message too large ({data_size} bytes).")
+
+		data = bytearray()	# a bytearray, since adding to bytes copies them each time
 		
 		while data_size_read < data_size:
 
