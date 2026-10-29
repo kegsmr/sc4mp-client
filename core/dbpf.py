@@ -6,6 +6,9 @@ class DBPF:
 	"""TODO include credits to original php file"""
 
 
+	MAX_DECOMPRESSED_SIZE = 4_000_000	# bytes. The subfiles read here are a few KB, so more means the file is broken or malicious
+
+
 	def __init__(self, filename, offset=0, error_callback=None, require_identifier=True):
 		"""TODO"""
 
@@ -75,7 +78,7 @@ class DBPF:
 	def decompress(self, length):
 
 		buf = ""			# TODO what does this do?
-		answer = bytes()	# TODO what does this do?
+		answer = bytearray()	# a bytearray, since appending to bytes copies them each time
 		answerlen = 0		# TODO what does this do?
 		numplain = ""		# TODO what does this do?
 		numcopy = ""		# TODO what does this do?
@@ -84,7 +87,7 @@ class DBPF:
 		try:
 
 			# Read until there's nothing left to read
-			while length > 0:
+			while length > 0 and len(answer) <= self.MAX_DECOMPRESSED_SIZE:
 				
 				# Read control char
 				cc = self.read_UL1(self.file) #TODO Line causes errors on older versions of DBPF but doesn't seem to affect anything. Always fails with 9 bytes remaining.
@@ -163,7 +166,7 @@ class DBPF:
 					
 					#TODO remove try and except block. decompression algorithm breaks with a control char of 206. the offset becomes larger than the length of the answer, causing a negative fromindex and an indexing error. for now it does not seem to affect city coordinates
 					try:
-						answer = answer + (answer[fromoffset + index]).to_bytes(1, 'little') #substr(fromoffset + index, 1)
+						answer.append(answer[fromoffset + index]) #substr(fromoffset + index, 1)
 					except Exception as e:
 						#show_error(e) #TODO
 						return io.BytesIO(answer)
@@ -174,6 +177,9 @@ class DBPF:
 		except Exception:
 
 			self.show_error(f"An error occurred while decompressing \"{self.filename}\" with {length} bytes remaining.")
+
+		if len(answer) > self.MAX_DECOMPRESSED_SIZE:
+			raise ValueError(f"\"{self.filename}\" decompresses to more than {self.MAX_DECOMPRESSED_SIZE} bytes.")
 
 		return io.BytesIO(answer)
 
