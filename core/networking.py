@@ -5,6 +5,7 @@ import time
 
 
 SC4MP_BUFFER_SIZE = 4096
+SC4MP_MAX_JSON_SIZE = 16_000_000	# bytes. File tables are the largest messages, and even big plugin folders make a few MB
 
 
 def send_json(s, data, length_encoding="I"):
@@ -34,7 +35,10 @@ def recv_json(s, length_encoding="I"):
 	data_size = struct.unpack(length_encoding, length_header)[0]
 	data_size_read = 0
 
-	data = b""
+	if data_size > SC4MP_MAX_JSON_SIZE:
+		raise ValueError(f"Message too large ({data_size} bytes).")
+
+	data = bytearray()	# a bytearray, since adding to bytes copies them each time
 	
 	while data_size_read < data_size:
 
