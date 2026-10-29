@@ -2846,7 +2846,7 @@ class ServerLoader(th.Thread):
 		
 		if self.server.password_enabled:
 			if self.server.password is None:
-				if sc4mp_config["GENERAL"]["save_server_passwords"]:
+				if sc4mp_config["GENERAL"]["save_server_passwords"] and self.server.is_saved_address():
 					try:
 						self.server.password = sc4mp_servers_database[self.server.server_id]["password"]
 					except Exception:
