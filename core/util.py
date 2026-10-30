@@ -103,7 +103,7 @@ def sanitize_directory_name(text: str) -> str:
 
 	text = text.replace("..", "")
 	
-	for character in ["/", "\\"]:
+	for character in ["/", "\\", ":"]:	# ":" too, since on Windows "D:name" is a path on drive D
 		text = text.replace(character, "")
 
 	text = text.replace("..", "")
