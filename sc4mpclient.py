@@ -1503,7 +1503,7 @@ class Server:
 		except KeyError:
 			pass
 
-		if self.server_id in sc4mp_servers_database.keys():
+		if self.server_id in sc4mp_servers_database.keys() and self.is_saved_address():
 			self.password = sc4mp_servers_database[self.server_id].get("password", None) # Needed for stat fetching private servers
 
 		if self.password_enabled:
@@ -1649,8 +1649,21 @@ class Server:
 		return (total_size, download_size)
 
 
+	def is_saved_address(self) -> bool:
+		"""Whether the server is at the address its database entry was saved for (or has no entry yet). The saved password, user ID and token are only used automatically there."""
+
+		entry = sc4mp_servers_database.get(self.server_id)
+		if not entry or "host" not in entry:
+			return True
+		return (str(entry["host"]), str(entry.get("port"))) == (str(self.host), str(self.port))
+
+
 	def update_database(self):
 		"""Updates the json entry for the server."""
+
+		# A server at another address than the one saved for its server ID is only trusted once it passes the token check when joining (see `authenticate`)
+		if not self.is_saved_address():
+			return
 
 		# Get database entry for server
 		key = self.server_id
@@ -1695,6 +1708,8 @@ class Server:
 			with self.socket() as s:
 				if s.user_id(hash) == hashlib.sha256(user_id.encode()).hexdigest()[:32]:
 					self.user_id = user_id
+				elif not self.is_saved_address():
+					raise ClientException("This server uses the ID of a server you joined at another address, but couldn't prove it's the same server, so your user ID wasn't sent to it.")
 				else:
 					if not sc4mp_config["GENERAL"]["ignore_token_errors"]:
 						if sc4mp_ui:
@@ -1718,9 +1733,10 @@ class Server:
 		# if len(token) < 1:
 		# 	raise ClientException("Authentication failed.\n\nThe reason could be any of the following:\n(1)   You are banned from this server.\n(2)   You have too many different user accounts on this server.\n(3)   There is a problem with your internet connection.")
 
-		# Set user_id and token in the database entry
+		# Set user_id and token in the database entry, and the server's address, since it proved it's the same server
 		entry["user_id"] = user_id
 		entry["token"] = token
+		set_server_data(entry, self)
 		entry.setdefault("first_logon", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 		entry["last_logon"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -2825,7 +2841,7 @@ class ServerLoader(th.Thread):
 
 		if self.server.password_enabled:
 			if self.server.password is None:
-				if sc4mp_config["GENERAL"]["save_server_passwords"]:
+				if sc4mp_config["GENERAL"]["save_server_passwords"] and self.server.is_saved_address():
 					try:
 						self.server.password = sc4mp_servers_database[self.server.server_id]["password"]
 					except Exception:
